@@ -24,6 +24,6 @@
 | POC paste | 待办 | LoadBuffer + PasteBuffer 中文 | 2026-08-29 |
 | POC locate | 待办 | pid 反查；错位 throw | 2026-08-29 |
 | POC stream | 待办 | `output_stream` 收到字节 | 2026-08-29 |
-| POC state | 待办 | 项目内 state JSON；Quiet 不当 idle | 2026-08-29 |
+| POC state | 待办 | Quiet 不当 idle；`terminal_state` / `wait_for_text` 作 hook 沉默兜底（见 clum 等待原语文） | 2026-08-29 |
 | POC init | 待办 | 临时目录落 hook/skill，不改家目录 | 2026-08-29 |
 | POC negatives | 待办 | 禁止 C-c Codex、禁止 kill-server 进主路径 | 2026-08-29 |

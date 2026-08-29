@@ -23,6 +23,8 @@
 | `connect_or_start` 报 os error 5 / 拒绝访问 | 宿主在 Job Object 里，SDK 拒绝在 job 内起独立 daemon | 专用 pipe 上用 WMI `Win32_Process.Create` 在 job 外拉起 `libexec\rmux\rmux.exe --__internal-daemon`，再 `connect()`；不 kill-server，不把 wt 当默认 | 2026-08-29 |
 | Windows `-S` 拒自定义 pipe 名 | CLI 只要 `\\.\pipe\rmux-...` 前缀 | 专用端点用 `\\.\pipe\rmux-omapoc-<pid>-<tag>`，仍非 Default 发现管道 | 2026-08-29 |
 | `session.kill()` 偶发 `daemon closed the transport` | 末会话被杀后 daemon 先关连接再回包 | 关连接视为 kill 成功；先确认 keeper 仍在，再杀目标会话。禁止因此改杀 server | 2026-08-29 |
+| hook 不报就把 Quiet 或 CPU 当 idle | Codex Stop / Claude 无 PermissionRequest 时文件或画面会骗人 | 兜底用等待原语 + `terminal_state`（ready/running/confirm/password）；Quiet 只给 Drive 同步 | 2026-08-29 |
+| 把 YouMind 对 clum 的源码分析当成已核实 | 未打开 `tddh/clum` 就把路径与注释当实证 | 浅克隆目标 commit 再标 `[实证]`；注释与现码冲突以现码为准（`wait_exit` 5s vs facade 30s） | 2026-08-29 |
 
 ## 迭代规则
 

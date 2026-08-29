@@ -76,4 +76,4 @@ win-rmux 用 `rmux set-environment` 当上报口，hook 必须命中**同一根*
 
 rmux-sdk 的 `output_stream` / `state_events` 是观察 PTY 画面和 pane 生死，读不到 hook 的 JSON，不能当 blocked 权威。`doctor` 已经在读 `.ohmyagents/state/*.json`。
 
-spawn 时注入 `OHMYAGENTS_STATE_FILE`（绝对路径）。hook 缺这个变量或项目对不上就 exit 0。设置和 CLI 参数清不掉的框：hook 先把文件写成 `blocked`，编排器看见后再 sendkeys 点；点完等 hook 写成 `working`/`idle`。
+spawn 时注入 `OHMYAGENTS_STATE_FILE`（绝对路径）。hook 缺这个变量或项目对不上就 exit 0。设置和 CLI 参数清不掉的框：优先用等待原语与 `terminal_state` 从画面判 confirm/password（见《clum等待原语作为hook兜底状态》）；hook 文件仍可作为可选加速，不是唯一兜底。[推断: YouMind clum 报告 + 本仓 hook 沉默失败模式]

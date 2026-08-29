@@ -99,4 +99,4 @@ Windows 上 hook 若改走 `rmux set-environment`，必须注入专用 pipe 名�
 
 - 本机装 rmux 后对照 `wait-pane --help` 与 `Pane::wait_for_load_state`
 - Codex 0.149.1 复测 Stop 是否仍不触发
-- Claude 无 PermissionRequest 时 blocked 是否只能靠扫屏
+- Claude 无 PermissionRequest 时 blocked：hook 沉默则走 `terminal_state` / `wait_for_text` 兜底（见《clum等待原语作为hook兜底状态》），不再只靠 hook
