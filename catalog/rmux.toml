@@ -1,0 +1,42 @@
+# rmux pin：信任锚是本文件的 sha256，不是现场 SHA256SUMS。
+# 来源：Helvesec/rmux v0.10.0 官方 SHA256SUMS（2026-08-04）。
+# 版本读取必须 `rmux -V`（`rmux --version` 会打印 usage 且非 0）。
+
+tag = "v0.10.0"
+version = "0.10.0"
+repo = "Helvesec/rmux"
+
+[[assets]]
+os = "windows"
+arch = "x86_64"
+name = "rmux-0.10.0-windows-x86_64.zip"
+sha256 = "e315e2d51d927ba9621732812c0f932c862d05f4b677dbf3cab76f0d27372a70"
+kind = "zip"
+
+[[assets]]
+os = "linux"
+arch = "x86_64"
+name = "rmux-0.10.0-linux-x86_64.tar.gz"
+sha256 = "1bec11eff08c3313c3a400196e7a93d00b8ad4a24f81ef13debb03355c2696c5"
+kind = "tar_gz"
+
+[[assets]]
+os = "linux"
+arch = "aarch64"
+name = "rmux-0.10.0-linux-aarch64.tar.gz"
+sha256 = "7e916560ea0fb90864b8c24e5d0f81b4e3e0b013b8aad5ab53839d7e8e5e1926"
+kind = "tar_gz"
+
+[[assets]]
+os = "macos"
+arch = "aarch64"
+name = "rmux-0.10.0-macos-aarch64.tar.gz"
+sha256 = "aac857519071f680be53aa9a328dc0cd04c2abe66ec726f78aa9e26337c5ef7b"
+kind = "tar_gz"
+
+[[assets]]
+os = "macos"
+arch = "x86_64"
+name = "rmux-0.10.0-macos-x86_64.tar.gz"
+sha256 = "b897898eadc4d96c6d555b79affd834bd488013c44f8c6f815bb5195eafd1e0a"
+kind = "tar_gz"

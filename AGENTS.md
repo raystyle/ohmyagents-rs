@@ -1,0 +1,113 @@
+# AGENTS.md
+
+本文件是协作规则的**最高约束**，四段职责依次为：**项目定位**、**操作规则**、**意图路由**、**资源索引**。
+
+## 一、项目定位
+
+> 本项目的本质与边界。根为定位，下分本质、边界、管理对象、方案索引。
+
+1. **本质**
+   - Oh My Agents 是通用智能体多路复用任务编排器：在 rmux 上把多路终端智能体编进一个项目会话，按目录自动配置并编排任务。
+
+2. **边界**
+   - 编排钉在启动的项目目录；不替代 ohmypwsh 五端环境总台，不替代各 agent 本体。
+   - CLI 是编排入口；网页只观察。弹不出浏览器不是错误。
+   - 运行时后端是 rmux，不引入 herdr 当宿主。
+   - hook、skill、状态文件只落启动目录，默认不改用户家目录 hook 注册。
+
+3. **管理对象**
+   - 可注册的终端 agent（当前默认 claude / codex / grok / kimi，可扩展）。
+   - 目标项目目录（cwd 或 `--project`）。
+   - rmux 任务会话（专用 pipe 或 unix socket）+ 可选 HTTP 镜像。
+
+4. **方案索引**
+   - 定位：`docs\references\项目定位-通用智能体多路复用任务编排器.md`
+   - 定位变更：`docs\history\0004-项目重新定位-通用智能体多路复用任务编排器.md`；上一版 `docs\history\0002-项目重新定位-通用多Agents自动配置和任务编排器.md`
+   - 首期切面：`docs\history\0001-四路会话工具-CLI控制面与网页观察面.md`
+   - 研究：`docs\research\`（文件名即标题，按关键词搜）
+
+## 二、操作规则
+
+> 每条规则一个操作场景，下分可以与禁止。
+
+1. **每轮对话**
+   - 可以：先核对三原语 `GOAL.md`、`docs\TODO.md`、`docs\PLAN.md`；实质推进当场更新 todo 与 plan；改代码同步文档、改文档同步索引与 `docs\diary\`。
+   - 禁止：不核对三原语就干活；偏离当前目标；推进了不更新 todo/plan；只改代码不落文档。
+
+2. **踩坑时**
+   - 可以：当场落 `docs\MISTAKES.md` 一行；主题深挖落 `docs\research\`。
+   - 禁止：只留在对话里反复试错。
+
+3. **执行命令时**
+   - 可以：Windows 用 PowerShell 7（`pwsh`）；Linux / macOS / WSL 用该平台常规 shell。
+   - 禁止：Windows 上默认用 `powershell.exe` 5.1。
+
+4. **写文件时**
+   - 可以：Markdown / Rust 源码 UTF-8；Windows 上若需兼容 5.1 的脚本用 UTF-8 BOM。
+   - 禁止：无 BOM 的中文 ps1 给 5.1 读。
+
+5. **交付变更时**
+   - 可以：同步对应文档、遵守命名标准、按技术文档格式写。
+   - 禁止：只改代码不落文档；文档用 emoji 与箭头等装饰符号（用文字替代）。
+
+6. **提交时**
+   - 可以：`feat:` / `docs:` / `fix:` / `chore:` 前缀加中文描述；一次提交只做一件事。
+   - 禁止：多事混一提交；未经指示推远端。
+
+7. **Drive 与无阻塞启动时**
+   - 可以：evo-harness 三段式（发前扫框、`paste-buffer -p`、`send-keys -H 0d`）；locate 按进程名；yolo 与项目信任优先写配置（ohmypwsh 0017），flags 只作单次覆盖；spawn 默认立即返回，用 `doctor`/`status` 诊断。
+   - 禁止：文本和 Enter 同发；对 Codex 发 `C-c`；发送侧自包 `\x1b[200~`；默认改用户家目录 hook；主命令里长时间 `wait_ready` 卡住委派。
+
+8. **写文档时**
+   - 可以：遵守 `docs\references\文档标准细则-命名写作规范与rumdl检查.md`（树形、标题干净、无 emoji/箭头、文件名即标题、rumdl）。
+   - 禁止：标题带括号口号或破折号；整段混杂不成树。
+
+9. **写 Rust 时**
+   - 可以：先查 crates.io / docs.rs / GitHub 上是否已有最流行、最稳定、或已经覆盖本需求的库；选定后用最少代码接上，优先组合而不是自写协议、解压、HTTP、哈希、CLI 解析。
+   - 禁止：在现成库已能稳定完成的前提下从零实现；为风格引入冷门或实验 crate；一次拉一堆用不上的依赖。
+
+10. **写研究与测试文档时**
+    - 可以：事实性断言必须标六态之一——`[实证]`（本机实测）、`[推断]`（逻辑推出）、`[经验]`（历史惯例）、`[记忆]`（待复核）、`[假设]`（待验证）、`[直觉]`（主观倾向）；标准见 `docs\research\guide.md`；研究与测试的结论断言不标六态即视为未完成。
+    - 禁止：把「没验证」写成「已验证」（实证滥用）；断言不标六态；用猜测冒充结论。
+
+## 三、意图路由
+
+> 需求意图与操作方法的映射。命令细则见 `docs\references\常用命令与管理流程-从项目init到会话cleanup.md`。
+> 显示名 Oh My Agents；仓库 `ohmyagents`；CLI 二进制 `oma`。数据目录仍是 `.ohmyagents`。
+
+- **核对照**：`oma check`（rmux 版本 + 哈希 + 完整布局；缺则按 `catalog/rmux.toml` 安装。`--no-install` 只诊断）
+- **无阻塞诊断**：`oma doctor`（进程存活 + hook 语义 + 任务指向 + yolo；不把 wait-pane Quiet 当 idle）
+- **检测已装 agent**：`oma agents`（PATH、`OMA_AGENT_PATH`、`OMA_*_BIN`、各家默认安装目录；Windows / Linux / macOS）
+- **hook 写状态**：`oma hook`（agent lifecycle hook 调用；stdin JSON 或参数；写 `OHMYAGENTS_STATE_FILE`；缺环境则静默。不连 rmux 管道）
+- **Windows 最小 pane POC**：`cargo run --example poc-endpoint|poc-session|poc-layout|poc-drive|poc-dialogs`（专用 pipe、CreateOnly、2x2、send_text+Enter、hook blocked + sendkeys）。Linux/mac 委托后续仓库
+- **部署项目级 hook/skill/yolo**：`oma init [--yolo]`
+- **开会话**：`oma`（REPL，spawn 默认不阻塞）；`--no-web` 不起 HTTP；`--open` 才尝试打开浏览器
+- **委派**：`oma run <task> --assign …` 或 REPL / `send`
+- **看状态**：`oma status`
+- **收尾**：`oma cleanup`（只杀本 session）
+- **查文档**：文件名即标题，`rg --files docs | rg <关键词>`
+
+已落地：`check`、`init --yolo`、`doctor`、`agents`、`hook`。其余仍是设计口径，禁止假装已经可跑。
+
+## 四、资源索引
+
+### 目录结构
+
+| 类别 | 目录 | 说明 |
+| --- | --- | --- |
+| 文档 | `docs\`（PLAN/TODO/history/diary/research/references）+ 根目录 GOAL/README/AGENTS/CHANGELOG/ROADMAP | 见文档指南 |
+| 代码 | `src\` + `catalog\` | Rust CLI `oma`；rmux pin 在 catalog |
+| 运行时产物 | 目标项目下 `.ohmyagents\`；本机工具 `%LOCALAPPDATA%\ohmyagents\rmux\<ver>\` | gitignore 项目态；工具前缀不进仓 |
+
+### 文档指南
+
+- **目标/怎么做/做什么**：`GOAL.md`（起点/锚点/进程/历史）、`docs\PLAN.md`（当前目标怎么做）、`docs\TODO.md`（当前目标进度清单）
+- **方案详情**：`docs\history\NNNN-*.md`（进行中与否见 todo）；项目日记 `docs\diary\YYYY-MM-DD-*.md`
+- **全量清单**：`docs\references\文档全量清单-方案与研究目录的完整索引.md`
+- **阶段/版本**：`ROADMAP.md`、`CHANGELOG.md`（只记大里程碑）
+- **研究/踩坑**：`docs\research\`，规范见 `docs\research\guide.md`（六态是强规则，见操作规则 10）
+- **错误速查**：`docs\MISTAKES.md`
+- **命令手册**：`docs\references\常用命令与管理流程-从项目init到会话cleanup.md`
+- **文档标准**：`docs\references\文档标准细则-命名写作规范与rumdl检查.md`
+
+新文档按类别落位，并登记进全量清单。
