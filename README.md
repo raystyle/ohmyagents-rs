@@ -1,6 +1,6 @@
 # Oh My Agents
 
-一句话定位：**通用智能体多路复用任务编排器**。在 rmux 上把多路终端智能体编进一个项目会话，按目录部署 hook 与 skill，用 `oma` 下发任务。当前默认适配 Claude / Codex / Grok / Kimi。显示名 Oh My Agents，仓库 `ohmyagents`，CLI `oma`。`oma check` 负责 rmux 的检测、版本/哈希校验与安装。
+一句话定位：**通用智能体多路复用任务编排器**。在 rmux 上把多路终端智能体编进一个项目会话，按目录部署 hook 与 skill，用 `oma` 下发任务。当前默认适配 Claude / Codex / Grok / Kimi。显示名 Oh My Agents，仓库 `ohmyagents`，CLI `oma`。远端 <https://github.com/raystyle/OhMyAgents>。`oma check` 负责 rmux 的检测、版本/哈希校验与安装。
 
 ## 快速开始
 
