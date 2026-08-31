@@ -37,14 +37,17 @@ cargo run -- doctor --project $env:TEMP\oma-demo
 
 ```text
 ohmyagents/
+  INDEX.md           文档总索引（P/S/R/G/M 编号定位）
+  GOAL / PLAN / TODO 三原语
   catalog\           rmux 版本与 SHA256 pin
   src\               oma CLI
   examples\          部件 POC
-  docs\proven\       已完成 plan 归档
-  docs\diary\        项目日记
-  docs\research\     研究（文件名即标题）
-  docs\guide\        元规范（怎么写文档、怎么做研究）
-  docs\references\   开发测试参考与索引
+  docs\proven\       P 编号，已完成 plan 归档
+  docs\diary\        项目日记（一天一篇总结自省）
+  docs\research\     S 编号，研究原型过程（六态）
+  docs\guide\        G 编号，元规范
+  docs\references\   R 编号，开发测试参考
+  docs\mistakes\     M 编号，错误速查
 ```
 
 ## 核心概念

@@ -1,6 +1,6 @@
 # M104-rmux安装与CLI调用错误
 
-> 关键词：安装、exe、libexec、版本、-V、-S、-L、pipe、cmd()、逃生舱。编号全局递增（MNNN），规则见 `MISTAKES.md`。
+> 关键词：安装、exe、libexec、版本、-V、-S、-L、pipe、cmd()、逃生舱。编号全局递增（MNNN），编号规则见 `INDEX.md` mistakes 节。
 
 | 编号 | 错误现象 | 根因 | 正确处理 | 首次踩 |
 | --- | --- | --- | --- | --- |

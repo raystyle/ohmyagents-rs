@@ -12,7 +12,7 @@
 
 ## 扫描顺序
 
-同一 agent 多处命中时取最高优先级，其余打 `extra=`。
+同一 agent 多处命中时取最高优先级，其余打 `extra=`。本节路径表对照 ohmypwsh《四家 agent 官方安装位置研究》与本机 `oma agents` 四路命中归纳。[经验: ohmypwsh 研究；实证: 2026-08-29 本机四路]
 
 1. **显式环境变量**（`source=env`）：`OMA_CLAUDE_BIN` / `OMA_CODEX_BIN` / `OMA_GROK_BIN` / `OMA_KIMI_BIN`，以及 `CLAUDE_BIN`、`CODEX_BIN`、`GROK_BIN`、`KIMI_BIN`、`KIMI_CODE_BIN`。
 2. **PATH 与自定义路径列表**（`source=path`）：进程 `PATH`；额外 `OMA_AGENT_PATH`（分隔符与 PATH 相同）。Windows 再按 `PATHEXT` 试 `.exe` / `.cmd` / `.bat`。`CODEX_HOME` 下的 `packages/standalone/current` 也当路径根扫。

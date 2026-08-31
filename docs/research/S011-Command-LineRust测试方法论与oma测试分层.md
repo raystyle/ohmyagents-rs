@@ -62,7 +62,7 @@
 | 平台差异 | `.windows` 期望 + `#[cfg]` | CI 多 OS 矩阵 | Linux/mac 委托后续仓库；CI 矩阵远期 |
 | 环境稳定 | `set-test-perms.sh` fixture | tempfile / testcontainers / serial_test | WMI 起 daemon、临时项目目录（yolo POC 已此法）；并发抢资源时再看 serial_test |
 | 性能 | `time` + hyperfine 参数化 | criterion 微基准为主，hyperfine 仍用于 CLI 对比 | 无当前需求，放目标外 |
-| 质量门禁 | 本地 `cargo test` | fmt / clippy -D warnings / nextest --locked / audit|deny；llvm-cov + mutants 测「断言质量」 | 最小集：fmt + clippy + test --locked（本地脚本化）；CI 门禁待立项；覆盖率不进门禁 |
+| 质量门禁 | 本地 `cargo test` | fmt / clippy -D warnings / nextest --locked / audit 与 deny；llvm-cov + mutants 测「断言质量」 | 最小集：fmt + clippy + test --locked（本地脚本化）；CI 门禁待立项；覆盖率不进门禁 |
 
 ### MS 规范层的补充条目
 
@@ -110,7 +110,7 @@
 ## 待办
 
 > 按阶段三段式引入，不一步到位（AGENTS 写 Rust 规则最少依赖；每段绿了再进下一段）。
-> **2026-08-31 沉淀**：本研究的规则性结论已固化为 AGENTS 写测试规则「写测试时」与 `docs\references\R004-R004-测试标准细则-分层断言与门禁流程.md`（细则事实性断言均标六态溯源回本文三源）；本节三段即细则第五节演进路线，后续以细则为准。
+> **2026-08-31 沉淀**：本研究的规则性结论已固化为 AGENTS 写测试规则「写测试时」与 `docs\references\R004-测试标准细则-分层断言与门禁流程.md`（细则事实性断言均标六态溯源回本文三源）；本节三段即细则第五节演进路线，后续以细则为准。
 
 **第一段（本目标内可做，地基）**
 

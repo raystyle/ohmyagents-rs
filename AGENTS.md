@@ -85,7 +85,7 @@
 - **委派**：`oma run <task> --assign …` 或 REPL / `send`。Drive 遵守三段式铁律（发前扫框、`paste-buffer -p`、Enter 单独发，细则见 `docs\research\S005-drive铁律与三段式粘贴.md`）：禁止文本和 Enter 同发、对 Codex 发 `C-c`、发送侧自包 `\x1b[200~`
 - **看状态**：`oma status`
 - **收尾**：`oma cleanup`（只杀本 session）
-- **查文档**：文件名即标题，`rg --files docs | rg <关键词>`
+- **查文档**：先搜 `INDEX.md` 定位编号，再读文件；rg / mq / ast-grep 全套搜索方法见四、资源索引
 
 已落地：`check`、`init --yolo`、`doctor`、`agents`、`hook`。其余仍是设计口径，禁止假装已经可跑。
 

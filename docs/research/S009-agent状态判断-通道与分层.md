@@ -10,6 +10,8 @@ rmux 能判「pane 活着、画面静了、进程换了」，判不了「agent �
 
 ### 1. 分层模型（现行版，含 1b）
 
+表内能力与限制为 rmux 官方文档与 SDK 源码口径，1b 层据 S010 源码核实。[实证: rmux 官方 scripting-sdk；S010 clum 核实]
+
 | 层 | 来源 | 能判什么 | 不能当什么 |
 | --- | --- | --- | --- |
 | 0 存活 | `list-panes`、pane pid | pane 在不在、进程死没死 | agent 忙闲；层 0 失败整路作废 |
@@ -23,9 +25,9 @@ rmux 能判「pane 活着、画面静了、进程换了」，判不了「agent �
 ### 2. 通道选型：项目内文件总线
 
 - 主通道：`<project>/.ohmyagents/state/<agent>.json`。spawn 注入 `OHMYAGENTS_PROJECT` / `OHMYAGENTS_AGENT` / `OHMYAGENTS_STATE_FILE`；各家项目 hook 的 `command` 调 `oma hook`（stdin 事件 JSON 或 `oma hook blocked`），原子写文件；缺环境变量或项目对不上则 exit 0——某家 agent 只肯加载用户级 hook 时也不污染别的仓库。[实证: 2026-08-29 poc-dialogs `oma hook` 写 blocked 再 idle]
-- 不用 `rmux set-environment` 当上报口（win-rmux 反例）：hook 短命子进程常找不到本会话专用 pipe；Windows 上 PATH、默认 socket、Job Object 一错状态就静默丢。
+- 不用 `rmux set-environment` 当上报口（win-rmux 反例）：hook 短命子进程常找不到本会话专用 pipe；Windows 上 PATH、默认 socket、Job Object 一错状态就静默丢。[经验: win-rmux hooks.md 2026-08-21]
 - 不引入 herdr 运行时：没有 `HERDR_PANE_ID`，`report-agent` 无处可报；借的是四态语义与「有 hook 用 hook、无 hook 退屏幕」的分层思想。[经验: herdr.dev agents 状态表]
-- SDK `output_stream` / `state_events` 是观察 PTY 画面与 pane 生死，读不到 hook JSON，不当 blocked 权威。
+- SDK `output_stream` / `state_events` 是观察 PTY 画面与 pane 生死，读不到 hook JSON，不当 blocked 权威。[实证: rmux-sdk 0.10.0 文档]
 
 ### 3. 报阻塞与点掉阻塞分路
 
@@ -38,6 +40,8 @@ rmux 能判「pane 活着、画面静了、进程换了」，判不了「agent �
 
 ### 4. 事件映射（evo-harness STATE_MAP 加本仓对齐）
 
+映射表与双形态归一来自 evo-harness `agent_state_hook.py` 与各家官方事件名；Codex `Stop` 缺失为 win-rmux 实测。[经验: evo-harness STATE_MAP；实证: win-rmux 2026-08-21]
+
 | 语义 | 典型事件 | 编排器做什么 |
 | --- | --- | --- |
 | idle | SessionStart、Stop、Interrupt、SessionEnd | 可 run/send；doctor 绿 |
@@ -49,6 +53,8 @@ rmux 能判「pane 活着、画面静了、进程换了」，判不了「agent �
 
 ### 5. 与 rmux 层的推荐顺序
 
+本节为第 1 节分层模型在编排器各阶段的落地推导。[推断: 分层对照推导]
+
 1. spawn：层 0 活着即返回（无阻塞启动）
 2. Drive 前：层 1 `--quiet --stable-for` 短窗口，不往忙 TUI 塞键
 3. Drive 后：层 2 等 working 或短头离开输入行；超时只补 Enter
@@ -57,12 +63,16 @@ rmux 能判「pane 活着、画面静了、进程换了」，判不了「agent �
 
 ### 6. rmux 原生能力清单（都是终端态不是 agent 态）
 
+清单为 rmux 0.10 官方文档与命令核验表口径；`foreground_state` 不分类 agent 名为官方明文。[实证: rmux scripting-sdk；win-rmux command-verification]
+
 - 存活：`list-panes`、pane pid、`state_events`（`Closed` 是流结束不是 idle）、`collect-until-exit`
 - 画面：`wait-pane --quiet`、`--text` / `--visible-text`、locator `get-by-text`；`send-keys --wait quiet` 超时不等于没发出
 - 输出：`output_stream` / `render_stream` / `surface_stream` / `recover_output`；备屏 TUI `capture-pane` 常空，长回复写文件再读
 - `foreground_state`：daemon 周期探测约滞后一秒，Windows 报 ConPTY 根进程，不分类 agent 名
 
 ### 7. 实现要点
+
+注册与信任前置来自 S006 信任门结论；`matcher` 与 trusted_hash 为各家官方要求；poc-dialogs 已实证 hook 链路。[经验: 各家官方；实证: 2026-08-29 poc-dialogs]
 
 - spawn 注入三个 `OHMYAGENTS_*`；hook 对不上 exit 0
 - 注册项目级（Claude settings、Codex 须先信任、Grok 项目 hooks 要 folder-trust、Kimi 暂用户 config 加项目脚本）

@@ -45,5 +45,5 @@ Linux/mac 委托后续环境仓库（`docs\proven\P0005` 口径）。
 
 - TODO 表除「四路真实 agent」外全部已完成或明确跳过（跳过须写 MISTAKES 原因）
 - 每个 POC 不调用 `kill-server`
-- `rumdl check .` 尽量零告警；0005 与全量清单已登记
+- `rumdl check .` 尽量零告警；P0005 与 INDEX 已登记
 - 研究与测试文档的关键结论标六态（AGENTS 写研究与测试文档规则）

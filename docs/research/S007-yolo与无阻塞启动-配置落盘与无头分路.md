@@ -13,9 +13,11 @@
 1. **启动无阻塞靠配置，不靠现场按键。** `init` 把 yolo 与项目信任写进该项目能加载的文件；spawn 时 TUI 不应再弹框。evo-harness 的 `DIALOGS` 按键只当兜底。[经验: ohmypwsh 0017 + evo-harness pretrust]
 2. **诊断无阻塞、不 attach。** `doctor`/`status` 只读磁盘：yolo 键、信任库、`.ohmyagents\state\`、任务映射。不 `send-keys`、不等 `wait_ready`。[实证: 2026-08-29 poc-yolo-doctor]
 3. **任务指向与启动分离。** spawn 立即返回；agent 与 task-id 写项目内 JSON；主 CLI 委派只查「该 agent 对应 task 且非 blocked」。[假设: 产品 spawn 未落地]
-4. **参数与配置并存。** 默认走配置；`--yolo` 等只覆盖单次会话，受控编排不把信任绕过长期留在 argv。
+4. **参数与配置并存。** 默认走配置；`--yolo` 等只覆盖单次会话，受控编排不把信任绕过长期留在 argv。[经验: ohmypwsh 0017 定调]
 
 ### 四家落盘表（2026-08-31 订正版）
+
+表内各键为各家官方文档与 poc-yolo-doctor 实测口径；Claude 列订正自 S006 核查表。[实证: 2026-08-29 poc-yolo-doctor + 官方 settings/config 文档]
 
 | agent | 权限/沙箱（配置） | 项目信任（用户家，`--pretrust` 才写） | 订正注 |
 | --- | --- | --- | --- |
@@ -28,8 +30,8 @@
 
 5. **无头 ≠ YOLO**：Claude `-p` 起点 Manual 逐项审批、无 UI 时该次调用被拒（流程可假绿）；Grok `-p` 默认 Ask、要全自动另加 `--always-approve`（alias `--yolo`）或 `dontAsk`+`--allow`；Kimi `-p` **就是 auto**、官方禁止与 `--yolo`/`--auto`/`--plan` 同用（`--yes`/`--auto-approve` 是隐藏别名）。从 Claude/Grok 脚本抄到 Kimi 最容易踩「再加一遍 --yolo」。[实证: 2026-08-29 官方 headless/permission-modes/kimi-command + 本机三家家 `--help`]
 6. 本机 `grok 1.0.13 --help` 另有 Claude 同构 `--permission-mode`（default/acceptEdits/auto/dontAsk/bypassPermissions/plan），官方 Permissions 页未写此层；CI 可走 `dontAsk`+`--allow`。[实证: 本机 help]
-7. 无头失败模式：校验产物/diff，不校验退出码（Claude 假绿、Grok 可能 stall、Kimi 限流静默挂起）。
-8. 对现役 TUI 路径：`oma doctor` 扫 yolo/trust/binary/state 仍对口；不要把 Kimi `-p` 即 auto 当交互默认。若加 `oma run --headless`：Claude `-p`+`--allowedTools` 或 `--permission-mode dontAsk|acceptEdits`；Grok `-p`+`--always-approve`（加 `--no-auto-update`）；Kimi 只 `-p` 禁叠 `--yolo`；Codex 不在 YouMind 范围，仍走 `.codex/config.toml`。
+7. 无头失败模式：校验产物/diff，不校验退出码（Claude 假绿、Grok 可能 stall、Kimi 限流静默挂起）。[经验: YouMind 对照文]
+8. 对现役 TUI 路径：`oma doctor` 扫 yolo/trust/binary/state 仍对口；不要把 Kimi `-p` 即 auto 当交互默认。若加 `oma run --headless`：Claude `-p`+`--allowedTools` 或 `--permission-mode dontAsk|acceptEdits`；Grok `-p`+`--always-approve`（加 `--no-auto-update`）；Kimi 只 `-p` 禁叠 `--yolo`；Codex 不在 YouMind 范围，仍走 `.codex/config.toml`。[推断: 三家口径推导]
 
 ### doctor 与无阻塞判据
 
