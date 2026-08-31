@@ -98,7 +98,7 @@
 - **看状态**：`oma status`（层 0 pid + locate 进程名 + 1b 终端态 + 层 2 hook 态）
 - **收尾**：`oma cleanup`（只杀本 session）
 - **起 HTTP 编排面**：`oma serve [--port N] [--project PATH]`（P0011 已落地，需 `--features server` 构建）：六操作 RESTish 加 JSON 信封加 SSE 画面，`GET /` 直出可视化网页（`docs\web\index.html`）；只绑 127.0.0.1；curl 全绿口径见 `docs\references\R002`
-- **起 MCP server**：`oma mcp [--project PATH]`（P0011 已落地，需 `--features mcp` 构建）：stdio 九 tools（六操作加 trace 检索），信封与 HTTP 同形；三通道共测口径见 `docs\references\R002`
+- **起 MCP server**：`oma mcp [--project PATH] [--print-config]`（P0011 已落地，需 `--features mcp` 构建）：stdio 九 tools（六操作加 trace 检索），信封与 HTTP 同形；`--print-config` 打印各客户端注册片段（任何构建可用）；三通道共测口径见 `docs\references\R002`
 - **查文档**：先搜 `INDEX.md` 定位编号，再读文件；rg / mq / ast-grep 全套搜索方法见四、资源索引
 - **项目工具**：`.tools\`（自定义脚本归档；Python 用 `uv run --script .tools\<名>.py`，清单见 `.tools\README.md`；py 选库细则 `docs\references\R008`）；文档验证三件套：断链回归 `md-ref-scan.py`、标题括号 `md-heading-scan.py`、`rumdl check .`
 - **JSON 信封**：六会话命令加 `--json`（spawn/status/send/run/settle/cleanup）出 `{ok, data|error, meta}` 信封，与 HTTP/MCP 同形（P0015 已落地）

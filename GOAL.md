@@ -14,7 +14,7 @@
 
 > 当前锚定的目标 + 推进时间线。
 
-- **锚定的目标**：P0016 REPL 与编排面内嵌已于 2026-08-31 当日达成（裸 `oma` 进 REPL、serve_in_background 端口顺延、stub 管道驱动验收全绿）——**设计命令全部落地**。当前无现役切片，待用户定向。queued：P0012 的 Linux/mac 环境切换接管、命令图生成 SKILL.md（S016 裁决表末件）。
+- **锚定的目标**：P0017 Windows 全量收口已于 2026-08-31 当日达成（send 回显间隔、HTTP trace 三端点、SKILL 命令图、grok 无头、mcp 配置打印五切片全验收）——**Windows 侧缺口清零**。当前无现役切片，待用户定向。queued：P0012 的 Linux/mac 环境切换接管（用户定调排后）。
 
 ### 推进时间线
 
@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-08-31 | P0017 达成：Windows 全量收口——send 间隔产品化（等回显再 Enter，S005 铁律进产品路径）、HTTP trace 三端点加网页面板（三传输对齐）、SKILL.md 命令图生成（S016 末件）、grok 无头实跑（S007 回填，联邦 trace 同场检出）、`oma mcp --print-config` |
 | 2026-08-31 | P0016 达成：REPL 落地——裸 `oma` 重连或拉起会话、编排面内嵌（7900 顺延 7909、--no-web/--open）、行循环分派（all/agent/status/web/quit）；stdin 线程喂 mpsc 保 serve 同活；顺手删 mcp 冗余 tool_router 字段并回归冒烟 |
 | 2026-08-31 | P0015 达成：S016 吸收件收口——api::envelope 上提三传输共用、六会话命令 `--json`、status TTY 对齐表（非 TTY 恒 marker 保测试契约）、`oma completions`（clap_complete）、R002 输出规范节 |
 | 2026-08-31 | P0014 达成：grok loader 主源切 updates.jsonl（S020 分类学先行——两流职责、hideFromScrollback 闸门、kind 判写族、信封秒逐事件真实时间）；chat_history 留旧会话兜底；本仓 8-29 历史 ts 逐秒散开验收 |
@@ -61,7 +62,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：无（P0016 REPL 2026-08-31 达成后未接新目标，设计命令全部落地，待用户定向）。queued：P0012 Linux/mac 接管、命令图生成 SKILL.md。
+- 当前目标：无（P0017 Windows 全量收口 2026-08-31 达成，Windows 侧缺口清零，待用户定向）。queued：P0012 Linux/mac 接管（用户定调排后）。
 
 ## 历史
 
@@ -69,6 +70,7 @@
 
 | 日期 | 目标 | 结果 |
 | --- | --- | --- |
+| 2026-08-31 | Windows 全量收口（P0017） | 达成：send 回显间隔、HTTP trace 三端点、SKILL 命令图、grok 无头、mcp 配置打印 |
 | 2026-08-31 | REPL 与编排面内嵌（P0016） | 达成：裸 oma 进 REPL；内嵌编排面端口顺延；stub 管道驱动验收 |
 | 2026-08-31 | S016 吸收件收口（P0015） | 达成：--json 信封三传输同形、TTY 表格、completions、R002 输出规范节 |
 | 2026-08-31 | grok 权威日志升级（P0014） | 达成：updates 主源加 chat_history 兜底；逐事件真实时间；S020 分类学落档 |

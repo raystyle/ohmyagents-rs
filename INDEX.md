@@ -34,7 +34,7 @@
 | `src\agents.rs` | `oma agents`：PATH / 环境变量 / 默认目录探测 |
 | `src\doctor.rs` | `oma doctor`：只读诊断（yolo / 信任 / 二进制 / state） |
 | `src\yolo.rs` | `oma init --yolo`：四家配置落盘与 pretrust |
-| `src\deploy.rs` | `oma init` hook/skill 部署层：按 S015 矩阵落项目文件，幂等合并 |
+| `src\deploy.rs` | `oma init` hook/skill 部署层：按 S015 矩阵落项目文件，幂等合并；SKILL.md 由 COMMAND_MAP 命令图生成（标记覆写三态） |
 | `src\orch.rs` | 产品编排层：项目 slug 会话、spawn/status/send/cleanup、pane 清单 |
 | `src\install.rs` | 自适应安装层：多渠道下载、sha 信任锚、oma 自管根布局、update 取证与 pin 写回 |
 | `src\trace.rs` | 意图轨迹检索层：四家会话发现 + 四家联邦 loader（codex FileChange 主源、grok updates 权威日志加 chat_history 兜底、注入过滤、epoch ms 归一）+ 块聚合与过滤分页检索 |
@@ -99,6 +99,7 @@ ohmyagents/
 | P0014 | `P0014-grok权威日志升级.md` | 已完成（updates 主源加 chat_history 兜底；逐事件真实时间） |
 | P0015 | `P0015-S016吸收件收口.md` | 已完成（--json 信封、TTY 表格、completions、R002 输出规范） |
 | P0016 | `P0016-REPL与编排面内嵌.md` | 已完成（裸 oma 进 REPL；编排面内嵌端口顺延；stub 验收过） |
+| P0017 | `P0017-Windows全量收口.md` | 已完成（send 回显间隔、HTTP trace 三端点、SKILL 命令图、grok 无头、mcp 配置打印） |
 
 ## 四、项目日记
 

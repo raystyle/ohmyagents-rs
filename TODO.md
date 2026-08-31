@@ -4,18 +4,18 @@
 
 ## 当前目标
 
-Windows 全量收口：把本机（Windows）上该有的都开发完（对应 `GOAL.md`，方案 P0017，2026-08-31 用户定调「linux mac 接管排后 先在windows上把所有都开发好」）。
+Windows 全量收口：把本机（Windows）上该有的都开发完（对应 `GOAL.md`，方案 P0017，2026-08-31 用户定调「linux mac 接管排后 先在windows上把所有都开发好」）。当日五切片全部完成。
 
 ## 任务进度清单
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
 | 立项 0017 | 已完成 | 五切片定界：send 间隔、HTTP trace、SKILL 命令图、grok 无头、mcp 配置打印 | 2026-08-31 |
-| send 间隔产品化 | 待办 | S005 铁律「隔开发」进 orch::send：等文本可见再 Enter（rmux 原生等待非盲 sleep） | — |
-| HTTP trace 端点 | 待办 | api::trace_* 三函数挂路由（三传输对齐）；网页加轨迹面板 | — |
-| SKILL 命令图生成 | 待办 | deploy.rs 命令图数组生成 SKILL.md（带生成标记才覆写，S016 末件） | — |
-| grok 无头实跑 | 待办 | grok -p 真项目写文件验收；S007 缺口回填 | — |
-| mcp 配置打印 | 待办 | `oma mcp --print-config` 出各客户端注册片段 | — |
+| send 间隔产品化 | 已完成 | expect_visible_text 等末行短头可见再 Enter；超时降级照发留痕；stub 验证 visible | 2026-08-31 |
+| HTTP trace 端点 | 已完成 | 三端点挂 api 现成函数；/api 11 端点；网页轨迹面板；本仓真数据全绿 | 2026-08-31 |
+| SKILL 命令图生成 | 已完成 | COMMAND_MAP 生成；标记覆写加旧版升级加用户内容跳过三态；活体验证 | 2026-08-31 |
+| grok 无头实跑 | 已完成 | `--always-approve -p` 写文件 exit 0 产物精确；联邦 trace 同场检出；S007 回填 | 2026-08-31 |
+| mcp 配置打印 | 已完成 | `--print-config` 三形态片段；featureless 构建也可用 | 2026-08-31 |
 
 ## 队列目标
 

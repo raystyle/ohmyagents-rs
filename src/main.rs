@@ -166,6 +166,9 @@ enum Commands {
         /// 项目根；默认当前目录
         #[arg(long)]
         project: Option<PathBuf>,
+        /// 不起 server，打印各客户端的注册配置片段后退出
+        #[arg(long)]
+        print_config: bool,
     },
     /// 生成 shell 补全脚本到 stdout（S016 吸收）
     Completions {
@@ -329,7 +332,7 @@ fn run() -> Result<(), String> {
         Commands::Settle { wait, project, json } => tokio_block(cmd_settle(wait, project, json)),
         Commands::Trace { cmd } => cmd_trace(cmd),
         Commands::Serve { port, project } => cmd_serve(port, project),
-        Commands::Mcp { project } => cmd_mcp(project),
+        Commands::Mcp { project, print_config } => cmd_mcp(project, print_config),
         Commands::Completions { shell } => cmd_completions(shell),
     }
 }
@@ -372,15 +375,42 @@ fn cmd_serve(_port: u16, _project: Option<PathBuf>) -> Result<(), String> {
 }
 
 /// MCP stdio 常驻：stdout 是协议通道，一切进度只能进 stderr。
+/// `--print-config` 只打印注册片段不起 server（任何构建形态可用）。
 #[cfg(feature = "mcp")]
-fn cmd_mcp(project: Option<PathBuf>) -> Result<(), String> {
+fn cmd_mcp(project: Option<PathBuf>, print_config: bool) -> Result<(), String> {
     let root = project_root(project)?;
+    if print_config {
+        return print_mcp_config(&root);
+    }
     tokio_block(oma::mcp::run(root))
 }
 
 #[cfg(not(feature = "mcp"))]
-fn cmd_mcp(_project: Option<PathBuf>) -> Result<(), String> {
+fn cmd_mcp(project: Option<PathBuf>, print_config: bool) -> Result<(), String> {
+    if print_config {
+        let root = project_root(project)?;
+        return print_mcp_config(&root);
+    }
     Err("oma mcp needs the `mcp` feature; rebuild with --features mcp".to_string())
+}
+
+/// 注册片段：exe 绝对路径 + --project 锚定。给 Claude Code、codex 与通用
+/// mcpServers 三种消费形态（挑自己的抄一段）。
+fn print_mcp_config(root: &Path) -> Result<(), String> {
+    let exe = std::env::current_exe().map_err(|e| format!("current exe: {e}"))?;
+    let exe = exe.display().to_string();
+    let proj = root.display().to_string();
+    println!("# Claude Code（shell 里执行一次）:");
+    println!("claude mcp add oma -- \"{exe}\" mcp --project \"{proj}\"");
+    println!();
+    println!("# codex（写入 ~/.codex/config.toml 的 [mcp_servers] 段）:");
+    println!("[mcp_servers.oma]");
+    println!("command = \"{exe}\"");
+    println!("args = [\"mcp\", \"--project\", \"{proj}\"]");
+    println!();
+    println!("# 通用 mcpServers（JSON 配置的消费端）:");
+    println!("{{\"mcpServers\":{{\"oma\":{{\"command\":\"{exe}\",\"args\":[\"mcp\",\"--project\",\"{proj}\"]}}}}}}");
+    Ok(())
 }
 
 /// --json 出口：信封进 stdout（机器面），业务失败先吐信封再向上传播退出非 0。
