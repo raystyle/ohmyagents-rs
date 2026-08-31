@@ -1,6 +1,6 @@
 # 常用命令与管理流程：从项目 init 到会话 cleanup
 
-> AGENTS 意图路由的细则。已落地：`oma check`、`oma init --yolo`、`oma doctor`、`oma agents`、`oma hook`。其余命令仍是设计口径。
+> AGENTS 意图路由的细则。已落地：`oma check`、`oma init --yolo`、`oma doctor`、`oma agents`、`oma hook`、`oma spawn`、`oma status`、`oma send`、`oma cleanup`（P0006 最小闭环，2026-08-31 实测）。REPL、HTTP 网页、`oma run` 仍是设计口径。
 > 显示名 Oh My Agents；仓库 `ohmyagents`；CLI 二进制 `oma`（对照 ohmypwsh 的 `omp`）。运行时数据目录仍是 `.ohmyagents`。
 
 ## 环境
@@ -13,17 +13,23 @@ $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Env
 
 `oma check` 会检测 rmux：版本必须是 pin（`catalog/rmux.toml`，现役 `0.10.0`），校验完整包布局与哈希；没有就按 GitHub 资产安装到本机数据目录。四路 agent 用 `oma agents` 扫 PATH、自定义路径和环境变量，不只看 PATH。版本读取用 `rmux -V`，不要 `--version`。
 
-Windows pane 最小 POC（本机已绿；Linux/mac 后续委托）：
+Windows pane 最小 POC 十二件（本机全表绿；Linux/mac 后续委托）：
 
 ```powershell
-cargo run --example poc-endpoint
-cargo run --example poc-session
-cargo run --example poc-layout
-cargo run --example poc-drive
-cargo run --example poc-dialogs
+cargo run --example poc-endpoint      # 专用 pipe 与 WMI 退路
+cargo run --example poc-session       # CreateOnly / ReuseOnly / 只杀本 session
+cargo run --example poc-layout        # 2x2 split_with + argv
+cargo run --example poc-drive         # send_text 与 Enter 两段式
+cargo run --example poc-dialogs       # hook 写 blocked + sendkeys 点掉
+cargo run --example poc-paste         # 全 CLI -L 三段式中文粘贴
+cargo run --example poc-locate        # pid 反查进程名，错位 throw
+cargo run --example poc-stream        # output_stream Oldest 回放 Now 直播
+cargo run --example poc-state         # terminal_state 分类，Quiet 不当 idle
+cargo run --example poc-init          # 四家 hook/skill 项目级部署
+cargo run --example poc-negatives     # C-c Codex 守卫与 daemon-wide kill 负检
 ```
 
-宿主若在 Job Object 内，`connect_or_start` 会 os error 5；example 自动用 WMI 在 job 外拉起 daemon。结束只 `kill-session`。
+宿主若在 Job Object 内，`connect_or_start` 会 os error 5；example 与产品命令自动用 WMI 在 job 外拉起 daemon。结束只 `kill-session`。
 
 ## 命令
 
@@ -36,15 +42,16 @@ cargo run --example poc-dialogs
 | hook 写状态 | `oma hook [event]` | 各家 hook 的 `command`。读 stdin JSON（`hook_event_name` / `hookEventName`）或参数。写 `OHMYAGENTS_STATE_FILE`。无该环境变量则 exit 0。不连 rmux |
 | 部署项目级 yolo | `oma init --yolo [--project PATH]` | 写 `.claude/settings.json`（`defaultMode=bypassPermissions`）、`.claude/settings.local.json`（顶层 `skipDangerousModePermissionPrompt`）、`.codex/config.toml`（sandbox/approval）、`.kimi-code/config.toml`（`yolo`）。不含 hook/skill |
 | 预写信任库 | `oma init --yolo --pretrust [--project PATH]` | 额外写用户家：claude.json trust、codex projects、kimi workspace-trust、grok trusted_folders；grok 的 `permission_mode` 只能写 `~/.grok/config.toml` |
-| 权限模式 | `oma init --permission-mode auto\|yolo\|manual` | 覆盖默认 yolo；manual 不写 bypass |
-| 开会话 | `oma` | spawn 默认不阻塞 CLI + 打印 URL + REPL；不自动打开浏览器 |
-| 无网页 | `oma --no-web` | 不起 HTTP |
-| 尝试打开浏览器 | `oma --open` | opener 失败只警告 |
-| 本会话 yolo flags | `oma spawn --yolo` | 单次覆盖；有配置落盘时可省略 |
-| 委派任务 | `oma run <task> --assign claude,codex` | 写任务到 agent 映射后 drive；一路 blocked 不堵其它路 |
-| 一次性发送 | `oma send all\|claude\|codex\|grok\|kimi "..."` | 复用已有 session |
-| 状态 | `oma status` | 读项目内 state 与任务指向 |
-| 收尾 | `oma cleanup` | 只 `kill-session`，不 `kill-server` |
+| 权限模式 | `oma init --permission-mode auto\|yolo\|manual` | 覆盖默认 yolo；manual 不写 bypass（设计口径） |
+| 拉起会话 | `oma spawn [--agents a,b] [--stub] [--project PATH]` | 项目专属会话（`oma-<slug>`）里按布局拉 1-4 路 agent，缺省取已装交集；注入 `OHMYAGENTS_PROJECT/AGENT/STATE_FILE`；不阻塞返回；已存在则拒绝叠格 |
+| 桩会话 | `oma spawn --stub [--agents a,b]` | 用 shell 桩替代真实 agent（验收与调试） |
+| 看状态 | `oma status [--project PATH]` | 只读列各路 pid、进程名（locate）、终端态（1b 分类）、hook 态（层 2，沉默标 silent）；不 attach |
+| 发单行任务 | `oma send <agent> "<text>" [--confirm MARKER] [--project PATH]` | 守卫链（键策略、locate 进程名）后 `send_text` 与 Enter 两段式；多行拒绝；`--confirm` 等短头可见 |
+| 收尾 | `oma cleanup [--project PATH]` | 只杀本项目会话并清 manifest；不 kill-server，daemon 随末 session 自然退 |
+| 开会话（REPL） | `oma` | spawn 默认不阻塞 CLI + 打印 URL + REPL；不自动打开浏览器（设计口径） |
+| 无网页 | `oma --no-web` | 不起 HTTP（设计口径） |
+| 尝试打开浏览器 | `oma --open` | opener 失败只警告（设计口径） |
+| 委派任务 | `oma run <task> --assign claude,codex` | 写任务到 agent 映射后 drive；一路 blocked 不堵其它路（设计口径） |
 
 ## REPL
 

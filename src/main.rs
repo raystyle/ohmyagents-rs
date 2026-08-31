@@ -6,6 +6,7 @@ use oma::agents;
 use oma::catalog::RmuxPin;
 use oma::doctor;
 use oma::hook;
+use oma::orch;
 use oma::rmux::{self, bin_dir, ensure, managed_root, prepend_path, CheckError, Source};
 use oma::yolo;
 
@@ -49,6 +50,43 @@ enum Commands {
         /// 事件名或四态（idle/working/blocked/unknown）；省略则读 stdin JSON
         event: Option<String>,
     },
+    /// 在项目专属会话里拉起多路 agent（1-4 路；默认已装交集）
+    Spawn {
+        /// 指定 agent 列表（逗号分隔）；缺省取已装交集
+        #[arg(long, value_delimiter = ',')]
+        agents: Option<Vec<String>>,
+        /// 用 shell 桩替代真实 agent（验收与调试）
+        #[arg(long)]
+        stub: bool,
+        /// 项目根；默认当前目录
+        #[arg(long)]
+        project: Option<PathBuf>,
+    },
+    /// 只读列出本项目会话各 agent 的 pid、进程名、终端态与 hook 态
+    Status {
+        /// 项目根；默认当前目录
+        #[arg(long)]
+        project: Option<PathBuf>,
+    },
+    /// 向会话内某路 agent 发单行任务（文本与 Enter 分发）
+    Send {
+        /// 目标 agent 名（claude/codex/grok/kimi）
+        agent: String,
+        /// 单行任务文本
+        text: String,
+        /// 期望在画面上看到的确认短头
+        #[arg(long)]
+        confirm: Option<String>,
+        /// 项目根；默认当前目录
+        #[arg(long)]
+        project: Option<PathBuf>,
+    },
+    /// 只杀本项目的会话（不动 daemon 与其它会话）
+    Cleanup {
+        /// 项目根；默认当前目录
+        #[arg(long)]
+        project: Option<PathBuf>,
+    },
 }
 
 fn main() {
@@ -73,7 +111,108 @@ fn run() -> Result<(), String> {
             Ok(())
         }
         Commands::Hook { event } => cmd_hook(event),
+        Commands::Spawn {
+            agents,
+            stub,
+            project,
+        } => tokio_block(cmd_spawn(agents, stub, project)),
+        Commands::Status { project } => tokio_block(cmd_status(project)),
+        Commands::Send {
+            agent,
+            text,
+            confirm,
+            project,
+        } => tokio_block(cmd_send(agent, text, confirm, project)),
+        Commands::Cleanup { project } => tokio_block(cmd_cleanup(project)),
     }
+}
+
+fn tokio_block<F: std::future::Future<Output = Result<(), String>>>(
+    fut: F,
+) -> Result<(), String> {
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|e| format!("tokio runtime: {e}"))?
+        .block_on(fut)
+}
+
+async fn cmd_spawn(
+    wanted: Option<Vec<String>>,
+    stub: bool,
+    project: Option<PathBuf>,
+) -> Result<(), String> {
+    let root = project_root(project)?;
+    let plan = orch::plan_agents(wanted, stub)?;
+    println!("spawn.project={}", root.display());
+    println!("spawn.stub={stub}");
+    let names: Vec<&str> = plan.agents.iter().map(|(n, _)| n.as_str()).collect();
+    println!("spawn.agents={}", names.join(","));
+    let rmux = orch::connect(&root).await?;
+    let manifest = orch::spawn(&rmux, &root, &plan).await?;
+    println!(
+        "spawn.session={}",
+        orch::session_name(&root)?.as_str()
+    );
+    println!("spawn.manifest.agents={}", manifest.agents.len());
+    println!("spawn.blocking=false");
+    println!("spawn.ok=true");
+    Ok(())
+}
+
+async fn cmd_status(project: Option<PathBuf>) -> Result<(), String> {
+    let root = project_root(project)?;
+    println!("status.project={}", root.display());
+    println!(
+        "status.session={}",
+        orch::session_name(&root)?.as_str()
+    );
+    let rmux = orch::connect(&root).await?;
+    let panes = orch::status(&rmux, &root).await?;
+    for p in &panes {
+        println!(
+            "status.pane.{}.pid={}",
+            p.agent,
+            p.pid.map(|v| v.to_string()).unwrap_or_else(|| "-".into())
+        );
+        println!(
+            "status.pane.{}.proc={}",
+            p.agent,
+            p.process.as_deref().unwrap_or("-")
+        );
+        println!("status.pane.{}.terminal={}", p.agent, p.terminal);
+        println!(
+            "status.pane.{}.hook={}",
+            p.agent,
+            p.hook_state.as_deref().unwrap_or("silent")
+        );
+    }
+    println!("status.panes={}", panes.len());
+    println!("status.ok=true");
+    Ok(())
+}
+
+async fn cmd_send(
+    agent: String,
+    text: String,
+    confirm: Option<String>,
+    project: Option<PathBuf>,
+) -> Result<(), String> {
+    let root = project_root(project)?;
+    let rmux = orch::connect(&root).await?;
+    orch::send(&rmux, &root, &agent, &text, confirm.as_deref()).await?;
+    println!("send.ok=true");
+    Ok(())
+}
+
+async fn cmd_cleanup(project: Option<PathBuf>) -> Result<(), String> {
+    let root = project_root(project)?;
+    let rmux = orch::connect(&root).await?;
+    let existed = orch::cleanup(&rmux, &root).await?;
+    println!("cleanup.killed={existed}");
+    println!("cleanup.scope=session");
+    println!("cleanup.ok=true");
+    Ok(())
 }
 
 fn cmd_hook(event: Option<String>) -> Result<(), String> {

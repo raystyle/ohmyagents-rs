@@ -7,19 +7,20 @@
 
 > 当前目标的起点：何时发起、为什么发起、要解决什么问题。
 
-- **日期**：2026-08-29。
-- **起点**：用户定调先做各功能部件需求的 POC 验证原型。文档骨架、定位、`oma check` 已有；产品命令尚未写。要在叠完整 CLI 之前，按部件核 drive / 布局 / 清理等已知坑。
+- **日期**：2026-08-31。
+- **起点**：P0005 十二部件 POC 在 Windows 全表绿（12 个 example 退出 0），共用层就位未组装。按其实施步骤 4 开产品命令最小闭环。
 
 ## 锚点
 
 > 当前锚定的目标 + 推进时间线。
 
-- **锚定的目标**：为 Oh My Agents 各功能部件做出可跑的 POC 验证原型（方案 P0005）。
+- **锚定的目标**：`oma spawn` / `status` / `send` / `cleanup` 最小产品闭环（方案 P0006），含 `tests/cli.rs` 集成起步。
 
 ### 推进时间线（倒序）
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-08-31 | P0006 达成：spawn/status/send/cleanup 全链路绿（slug 会话 + pane 清单 + 四层 status + 守卫链 send + session 级 cleanup）；tests/cli.rs 5 例起步，cargo test 38 过 |
 | 2026-08-31 | POC negatives 绿，P0005 Windows 范围全表绿（12 个 example）：C-c Codex 守卫 throw、只杀本 session、src 无 daemon-wide kill |
 | 2026-08-31 | POC init 绿（Windows）：按 S015 一手矩阵部署四家 hook/skill；幂等合并保留外条目；家目录指纹零变化 |
 | 2026-08-31 | S015 四家 hook 注册一手形态：Claude 官方 hooks reference + codex/grok-build/kimi-code 三仓源码；订正 Claude PermissionRequest 旧口径、关闭 Kimi 项目级悬案 |
@@ -40,7 +41,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标（收尾中）：各功能部件 POC 验证原型。**Windows 范围全表绿（2026-08-31，12 个 example 全部退出 0）**；Linux/mac pane 跑测委托后续仓库。下一步按 P0005 开产品命令 `spawn` / `send` / `cleanup`。
+- 当前目标（收尾中）：产品命令最小闭环。四命令全链路验收过（2026-08-31）；REPL、HTTP 网页、`oma run`、多行粘贴留待后续方案。
 
 ## 历史
 
@@ -48,6 +49,8 @@
 
 | 日期 | 目标 | 结果 |
 | --- | --- | --- |
+| 2026-08-31 | 产品命令最小闭环（P0006） | 达成：spawn/status/send/cleanup 全链路绿；tests/cli.rs 起步；cargo test 38 过 |
+| 2026-08-29 | 各功能部件 POC 验证原型（P0005） | 达成（Windows 范围）：12 个 example 全表绿；locate/stream/state/init/negatives 五件与 paste 同日收官；Linux/mac 委托后续仓库 |
 | 2026-08-29 | 对照 ohmypwsh 建立项目结构与项目文档 | 达成：四段 AGENTS、三原语大写、定位 0004、`oma check` 装上 rmux 0.10.0 |
 | 2026-08-29 | 先写研究、不写 Cargo | 达成：对照博客与吸收报告；后因 check 开了 `src\` |
 | 2026-08-29 | 删除 project skill 对本仓的元文件 | 达成：去掉误跟的 AGENTS/CLAUDE/CHANGELOG/ROADMAP/docs 地图 |

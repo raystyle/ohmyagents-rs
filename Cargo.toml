@@ -24,3 +24,9 @@ which = "6"
 zip = { version = "2", default-features = false, features = ["deflate"] }
 rmux-sdk = "=0.10.0"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+[dev-dependencies]
+# assert_cmd 与 predicates 为 clap 官方生态标准 CLI 测试件（R005 选型：
+# crates.io 稳定主流、持续维护），只进测试构建。
+assert_cmd = "2"
+predicates = "3"

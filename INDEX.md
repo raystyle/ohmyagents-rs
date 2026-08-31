@@ -35,6 +35,8 @@
 | `src\doctor.rs` | `oma doctor`：只读诊断（yolo / 信任 / 二进制 / state） |
 | `src\yolo.rs` | `oma init --yolo`：四家配置落盘与 pretrust |
 | `src\deploy.rs` | `oma init` hook/skill 部署层：按 S015 矩阵落项目文件，幂等合并 |
+| `src\orch.rs` | 产品编排层：项目 slug 会话、spawn/status/send/cleanup、pane 清单 |
+| `tests\cli.rs` | CLI 集成冒烟（assert_cmd；check/agents/hook/doctor/send 快败） |
 | `src\pathutil.rs` | 路径工具 |
 | `examples\poc-*.rs` | 十二个部件 POC（见下） |
 | `catalog\rmux.toml` | rmux tag 与各平台 SHA256（信任锚） |
@@ -50,6 +52,9 @@ ohmyagents/
   src\
     main.rs  lib.rs  catalog.rs  rmux.rs  rmuxpoc.rs
     hook.rs  agents.rs  doctor.rs  yolo.rs  pathutil.rs
+    deploy.rs  orch.rs
+  tests\
+    cli.rs
   examples\
     poc-yolo-doctor.rs  poc-endpoint.rs  poc-session.rs
     poc-layout.rs  poc-drive.rs  poc-dialogs.rs  poc-paste.rs
@@ -72,7 +77,8 @@ ohmyagents/
 | P0002 | `P0002-项目重新定位-通用多Agents自动配置和任务编排器.md` | 上一版定位 |
 | P0003 | `P0003-rmux检测版本哈希与全平台安装.md` | `oma check` |
 | P0004 | `P0004-项目重新定位-通用智能体多路复用任务编排器.md` | 现役定位 |
-| P0005 | `P0005-各功能部件POC验证原型.md` | 现役目标 |
+| P0005 | `P0005-各功能部件POC验证原型.md` | 已完成（Windows 全表绿） |
+| P0006 | `P0006-产品命令最小闭环-spawn状态send与cleanup.md` | 现役目标 |
 
 ## 四、项目日记（`docs\diary\`，一天一篇总结自省）
 

@@ -101,6 +101,23 @@ pub async fn connect(tag: &str) -> Result<Rmux, String> {
     connect_with(&report, tag).await
 }
 
+/// Connect to an arbitrary dedicated endpoint, starting the daemon via WMI
+/// when trapped in a Job Object. Shared by POCs and product orchestration.
+pub async fn connect_dedicated(
+    report: &rmux::Report,
+    ep: RmuxEndpoint,
+) -> Result<Rmux, String> {
+    prepare_env();
+    match try_connect_or_start(ep.clone()).await {
+        Ok(rmux) => Ok(rmux),
+        Err(e) if cfg!(windows) && is_job_object_error(&e) => {
+            start_daemon_outside_job(&report.layout.helper, &ep)?;
+            wait_connect(ep).await
+        }
+        Err(e) => Err(e),
+    }
+}
+
 pub async fn connect_with(report: &rmux::Report, tag: &str) -> Result<Rmux, String> {
     prepare_env();
     let endpoint = poc_endpoint(tag);

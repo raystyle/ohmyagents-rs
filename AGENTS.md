@@ -88,15 +88,16 @@
 - **检测已装 agent**：`oma agents`（PATH、`OMA_AGENT_PATH`、`OMA_*_BIN`、各家默认安装目录；Windows / Linux / macOS）
 - **hook 写状态**：`oma hook`（agent lifecycle hook 调用；stdin JSON 或参数；写 `OHMYAGENTS_STATE_FILE`；缺环境则静默。不连 rmux 管道）
 - **Windows 最小 pane POC**：`cargo run --example poc-endpoint|poc-session|poc-layout|poc-drive|poc-dialogs|poc-paste|poc-locate|poc-stream|poc-state|poc-init|poc-negatives`（专用 pipe、CreateOnly、2x2、send_text+Enter、hook blocked + sendkeys、load-buffer+paste-buffer -p 中文、pid 反查进程名错位 throw、output_stream Oldest 回放 Now 直播、terminal_state 分类 Quiet 不当 idle、hook/skill 项目级部署幂等不改家目录、C-c Codex 与 daemon-wide kill 负例守卫）。Windows 范围全表绿；Linux/mac 委托后续仓库
-- **部署项目级 hook/skill/yolo**：`oma init [--yolo]`
-- **开会话**：`oma`（REPL，spawn 默认不阻塞）；`--no-web` 不起 HTTP；`--open` 才尝试打开浏览器。阻塞用 `doctor`/`status` 诊断，不在主命令里长时间 `wait_ready` 卡住委派
-- **委派**：`oma run <task> --assign …` 或 REPL / `send`。Drive 遵守三段式铁律（发前扫框、`paste-buffer -p`、Enter 单独发，细则见 `docs\research\S005-drive铁律与三段式粘贴.md`）：禁止文本和 Enter 同发、对 Codex 发 `C-c`、发送侧自包 `\x1b[200~`
-- **看状态**：`oma status`
+- **部署项目级 hook/skill/yolo**：`oma init [--yolo]`（hook/skill 部署层在 `src\deploy.rs`，接 CLI 待 P0006 后续）
+- **拉起多路会话**：`oma spawn [--agents a,b] [--stub] [--project PATH]`（1-4 路，缺省已装交集；项目专属会话可跨命令重连；不阻塞）；阻塞用 `doctor`/`status` 诊断，不在主命令里长时间 `wait_ready` 卡住委派
+- **开会话（REPL）**：`oma`（设计口径）；`--no-web` 不起 HTTP；`--open` 才尝试打开浏览器
+- **委派**：`oma send <agent> "<单行文本>"`（守卫链加两段式；`--confirm MARKER` 等短头确认）；多行粘贴与 `oma run` 仍是设计口径。Drive 遵守三段式铁律（发前扫框、`paste-buffer -p`、Enter 单独发，细则见 `docs\research\S005-drive铁律与三段式粘贴.md`）：禁止文本和 Enter 同发、对 Codex 发 `C-c`、发送侧自包 `\x1b[200~`
+- **看状态**：`oma status`（层 0 pid + locate 进程名 + 1b 终端态 + 层 2 hook 态）
 - **收尾**：`oma cleanup`（只杀本 session）
 - **查文档**：先搜 `INDEX.md` 定位编号，再读文件；rg / mq / ast-grep 全套搜索方法见四、资源索引
 - **项目工具**：`.tools\`（自定义脚本归档；Python 用 `uv run --script .tools\<名>.py`，清单见 `.tools\README.md`）；文档大改后断链回归 `uv run --script .tools\md-ref-scan.py`
 
-已落地：`check`、`init --yolo`、`doctor`、`agents`、`hook`。其余仍是设计口径，禁止假装已经可跑。
+已落地：`check`、`init --yolo`、`doctor`、`agents`、`hook`、`spawn`、`status`、`send`、`cleanup`。其余（REPL、网页、`oma run`、多行粘贴）仍是设计口径，禁止假装已经可跑。
 
 ## 四、资源索引
 
