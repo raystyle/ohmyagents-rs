@@ -28,3 +28,4 @@
 | POC init | 待办 | 临时目录落 hook/skill，不改家目录 | 2026-08-29 |
 | POC negatives | 待办 | 禁止 C-c Codex、禁止 kill-server 进主路径 | 2026-08-29 |
 | 测试规范研究 | 已完成 | 三源对照沉淀为规则：AGENTS 写测试规则「写测试时」+ `docs\guide\测试标准细则-分层断言与门禁流程.md`；`tests/` 建设见细则第一段 | 2026-08-31 |
+| 编码经验研究 | 已完成 | `docs\research\ponytail懒人阶梯与oma编码经验.md`：七档阶梯与不该懒清单，对照本仓规则与 POC 实证；暂不升规则 | 2026-08-31 |
