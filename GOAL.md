@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-08-31 | P0011 切片 1 完成：HTTP 编排面落地——api 传输无关层 + axum server（feature 隔离）、六操作 JSON 信封、会话锁串行；stub curl 全绿（含 400 与 ok:false 负例）；选型核实订正 rmcp 为 stable 3.1.4 |
 | 2026-08-31 | P0013 达成：四家联邦检索全落地——grok/kimi loader 接完（源码核实纠三处偏）、codex 升 FileChange 双源、时间 epoch ms 归一；grok/kimi 真实历史检索命中；S019 落档；M034 记档 |
 | 2026-08-31 | P0013 架构定案查询时联邦并首落 claude/codex：S019 本地实证四家会话库全破、`src\trace.rs` + `oma trace sessions\|timeline\|search` 活体验证（双意图自证、历史轮次回溯）；S007 无头缺口由 ohmypwsh 同机实测回填 |
 | 2026-08-31 | 目标切到 P0013：S018 aitrace 研究落档（operation_id 归组、双意图、补账、裁决表八坑，七条断言抽查全中）；P0013 立项（五切片，补 agent 过滤与项目路径两缺口） |

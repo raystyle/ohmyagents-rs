@@ -71,4 +71,12 @@ orch.rs（编排核心，已有：Link + 六函数）
 
 ## 实施过程与经验
 
-（进行中）
+### 切片 1：HTTP API 最小集
+
+> 2026-08-31 完成并验收。
+
+- 分层落地：`src\api.rs` 传输无关六操作（spawn/status/send/run/settle/cleanup 返回结构化 JSON）＋ `src\server.rs` axum 适配（feature `server`）＋ `oma serve [--port 7900] [--project]`。CLI 行式打印不动，三传输共用 api 层不共用打印。[实证]
+- 信封与状态码约定：`{ok, data|error, meta:{command, project}}`；业务失败走 200 加 `ok:false`（信封承载语义），坏 JSON 400，未知路由 axum 默认 404。index（GET /）自述端点表（S016 的帮助自描述吸收）。[实证]
+- 并发：写操作过 `tokio::sync::Mutex` 会话锁（一次一命令），status 只读不锁。settle 空体接受（等价 wait=30）。[实证]
+- 验收（stub 项目 curl/Invoke-RestMethod 全绿）：index 6 端点、spawn 双路（claude,codex）、status idle、send、run 双路 dispatched、settle、坏 JSON 400、无 manifest send 200 加 `ok:false` 带「run `oma spawn` first」、cleanup killed、无 feature 构建拒绝 serve 退出 1。测试基线 63 单测 + 8 集成（新增 api 1 + server 信封 3）。[实证]
+- 门禁口径：带 server feature 跑 `cargo test --features server`（信封单测在 feature 门内）；无 feature 构建也要过 `cargo build` 保核心零依赖面。[经验]

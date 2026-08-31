@@ -97,10 +97,11 @@
 - **自愈信任**：`oma settle [--wait N]`（自检测信任/审查框并自动确认默认应选项，各家自己持久化信任；密码类永不自动）。codex 的 hook 注册形态见 `src\deploy.rs`（绝对路径加 PowerShell 调用操作符 `&`）
 - **看状态**：`oma status`（层 0 pid + locate 进程名 + 1b 终端态 + 层 2 hook 态）
 - **收尾**：`oma cleanup`（只杀本 session）
+- **起 HTTP 编排面**：`oma serve [--port N] [--project PATH]`（P0011 切片 1 已落地，需 `--features server` 构建）：六操作 RESTish 加 JSON 信封，只绑 127.0.0.1；curl 全绿口径见 `docs\references\R002`
 - **查文档**：先搜 `INDEX.md` 定位编号，再读文件；rg / mq / ast-grep 全套搜索方法见四、资源索引
 - **项目工具**：`.tools\`（自定义脚本归档；Python 用 `uv run --script .tools\<名>.py`，清单见 `.tools\README.md`；py 选库细则 `docs\references\R008`）；文档验证三件套：断链回归 `md-ref-scan.py`、标题括号 `md-heading-scan.py`、`rumdl check .`
 
-已落地：`check`、`init`（全套）、`doctor`、`agents`、`agents install`、`agents update`、`hook`、`spawn`、`status`、`send`、`cleanup`、`run`、`settle`。其余（REPL、网页观察面、三传输 P0011）仍是设计口径，禁止假装已经可跑。
+已落地：`check`、`init`（全套）、`doctor`、`agents`、`agents install`、`agents update`、`hook`、`spawn`、`status`、`send`、`cleanup`、`run`、`settle`、`trace` 六视图、`serve`（HTTP 编排面）。其余（REPL、网页可视化、MCP 接口）仍是设计口径，禁止假装已经可跑。
 
 ## 四、资源索引
 

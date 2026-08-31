@@ -1,6 +1,6 @@
 # 常用命令与管理流程：从项目 init 到会话 cleanup
 
-> AGENTS 意图路由的细则。已落地：`oma check`、`oma init --yolo`、`oma doctor`、`oma agents`、`oma hook`、`oma spawn`、`oma status`、`oma send`、`oma cleanup`（P0006 最小闭环，2026-08-31 实测）。REPL、HTTP 网页、`oma run` 仍是设计口径。
+> AGENTS 意图路由的细则。已落地：`oma check`、`oma init`（全套）、`oma doctor`、`oma agents`（含 install/update）、`oma hook`、`oma spawn`、`oma status`、`oma send`、`oma cleanup`、`oma run`、`oma settle`、`oma trace` 六视图、`oma serve`（HTTP 编排面，2026-08-31 实测）。REPL 与网页可视化仍是设计口径。
 > 显示名 Oh My Agents；仓库 `ohmyagents`；CLI 二进制 `oma`（对照 ohmypwsh 的 `omp`）。运行时数据目录仍是 `.ohmyagents`。
 
 ## 环境
@@ -62,6 +62,7 @@ cargo run --example poc-negatives     # C-c Codex 守卫与 daemon-wide kill 负
 | 检索 agent 轨迹 | `oma trace agent <名> [--limit N] [--project PATH]` | 某家 agent 的操作块时间线（名不在四家内退出非 0） |
 | 检索单文件轨迹 | `oma trace file <相对路径\|glob> [--agent A] [--limit N] [--project PATH]` | 文件维度：该文件被哪些 agent、何时、基于什么意图改过（创建/修改/删除），时间正序 |
 | 检索关键词 | `oma trace search <query> [--agent A] [--limit N] [--project PATH]` | 正则匹配 patch、file、双意图四域，非法正则退字面子串；先全量匹配后截断；输出元素命中数与匹配块数两个粒度 |
+| 起 HTTP 编排面 | `oma serve [--port 7900] [--project PATH]` | 六操作 RESTish：`POST /spawn`（body `{"agents":["a"],"stub":false}`）、`GET /status`、`POST /send`、`POST /run`、`POST /settle`、`DELETE /session`；JSON 信封 `{ok, data\|error, meta:{command, project}}`；业务失败 200 加 `ok:false`，坏 JSON 400；只绑 127.0.0.1，写操作会话锁串行（一次一命令）；Ctrl-C 只停 serve 不清会话。需 `--features server` 构建，缺 feature 报错退出 1 |
 
 ## REPL
 

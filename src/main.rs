@@ -120,6 +120,15 @@ enum Commands {
         #[command(subcommand)]
         cmd: TraceCmd,
     },
+    /// 起 HTTP 编排面（六操作 RESTish 加 JSON 信封；只绑 127.0.0.1）
+    Serve {
+        /// 监听端口
+        #[arg(long, default_value_t = 7900)]
+        port: u16,
+        /// 项目根；默认当前目录
+        #[arg(long)]
+        project: Option<PathBuf>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -270,6 +279,7 @@ fn run() -> Result<(), String> {
         } => tokio_block(cmd_run(text, assign, confirm, project)),
         Commands::Settle { wait, project } => tokio_block(cmd_settle(wait, project)),
         Commands::Trace { cmd } => cmd_trace(cmd),
+        Commands::Serve { port, project } => cmd_serve(port, project),
     }
 }
 
@@ -281,6 +291,18 @@ fn tokio_block<F: std::future::Future<Output = Result<(), String>>>(
         .build()
         .map_err(|e| format!("tokio runtime: {e}"))?
         .block_on(fut)
+}
+
+/// serve 是常驻命令：feature 缺失时给出可行动的报错而不是静默装死。
+#[cfg(feature = "server")]
+fn cmd_serve(port: u16, project: Option<PathBuf>) -> Result<(), String> {
+    let root = project_root(project)?;
+    tokio_block(oma::server::serve(root, port))
+}
+
+#[cfg(not(feature = "server"))]
+fn cmd_serve(_port: u16, _project: Option<PathBuf>) -> Result<(), String> {
+    Err("oma serve needs the `server` feature; rebuild with --features server".to_string())
 }
 
 async fn cmd_spawn(

@@ -10,6 +10,12 @@ repository = "https://github.com/raystyle/OhMyAgents"
 name = "oma"
 path = "src/main.rs"
 
+[features]
+default = []
+# P0011 三传输：适配层依赖走可选 feature，核心构建不背 axum/rmcp。
+server = ["dep:axum"]
+mcp = []
+
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 dirs = "5"
@@ -25,7 +31,8 @@ ureq = { version = "2", features = ["tls"] }
 which = "6"
 zip = { version = "2", default-features = false, features = ["deflate"] }
 rmux-sdk = "=0.10.0"
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }
+axum = { version = "0.8", optional = true }
 
 [dev-dependencies]
 # assert_cmd 与 predicates 为 clap 官方生态标准 CLI 测试件（R005 选型：
