@@ -1,6 +1,6 @@
 # agent 意图操作块与编辑轨迹检索
 
-- 状态：进行中（S018 研究已备，实现切片推进）
+- 状态：进行中（claude/codex 全链验收通过——无头双家产编辑、五视图检索可见；grok/kimi 事件 loader 待 S019 源码核实）
 - 日期：2026-08-31
 - 关联：研究 `S018`（aitrace 机制与 oma 映射）、`S009`（状态四层）、`S015`（hook 矩阵）；前置 P0006-P0012（编排与安装底座）；用户定调 2026-08-31：「增加研究 D:\aitrace，实现指定项目下的各 Agent 意图操作块及编辑文件轨迹的检索功能」
 
@@ -83,6 +83,15 @@ operation_id = session_id:call_id   （S018 核心设计，一根线串会话与
 - 按 agent 过滤在多路会话下各归各（stub 双路互改同文件不张冠李戴）
 - meta.json 的 project_path 非空；空跑不建会话目录
 - `cargo test` 全绿；文档三件套过；R002/INDEX/TODO/GOAL/diary 同步
+
+## 验收实录
+
+> 2026-08-31 无头通道（ohmypwsh S010 基准法）。
+
+- 临时项目双家无头各写一文件（`claude -p --permission-mode acceptEdits`、`codex exec --skip-git-repo-check -s danger-full-access`），`oma trace sessions` 两家各命中一会话（claude 走目录 slug、codex 走 `session_meta.cwd`）；`timeline` 两条编辑事件各带完整 `intent`（prompt 原文）与 `operation_id`；`trace file hi.md` 单文件轨迹命中 codex 的 create。[实证: 全程输出留存]
+- 无头一次性任务的 `op_intent` 为 `-`：模型直奔工具没有前置文本——意图是尽力而为不是保证（S018 同结论）。
+- claude `Write` 无显式 create/delete 信息，v1 kind 一律 modify（文档化局限；磁盘真相归远期缓存层）。
+- 验收顺带踩了 M031 同族坑：没切 cwd 两家把文件写进本仓——先清误产物再 `Set-Location` 重跑。[实证]
 
 ## 实施过程与经验
 

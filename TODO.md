@@ -15,7 +15,7 @@ agent 意图操作块与编辑轨迹检索（对应 `GOAL.md`，方案 P0013，�
 | S019 四家会话日志格式 | 已完成（本地实证）| 四家位置/项目归属/工具身份/意图源全破（S019 落档待源码核实回报合流） | 2026-08-31 |
 | 联邦检索层 | 进行中 | `src\trace.rs`：claude/codex loader + 会话发现（四家）已落地并活体验证；grok/kimi 事件 loader 等源码核实 | 2026-08-31 |
 | 检索面 | 已完成 | `oma trace sessions\|timeline\|search`（agent/glob/regex/分页 clamp；先匹配后截断） | 2026-08-31 |
-| 验收 | 待办 | 无头通道（claude -p / codex exec / kimi -p，ohmypwsh S010 基准）临时项目产编辑后检索可见 | — |
+| 验收 | 已完成（claude/codex）| 无头双家临时项目产编辑（claude -p、codex exec），sessions/timeline/file 三面全命中，intent 与 operation_id 完整；grok/kimi 随其 loader 补验 | 2026-08-31 |
 
 ## 队列目标
 
