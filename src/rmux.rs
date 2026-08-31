@@ -52,9 +52,14 @@ pub fn host_os_arch() -> (&'static str, &'static str) {
 }
 
 pub fn managed_root(pin: &RmuxPin) -> Result<PathBuf, CheckError> {
-    let base = dirs::data_local_dir()
-        .ok_or_else(|| CheckError::Message("cannot resolve local data dir".into()))?;
-    Ok(base.join("ohmyagents").join("rmux").join(&pin.version))
+    // oma 应用数据根迁到 ~/.ohmyagents（用户定调 2026-08-31）；旧 LOCALAPPDATA 布局保留兼容探测。
+    let home = crate::install::oma_home().map_err(CheckError::Message)?;
+    Ok(home.join("rmux").join(&pin.version))
+}
+
+/// 2026-08-31 前的安装位（%LOCALAPPDATA%\ohmyagents\rmux\<ver>）。
+pub fn legacy_root(pin: &RmuxPin) -> Option<PathBuf> {
+    dirs::data_local_dir().map(|b| b.join("ohmyagents").join("rmux").join(&pin.version))
 }
 
 pub fn bin_dir(root: &Path) -> PathBuf {
@@ -232,15 +237,18 @@ fn read_manifest_archive_sha(root: &Path) -> Option<String> {
 
 pub fn detect(pin: &RmuxPin) -> Result<Report, CheckError> {
     let root = managed_root(pin)?;
-    if let Some(layout) = layout_at_root(&root) {
-        let archive = read_manifest_archive_sha(&root);
-        let report = inspect(layout, Source::Managed, archive)?;
-        if report.version != pin.version {
-            return Err(CheckError::Missing {
-                reason: format!("managed rmux is {} want {}", report.version, pin.version),
-            });
+    let legacy = legacy_root(pin);
+    for candidate in [Some(root), legacy].into_iter().flatten() {
+        if let Some(layout) = layout_at_root(&candidate) {
+            let archive = read_manifest_archive_sha(&candidate);
+            let report = inspect(layout, Source::Managed, archive)?;
+            if report.version != pin.version {
+                return Err(CheckError::Missing {
+                    reason: format!("managed rmux is {} want {}", report.version, pin.version),
+                });
+            }
+            return Ok(report);
         }
-        return Ok(report);
     }
 
     if let Ok(found) = which::which(dispatcher_name()) {
@@ -362,7 +370,7 @@ fn extract_archive(asset: &Asset, archive: &Path, dest: &Path) -> Result<(), Che
     }
 }
 
-fn extract_zip(archive: &Path, dest: &Path) -> Result<(), CheckError> {
+pub fn extract_zip(archive: &Path, dest: &Path) -> Result<(), CheckError> {
     let file = File::open(archive)
         .map_err(|e| CheckError::Message(format!("{}: {e}", archive.display())))?;
     let mut zip = zip::ZipArchive::new(file)
@@ -399,7 +407,7 @@ fn extract_zip(archive: &Path, dest: &Path) -> Result<(), CheckError> {
     Ok(())
 }
 
-fn extract_tar_gz(archive: &Path, dest: &Path) -> Result<(), CheckError> {
+pub fn extract_tar_gz(archive: &Path, dest: &Path) -> Result<(), CheckError> {
     let file = File::open(archive)
         .map_err(|e| CheckError::Message(format!("{}: {e}", archive.display())))?;
     let gz = flate2::read::GzDecoder::new(file);
@@ -427,7 +435,7 @@ fn copy_package(from: &Path, to: &Path) -> Result<(), CheckError> {
     copy_dir(from, to).map_err(|e| CheckError::Message(format!("copy package: {e}")))
 }
 
-fn copy_dir(from: &Path, to: &Path) -> io::Result<()> {
+pub fn copy_dir(from: &Path, to: &Path) -> io::Result<()> {
     fs::create_dir_all(to)?;
     for ent in fs::read_dir(from)? {
         let ent = ent?;

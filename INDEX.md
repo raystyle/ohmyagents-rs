@@ -27,7 +27,7 @@
 | `.tools\md-replace.py` | 中文与反斜杠路径安全的字面批量替换（规避 sed 坑 M023） |
 | `src\main.rs` | CLI 入口与子命令分发（check / init / doctor / agents / hook） |
 | `src\lib.rs` | 模块声明 |
-| `src\catalog.rs` | `catalog\rmux.toml` pin 读取（版本与哈希） |
+| `src\catalog.rs` | `catalog\rmux.toml` 与 `catalog\agents.toml` pin 读取与加载期校验 |
 | `src\rmux.rs` | `oma check`：布局探测、归档下载安装、哈希校验 |
 | `src\rmuxpoc.rs` | POC 共用层：专用端点、闸门、Job Object WMI 退路、桩 argv |
 | `src\hook.rs` | `oma hook`：事件到四态映射与 state 落盘 |
@@ -36,10 +36,12 @@
 | `src\yolo.rs` | `oma init --yolo`：四家配置落盘与 pretrust |
 | `src\deploy.rs` | `oma init` hook/skill 部署层：按 S015 矩阵落项目文件，幂等合并 |
 | `src\orch.rs` | 产品编排层：项目 slug 会话、spawn/status/send/cleanup、pane 清单 |
+| `src\install.rs` | 自适应安装层：多渠道下载、sha 信任锚、oma 自管根布局、update 取证与 pin 写回 |
 | `tests\cli.rs` | CLI 集成冒烟（assert_cmd；check/agents/hook/doctor/send 快败） |
 | `src\pathutil.rs` | 路径工具 |
 | `examples\poc-*.rs` | 十四个 POC（见下；label-bridge 端点融合、dump 备屏诊断） |
 | `catalog\rmux.toml` | rmux tag 与各平台 SHA256（信任锚） |
+| `catalog\agents.toml` | 四家 agent pin：渠道序（github 主 CDN 兜底）、per-OS+arch 资产 SHA256、官方校验清单线索（信任锚） |
 
 ```text
 ohmyagents/
@@ -85,7 +87,8 @@ ohmyagents/
 | P0008 | `P0008-oma-run委派与任务映射.md` | 已完成（同日 stub 验收） |
 | P0009 | `P0009-真四路拉通验收.md` | 已完成（claude 路全通；spawn cwd 缺陷修复 M031） |
 | P0010 | `P0010-settle自愈信任-自检测与自动确认.md` | 已完成（codex 路全通；双机制互兜） |
-| P0011 | `P0011-三传输编排面-http-api与mcp与网页可视化.md` | 现役目标 |
+| P0011 | `P0011-三传输编排面-http-api与mcp与网页可视化.md` | 挂起待续（方案已立，四切片待办） |
+| P0012 | `P0012-自适应本机安装部署-rmux与四家agent接管.md` | 已完成（Windows 四家装机全绿；Linux/mac 待环境切换） |
 
 ## 四、项目日记
 
@@ -116,6 +119,7 @@ ohmyagents/
 | S014 | `S014-检测已装agent-PATH与默认目录与环境变量.md` | 四家二进制探测路径表 |
 | S015 | `S015-四家hook注册一手形态-官方文档与源码核实.md` | 注册落点/schema/事件全集/部署矩阵（poc-init 依据） |
 | S016 | `S016-incurs命令输出与帮助经验吸收.md` | 双层源码研究：输出信封/CTA/帮助/三传输参照（P0011 依据） |
+| S017 | `S017-ohmypwsh安装配置机制与四家agent渠道取证.md` | ohmypwsh 安装配置蓝本与四家渠道 checksum 取证（P0012 依据） |
 
 ## 六、开发测试参考
 

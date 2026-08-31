@@ -123,6 +123,29 @@ fn init_full_deploys_hooks_skills_and_yolo() {
 }
 
 #[test]
+fn agents_install_unknown_name_fails_fast() {
+    // Unknown agent is rejected before any network access: the error must
+    // name the catalog's known agents.
+    let tmp = std::env::temp_dir().join(format!(
+        "oma-cli-install-{}-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis(),
+    NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    std::fs::create_dir_all(&tmp).unwrap();
+    oma().args(["agents", "install", "nope", "--root"]).arg(&tmp)
+        .assert()
+        .failure()
+        .stdout(contains("install.nope.status=failed"))
+        .stdout(contains("unknown agent nope"))
+        .stderr(contains("failed to install"));
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
 fn dies_send_without_a_session_fails_fast() {
     // No manifest means no session: send must fail with guidance instead
     // of starting a daemon or touching anything.

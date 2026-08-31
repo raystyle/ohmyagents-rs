@@ -6,6 +6,7 @@ use oma::agents;
 use oma::catalog::RmuxPin;
 use oma::doctor;
 use oma::hook;
+use oma::install;
 use oma::orch;
 use oma::rmux::{self, bin_dir, ensure, managed_root, prepend_path, CheckError, Source};
 use oma::yolo;
@@ -43,8 +44,11 @@ enum Commands {
         #[arg(long)]
         project: Option<PathBuf>,
     },
-    /// 检测本机已装哪些 agent（PATH、OMA_AGENT_PATH、OMA_*_BIN、默认目录）
-    Agents,
+    /// 检测本机已装哪些 agent（PATH、OMA_AGENT_PATH、OMA_*_BIN、oma 自管根、默认目录）
+    Agents {
+        #[command(subcommand)]
+        cmd: Option<AgentsCmd>,
+    },
     /// Agent hook 入口：读事件写 `.ohmyagents/state`。缺 OHMYAGENTS_STATE_FILE 则静默退出
     Hook {
         /// 事件名或四态（idle/working/blocked/unknown）；省略则读 stdin JSON
@@ -112,6 +116,32 @@ enum Commands {
     },
 }
 
+#[derive(Subcommand)]
+enum AgentsCmd {
+    /// 安装缺失的 agent（oma 自管根 ~/.ohmyagents；已装任何来源即跳过；github 主 CDN 兜底）
+    Install {
+        /// agent 名列表；缺省 = catalog 全部的缺失者
+        names: Vec<String>,
+        /// 已装也重装（oma 自管根）
+        #[arg(long)]
+        force: bool,
+        /// 自定义 oma 应用数据根；缺省 OMA_HOME 环境变量或 ~/.ohmyagents
+        #[arg(long)]
+        root: Option<PathBuf>,
+    },
+    /// 解析最新版并升级 oma 自管安装，取证 sha256 后写回用户本地 pin
+    Update {
+        /// agent 名列表；缺省 = catalog 全部
+        names: Vec<String>,
+        /// 已是最新也强制重取重装
+        #[arg(long)]
+        force: bool,
+        /// 自定义 oma 应用数据根
+        #[arg(long)]
+        root: Option<PathBuf>,
+    },
+}
+
 fn main() {
     if let Err(e) = run() {
         eprintln!("oma: {e}");
@@ -129,10 +159,14 @@ fn run() -> Result<(), String> {
             project,
         } => cmd_init(yolo, pretrust, project),
         Commands::Doctor { project } => cmd_doctor(project),
-        Commands::Agents => {
-            agents::print_reports(&agents::detect());
-            Ok(())
-        }
+        Commands::Agents { cmd } => match cmd {
+            None => {
+                agents::print_reports(&agents::detect());
+                Ok(())
+            }
+            Some(AgentsCmd::Install { names, force, root }) => cmd_agents_install(names, force, root),
+            Some(AgentsCmd::Update { names, force, root }) => cmd_agents_update(names, force, root),
+        },
         Commands::Hook { event } => cmd_hook(event),
         Commands::Spawn {
             agents,
@@ -275,6 +309,75 @@ async fn cmd_run(
     }
     println!("run.ok=true");
     Ok(())
+}
+
+fn cmd_agents_install(
+    names: Vec<String>,
+    force: bool,
+    root: Option<PathBuf>,
+) -> Result<(), String> {
+    let home = root.map(Ok).unwrap_or_else(install::oma_home)?;
+    let catalog = install::resolve_catalog(&home)?;
+    let mut failed = 0u32;
+    for (name, result) in install::install_missing(&catalog, &names, &home, force) {
+        match result {
+            Ok(install::InstallOutcome::Installed { version, probed, path }) => {
+                println!("install.{name}.status=installed version={version}");
+                match &probed {
+                    Some(v) => println!("install.{name}.probe={v}"),
+                    None => println!("install.{name}.probe=unavailable"),
+                }
+                println!("install.{name}.path={}", path.display());
+            }
+            Ok(install::InstallOutcome::Skipped { detail }) => {
+                println!("install.{name}.status=skipped detail={detail}");
+            }
+            Err(e) => {
+                failed += 1;
+                println!("install.{name}.status=failed detail={e}");
+            }
+        }
+    }
+    println!("install.home={}", home.display());
+    if failed > 0 {
+        Err(format!("{failed} agent(s) failed to install"))
+    } else {
+        Ok(())
+    }
+}
+
+fn cmd_agents_update(names: Vec<String>, force: bool, root: Option<PathBuf>) -> Result<(), String> {
+    let home = root.map(Ok).unwrap_or_else(install::oma_home)?;
+    let catalog = install::resolve_catalog(&home)?;
+    let wanted: Vec<String> = if names.is_empty() {
+        catalog.agents.iter().map(|p| p.name.clone()).collect()
+    } else {
+        names
+    };
+    let mut failed = 0u32;
+    for name in &wanted {
+        match install::update_agent(&home, name, force) {
+            Ok(install::UpdateOutcome::Updated { from, to }) => {
+                println!("update.{name}.status=updated from={from} to={to}");
+            }
+            Ok(install::UpdateOutcome::UpToDate { version }) => {
+                println!("update.{name}.status=uptodate version={version}");
+            }
+            Ok(install::UpdateOutcome::Skipped { detail }) => {
+                println!("update.{name}.status=skipped detail={detail}");
+            }
+            Err(e) => {
+                failed += 1;
+                println!("update.{name}.status=failed detail={e}");
+            }
+        }
+    }
+    println!("update.home={}", home.display());
+    if failed > 0 {
+        Err(format!("{failed} agent(s) failed to update"))
+    } else {
+        Ok(())
+    }
 }
 
 fn cmd_hook(event: Option<String>) -> Result<(), String> {

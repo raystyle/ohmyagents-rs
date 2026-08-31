@@ -1,0 +1,277 @@
+# 四家 agent pin：信任锚是本文件（及用户本地覆盖层 ~/.ohmyagents\catalog\agents.toml）的 sha256，
+# 不是现场官方清单（与 rmux.toml 同原则）。oma agents update 解析最新版后写回用户本地层，仓库层是出厂锚。
+# 渠道（sources 按序尝试：github 默认、CDN 兜底）；资产按 source 绑定——同一家不同渠道的制品可能不同
+# （kimi 实证：GitHub 是 zip，CDN manifest 是裸单二进制，checksum 各异）。
+# 校验和取证（2026-08-31，方法见 docs\research\S017 第四节与本文件各注释）：
+#   claude v2.1.251     —— GitHub release 附 SHASUMS256.txt
+#   codex rust-v0.151.0 —— GitHub release 附 codex-package_SHA256SUMS
+#   kimi @moonshot-ai/kimi-code@0.39.1 —— GitHub 逐资产 .sha256 边车；CDN manifest.json platforms[].checksum
+#   grok 1.0.13        —— 无官方清单（x.ai CDN 与 GitHub 均无），hash 承接 ohmypwsh catalog.psd1 自算 pin
+# claude GCS 分发桶存在（stable 返回 2.1.236）但资产 URL 形状未实证（claude.ai 本机 DNS 不通）——留槽不填。
+# codex 官方 install.sh 实证纯走 GitHub release（api.github.com 元数据 + releases/download 下载；
+# README 的 releases.openai.com 是 404 死桶，npm 的 codex-npm-*.tgz 是 legacy 兜底制品）——github 即全渠道。
+# GitHub release JSON 的 assets[].digest 自带 sha256 前缀逐资产哈希，oma update 取证一次 API 拿全。
+
+[[agents]]
+name = "claude"
+tag = "v2.1.251"
+version = "2.1.251"
+binary = "claude"
+
+[[agents.sources]]
+kind = "github"
+repo = "anthropics/claude-code"
+
+[agents.sources.sums]
+mode = "asset"
+name = "SHASUMS256.txt"
+
+[[agents.sources.assets]]
+os = "windows"
+arch = "x86_64"
+name = "claude-win32-x64.zip"
+sha256 = "22e6a1ee55a866750b5a842912ea1d8a90644868456062ca2a31bccc379c960a"
+kind = "zip"
+
+[[agents.sources.assets]]
+os = "windows"
+arch = "aarch64"
+name = "claude-win32-arm64.zip"
+sha256 = "0d08df48563080cac994fdc1519895c2f0ad109d9bcb99aa98fe0df69dde5976"
+kind = "zip"
+
+[[agents.sources.assets]]
+os = "linux"
+arch = "x86_64"
+name = "claude-linux-x64.tar.gz"
+sha256 = "4fda59f47ab17c0e0c831b3144e3025c050397ba37d574388f52e92e1af81c74"
+kind = "tar_gz"
+
+[[agents.sources.assets]]
+os = "linux"
+arch = "aarch64"
+name = "claude-linux-arm64.tar.gz"
+sha256 = "53a4cc28612c6534884019223ee38b9bad5a12814fe8e31d42ea26ff2b169373"
+kind = "tar_gz"
+
+[[agents.sources.assets]]
+os = "macos"
+arch = "x86_64"
+name = "claude-darwin-x64.tar.gz"
+sha256 = "da2b0b631cd3af3053d18aa27c5cfc5626a4ffdb0f92d1b63bca7b85a5edfe80"
+kind = "tar_gz"
+
+[[agents.sources.assets]]
+os = "macos"
+arch = "aarch64"
+name = "claude-darwin-arm64.tar.gz"
+sha256 = "02e1e8f41406ae4f4a6b85f25ce6653bf586478dfe64e4d56e0a21624756141d"
+kind = "tar_gz"
+
+[[agents]]
+name = "codex"
+tag = "rust-v0.151.0"
+version = "0.151.0"
+binary = "codex"
+
+[[agents.sources]]
+kind = "github"
+repo = "openai/codex"
+
+[agents.sources.sums]
+mode = "asset"
+name = "codex-package_SHA256SUMS"
+
+[[agents.sources.assets]]
+os = "windows"
+arch = "x86_64"
+name = "codex-package-x86_64-pc-windows-msvc.tar.gz"
+sha256 = "e3aebb4f5e8812c19a9df9af2d5caf2c79e4b43a4603403fe6f99a95f3207c6f"
+kind = "tar_gz"
+
+[[agents.sources.assets]]
+os = "windows"
+arch = "aarch64"
+name = "codex-package-aarch64-pc-windows-msvc.tar.gz"
+sha256 = "4a7ee2ea3f3f6e29e5e8c60f0b22209c99348b09cff660814f68c4cb11e7c633"
+kind = "tar_gz"
+
+[[agents.sources.assets]]
+os = "linux"
+arch = "x86_64"
+name = "codex-package-x86_64-unknown-linux-musl.tar.gz"
+sha256 = "6e35ac60b86c0e8c7f8bcf797be8b92206199f6253200b66ff0547276f8cfa5c"
+kind = "tar_gz"
+
+[[agents.sources.assets]]
+os = "linux"
+arch = "aarch64"
+name = "codex-package-aarch64-unknown-linux-musl.tar.gz"
+sha256 = "c64ad6e4f82609552a37069365b50528ef49e986aeab24a538781a18a402773d"
+kind = "tar_gz"
+
+[[agents.sources.assets]]
+os = "macos"
+arch = "x86_64"
+name = "codex-package-x86_64-apple-darwin.tar.gz"
+sha256 = "e8348e1192f155edb21bdbaaf3231c2321087910bb1472b1306f94fb1108ad70"
+kind = "tar_gz"
+
+[[agents.sources.assets]]
+os = "macos"
+arch = "aarch64"
+name = "codex-package-aarch64-apple-darwin.tar.gz"
+sha256 = "cb6e78eba80c1bc310a533f6f1c6c948377733bc06f9e837949334e04abde9c6"
+kind = "tar_gz"
+
+[[agents]]
+name = "grok"
+tag = "1.0.13"
+version = "1.0.13"
+binary = "grok"
+
+# grok 双 CDN（官方 install.sh 与 ohmypwsh set-grok.ps1 一致）：x.ai 主、GCS 兜底，同名资产。
+# 无官方校验清单：update 时下载自算 sha256 固化进 pin（ohmypwsh 同法）。
+
+[[agents.sources]]
+kind = "cdn"
+base = "https://x.ai/cli"
+style = "direct"
+version_url = "https://x.ai/cli/stable"
+
+[[agents.sources.assets]]
+os = "windows"
+arch = "x86_64"
+name = "grok-1.0.13-windows-x86_64.exe"
+sha256 = "bf43dc75f5478a106eab1e86d422c963e4dbe9666cf14dab363733d27bf1e672"
+kind = "single"
+
+[[agents.sources.assets]]
+os = "linux"
+arch = "x86_64"
+name = "grok-1.0.13-linux-x86_64"
+sha256 = "edf79521581bb5e6b95abef848491a6a742e860da3e237ebe86a280d30dce4c1"
+kind = "single"
+
+[[agents.sources]]
+kind = "cdn"
+base = "https://storage.googleapis.com/grok-build-public-artifacts/cli"
+style = "direct"
+
+[[agents.sources.assets]]
+os = "windows"
+arch = "x86_64"
+name = "grok-1.0.13-windows-x86_64.exe"
+sha256 = "bf43dc75f5478a106eab1e86d422c963e4dbe9666cf14dab363733d27bf1e672"
+kind = "single"
+
+[[agents.sources.assets]]
+os = "linux"
+arch = "x86_64"
+name = "grok-1.0.13-linux-x86_64"
+sha256 = "edf79521581bb5e6b95abef848491a6a742e860da3e237ebe86a280d30dce4c1"
+kind = "single"
+
+[[agents]]
+name = "kimi"
+tag = "@moonshot-ai/kimi-code@0.39.1"
+version = "0.39.1"
+binary = "kimi"
+
+[[agents.sources]]
+kind = "github"
+repo = "MoonshotAI/kimi-code"
+
+[agents.sources.sums]
+mode = "sidecar"
+
+[[agents.sources.assets]]
+os = "windows"
+arch = "x86_64"
+name = "kimi-code-win32-x64.zip"
+sha256 = "4319be52b883c455320912954ee1e34f06417c9ac935a75326b4ee6a25587dc9"
+kind = "zip"
+
+[[agents.sources.assets]]
+os = "windows"
+arch = "aarch64"
+name = "kimi-code-win32-arm64.zip"
+sha256 = "3cef980b1a59a4eb0021c3bc614b500e924715c036c10a130ac2183ed466221e"
+kind = "zip"
+
+[[agents.sources.assets]]
+os = "linux"
+arch = "x86_64"
+name = "kimi-code-linux-x64.zip"
+sha256 = "9c301ac70fa5d1f7c73a3138bae1b5664ccc05159b10c93e5eb87b3beea04c21"
+kind = "zip"
+
+[[agents.sources.assets]]
+os = "linux"
+arch = "aarch64"
+name = "kimi-code-linux-arm64.zip"
+sha256 = "e597d2092e35cd898dca98c6af8b0ea314090e9afcb7e27f03a4330d4f7a7fe3"
+kind = "zip"
+
+[[agents.sources.assets]]
+os = "macos"
+arch = "x86_64"
+name = "kimi-code-darwin-x64.zip"
+sha256 = "618d90920f29dd32ac90fb948adbeb0e422b5099c565559e6821461ac59ec586"
+kind = "zip"
+
+[[agents.sources.assets]]
+os = "macos"
+arch = "aarch64"
+name = "kimi-code-darwin-arm64.zip"
+sha256 = "d3a9cc0272caa68e89e747e68e1730ab86b29cdeee8d05a976f207d19020449a"
+kind = "zip"
+
+# kimi CDN（官方 install.sh 实证）：版本通道 {base}/latest、清单 {base}/binaries/<ver>/manifest.json、
+# 二进制 {base}/binaries/<ver>/<filename>。CDN 是裸单二进制（无 zip 包裹），checksum 与 GitHub zip 不同源。
+[[agents.sources]]
+kind = "cdn"
+base = "https://code.kimi.com/kimi-code"
+style = "manifest"
+
+[[agents.sources.assets]]
+os = "windows"
+arch = "x86_64"
+name = "kimi-code-win32-x64.exe"
+sha256 = "ce3a74ead55994eb1350cc45a1d0d9bf083158f2bba4da49a5ee6168a1830338"
+kind = "single"
+
+[[agents.sources.assets]]
+os = "windows"
+arch = "aarch64"
+name = "kimi-code-win32-arm64.exe"
+sha256 = "b6b3c22576eb44ae9f1956bca4913ab3957cc110812d71212055ad8c89641a28"
+kind = "single"
+
+[[agents.sources.assets]]
+os = "linux"
+arch = "x86_64"
+name = "kimi-code-linux-x64"
+sha256 = "585547e082f2f3a32dd80825626a1c8dd4e82f55b4d6a8aa14e6397c00758eca"
+kind = "single"
+
+[[agents.sources.assets]]
+os = "linux"
+arch = "aarch64"
+name = "kimi-code-linux-arm64"
+sha256 = "f2e16073823cdeda207e3d228ef899cb9e43c8623ab21ddd3edd75702ae19ca3"
+kind = "single"
+
+[[agents.sources.assets]]
+os = "macos"
+arch = "x86_64"
+name = "kimi-code-darwin-x64"
+sha256 = "b0d1897ae3fdd7f651939296655c4784ec8f3558c30ebb8bb8b954ba1fff55db"
+kind = "single"
+
+[[agents.sources.assets]]
+os = "macos"
+arch = "aarch64"
+name = "kimi-code-darwin-arm64"
+sha256 = "762ee3be8b67796657409b8d5074ab0beed6f42162035bd4a274055ef0c44cdd"
+kind = "single"

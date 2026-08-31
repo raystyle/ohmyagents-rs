@@ -13,7 +13,7 @@
    - 编排钉在启动的项目目录；不替代 ohmypwsh 五端环境总台，不替代各 agent 本体。
    - 编排操作三通道：CLI、HTTP API、MCP 接口（P0011）；网页做可视化编排。弹不出浏览器不是错误。
    - 运行时后端是 rmux，不引入 herdr 当宿主。
-   - hook、skill、状态文件只落启动目录，默认不改用户家目录 hook 注册。
+   - hook、skill、状态文件只落启动目录；oma 自管应用数据根是 `~/.ohmyagents`（agent 安装与本地 pin，P0012），默认不改用户家目录 hook 注册。
 
 3. **管理对象**
    - 可注册的终端 agent（当前默认 claude / codex / grok / kimi，可扩展）。
@@ -85,7 +85,9 @@
 
 - **核对照**：`oma check`（rmux 版本 + 哈希 + 完整布局；缺则按 `catalog/rmux.toml` 安装。`--no-install` 只诊断）
 - **无阻塞诊断**：`oma doctor`（进程存活 + hook 语义 + 任务指向 + yolo；不把 wait-pane Quiet 当 idle）
-- **检测已装 agent**：`oma agents`（PATH、`OMA_AGENT_PATH`、`OMA_*_BIN`、各家默认安装目录；Windows / Linux / macOS）
+- **检测已装 agent**：`oma agents`（PATH、`OMA_AGENT_PATH`、`OMA_*_BIN`、oma 自管根 `~/.ohmyagents\agents`、各家默认安装目录；Windows / Linux / macOS；缺装行带 hint）
+- **安装缺失 agent**：`oma agents install [名] [--force] [--root PATH]`（自适应：已装任何来源即跳过；catalog pin 加渠道序 github 主 CDN 兜底加 sha256 信任锚加 leaf 找二进制加装后探针；Windows 实测四家全绿，Linux / mac 资产与路径就绪待环境切换验收，P0012）
+- **升级与 pin 维护**：`oma agents update [名] [--force]`（最新版解析加 sha 取证加写回用户本地 pin 层 `~/.ohmyagents\catalog\agents.toml`；取证不全整体失败保旧 pin）
 - **hook 写状态**：`oma hook`（agent lifecycle hook 调用；stdin JSON 或参数；写 `OHMYAGENTS_STATE_FILE`；缺环境则静默。不连 rmux 管道）
 - **Windows 最小 pane POC**：`cargo run --example poc-endpoint|poc-session|poc-layout|poc-drive|poc-dialogs|poc-paste|poc-locate|poc-stream|poc-state|poc-init|poc-negatives`（专用 pipe、CreateOnly、2x2、send_text+Enter、hook blocked + sendkeys、load-buffer+paste-buffer -p 中文、pid 反查进程名错位 throw、output_stream Oldest 回放 Now 直播、terminal_state 分类 Quiet 不当 idle、hook/skill 项目级部署幂等不改家目录、C-c Codex 与 daemon-wide kill 负例守卫）。Windows 范围全表绿；Linux/mac 委托后续仓库
 - **部署项目级 hook/skill/yolo**：`oma init [--project PATH]` 全套（yolo 键加 hook/skill，S015 矩阵，幂等不改家目录）；`--yolo` 仅键；`--pretrust` 追加家目录信任库
@@ -98,7 +100,7 @@
 - **查文档**：先搜 `INDEX.md` 定位编号，再读文件；rg / mq / ast-grep 全套搜索方法见四、资源索引
 - **项目工具**：`.tools\`（自定义脚本归档；Python 用 `uv run --script .tools\<名>.py`，清单见 `.tools\README.md`；py 选库细则 `docs\references\R008`）；文档验证三件套：断链回归 `md-ref-scan.py`、标题括号 `md-heading-scan.py`、`rumdl check .`
 
-已落地：`check`、`init`（全套）、`doctor`、`agents`、`hook`、`spawn`、`status`、`send`、`cleanup`、`run`、`settle`。其余（REPL、网页观察面）仍是设计口径，禁止假装已经可跑。
+已落地：`check`、`init`（全套）、`doctor`、`agents`、`agents install`、`agents update`、`hook`、`spawn`、`status`、`send`、`cleanup`、`run`、`settle`。其余（REPL、网页观察面、三传输 P0011）仍是设计口径，禁止假装已经可跑。
 
 ## 四、资源索引
 

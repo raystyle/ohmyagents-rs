@@ -12,6 +12,7 @@ pub const DEFAULT_AGENTS: &[&str] = &["claude", "codex", "grok", "kimi"];
 pub enum Source {
     Env,
     Path,
+    Oma,
     Default,
 }
 
@@ -20,6 +21,7 @@ impl Source {
         match self {
             Source::Env => "env",
             Source::Path => "path",
+            Source::Oma => "oma",
             Source::Default => "default",
         }
     }
@@ -28,7 +30,8 @@ impl Source {
         match self {
             Source::Env => 0,
             Source::Path => 1,
-            Source::Default => 2,
+            Source::Oma => 2,
+            Source::Default => 3,
         }
     }
 }
@@ -83,6 +86,8 @@ pub struct Probe {
     pub env_bins: BTreeMap<String, PathBuf>,
     pub path_dirs: Vec<PathBuf>,
     pub extra_dirs: Vec<PathBuf>,
+    /// oma 自管安装（`~/.ohmyagents/agents/<name>/<ver>/`，manifest 指路）的精确二进制表。
+    pub oma_files: Vec<(String, PathBuf)>,
     pub default_files: Vec<(String, PathBuf)>,
     pub probe_version: bool,
 }
@@ -103,10 +108,14 @@ impl Probe {
         }
         let mut extra_dirs = split_path_var("OMA_AGENT_PATH");
         extra_dirs.extend(codex_home_bins());
+        let oma_files = crate::install::oma_home()
+            .map(|h| crate::install::managed_binaries(&h))
+            .unwrap_or_default();
         Probe {
             env_bins,
             path_dirs: split_path_var("PATH"),
             extra_dirs,
+            oma_files,
             default_files: default_binaries(&home, local.as_deref(), roaming.as_deref()),
             probe_version: true,
         }
@@ -143,6 +152,17 @@ impl Probe {
                             found.push((Source::Path, (*cmd).to_string(), resolved));
                         }
                     }
+                }
+            }
+        }
+
+        for (name, p) in &self.oma_files {
+            if name != spec.name {
+                continue;
+            }
+            if let Some(resolved) = existing_bin(p) {
+                if !already(&found, &resolved) {
+                    found.push((Source::Oma, spec.commands[0].to_string(), resolved));
                 }
             }
         }
@@ -221,8 +241,8 @@ pub fn print_reports(reports: &[Report]) {
             None => {
                 missing += 1;
                 println!(
-                    "agent={} status=missing detail=not on PATH, OMA_AGENT_PATH, OMA_*_BIN, or default locations",
-                    r.agent
+                    "agent={} status=missing detail=not on PATH, OMA_AGENT_PATH, OMA_*_BIN, oma root, or default locations hint=oma agents install {}",
+                    r.agent, r.agent
                 );
             }
         }
@@ -481,12 +501,43 @@ mod tests {
             env_bins: BTreeMap::new(),
             path_dirs: vec![path_dir],
             extra_dirs: Vec::new(),
+            oma_files: Vec::new(),
             default_files: vec![("claude".into(), def_bin)],
             probe_version: false,
         };
         let hit = probe.find("claude").expect("found");
         assert_eq!(hit.source, Source::Path);
         assert!(hit.path.ends_with(claude_name()));
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn oma_beats_default_but_not_path() {
+        let root = fresh();
+        let path_dir = root.join("path");
+        let oma_bin = root.join("oma").join("claude.exe");
+        let def_bin = root.join("default").join("claude.exe");
+        touch(&path_dir.join(claude_name()));
+        touch(&oma_bin);
+        touch(&def_bin);
+        let probe = Probe {
+            env_bins: BTreeMap::new(),
+            path_dirs: vec![path_dir],
+            extra_dirs: Vec::new(),
+            oma_files: vec![("claude".into(), oma_bin.clone())],
+            default_files: vec![("claude".into(), def_bin.clone())],
+            probe_version: false,
+        };
+        assert_eq!(probe.find("claude").unwrap().source, Source::Path);
+        let probe = Probe {
+            env_bins: BTreeMap::new(),
+            path_dirs: Vec::new(),
+            extra_dirs: Vec::new(),
+            oma_files: vec![("claude".into(), oma_bin)],
+            default_files: vec![("claude".into(), def_bin)],
+            probe_version: false,
+        };
+        assert_eq!(probe.find("claude").unwrap().source, Source::Oma);
         let _ = fs::remove_dir_all(&root);
     }
 
@@ -503,6 +554,7 @@ mod tests {
             env_bins,
             path_dirs: vec![path_dir],
             extra_dirs: Vec::new(),
+            oma_files: Vec::new(),
             default_files: Vec::new(),
             probe_version: false,
         };
@@ -521,6 +573,7 @@ mod tests {
             env_bins: BTreeMap::new(),
             path_dirs: Vec::new(),
             extra_dirs: vec![extra],
+            oma_files: Vec::new(),
             default_files: Vec::new(),
             probe_version: false,
         };
@@ -535,6 +588,7 @@ mod tests {
             env_bins: BTreeMap::new(),
             path_dirs: Vec::new(),
             extra_dirs: Vec::new(),
+            oma_files: Vec::new(),
             default_files: Vec::new(),
             probe_version: false,
         };
