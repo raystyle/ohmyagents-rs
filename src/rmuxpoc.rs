@@ -472,6 +472,19 @@ pub fn classify_snapshot(snap: &rmux_sdk::PaneSnapshot) -> TermState {
     detect_terminal_state(&snap.visible_lines(), snap.cursor.row, snap.cursor.visible)
 }
 
+/// Drive-policy guard: some keys are poison for some agents. Codex runs
+/// `--no-alt-screen`, so one C-c kills the process (M001); other agents may
+/// be interrupted. Checked before any send, never warn-and-continue.
+pub fn check_send_key(agent: &str, key: &str) -> Result<(), String> {
+    let is_interrupt = key.eq_ignore_ascii_case("c-c") || key == "^C" || key == "\u{3}";
+    if is_interrupt && agent.eq_ignore_ascii_case("codex") {
+        return Err(format!(
+            "refusing to send '{key}' to codex: one C-c kills the process (M001); retry with Enter or a task-level abort"
+        ));
+    }
+    Ok(())
+}
+
 pub fn state_path(root: &std::path::Path, agent: &str) -> PathBuf {
     root.join(".ohmyagents")
         .join("state")
@@ -580,5 +593,16 @@ mod tests {
         assert_eq!(detect_terminal_state(&l, 0, false), TermState::Running);
         let empty: Vec<String> = Vec::new();
         assert_eq!(detect_terminal_state(&empty, 0, true), TermState::Unknown);
+    }
+
+    #[test]
+    fn send_key_guard_blocks_c_c_for_codex_only() {
+        assert!(check_send_key("codex", "C-c").is_err());
+        assert!(check_send_key("CODEX", "c-c").is_err());
+        assert!(check_send_key("codex", "\u{3}").is_err());
+        // Interrupts stay legal for other agents, and everything else is fine.
+        assert!(check_send_key("claude", "C-c").is_ok());
+        assert!(check_send_key("codex", "Enter").is_ok());
+        assert!(check_send_key("kimi", "y").is_ok());
     }
 }

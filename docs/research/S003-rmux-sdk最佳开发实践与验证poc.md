@@ -163,6 +163,8 @@ async fn main() -> rmux_sdk::Result<()> {
 - Quiet 超时不得映射成 idle。
 - cleanup 后 `Get-Process rmux` 仍可因其它会话存在；只断言本 session 名消失。
 
+**2026-08-31 结果（Windows 绿，全表收官）**：`examples/poc-negatives.rs` 退出 0。C-c→codex 守卫（rmuxpoc `check_send_key`）throw 且桩 pid 不变；claude 的 C-c 与 codex 的 Enter 放行。只杀本 session：兄弟会话存活、daemon 仍应答。`src\` 静态扫描无 daemon-wide kill（examples 注释属合法提及）。Quiet 不当 idle 见 poc-state，本 session 名消失见 poc-session。[实证: poc-negatives 标记行]
+
 四路真实 agent 的 POC 放在 POC-1..7 全绿之后，另开 `oma spawn` 实现，不塞进第一批。
 
 ### 7. 落地顺序

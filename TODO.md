@@ -6,6 +6,8 @@
 
 各功能部件需求的 POC 验证原型（对应 `GOAL.md`，方案 P0005，登记日 2026-08-29）。
 
+**2026-08-31：Windows 范围全表绿（12 个 example 全部退出 0）。** 下一步按 P0005 实施步骤开产品命令 `spawn` / `send` / `cleanup`；Linux/mac pane 跑测委托后续仓库。
+
 ## 任务进度清单
 
 | 任务项 | 进度 | 说明 | 日期 |
@@ -26,7 +28,7 @@
 | POC stream | 已完成（Windows） | `examples/poc-stream.rs`：`output_stream_starting_at(Oldest)` 回放 backlog、`Now` 只收新字节不回放；echo 到流中可见 11ms；无 HTTP | 2026-08-31 |
 | POC state | 已完成（Windows） | `examples/poc-state.rs`：最小 `detect_terminal_state` 分类器（rmuxpoc 共用层 + 7 单测）；Quiet 静止不映射 idle；confirm/password 阻塞与点掉；hook 沉默走 1b 兜底 | 2026-08-31 |
 | POC init | 已完成（Windows） | `src\deploy.rs` + `examples/poc-init.rs`：按 S015 部署矩阵落 Claude exec form / Codex hooks.json+commandWindows / Grok 同构 JSON / Kimi 仅 skill；幂等合并保留外条目；家目录指纹零变化 | 2026-08-31 |
-| POC negatives | 待办 | 禁止 C-c Codex、禁止 kill-server 进主路径 | 2026-08-29 |
+| POC negatives | 已完成（Windows） | `examples/poc-negatives.rs`：C-c→codex 守卫 throw 且桩存活（claude 放行、Enter 放行）；只杀本 session（兄弟会话与 daemon 存活）；`src\` 静态无 daemon-wide kill | 2026-08-31 |
 | 测试规范研究 | 已完成 | 三源对照沉淀为规则：AGENTS 写测试规则「写测试时」+ `docs\references\R004-测试标准细则-分层断言与门禁流程.md`；`tests/` 建设见细则第一段 | 2026-08-31 |
 | 编码经验研究 | 已完成 | `docs\research\S012-ponytail懒人阶梯与oma编码经验.md`：七档阶梯与不该懒清单，对照本仓规则与 POC 实证；暂不升规则 | 2026-08-31 |
 | 落地方法一：库搜索分析法 | 已完成 | `docs\research\S013-选型研究双通道实证-cratesio与github.md`：CLI 与 API 本机实证（含镜像 `--registry crates-io` 订正）；第三方 CLI 四者实测留 cratesinfo 卸其余 | 2026-08-31 |

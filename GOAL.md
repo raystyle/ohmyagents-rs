@@ -20,6 +20,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-08-31 | POC negatives 绿，P0005 Windows 范围全表绿（12 个 example）：C-c Codex 守卫 throw、只杀本 session、src 无 daemon-wide kill |
 | 2026-08-31 | POC init 绿（Windows）：按 S015 一手矩阵部署四家 hook/skill；幂等合并保留外条目；家目录指纹零变化 |
 | 2026-08-31 | S015 四家 hook 注册一手形态：Claude 官方 hooks reference + codex/grok-build/kimi-code 三仓源码；订正 Claude PermissionRequest 旧口径、关闭 Kimi 项目级悬案 |
 | 2026-08-31 | POC state 绿（Windows）：最小 detect_terminal_state 分类器落地；Quiet 静止不映射 idle；confirm/password 阻塞可判可点掉 |
@@ -39,7 +40,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：各功能部件 POC 验证原型。check、yolo、doctor、Windows pane 最小集（endpoint/session/layout/drive/dialogs/paste/locate/stream/state/init）已完成；negatives 未开；Linux/mac pane 跑测委托后续仓库。
+- 当前目标（收尾中）：各功能部件 POC 验证原型。**Windows 范围全表绿（2026-08-31，12 个 example 全部退出 0）**；Linux/mac pane 跑测委托后续仓库。下一步按 P0005 开产品命令 `spawn` / `send` / `cleanup`。
 
 ## 历史
 

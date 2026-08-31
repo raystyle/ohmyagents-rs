@@ -36,7 +36,7 @@
 | `src\yolo.rs` | `oma init --yolo`：四家配置落盘与 pretrust |
 | `src\deploy.rs` | `oma init` hook/skill 部署层：按 S015 矩阵落项目文件，幂等合并 |
 | `src\pathutil.rs` | 路径工具 |
-| `examples\poc-*.rs` | 十一个部件 POC（见下） |
+| `examples\poc-*.rs` | 十二个部件 POC（见下） |
 | `catalog\rmux.toml` | rmux tag 与各平台 SHA256（信任锚） |
 
 ```text
@@ -54,6 +54,7 @@ ohmyagents/
     poc-yolo-doctor.rs  poc-endpoint.rs  poc-session.rs
     poc-layout.rs  poc-drive.rs  poc-dialogs.rs  poc-paste.rs
     poc-locate.rs  poc-stream.rs  poc-state.rs  poc-init.rs
+    poc-negatives.rs
   docs\
     proven\      P 编号，已完成 plan 归档
     diary\       一天一篇总结自省
@@ -76,7 +77,7 @@ ohmyagents/
 ## 四、项目日记（`docs\diary\`，一天一篇总结自省）
 
 - `2026-08-29-对照ohmypwsh建立文档骨架.md`
-- `2026-08-31-研究体系建设与paste验证.md`
+- `2026-08-31-研究体系与POC全绿.md`
 
 ## 五、研究文档（`docs\research\`，S 编号）
 
@@ -142,4 +143,4 @@ ohmyagents/
 ## 十、代码与 pin
 
 - 代码文件位置见第二节表；`catalog\rmux.toml` 是 `oma check` 的信任锚
-- `examples` 十一个部件 POC 对应方案 P0005 的部件表（yolo-doctor / endpoint / session / layout / drive / dialogs / paste / locate / stream / state / init）
+- `examples` 十二个部件 POC 对应方案 P0005 的部件表（yolo-doctor / endpoint / session / layout / drive / dialogs / paste / locate / stream / state / init / negatives），Windows 范围全表绿（2026-08-31）
