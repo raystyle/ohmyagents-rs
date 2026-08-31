@@ -4,14 +4,14 @@
 
 ## 快速开始
 
-文档、`oma check`、项目级 `init --yolo` / `doctor` 已开。当前目标是各功能部件 POC（方案 0005）；`spawn` / `send` / `cleanup` 尚未落地。先读：
+文档、`oma check`、项目级 `init --yolo` / `doctor` 已开。当前目标是各功能部件 POC（方案 P0005）；`spawn` / `send` / `cleanup` 尚未落地。先读：
 
 ```text
 AGENTS.md          最高约束
 GOAL.md            当前目标
 PLAN.md       怎么做
 TODO.md       做到哪
-docs\proven\0001-四路会话工具-CLI控制面与网页观察面.md
+docs\proven\P0001-四路会话工具-CLI控制面与网页观察面.md
 ```
 
 先装 Rust 工具链，再让 `oma` 自己装 rmux（pin 在 `catalog/rmux.toml`，现役 0.10.0）：
@@ -33,7 +33,7 @@ cargo run -- doctor --project $env:TEMP\oma-demo
 
 ## 目录结构
 
-核心布局（明细见 `docs\references\文档全量清单-方案与研究目录的完整索引.md`）：
+核心布局（明细见 `INDEX.md`）：
 
 ```text
 ohmyagents/
@@ -52,7 +52,7 @@ ohmyagents/
 - **自动配置**：`init` 把 hook、skill 写进启动的项目目录
 - **任务编排**：CLI 下发、看状态、收尾；网页只镜像，默认不弹窗
 - **可扩展 agent 表**：当前默认四家，缺已启用的一家则 check 失败
-- **六态标记**：研究与测试文档的事实性断言标实证 / 推断 / 经验 / 记忆 / 假设 / 直觉，标准见 `docs\guide\研究标准细则-结构与六态标记.md`
+- **六态标记**：研究与测试文档的事实性断言标实证 / 推断 / 经验 / 记忆 / 假设 / 直觉，标准见 `docs\guide\G002-研究标准细则-结构与六态标记.md`
 
 ## 常用命令
 
@@ -62,17 +62,17 @@ ohmyagents/
 rumdl check .
 ```
 
-命令设计见 `docs\references\常用命令与管理流程-从项目init到会话cleanup.md`。
+命令设计见 `docs\references\R002-常用命令与管理流程-从项目init到会话cleanup.md`。
 
 ## 文档导航
 
 - `AGENTS.md`：定位 / 操作规则 / 意图路由 / 资源索引
-- `docs\guide\文档标准细则-命名写作规范与rumdl检查.md`：命名与写作
-- `docs\guide\研究标准细则-结构与六态标记.md`：研究规范与六态标记
-- `docs\references\测试标准细则-分层断言与门禁流程.md`：测试分层与门禁
-- `docs\references\文档全量清单-方案与研究目录的完整索引.md`：全量索引
-- `docs\references\项目定位-通用智能体多路复用任务编排器.md`：现役定位
-- `docs\research\四路会话的控制面与观察面.md`：先读的研究
+- `docs\guide\G001-文档标准细则-命名写作规范与rumdl检查.md`：命名与写作
+- `docs\guide\G002-研究标准细则-结构与六态标记.md`：研究规范与六态标记
+- `docs\references\R004-测试标准细则-分层断言与门禁流程.md`：测试分层与门禁
+- `INDEX.md`：全量索引
+- `docs\references\R001-项目定位-通用智能体多路复用任务编排器.md`：现役定位
+- `docs\research\S001-四路会话的控制面与观察面.md`：先读的研究
 
 ## 环境前提
 

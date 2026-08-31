@@ -1,6 +1,6 @@
-# 选型研究细则-cratesio与github双通道
+# R005-R005-选型研究细则-cratesio与github双通道
 
-> 角色：**选 Rust 库与项目的研究操作手册**。AGENTS 写 Rust 规则「先查最流行、最稳定的库」的细则载体，两法浓缩：crates.io 通道（`选型研究双通道实证-cratesio与github.md`）与 GitHub 通道（`选型研究双通道实证-cratesio与github.md`），均为 2026-08-31 本机实证；为什么与完整证据链见两篇研究。
+> 角色：**选 Rust 库与项目的研究操作手册**。AGENTS 写 Rust 规则「先查最流行、最稳定的库」的细则载体，两法浓缩：crates.io 通道（`S013-选型研究双通道实证-cratesio与github.md`）与 GitHub 通道（`S013-选型研究双通道实证-cratesio与github.md`），均为 2026-08-31 本机实证；为什么与完整证据链见两篇研究。
 
 ## 一、何时走哪条通道
 

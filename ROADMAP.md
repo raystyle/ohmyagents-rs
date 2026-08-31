@@ -14,11 +14,11 @@
 
 ## 阶段 0：项目基础设施
 
-AGENTS 四段职责、GOAL/TODO/PLAN 三原语、history 方案 0001/0002/0004、research、references、rumdl。现役定位见 0004。
+AGENTS 四段职责、GOAL/TODO/PLAN 三原语、history 方案 0001/0002/0004、research、references、rumdl。现役定位见 P0004。
 
 ## 阶段 1：rmux 与脚手架
 
-`oma check` 已能装 pin 的 rmux 0.10。项目级 `init --yolo` 与 `doctor` 已作为 POC 薄 CLI 落地。其余按方案 0005 做 `examples/poc-*`；全绿后再写产品 `spawn` / `send` / `cleanup`。
+`oma check` 已能装 pin 的 rmux 0.10。项目级 `init --yolo` 与 `doctor` 已作为 POC 薄 CLI 落地。其余按方案 P0005 做 `examples/poc-*`；全绿后再写产品 `spawn` / `send` / `cleanup`。
 
 ## 阶段 2：会话与 Drive
 

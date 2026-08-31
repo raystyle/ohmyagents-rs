@@ -1,6 +1,6 @@
-# rmux-sdk最佳开发实践与验证poc
+# S003-rmux-sdk最佳开发实践与验证poc
 
-> 2026-08-29。研究 `rmux-sdk` 0.10.0 的官方用法，对照本仓 `oma` 原语，准备可逐步跑通的验证 POC。闸门 `oma check` 本机 Windows 已装 0.10.0。现役实施见方案 0005，代码落 `examples/poc-*`。
+> 2026-08-29。研究 `rmux-sdk` 0.10.0 的官方用法，对照本仓 `oma` 原语，准备可逐步跑通的验证 POC。闸门 `oma check` 本机 Windows 已装 0.10.0。现役实施见方案 P0005，代码落 `examples/poc-*`。
 
 ## 需求
 
@@ -37,7 +37,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 ### 2. 最佳实践清单（给 `oma`）
 
-1. **专用端点，不要 Default。** `RmuxEndpoint` 是 `non_exhaustive`：`Default` / `UnixSocket(PathBuf)` / `WindowsPipe(String)`。Default 走平台发现，会连上用户已有 daemon。本仓按项目 hash 独立 pipe / socket（见《跨平台与无浏览器》）。
+1. **专用端点，不要 Default。** `RmuxEndpoint` 是 `non_exhaustive`：`Default` / `UnixSocket(PathBuf)` / `WindowsPipe(String)`。Default 走平台发现，会连上用户已有 daemon。本仓按项目 hash 独立 pipe / socket（见《S002-跨平台与无浏览器》）。
 2. **`connect_or_start` 可以，但 Job Object 要退路。** 官方 quickstart 用 `Rmux::builder().connect_or_start()`，没有 TTY 也能起 hidden daemon。win-rmux 实测宿主在 Job Object 里 `new-session -d` 报 os error 5。POC 先直接连；失败再 `--via-wt`。
 3. **会话策略按命令分。** `EnsureSessionPolicy`：`CreateOnly`（重名当错误）、`CreateOrReuse`（`new-session -A`）、`ReuseOnly`。官方例子用 CreateOrReuse。本仓 **spawn 用 CreateOnly**，撞名拒绝或 `--force` 后 `kill-session`；`send` / `status` 用 ReuseOnly。禁止默认 CreateOrReuse（会静默贴到别人的会话）。
 4. **argv spawn，不要壳。** `Pane::split_with(dir).process(ProcessSpec)` 把命令和 split 一次送出，避免中间默认 shell。`spawn(argv)` 不给交互壳追加换行。Windows 上 `.bat`/`.cmd` 被拒，agent 必须是原生 exe。
@@ -79,7 +79,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 | SDK 有一等 paste-buffer / load-buffer / send-keys -H | **不成立**（paste/load）。`Pane` 只有 `send_text` / `send_key`；协议层 `rmux_proto::Request` 有 `LoadBuffer` / `PasteBuffer`。**且 Request 逃生舱不可达**：`RmuxCommandKind::Request` 是惰性 DTO，`transport()` 为 `pub(crate)`，外部无法发裸 Request。[实证: 2026-08-31 读 0.10.0 源码] `Rmux::cmd()` 注入的 `-S <pipe>` 在 Windows 被无条件拒绝，CLI 逃生舱同样经 SDK 不可用。[实证: 2026-08-31] 实际通道是自 spawn CLI `-L <label>`。`-H` 是 CLI 旗标，SDK 用 `send_key("Enter")` 即可，不必 hex |
 | 官方 quickstart 是 connect_or_start + EnsureSession | 成立。但例子用 CreateOrReuse；本仓 spawn 改 CreateOnly |
 | Default 端点会撞别人的 daemon | 成立（发现策略）。本仓必须显式 pipe/socket |
-| Quiet 等于 idle | **不成立**。`wait_for_load_state(Quiet)` 文档：画面稳定，不推断 prompt。与《agent状态判断-通道与分层》一致 |
+| Quiet 等于 idle | **不成立**。`wait_for_load_state(Quiet)` 文档：画面稳定，不推断 prompt。与《S009-agent状态判断-通道与分层》一致 |
 | Drop Pane 杀进程 | **不成立**。`close` 才杀；drop/detach inert |
 
 ### 5. 不要从 demo 抄进 POC 的
@@ -94,7 +94,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 ### 6. 验证 POC 清单（装上 rmux 后按序跑）
 
-闸门：`oma check` 非 0 则整组 skip。与方案 0005 同一条件。
+闸门：`oma check` 非 0 则整组 skip。与方案 P0005 同一条件。
 
 会话名建议 `oma-poc-<yyyyMMdd>-<n>`，pipe `ohmyagents-poc-<hash>`。每个 POC 结束必须 `kill-session`，禁止 `kill-server`。
 

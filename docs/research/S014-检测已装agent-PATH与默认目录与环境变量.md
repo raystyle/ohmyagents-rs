@@ -1,4 +1,4 @@
-# 检测已装agent-PATH与默认目录与环境变量
+# S014-检测已装agent-PATH与默认目录与环境变量
 
 > 2026-08-29。用户要求检测系统装了哪些 agent，覆盖 Windows / Linux / macOS；扫描 PATH、默认位置、自定义位置（环境变量）。
 

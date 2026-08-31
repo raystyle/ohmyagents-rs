@@ -1,6 +1,6 @@
-# 选型研究双通道实证-cratesio与github
+# S013-选型研究双通道实证-cratesio与github
 
-> 2026-08-31。编码经验研究（`ponytail懒人阶梯与oma编码经验.md`）的两个配套落地方法合并沉淀：crates.io 通道（选 crate 看稳度）与 GitHub 通道（选项目看质量、深读源码、搜文档）。规则性结论已固化进 `docs\guide\选型研究细则-cratesio与github双通道.md`（操作手册），本篇保留两法的完整证据链与淘汰现场。素材来自用户综述与 investigator skill 速查表，全部本机实证。
+> 2026-08-31。编码经验研究（`S012-ponytail懒人阶梯与oma编码经验.md`）的两个配套落地方法合并沉淀：crates.io 通道（选 crate 看稳度）与 GitHub 通道（选项目看质量、深读源码、搜文档）。规则性结论已固化进 `docs\references\R005-选型研究细则-cratesio与github双通道.md`（操作手册），本篇保留两法的完整证据链与淘汰现场。素材来自用户综述与 investigator skill 速查表，全部本机实证。
 
 ## 背景
 
@@ -37,7 +37,7 @@ AGENTS 写 Rust 规则要求「先查最流行、最稳定的库」。两通道�
 | 源码值不值得学 | 只到元数据 | clone 深读、blob:none 看演进 |
 | license 可信度 | crates 元数据 | 仓库 LICENSE 文件（两处不一致时人工核） |
 
-操作手册（五步与四步工作流、坑速查十行）见 `docs\guide\选型研究细则-cratesio与github双通道.md`，本篇不重复。
+操作手册（五步与四步工作流、坑速查十行）见 `docs\references\R005-选型研究细则-cratesio与github双通道.md`，本篇不重复。
 
 ## 踩坑沉淀
 

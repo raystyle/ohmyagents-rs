@@ -1,6 +1,6 @@
-# rmux开发参考-连接会话布局与驱动
+# R006-R006-rmux开发参考-连接会话布局与驱动
 
-> 角色：写 `oma` 的 rmux 相关代码时查的**做法参考**（要做什么怎么做）。从 `docs\research\` 的 rmux-sdk、win-rmux、drive、clum 四篇研究与 POC 实证浓缩；出错排查见 `docs\mistakes\MISTAKES.md`，证据链见研究原文。全部条目可溯源六态。
+> 角色：写 `oma` 的 rmux 相关代码时查的**做法参考**（要做什么怎么做）。从 `docs\research\` 的 rmux-sdk、win-rmux、drive、clum 四篇研究与 POC 实证浓缩；出错排查见 `INDEX.md（mistakes 节）`，证据链见研究原文。全部条目可溯源六态。
 
 ## 一、连接与端点
 
@@ -25,7 +25,7 @@
 
 ## 四、状态与等待
 
-13. **分层判断**（详细见 `research\agent状态判断-通道与分层.md`）：0 存活（pid）→ 2 语义（hook 文件，可选加速）→ 1b 终端语义兜底（`terminal_state` / `wait_for_text`）→ 3 任务。Quiet 只给 Drive 同步，不当 idle。[推断: 分层对照；实证: poc-dialogs]
+13. **分层判断**（详细见 `research\S009-agent状态判断-通道与分层.md`）：0 存活（pid）→ 2 语义（hook 文件，可选加速）→ 1b 终端语义兜底（`terminal_state` / `wait_for_text`）→ 3 任务。Quiet 只给 Drive 同步，不当 idle。[推断: 分层对照；实证: poc-dialogs]
 14. **SDK 等待**：`pane.expect_visible_text().to_contain(..).timeout(..)`；per-op 超时用 `.timeout(Duration)`（V1 默认 5s）。[实证: poc-drive；clum 源码核实]
 15. **观察**：网页镜像走 `output_stream_starting_at(Oldest)` 字节流；结论写文件不写屏幕（备屏 capture 常空）。[经验: web-claude-demo + win-rmux]
 

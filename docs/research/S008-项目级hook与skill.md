@@ -1,4 +1,4 @@
-# 项目级hook与skill
+# S008-项目级hook与skill
 
 2026-08-29
 
@@ -18,7 +18,7 @@ win-rmux 的 `install-agent-hooks.ps1` 直接写 `~/.codex/hooks.json`、`~/.cla
 
 启动 cwd = 项目根（或 `--project`）。agent 按自己的发现规则从该目录往上找。下面是官方/源码口径，不是本仓库跑出来的。
 
-**Claude** 项目级 settings 是 `<project>/.claude/settings.json`，skill 在 `.claude/skills/`。项目 hook 要过目录信任（交互下所有 settings hooks 卡到 folder 信任被接受，无独立 persist 键，见《信任阻塞门-四家种类与官方口径》）；预写 `~/.claude.json` 的 `hasTrustDialogAccepted` 即可（`hasTrustDialogHooksAccepted` 官方未记载，双写无害不构成检测依据）。
+**Claude** 项目级 settings 是 `<project>/.claude/settings.json`，skill 在 `.claude/skills/`。项目 hook 要过目录信任（交互下所有 settings hooks 卡到 folder 信任被接受，无独立 persist 键，见《S006-信任阻塞门-四家种类与官方口径》）；预写 `~/.claude.json` 的 `hasTrustDialogAccepted` 即可（`hasTrustDialogHooksAccepted` 官方未记载，双写无害不构成检测依据）。
 
 **Codex** 项目配置 `./.codex/config.toml`（向上找到项目根），hook 还可以是 `./.codex/hooks.json`。(OpenAI Codex hooks 文档「User config `~/.codex/config.toml`；Project config `./.codex/config.toml`」) 未信任项目会发现配置但当 disabled layer。预写 `[projects."<abs>"] trust_level = "trusted"`。(`pretrust.py` `pretrust_codex`) Skill：从 CWD 走到 repo 根的 `.agents/skills`。(developers.openai.com/codex/skills)
 
@@ -57,7 +57,7 @@ evo-harness 还写过：用户层声明在 `~/.codex/config.toml` 的 `[hooks.<E
   .grok/skills/
   .kimi-code/skills/
   .ohmyagents/hook.py               # 四端共用的状态脚本（相对路径）
-  .ohmyagents/state/<agent>.json    # 状态通道，见《agent状态判断-通道与分层》
+  .ohmyagents/state/<agent>.json    # 状态通道，见《S009-agent状态判断-通道与分层》
 ```
 
 `oma init` 幂等：只增不删用户已有 hook 条目，按脚本名去重；JSON 解析失败拒写。skill 以 `.agents/skills` 为源，再按各家目录各放一份或做拷贝——Claude 不扫 `.agents/skills`。(据 Claude 只声明 `.claude/skills`)

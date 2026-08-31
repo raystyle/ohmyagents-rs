@@ -1,6 +1,6 @@
-# agent状态判断-通道与分层
+# S009-agent状态判断-通道与分层
 
-> 2026-08-31。由《agent状态通道》（2026-08-29，通道选型：文件总线而非 rmux 环境变量）与《rmux状态判断与hook补充》（2026-08-29，四层模型）合并，并按《clum等待原语作为hook兜底状态》把层表改写为含 1b 终端语义兜底的现行版。回答一个问题：**这个 pane 里的 agent 能不能接下一条任务**。
+> 2026-08-31。由《agent状态通道》（2026-08-29，通道选型：文件总线而非 rmux 环境变量）与《rmux状态判断与hook补充》（2026-08-29，四层模型）合并，并按《S010-clum等待原语作为hook兜底状态》把层表改写为含 1b 终端语义兜底的现行版。回答一个问题：**这个 pane 里的 agent 能不能接下一条任务**。
 
 ## 背景
 
@@ -68,7 +68,7 @@ rmux 能判「pane 活着、画面静了、进程换了」，判不了「agent �
 - 注册项目级（Claude settings、Codex 须先信任、Grok 项目 hooks 要 folder-trust、Kimi 暂用户 config 加项目脚本）
 - `matcher: "*"`（Claude）；Codex 持久化 `hooks.state.trusted_hash` 不用每次 bypass flag
 - PostToolUse 也刷 working 时间戳（长 bash 不算静默）
-- 网页只显示层 2 副本，权威是文件；1b 兜底的分类器细节见《clum等待原语作为hook兜底状态》
+- 网页只显示层 2 副本，权威是文件；1b 兜底的分类器细节见《S010-clum等待原语作为hook兜底状态》
 
 ## 踩坑沉淀
 
@@ -95,4 +95,4 @@ rmux 能判「pane 活着、画面静了、进程换了」，判不了「agent �
 | 本地 | evo-harness `agent_state_hook.py` / `install_hooks.py` | 2026-08-24 | STATE_MAP、双形态归一、文件总线 |
 | web | Helvesec/rmux `docs/scripting-sdk.md` | 2026-08-29 | foreground best-effort 不分类；Quiet 定义 |
 | 本地 | 本仓 `poc-dialogs` | 2026-08-29 | `oma hook` 写状态实证 |
-| 本地 | 《clum等待原语作为hook兜底状态》 | 2026-08-29 | 1b 层与权威链改写的依据 |
+| 本地 | 《S010-clum等待原语作为hook兜底状态》 | 2026-08-29 | 1b 层与权威链改写的依据 |

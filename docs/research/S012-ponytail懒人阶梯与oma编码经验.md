@@ -1,4 +1,4 @@
-# ponytail懒人阶梯与oma编码经验
+# S012-ponytail懒人阶梯与oma编码经验
 
 > 2026-08-31。用户点名本仓缺一篇编码经验研究，参考 DietrichGebert/ponytail（MIT）的底层逻辑。来源为其 `skills/ponytail/SKILL.md`（main 分支，2026-08-31 web 读全文核实）。
 
