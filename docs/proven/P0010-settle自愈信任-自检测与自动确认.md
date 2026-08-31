@@ -25,11 +25,13 @@ P0009 实证：各家首启信任框（claude「trust this folder」实测 Enter
 
 - 画面源：`pane.snapshot().visible_lines()`（live grid，备屏也有内容；capture-pane 仅作对照）
 - 白名单（首轮实测固化，可扩展）：
+
   | 家 | 关键词 | 确认键 |
   | --- | --- | --- |
   | claude | `trust this folder` | Enter（P0009 实证「Enter to confirm」） |
   | codex | 待 POC 实况 | 待定 |
   | grok | 待 POC 实况 | 待定 |
+
 - 只在**尾部若干行**匹配（框在屏底/居中，避免正文误命中）
 
 ### 动作
