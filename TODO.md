@@ -4,17 +4,16 @@
 
 ## 当前目标
 
-真四路拉通验收（对应 `GOAL.md`，方案 P0009，登记日 2026-08-31）。**2026-08-31 达成：claude 路全通（信任→hook 注册→事件流迁移→真任务执行）；spawn cwd 缺陷发现并修复（M031）；codex/grok/kimi 因各自信任流未通被状态门保守拦截（符合设计）。** 剩余候选：REPL + HTTP 观察面、codex/grok/kimi 信任流打通（hooks trusted_hash / grok hooks-trust / kimi 用户级决策）。
+settle 自愈信任（P0010）。**2026-08-31 达成：codex 路全通（双机制互兜、三个注册形态坑修复、hook 真实落地、信任持久化后免框）。** 剩余：grok hook 触发诊断、send 两段式间隔产品化、B 机制 hash 偏差对照（用 codex 写回值逆推）、REPL/HTTP 观察面、incurs CLI 经验研究（用户指定）。
 
 ## 任务进度清单
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
-| 立项 0009 | 已完成 | 方案与风险预案 | 2026-08-31 |
-| 环境与铺底 | 已完成 | 四家已装齐；init --pretrust 全套（hook 部署 10 文件） | 2026-08-31 |
-| spawn 四路真 agent | 已完成 | manifest 四路 pane id；locate 反查四家 exe 全中；cwd 缺陷修复（working_directory + split cwd） | 2026-08-31 |
-| claude 路全链 | 已完成 | 信任框现场处置→REPL；run 过门发送；层 2 事件流 idle/working/idle 实时迁移；t001 落 | 2026-08-31 |
-| 其余三路 | 已完成（保守拦截） | hook silent + 1b 对 TUI 判 busy → 状态门拦截不误发；信任流打通留后续 | 2026-08-31 |
-| cleanup | 已完成 | 会话与临时目录清净；误信任 System32 条目已清 | 2026-08-31 |
+| 立项 0010 | 已完成 | 双机制方案（B 直写信任库 + A 自动点框互兜） | 2026-08-31 |
+| 机制 B 预置 | 已完成 | deploy 直写 `[hooks.state]`（key/hash 源码级复现，canonical JSON+sha256；真实索引遍历）+ 4 单测 | 2026-08-31 |
+| 机制 A settle | 已完成 | `orch::settle` + `oma settle`（SDK snapshot 尾行白名单匹配，点框循环） | 2026-08-31 |
+| codex 全链验收 | 已完成 | 修三坑（绝对路径、PS 调用操作符 `&`、带 hook 参数）+ deploy 原地替换；任务执行、state 真实落地、Trust all 持久化后免框 | 2026-08-31 |
+| 诊断工具 | 已完成 | `examples/poc-dump.rs`（SDK snapshot 看备屏 TUI） | 2026-08-31 |
 
-（P0006 至 P0009 已完成；过程与经验在对应 proven 方案。）
+（P0006 至 P0010 已完成；过程与经验在对应 proven 方案。）

@@ -51,7 +51,7 @@
 ]}]}}
 ```
 
-- handler 四型：command（含 **commandWindows** 平台专用命令字段——oma 部署可直接用）、mcp_tool、prompt、agent。
+- handler 四型：command（含 **commandWindows** 平台专用命令字段——oma 部署可直接用）、mcp_tool、prompt、agent。**2026-08-31 本机 0.149.1 偏差注记**：Windows 实测 codex 经 PowerShell 执行 command 串，`"exe" hook` 是 PS 语法错，需 `& "exe" hook` 调用操作符；hook 执行环境不继承调用方 PATH，command 必须绝对路径。S015 系 HEAD 源码，落地以本机版本实测为准。[实证: P0010]
 - 层序（discovery）：managed requirements → config layers low-to-high（用户 `~/.codex`、项目 `.codex`，每层先读层目录 hooks.json 再读 config.toml `[hooks]`）→ plugin 源。插件 env 注入 `PLUGIN_ROOT`/`CLAUDE_PLUGIN_ROOT`/`PLUGIN_DATA`/`CLAUDE_PLUGIN_DATA`（对 Claude 插件生态 OOTB 兼容）。
 - 信任持久化：`[hooks.state."<source>:<event>[i].hooks[j]"] {enabled, trusted_hash}`（S006 的 trusted_hash 口径一手确认）；`bypass_hook_trust` 旗标跳过。
 - 事件 12 个：PreToolUse、PermissionRequest、PostToolUse、PreCompact、PostCompact、SessionStart、SessionEnd、UserPromptSubmit、SubagentStart、SubagentStop、Stop、**Interrupt**（无 Notification）。stdin snake_case 加 Codex 扩展 `turn_id`、`permission_mode`；输出 wire camelCase，注释明言兼容 Claude 语义（"Claude requires reason when decision is block"）。

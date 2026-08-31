@@ -101,6 +101,15 @@ enum Commands {
         #[arg(long)]
         project: Option<PathBuf>,
     },
+    /// 自检测并自动确认信任框（各家自己持久化信任；预置信任的兜底）
+    Settle {
+        /// 每路最长等待秒数
+        #[arg(long, default_value_t = 30)]
+        wait: u64,
+        /// 项目根；默认当前目录
+        #[arg(long)]
+        project: Option<PathBuf>,
+    },
 }
 
 fn main() {
@@ -144,6 +153,7 @@ fn run() -> Result<(), String> {
             confirm,
             project,
         } => tokio_block(cmd_run(text, assign, confirm, project)),
+        Commands::Settle { wait, project } => tokio_block(cmd_settle(wait, project)),
     }
 }
 
@@ -233,6 +243,15 @@ async fn cmd_cleanup(project: Option<PathBuf>) -> Result<(), String> {
     println!("cleanup.killed={existed}");
     println!("cleanup.scope=session");
     println!("cleanup.ok=true");
+    Ok(())
+}
+
+async fn cmd_settle(wait: u64, project: Option<PathBuf>) -> Result<(), String> {
+    let root = project_root(project)?;
+    let link = orch::connect(&root, false).await?;
+    orch::settle(&link, &root, wait).await?;
+    println!("settle.scope=trust-dialogs");
+    println!("settle.ok=true");
     Ok(())
 }
 

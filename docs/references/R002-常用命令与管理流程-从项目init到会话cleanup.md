@@ -49,6 +49,7 @@ cargo run --example poc-negatives     # C-c Codex 守卫与 daemon-wide kill 负
 | 看状态 | `oma status [--project PATH]` | 只读列各路 pid、进程名（locate）、终端态（1b 分类）、hook 态（层 2，沉默标 silent）；不 attach |
 | 发任务 | `oma send <agent> "<text>" [--confirm MARKER] [--project PATH]` | 守卫链（键策略、locate 进程名）后：单行走 SDK `send_text` 与 Enter 两段式；多行（含换行）走三段式粘贴（临时文件 + CLI `load-buffer` + `paste-buffer -p -t %<pane_id>`，Enter 仍单独发，中文可用）；`--confirm` 等短头可见 |
 | 收尾 | `oma cleanup [--project PATH]` | 只杀本项目会话并清 manifest；不 kill-server，daemon 随末 session 自然退 |
+| 自愈信任 | `oma settle [--wait N] [--project PATH]` | 轮询各路画面（SDK snapshot），白名单匹配信任/审查框自动确认（claude 工作区信任 Enter、codex 审查 Trust all）；密码类永不自动 |
 | 开会话（REPL） | `oma` | spawn 默认不阻塞 CLI + 打印 URL + REPL；不自动打开浏览器（设计口径） |
 | 无网页 | `oma --no-web` | 不起 HTTP（设计口径） |
 | 尝试打开浏览器 | `oma --open` | opener 失败只警告（设计口径） |

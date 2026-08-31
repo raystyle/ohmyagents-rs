@@ -38,7 +38,7 @@
 | `src\orch.rs` | 产品编排层：项目 slug 会话、spawn/status/send/cleanup、pane 清单 |
 | `tests\cli.rs` | CLI 集成冒烟（assert_cmd；check/agents/hook/doctor/send 快败） |
 | `src\pathutil.rs` | 路径工具 |
-| `examples\poc-*.rs` | 十三个 POC（见下；label-bridge 为产品端点融合实证） |
+| `examples\poc-*.rs` | 十四个 POC（见下；label-bridge 端点融合、dump 备屏诊断） |
 | `catalog\rmux.toml` | rmux tag 与各平台 SHA256（信任锚） |
 
 ```text
@@ -59,7 +59,7 @@ ohmyagents/
     poc-yolo-doctor.rs  poc-endpoint.rs  poc-session.rs
     poc-layout.rs  poc-drive.rs  poc-dialogs.rs  poc-paste.rs
     poc-locate.rs  poc-stream.rs  poc-state.rs  poc-init.rs
-    poc-negatives.rs  poc-label-bridge.rs
+    poc-negatives.rs  poc-label-bridge.rs  poc-dump.rs
   docs\
     proven\      P 编号，已完成 plan 归档
     diary\       一天一篇总结自省
@@ -84,6 +84,7 @@ ohmyagents/
 | P0007 | `P0007-send多行粘贴与label端点融合.md` | 已完成（同日验收，含自愈） |
 | P0008 | `P0008-oma-run委派与任务映射.md` | 已完成（同日 stub 验收） |
 | P0009 | `P0009-真四路拉通验收.md` | 已完成（claude 路全通；spawn cwd 缺陷修复 M031） |
+| P0010 | `P0010-settle自愈信任-自检测与自动确认.md` | 已完成（codex 路全通；双机制互兜） |
 
 ## 四、项目日记
 

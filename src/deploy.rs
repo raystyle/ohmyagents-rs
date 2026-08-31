@@ -94,18 +94,33 @@ fn merge_hook_event(
         }
     }
     arr.retain(|g| !g.as_object().is_some_and(|g| g.get("hooks").and_then(|h| h.as_array()).is_some_and(|a| a.is_empty())));
-    let already = arr.iter().any(|g| {
-        g.get("hooks")
-            .and_then(|h| h.as_array())
-            .is_some_and(|hs| {
-                hs.iter().any(|h| {
-                    h.get("command")
-                        .and_then(|c| c.as_str())
-                        .is_some_and(|c| is_ours(c))
-                })
-            })
-    });
-    if !already {
+    // Update an existing oma handler in place (registration shape evolves:
+    // bare name -> absolute path), or append when absent.
+    let mut replaced = false;
+    for group in arr.iter_mut() {
+        let Some(hooks) = group
+            .as_object_mut()
+            .and_then(|g| g.get_mut("hooks"))
+            .and_then(|h| h.as_array_mut())
+        else {
+            continue;
+        };
+        for handler in hooks.iter_mut() {
+            let ours = handler
+                .get("command")
+                .and_then(|c| c.as_str())
+                .map(|c| is_ours(c))
+                .unwrap_or(false);
+            if ours {
+                if handler != &our_handler {
+                    *handler = our_handler.clone();
+                    changed = true;
+                }
+                replaced = true;
+            }
+        }
+    }
+    if !replaced {
         arr.push(json!({ "matcher": "*", "hooks": [our_handler] }));
         changed = true;
     }
@@ -123,11 +138,16 @@ fn claude_handler() -> Json {
 }
 
 fn codex_handler(session_end: bool) -> Json {
-    // commandWindows is Codex's platform-specific command field (S015).
+    // codex's command is a full command line. On Windows codex 0.149 runs it
+    // through PowerShell, where `"exe" hook` is a parse error: the call
+    // operator `&` is required. The plain command stays sh-shaped for other
+    // platforms; the hook exec environment never inherits our PATH, so the
+    // exe is absolute either way.
+    let exe = oma_exe().display().to_string();
     json!({
         "type": "command",
-        "command": "oma",
-        "commandWindows": oma_exe().display().to_string(),
+        "command": format!("\"{exe}\" hook"),
+        "commandWindows": format!("& \"{exe}\" hook"),
         "timeout": if session_end { 3 } else { 10 },
     })
 }
@@ -175,6 +195,12 @@ fn deploy_claude(root: &Path, report: &mut DeployReport) -> Result<(), String> {
 /// Codex: project `.codex/hooks.json` (JSON layer; config.toml [hooks] is the
 /// twin representation and both non-empty triggers a warning, so we use one).
 /// Notification does not exist in Codex (S015).
+///
+/// Trust is pre-seeded by replicating codex's own identity scheme (S015
+/// source): key `<config.toml abs>:<event_label>:<group>:<handler>`, hash
+/// over the normalized handler identity (canonical key-sorted JSON, sha256).
+/// Seeding the hash means the TUI never needs to prompt; the settle fallback
+/// (auto-confirm dialogs) covers any drift between our replica and codex.
 fn deploy_codex(root: &Path, report: &mut DeployReport) -> Result<(), String> {
     let events = [
         ("SessionStart", false),
@@ -215,14 +241,168 @@ fn deploy_codex(root: &Path, report: &mut DeployReport) -> Result<(), String> {
         toml::Value::Table(t) => t,
         _ => return Err("codex [features] is not a table".into()),
     };
-    if feats.get("hooks").and_then(|v| v.as_bool()) != Some(true) {
+    let feature_missing = feats.get("hooks").and_then(|v| v.as_bool()) != Some(true);
+    if feature_missing {
         feats.insert("hooks".into(), toml::Value::Boolean(true));
+    }
+
+    // Pre-seed [hooks.state."<key>"] trusted_hash for every oma handler in
+    // the final hooks.json (real indices, not assumption zero).
+    let final_hooks = read_json(&path)?;
+    let entries = codex_trust_entries(&final_hooks, &cfg)?;
+    let states = table
+        .entry("hooks".to_string())
+        .or_insert_with(|| {
+            let mut hooks_tbl = toml::map::Map::new();
+            hooks_tbl.insert("state".to_string(), toml::Value::Table(toml::map::Map::new()));
+            toml::Value::Table(hooks_tbl)
+        });
+    let state_table = match states {
+        toml::Value::Table(t) => t
+            .entry("state".to_string())
+            .or_insert_with(|| toml::Value::Table(toml::map::Map::new())),
+        _ => return Err("codex [hooks] is not a table".into()),
+    };
+    let state_map = match state_table {
+        toml::Value::Table(t) => t,
+        _ => return Err("codex [hooks.state] is not a table".into()),
+    };
+    let mut trust_changed = false;
+    for (key, hash) in entries {
+        let current = state_map
+            .get(&key)
+            .and_then(|v| v.get("trusted_hash"))
+            .and_then(|v| v.as_str());
+        if current != Some(hash.as_str()) {
+            let mut m = toml::map::Map::new();
+            m.insert("trusted_hash".into(), toml::Value::String(hash));
+            state_map.insert(key, toml::Value::Table(m));
+            trust_changed = true;
+        }
+    }
+    if trust_changed || feature_missing {
         toml_write(&cfg, &toml)?;
         report.wrote.push(cfg.display().to_string());
     } else {
         report.skipped.push(cfg.display().to_string());
     }
     Ok(())
+}
+
+/// Strip the Windows canonicalization prefix codex never sees (`\\?\`),
+/// because the trust key must match the path form codex derives from its own
+/// project discovery.
+fn plain_absolute(path: &Path) -> String {
+    let s = path.display().to_string();
+    s.strip_prefix(r"\\?\").unwrap_or(&s).to_string()
+}
+
+fn event_label(event: &str) -> String {
+    event.chars()
+        .flat_map(|c| if c.is_ascii_uppercase() { vec!['_', c.to_ascii_lowercase()] } else { vec![c] })
+        .collect::<String>()
+        .trim_start_matches('_')
+        .to_string()
+}
+
+/// codex matcher semantics (S015 source): these events ignore matchers, so
+/// the hashed identity drops the key entirely (TOML drops nulls).
+fn hashed_matcher(event: &str, matcher: Option<&str>) -> Option<String> {
+    match event {
+        "UserPromptSubmit" | "Stop" | "Interrupt" => None,
+        _ => matcher.filter(|m| !m.is_empty()).map(String::from),
+    }
+}
+
+fn canonical_json(value: &Json) -> Json {
+    match value {
+        Json::Object(map) => {
+            let mut keys: Vec<&String> = map.keys().collect();
+            keys.sort();
+            let mut sorted = serde_json::Map::new();
+            for key in keys {
+                sorted.insert(key.clone(), canonical_json(&map[key]));
+            }
+            Json::Object(sorted)
+        }
+        Json::Array(items) => Json::Array(items.iter().map(canonical_json).collect()),
+        other => other.clone(),
+    }
+}
+
+/// Replicate codex `hook_hash` (S015 source): identity over the normalized
+/// handler (commandWindows dropped, timeout clamped per event), serialized
+/// as canonical key-sorted JSON, sha256, `sha256:<hex>`.
+fn codex_hook_hash(event: &str, matcher: Option<&str>, handler: &Json) -> Result<String, String> {
+    let command = handler
+        .get("command")
+        .and_then(|c| c.as_str())
+        .ok_or("handler missing command")?;
+    let windows_cmd = handler.get("commandWindows").and_then(|c| c.as_str());
+    let effective = if cfg!(windows) { windows_cmd.unwrap_or(command) } else { command };
+    let timeout = handler.get("timeout").and_then(|t| t.as_u64());
+    let timeout = match event {
+        "SessionEnd" | "Interrupt" => timeout.unwrap_or(1).clamp(1, 3),
+        _ => timeout.unwrap_or(600).max(1),
+    };
+    let r#async = handler.get("async").and_then(|a| a.as_bool()).unwrap_or(false);
+    let mut entry = serde_json::Map::new();
+    entry.insert("type".into(), json!("command"));
+    entry.insert("command".into(), json!(effective));
+    entry.insert("timeout".into(), json!(timeout));
+    entry.insert("async".into(), json!(r#async));
+    if let Some(sm) = handler.get("statusMessage").and_then(|s| s.as_str()) {
+        entry.insert("statusMessage".into(), json!(sm));
+    }
+    if let Some(limit) = handler.get("additionalContextLimit").and_then(|s| s.as_u64()) {
+        entry.insert("additionalContextLimit".into(), json!(limit));
+    }
+
+    let mut identity = serde_json::Map::new();
+    identity.insert("event_name".into(), json!(event_label(event)));
+    if let Some(m) = hashed_matcher(event, matcher) {
+        identity.insert("matcher".into(), json!(m));
+    }
+    identity.insert("hooks".into(), Json::Array(vec![Json::Object(entry)]));
+
+    let canonical = canonical_json(&Json::Object(identity));
+    let bytes = serde_json::to_vec(&canonical).map_err(|e| e.to_string())?;
+    use sha2::{Digest, Sha256};
+    let digest = Sha256::digest(&bytes);
+    Ok(format!("sha256:{digest:x}"))
+}
+
+/// Walk the final hooks.json and produce (key, trusted_hash) pairs for every
+/// oma-owned handler at its real group/handler indices.
+fn codex_trust_entries(hooks_json: &Json, config_toml: &Path) -> Result<Vec<(String, String)>, String> {
+    let mut out = Vec::new();
+    let Some(events) = hooks_json.get("hooks").and_then(|h| h.as_object()) else {
+        return Ok(out);
+    };
+    let key_source = plain_absolute(config_toml);
+    for (event, groups) in events {
+        let Some(groups) = groups.as_array() else { continue };
+        for (gi, group) in groups.iter().enumerate() {
+            let matcher = group.get("matcher").and_then(|m| m.as_str());
+            let Some(handlers) = group.get("hooks").and_then(|h| h.as_array()) else { continue };
+            for (hi, handler) in handlers.iter().enumerate() {
+                let command = handler.get("command").and_then(|c| c.as_str()).unwrap_or("");
+                if !is_ours(command) {
+                    continue;
+                }
+                let hash = codex_hook_hash(event, matcher, handler)?;
+                let key = format!(
+                    "{}:{}:{}:{}",
+                    key_source,
+                    event_label(event),
+                    gi,
+                    hi
+                );
+                out.push((key, hash));
+            }
+        }
+    }
+    Ok(out)
 }
 
 /// Grok: `.grok/hooks/ohmyagents-state.json`, Claude-isomorphic JSON.
@@ -435,6 +615,76 @@ mod tests {
         assert_eq!(fs::read_to_string(&settings).unwrap(), before);
 
         let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn codex_trust_identity_shape_and_determinism() {
+        assert_eq!(event_label("SessionStart"), "session_start");
+        assert_eq!(event_label("UserPromptSubmit"), "user_prompt_submit");
+        // These events drop the matcher from the hashed identity.
+        assert_eq!(hashed_matcher("UserPromptSubmit", Some("*")), None);
+        assert_eq!(hashed_matcher("PreToolUse", Some("*")), Some("*".into()));
+        assert_eq!(hashed_matcher("Stop", Some("*")), None);
+
+        let handler = serde_json::json!({
+            "type": "command",
+            "command": "oma",
+            "commandWindows": "D:\\bin\\oma.exe",
+            "timeout": 10,
+            "async": false
+        });
+        let h1 = codex_hook_hash("PreToolUse", Some("*"), &handler).unwrap();
+        let h2 = codex_hook_hash("PreToolUse", Some("*"), &handler).unwrap();
+        assert_eq!(h1, h2, "hash must be deterministic");
+        assert!(h1.starts_with("sha256:"), "{h1}");
+        // Matcher participates for matcher-respecting events.
+        let h3 = codex_hook_hash("PreToolUse", Some("Bash"), &handler).unwrap();
+        assert_ne!(h1, h3);
+        // Timeout clamps for SessionEnd.
+        let se = codex_hook_hash("SessionEnd", None, &handler).unwrap();
+        let se_clamped = codex_hook_hash(
+            "SessionEnd",
+            None,
+            &serde_json::json!({"type":"command","command":"oma","timeout":99}),
+        )
+        .unwrap();
+        // Both clamp to 3, so identical identity except async default: differ
+        // only if fields differ; same fields -> same hash.
+        let se_again = codex_hook_hash(
+            "SessionEnd",
+            None,
+            &serde_json::json!({"type":"command","command":"oma","timeout":3,"async":false}),
+        )
+        .unwrap();
+        assert_eq!(se_clamped, se_again, "clamped 99 and explicit 3 converge");
+        assert_ne!(se, se_clamped, "10 vs 99 clamp differently from 3");
+    }
+
+    #[test]
+    fn codex_trust_entries_use_real_indices_and_skip_foreign() {
+        let hooks = serde_json::json!({
+            "hooks": {
+                "PreToolUse": [
+                    {"matcher": "Bash", "hooks": [
+                        {"type": "command", "command": "C:\\tools\\fmt.sh"}
+                    ]},
+                    {"matcher": "*", "hooks": [
+                        {"type": "command", "command": "oma",
+                         "commandWindows": "D:\\oma.exe", "timeout": 10}
+                    ]}
+                ]
+            }
+        });
+        let cfg = Path::new(r"D:\\proj\\.codex\\config.toml");
+        let entries = codex_trust_entries(&hooks, cfg).unwrap();
+        assert_eq!(entries.len(), 1, "foreign handlers are not trusted for");
+        let (key, hash) = &entries[0];
+        assert!(
+            key.ends_with(":pre_tool_use:1:0"),
+            "ours sits at group 1 handler 0, got {key}"
+        );
+        assert!(key.starts_with("D:"), "key_source is the plain config path");
+        assert!(hash.starts_with("sha256:"));
     }
 
     #[test]

@@ -386,6 +386,16 @@ async fn pane_for(session: &Session, id: u64) -> Result<Pane, String> {
         .map_err(|e| format!("pane {id}: {e}"))
 }
 
+/// Read the manifest for a project (diagnostics and examples).
+pub fn read_manifest_for(root: &Path) -> Option<Manifest> {
+    read_manifest(root)
+}
+
+/// Pane lookup for diagnostics and examples.
+pub async fn pane_for_test(session: &Session, id: u64) -> Result<Pane, String> {
+    pane_for(session, id).await
+}
+
 pub struct PaneStatus {
     pub agent: String,
     pub pid: Option<u32>,
@@ -570,6 +580,74 @@ pub async fn cleanup(link: &Link, root: &Path) -> Result<bool, String> {
     };
     let _ = std::fs::remove_file(manifest_path(root));
     Ok(existed)
+}
+
+// ---------------------------------------------------------------------------
+// oma settle: self-detect trust dialogs and confirm them so the agent
+// persists trust itself (the fallback for pre-seeded trust, P0010).
+// ---------------------------------------------------------------------------
+
+/// Whitelisted trust-dialog markers only. Task-semantic confirmations
+/// ("run this command?") are never auto-answered here.
+const TRUST_DIALOGS: &[(&str, &str)] = &[
+    // (marker, confirm key)
+    ("trust this folder", "Enter"), // claude workspace trust (P0009)
+];
+
+pub async fn settle(
+    link: &Link,
+    root: &Path,
+    wait_secs: u64,
+) -> Result<Vec<(String, String)>, String> {
+    let manifest = read_manifest(root)
+        .ok_or_else(|| "no session manifest; run `oma spawn` first".to_string())?;
+    let name = session_name(root)?;
+    let session = rmuxpoc::reuse_only(&link.rmux, name).await?;
+    let deadline =
+        std::time::Instant::now() + Duration::from_secs(wait_secs);
+
+    let mut outcomes = Vec::new();
+    for agent in &manifest.agents {
+        let pane = pane_for(&session, agent.pane_id).await?;
+        let mut dismissed: Vec<String> = Vec::new();
+        loop {
+            let lines = match pane.snapshot().await {
+                Ok(snap) => snap.visible_lines(),
+                Err(_) => Vec::new(),
+            };
+            let tail: String = lines
+                .iter()
+                .rev()
+                .take(12)
+                .rev()
+                .cloned()
+                .collect::<Vec<String>>()
+                .join("\n")
+                .to_lowercase();
+            let hit = TRUST_DIALOGS
+                .iter()
+                .find(|(marker, _)| tail.contains(marker));
+            let Some((marker, key)) = hit else { break };
+            if std::time::Instant::now() > deadline {
+                break;
+            }
+            let key = key.to_string();
+            let marker = marker.to_string();
+            pane.send_key(&key)
+                .await
+                .map_err(|e| format!("settle {}: {e}", agent.name))?;
+            dismissed.push(format!("{marker}:{key}"));
+            tokio::time::sleep(Duration::from_millis(1500)).await;
+        }
+        let outcome = if dismissed.is_empty() {
+            "none".to_string()
+        } else {
+            format!("dismissed={}", dismissed.join(","))
+        };
+        println!("settle.pane.{}={}", agent.name, outcome);
+        outcomes.push((agent.name.clone(), outcome));
+    }
+    Ok(outcomes)
 }
 
 // ---------------------------------------------------------------------------
