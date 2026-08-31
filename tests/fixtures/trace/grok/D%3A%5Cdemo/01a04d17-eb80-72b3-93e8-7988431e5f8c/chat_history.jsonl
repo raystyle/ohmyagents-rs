@@ -1,0 +1,4 @@
+{"type":"system","content":"You are Grok 4.6 released by xAI."}
+{"type":"user","content":[{"type":"text","text":"<system_reminder>项目指令更新</system_reminder>"}],"synthetic_reason":"system_reminder"}
+{"type":"user","content":[{"type":"text","text":"把标题改成中文"}]}
+{"type":"assistant","content":"修改 app.rs 的标题渲染","tool_calls":[{"id":"call-d725f3d8-649a-4c07-a617-ce7a226b33d1-0","name":"search_replace","arguments":"{\"file_path\":\"D:\\\\demo\\\\src\\\\app.rs\",\"old_string\":\"<h1>hello</h1>\",\"new_string\":\"<h1>你好</h1>\",\"replace_all\":false}"}],"model_id":"grok-4-6"}

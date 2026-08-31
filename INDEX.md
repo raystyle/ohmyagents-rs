@@ -37,7 +37,7 @@
 | `src\deploy.rs` | `oma init` hook/skill 部署层：按 S015 矩阵落项目文件，幂等合并 |
 | `src\orch.rs` | 产品编排层：项目 slug 会话、spawn/status/send/cleanup、pane 清单 |
 | `src\install.rs` | 自适应安装层：多渠道下载、sha 信任锚、oma 自管根布局、update 取证与 pin 写回 |
-| `src\trace.rs` | 意图轨迹检索层：四家会话发现 + claude/codex 联邦 loader + 过滤分页检索 |
+| `src\trace.rs` | 意图轨迹检索层：四家会话发现 + 四家联邦 loader（FileChange 主源、注入过滤、epoch ms 归一）+ 块聚合与过滤分页检索 |
 | `tests\cli.rs` | CLI 集成冒烟（assert_cmd；check/agents/hook/doctor/send 快败） |
 | `src\pathutil.rs` | 路径工具 |
 | `examples\poc-*.rs` | 十四个 POC（见下；label-bridge 端点融合、dump 备屏诊断） |
@@ -90,7 +90,7 @@ ohmyagents/
 | P0010 | `P0010-settle自愈信任-自检测与自动确认.md` | 已完成（codex 路全通；双机制互兜） |
 | P0011 | `P0011-三传输编排面-http-api与mcp与网页可视化.md` | 挂起待续（方案已立，四切片待办） |
 | P0012 | `P0012-自适应本机安装部署-rmux与四家agent接管.md` | 已完成（Windows 四家装机全绿；Linux/mac 待环境切换） |
-| P0013 | `P0013-agent意图操作块与编辑轨迹检索.md` | 现役目标（S018 已备） |
+| P0013 | `P0013-agent意图操作块与编辑轨迹检索.md` | 已完成（四家 loader 活体验证；MCP 挂载归 P0011） |
 
 ## 四、项目日记
 
@@ -123,6 +123,7 @@ ohmyagents/
 | S016 | `S016-incurs命令输出与帮助经验吸收.md` | 双层源码研究：输出信封/CTA/帮助/三传输参照（P0011 依据） |
 | S017 | `S017-ohmypwsh安装配置机制与四家agent渠道取证.md` | ohmypwsh 安装配置蓝本与四家渠道 checksum 取证（P0012 依据） |
 | S018 | `S018-aitrace意图轨迹机制研究与oma检索映射.md` | aitrace 三源关联机制、裁决表与坑清单（P0013 依据） |
+| S019 | `S019-四家会话日志格式与联邦检索取证.md` | 四家会话库四要素钉死与三仓源码纠偏（P0013 依据） |
 
 ## 六、开发测试参考
 
@@ -164,7 +165,7 @@ ohmyagents/
 | M104 | `M104-rmux安装与CLI调用错误.md` | 安装、`-V`、`-S`、`-L`、`cmd()`、`-t` 前缀匹配 | M006-M007、M016、M020、M029 |
 | M105 | `M105-agent检测与状态判断错误.md` | PATH、which、idle、Quiet、CPU | M012、M018-M019 |
 | M106 | `M106-Windows进程与daemon启动错误.md` | os error 5、Job Object、WMI、exit-empty、pane cwd | M015、M017、M021-M022、M031 |
-| M107 | `M107-工具链与脚本错误.md` | sed、grep、PowerShell、中文路径、测试临时目录 | M023-M026、M028、M032-M033 |
+| M107 | `M107-工具链与脚本错误.md` | sed、grep、PowerShell、中文路径、测试临时目录 | M023-M026、M028、M032-M034 |
 
 迭代规则：踩坑按当前最大号接编 MNNN 进对应分类文件（M0xx 行级、新分类用 M1xx 接编）；一行一事；同根因或同型坑**可合并聚合**进已有条目（保留最早编号与首踩日期，聚合后的正解写全），避免同型条目无限线性追加；反复踩落 `docs\research\`；改「正确处理」不删历史行；新分类文件登记本节。
 

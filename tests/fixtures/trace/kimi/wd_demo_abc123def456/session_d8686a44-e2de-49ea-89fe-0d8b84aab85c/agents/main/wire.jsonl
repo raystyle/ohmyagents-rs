@@ -1,0 +1,10 @@
+{"type":"metadata","protocol_version":"1.5","created_at":1787407555347}
+{"type":"permission.set_mode","mode":"yolo","time":1787407555350}
+{"type":"turn.prompt","agentId":"main","input":[{"type":"text","text":"<系统提醒>"}],"origin":{"kind":"system_trigger","name":"boot"},"time":1787407555400}
+{"type":"turn.prompt","agentId":"main","input":[{"type":"text","text":"生成一个说明文件"}],"origin":{"kind":"user"},"time":1787407555600}
+{"type":"context.append_message","agentId":"main","message":{"role":"assistant","content":[{"type":"text","text":"我来写说明文件"}]},"time":1787407570000}
+{"type":"context.append_loop_event","agentId":"main","event":{"type":"step.begin","uuid":"2b27d64d8-b7e4-4012-b538-e4b73226a773","turnId":"0","step":1},"time":1787407580000}
+{"type":"context.append_loop_event","agentId":"main","event":{"type":"tool.call","uuid":"233c89b4-0444-4fd1-88f8-2abc3f9f208d","turnId":"0","step":1,"stepUuid":"2b27d64d8-b7e4-4012-b538-e4b73226a773","toolCallId":"tool_TdBmq1Fh6EWvZLDYhuQWnTMW","name":"Write","args":{"path":"D:\\demo\\out.md","content":"# 说明\n这是生成的内容。\n"}},"time":1787407580274}
+{"type":"context.append_loop_event","agentId":"main","event":{"type":"tool.result","toolCallId":"tool_TdBmq1Fh6EWvZLDYhuQWnTMW","result":{"output":"ok"},"parentUuid":"233c89b4-0444-4fd1-88f8-2abc3f9f208d"},"time":1787407581000}
+{"type":"context.append_loop_event","agentId":"main","event":{"type":"step.end","uuid":"2b27d64d8-b7e4-4012-b538-e4b73226a773","turnId":"0","step":1,"finishReason":"tool_use"},"time":1787407582000}
+{"type":"turn.ended","agentId":"main","reason":"completed","time":1787407583000}

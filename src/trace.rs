@@ -50,6 +50,8 @@ pub struct TraceEvent {
     pub user_intent: Option<String>,
     pub op_intent: Option<String>,
     pub ts: Option<String>,
+    /// 排序用统一 epoch ms（四家时间源不同：claude/codex ISO、kimi 原生 ms、grok 会话 uuidv7 近似）。
+    pub ts_ms: Option<u64>,
     /// 可检索正文（patch、Edit new_string、Write content 等）。
     pub patch: Option<String>,
 }
@@ -161,6 +163,78 @@ fn collapse_ws(s: &str) -> String {
 
 fn clean_intent(s: &str) -> String {
     truncate_chars(&collapse_ws(s))
+}
+
+// ---- 时间统一：ISO RFC3339 子集与 epoch ms 互转（Howard Hinnant 算法，无 chrono 依赖） ----
+
+fn days_from_civil(y: i64, m: u32, d: u32) -> i64 {
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = if y >= 0 { y } else { y - 399 } / 400;
+    let yoe = (y - era * 400) as u64;
+    let mp = ((m + 9) % 12) as u64;
+    let doy = (153 * mp + 2) / 5 + d as u64 - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    era * 146097 + doe as i64 - 719468
+}
+
+fn civil_from_days(z: i64) -> (i64, u32, u32) {
+    let z = z + 719468;
+    let era = if z >= 0 { z } else { z - 146096 } / 146097;
+    let doe = (z - era * 146097) as u64;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
+    (if m <= 2 { y + 1 } else { y }, m, d)
+}
+
+/// "2026-08-31T09:24:32.851Z" 形（毫秒可选）→ epoch ms；纯数字串原样解析。
+pub fn ts_to_ms(s: &str) -> Option<u64> {
+    let t = s.trim();
+    if !t.is_empty() && t.chars().all(|c| c.is_ascii_digit()) {
+        return t.parse().ok();
+    }
+    if t.len() < 19 || t.as_bytes()[4] != b'-' {
+        return None;
+    }
+    let num = |a: usize, b: usize| t.get(a..b).and_then(|x| x.parse::<u64>().ok());
+    let (y, mo, d) = (num(0, 4)? as i64, num(5, 7)? as u32, num(8, 10)? as u32);
+    let (h, mi, se) = (num(11, 13)?, num(14, 16)?, num(17, 19)?);
+    let ms = if t.as_bytes().get(19) == Some(&b'.') {
+        num(20, 23).unwrap_or(0)
+    } else {
+        0
+    };
+    let days = days_from_civil(y, mo, d);
+    Some((days as u64 * 86_400 + h * 3600 + mi * 60 + se) * 1000 + ms)
+}
+
+pub fn ms_to_iso(ms: u64) -> String {
+    let days = (ms / 86_400_000) as i64;
+    let rem = ms % 86_400_000;
+    let (y, mo, d) = civil_from_days(days);
+    format!(
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:03}Z",
+        y,
+        mo,
+        d,
+        rem / 3_600_000,
+        (rem / 60_000) % 60,
+        (rem / 1000) % 60,
+        rem % 1000
+    )
+}
+
+/// grok 会话 uuid v7 前 48 位（12 个 hex 字）是 unix ms（官方文档口径）——
+/// 事件无行级时间时的会话起点近似。
+fn grok_uuid_v7_ms(id: &str) -> Option<u64> {
+    let hex: String = id.chars().filter(|c| c.is_ascii_hexdigit()).collect();
+    if hex.len() < 12 {
+        return None;
+    }
+    u64::from_str_radix(&hex[..12], 16).ok()
 }
 
 /// 按行读 jsonl，坏行跳过（append-only 容错：截断尾行不崩检索）。
@@ -293,7 +367,7 @@ pub fn grok_sessions_in(root: &Path, project: &Path) -> Vec<TraceSession> {
                 id: id.to_string(),
                 project: project.to_path_buf(),
                 file: hist,
-                started_at: None,
+                started_at: grok_uuid_v7_ms(id).map(ms_to_iso),
             });
         }
     }
@@ -306,9 +380,8 @@ fn percent_decode(s: &str) -> String {
     let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
     let mut i = 0;
     while i < bytes.len() {
-        if bytes[i] == b'%' && i + 2 < bytes.len() + 1 && i + 2 < bytes.len() {
-            let hex = &s[i + 1..i + 3];
-            if let Ok(b) = u8::from_str_radix(hex, 16) {
+        if bytes[i] == b'%' && i + 3 <= bytes.len() {
+            if let Ok(b) = u8::from_str_radix(&s[i + 1..i + 3], 16) {
                 out.push(b);
                 i += 3;
                 continue;
@@ -320,27 +393,40 @@ fn percent_decode(s: &str) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
-/// kimi：`~/.kimi-code/session_index.jsonl` 行 {sessionId, sessionDir, workDir}。
+/// kimi：`~/.kimi-code/session_index.jsonl` 行 {sessionId, sessionDir, workDir}；
+/// append-only 索引带墓碑行（{sessionId, deleted:true}），后行覆盖前行。
 pub fn kimi_sessions_in(index: &Path, project: &Path) -> Vec<TraceSession> {
     let mut out = Vec::new();
     let want = normalize_compare(project);
+    let mut seen: std::collections::BTreeMap<String, Option<PathBuf>> = Default::default();
     for v in read_json_lines(index) {
-        let work = v.get("workDir").and_then(|x| x.as_str()).unwrap_or("");
-        if normalize_compare(Path::new(work)) != want {
-            continue;
-        }
         let id = v
             .get("sessionId")
             .and_then(|x| x.as_str())
             .unwrap_or("")
             .to_string();
+        if id.is_empty() {
+            continue;
+        }
+        // 墓碑行只有 {sessionId, deleted:true}（无 workDir），删除标记先于项目过滤。
+        if v.get("deleted").and_then(|x| x.as_bool()).unwrap_or(false) {
+            seen.insert(id, None);
+            continue;
+        }
+        let work = v.get("workDir").and_then(|x| x.as_str()).unwrap_or("");
+        if normalize_compare(Path::new(work)) != want {
+            continue;
+        }
         let file = v
             .get("sessionDir")
             .and_then(|x| x.as_str())
             .map(PathBuf::from)
-            .map(|d| d.join("agents").join("main").join("wire.jsonl"))
-            .unwrap_or_default();
-        if id.is_empty() || !file.is_file() {
+            .map(|d| d.join("agents").join("main").join("wire.jsonl"));
+        seen.insert(id, file);
+    }
+    for (id, file) in seen {
+        let Some(file) = file else { continue };
+        if !file.is_file() {
             continue;
         }
         out.push(TraceSession {
@@ -370,17 +456,19 @@ pub fn list_sessions(project: &Path) -> Vec<TraceSession> {
     out
 }
 
-/// 四家环境入口：项目内全部编辑事件（当前实现 claude 与 codex；grok/kimi 待 S019 源码核实后接）。
+/// 四家环境入口：项目内全部编辑事件，按统一 epoch ms 排序（无时间的排最后）。
 pub fn timeline(project: &Path) -> Vec<TraceEvent> {
     let mut out = Vec::new();
     for s in list_sessions(project) {
         match s.agent.as_str() {
             "claude" => out.extend(claude_events(&s)),
             "codex" => out.extend(codex_events(&s)),
+            "grok" => out.extend(grok_events(&s)),
+            "kimi" => out.extend(kimi_events(&s)),
             _ => {}
         }
     }
-    out.sort_by(|a, b| a.ts.cmp(&b.ts));
+    out.sort_by(|a, b| a.ts_ms.cmp(&b.ts_ms));
     out
 }
 
@@ -407,6 +495,7 @@ pub fn claude_events(session: &TraceSession) -> Vec<TraceEvent> {
             "assistant" => {
                 let msg = v.get("message").cloned().unwrap_or_default();
                 let ts = v.get("timestamp").and_then(|x| x.as_str()).map(|s| s.to_string());
+                let ts_ms = ts.as_deref().and_then(ts_to_ms);
                 if let Some(blocks) = msg.get("content").and_then(|c| c.as_array()) {
                     for b in blocks {
                         let bt = b.get("type").and_then(|x| x.as_str()).unwrap_or("");
@@ -443,6 +532,7 @@ pub fn claude_events(session: &TraceSession) -> Vec<TraceEvent> {
                                 user_intent: user_intent.clone(),
                                 op_intent: op_intent.clone(),
                                 ts: ts.clone(),
+                                ts_ms,
                                 patch,
                             });
                         }
@@ -455,84 +545,139 @@ pub fn claude_events(session: &TraceSession) -> Vec<TraceEvent> {
     out
 }
 
-/// codex rollout：顺序扫 response_item——assistant message 更新操作意图、真实 user message
-/// 更新用户意图（跳过环境注入），custom_tool_call(apply_patch) 出编辑事件。
+/// codex rollout：编辑主源是 `event_msg/item_completed` 的 `FileChange` item（绝对路径 +
+/// add/delete/update + 内容或 unified_diff + call_id + completed_at_ms，S019 源码核实）；
+/// 旧版无 FileChange 时退回 `custom_tool_call(apply_patch)` 补丁头解析。意图按行序回溯。
 pub fn codex_events(session: &TraceSession) -> Vec<TraceEvent> {
-    let mut out = Vec::new();
     let mut user_intent: Option<String> = None;
     let mut op_intent: Option<String> = None;
+    let mut fc: Vec<TraceEvent> = Vec::new();
+    let mut ct: Vec<TraceEvent> = Vec::new();
     for line in read_json_lines(&session.file) {
-        if line.get("type").and_then(|x| x.as_str()) != Some("response_item") {
-            continue;
-        }
+        let lt = line.get("type").and_then(|x| x.as_str()).unwrap_or("");
         let payload = line.get("payload").cloned().unwrap_or_default();
-        let ts = line
-            .get("timestamp")
-            .and_then(|x| x.as_str())
-            .map(|s| s.to_string());
-        let pt = payload.get("type").and_then(|x| x.as_str()).unwrap_or("");
-        match pt {
-            "message" => {
-                let role = payload.get("role").and_then(|x| x.as_str()).unwrap_or("");
-                let text = payload
-                    .get("content")
-                    .and_then(|c| c.as_array())
-                    .and_then(|arr| arr.first())
-                    .and_then(|b| b.get("text"))
-                    .and_then(|x| x.as_str())
-                    .unwrap_or("");
-                if text.trim().is_empty() {
-                    continue;
-                }
-                match role {
-                    "user" => {
-                        if is_codex_injected_context(text) {
-                            continue;
-                        }
-                        user_intent = Some(clean_intent(text));
+        match lt {
+            "response_item" => {
+                let pt = payload.get("type").and_then(|x| x.as_str()).unwrap_or("");
+                if pt == "message" {
+                    let role = payload.get("role").and_then(|x| x.as_str()).unwrap_or("");
+                    let text = payload
+                        .get("content")
+                        .and_then(|c| c.as_array())
+                        .and_then(|arr| arr.first())
+                        .and_then(|b| b.get("text"))
+                        .and_then(|x| x.as_str())
+                        .unwrap_or("");
+                    if text.trim().is_empty() {
+                        continue;
                     }
-                    "assistant" => op_intent = Some(clean_intent(text)),
-                    _ => {}
+                    match role {
+                        "user" => {
+                            if is_codex_injected_context(text) {
+                                continue;
+                            }
+                            user_intent = Some(clean_intent(text));
+                        }
+                        "assistant" => op_intent = Some(clean_intent(text)),
+                        _ => {}
+                    }
+                } else if pt == "custom_tool_call" {
+                    let name = payload.get("name").and_then(|x| x.as_str()).unwrap_or("");
+                    if name != "apply_patch" {
+                        continue;
+                    }
+                    let input = payload.get("input").and_then(|x| x.as_str()).unwrap_or("");
+                    let ts = line
+                        .get("timestamp")
+                        .and_then(|x| x.as_str())
+                        .map(|s| s.to_string());
+                    for (kind, file) in parse_apply_patch(input) {
+                        ct.push(TraceEvent {
+                            agent: session.agent.clone(),
+                            session_id: session.id.clone(),
+                            call_id: payload
+                                .get("call_id")
+                                .and_then(|x| x.as_str())
+                                .map(|s| s.to_string()),
+                            tool: Some("apply_patch".into()),
+                            file: Some(relativize(&file, &session.project)),
+                            kind,
+                            user_intent: user_intent.clone(),
+                            op_intent: op_intent.clone(),
+                            ts: ts.clone(),
+                            ts_ms: ts.as_deref().and_then(ts_to_ms),
+                            patch: Some(input.to_string()),
+                        });
+                    }
                 }
             }
-            "custom_tool_call" => {
-                let name = payload.get("name").and_then(|x| x.as_str()).unwrap_or("");
-                if name != "apply_patch" {
+            "event_msg" => {
+                if payload.get("type").and_then(|x| x.as_str()) != Some("item_completed") {
                     continue;
                 }
-                let input = payload.get("input").and_then(|x| x.as_str()).unwrap_or("");
-                for (kind, file) in parse_apply_patch(input) {
-                    let file = relativize(&file, &session.project);
-                    out.push(TraceEvent {
-                        agent: session.agent.clone(),
-                        session_id: session.id.clone(),
-                        call_id: payload
-                            .get("call_id")
+                let item = payload.get("item").cloned().unwrap_or_default();
+                if item.get("type").and_then(|x| x.as_str()) != Some("FileChange") {
+                    continue;
+                }
+                let call_id = item
+                    .get("id")
+                    .and_then(|x| x.as_str())
+                    .map(|s| s.to_string());
+                let ms = payload
+                    .get("completed_at_ms")
+                    .and_then(|x| x.as_u64())
+                    .or_else(|| payload.get("started_at_ms").and_then(|x| x.as_u64()));
+                if let Some(changes) = item.get("changes").and_then(|c| c.as_object()) {
+                    for (path, change) in changes {
+                        let ct_tag = change.get("type").and_then(|x| x.as_str()).unwrap_or("");
+                        let kind = match ct_tag {
+                            "add" => EditKind::Create,
+                            "delete" => EditKind::Delete,
+                            _ => EditKind::Modify,
+                        };
+                        let patch = change
+                            .get("unified_diff")
+                            .or_else(|| change.get("content"))
                             .and_then(|x| x.as_str())
-                            .map(|s| s.to_string()),
-                        tool: Some("apply_patch".into()),
-                        file: Some(file),
-                        kind,
-                        user_intent: user_intent.clone(),
-                        op_intent: op_intent.clone(),
-                        ts: ts.clone(),
-                        patch: Some(input.to_string()),
-                    });
+                            .map(|s| s.to_string());
+                        fc.push(TraceEvent {
+                            agent: session.agent.clone(),
+                            session_id: session.id.clone(),
+                            call_id: call_id.clone(),
+                            tool: Some("apply_patch".into()),
+                            file: Some(relativize(&normalize_file(path), &session.project)),
+                            kind,
+                            user_intent: user_intent.clone(),
+                            op_intent: op_intent.clone(),
+                            ts: ms.map(ms_to_iso),
+                            ts_ms: ms,
+                            patch,
+                        });
+                    }
                 }
             }
             _ => {}
         }
     }
-    out
+    if fc.is_empty() {
+        ct
+    } else {
+        fc
+    }
 }
 
-/// codex 的环境注入 user message（指令/环境块）不是用户意图。
+/// codex 的环境注入 user message（指令/环境块）不是用户意图；marker 清单对齐
+/// codex 源码 `CONTEXTUAL_USER_FRAGMENT_MATCHERS` 的主要项（S019 核实）。
 fn is_codex_injected_context(text: &str) -> bool {
     let head = text.trim_start();
     head.starts_with("# AGENTS.md")
         || head.starts_with("<environment_context>")
         || head.starts_with("<user_instructions>")
         || head.starts_with("<turn_context>")
+        || head.starts_with("<turn_aborted>")
+        || head.starts_with("<user_shell_command>")
+        || head.starts_with("<subagent_notification>")
+        || head.starts_with("<current_time_reminder>")
 }
 
 /// 解析 apply_patch 补丁头的 Add/Update/Delete File 行。
@@ -546,6 +691,180 @@ pub fn parse_apply_patch(input: &str) -> Vec<(EditKind, String)> {
             out.push((EditKind::Modify, normalize_file(rest.trim())));
         } else if let Some(rest) = line.strip_prefix("*** Delete File: ") {
             out.push((EditKind::Delete, normalize_file(rest.trim())));
+        }
+    }
+    out
+}
+
+/// grok chat_history.jsonl（ConversationItem 行，S019 源码核实）：真实 user 行
+/// （`synthetic_reason == null`）更用户意图；assistant.content 是操作意图；
+/// 编辑在 `assistant.tool_calls[]`（name 属写文件族，arguments 是 JSON 串取 file_path）。
+/// 行无时间戳，ts 用会话 uuid v7 的生成时刻近似（官方口径前 48 位 unix ms）。
+/// 注：权威日志是 updates.jsonl（chat_history 是派生缓存可被重建）；v1 读 chat_history，
+/// updates.jsonl 形状（{timestamp,method,params} 信封）留作升级路径。
+pub fn grok_events(session: &TraceSession) -> Vec<TraceEvent> {
+    let mut out = Vec::new();
+    let mut user_intent: Option<String> = None;
+    let mut op_intent: Option<String> = None;
+    let session_ms = grok_uuid_v7_ms(&session.id);
+    let ts = session_ms.map(ms_to_iso);
+    for v in read_json_lines(&session.file) {
+        match v.get("type").and_then(|x| x.as_str()).unwrap_or("") {
+            "user" => {
+                if !v.get("synthetic_reason").map(|s| s.is_null()).unwrap_or(true) {
+                    continue;
+                }
+                let text = concat_text_parts(v.get("content"));
+                if !text.trim().is_empty() {
+                    user_intent = Some(clean_intent(&text));
+                }
+            }
+            "assistant" => {
+                if let Some(text) = v.get("content").and_then(|c| c.as_str()) {
+                    if !text.trim().is_empty() {
+                        op_intent = Some(clean_intent(text));
+                    }
+                }
+                if let Some(calls) = v.get("tool_calls").and_then(|c| c.as_array()) {
+                    for tc in calls {
+                        let name = tc.get("name").and_then(|x| x.as_str()).unwrap_or("");
+                        if !matches!(
+                            name,
+                            "search_replace" | "write" | "edit" | "hashline_edit" | "apply_patch"
+                        ) {
+                            continue;
+                        }
+                        let args = tc
+                            .get("arguments")
+                            .and_then(|x| x.as_str())
+                            .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
+                            .unwrap_or_default();
+                        let file = args
+                            .get("file_path")
+                            .or_else(|| args.get("path"))
+                            .and_then(|x| x.as_str())
+                            .map(|f| relativize(&normalize_file(f), &session.project));
+                        let patch = args
+                            .get("new_string")
+                            .or_else(|| args.get("content"))
+                            .and_then(|x| x.as_str())
+                            .map(|s| s.to_string());
+                        out.push(TraceEvent {
+                            agent: session.agent.clone(),
+                            session_id: session.id.clone(),
+                            call_id: tc
+                                .get("id")
+                                .and_then(|x| x.as_str())
+                                .map(|s| s.to_string()),
+                            tool: Some(name.to_string()),
+                            file,
+                            kind: EditKind::Modify,
+                            user_intent: user_intent.clone(),
+                            op_intent: op_intent.clone(),
+                            ts: ts.clone(),
+                            ts_ms: session_ms,
+                            patch,
+                        });
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
+/// kimi wire.jsonl（协议 1.5，S019 源码核实）：`turn.prompt` 且 `origin.kind=="user"` 是
+/// 用户意图权威源；`context.append_message` role=assistant 的 text part 是操作意图；
+/// 编辑 = loop event `tool.call`（name 属 Edit/Write，args.path 是路径键）。时间原生 epoch ms。
+pub fn kimi_events(session: &TraceSession) -> Vec<TraceEvent> {
+    let mut out = Vec::new();
+    let mut user_intent: Option<String> = None;
+    let mut op_intent: Option<String> = None;
+    for v in read_json_lines(&session.file) {
+        let ms = v.get("time").and_then(|x| x.as_u64());
+        let ts = ms.map(ms_to_iso);
+        match v.get("type").and_then(|x| x.as_str()).unwrap_or("") {
+            "turn.prompt" => {
+                let origin = v
+                    .get("origin")
+                    .and_then(|o| o.get("kind"))
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("");
+                if origin != "user" {
+                    continue;
+                }
+                let text = concat_text_parts(v.get("input"));
+                if !text.trim().is_empty() {
+                    user_intent = Some(clean_intent(&text));
+                }
+            }
+            "context.append_message" => {
+                let msg = v.get("message").cloned().unwrap_or_default();
+                if msg.get("role").and_then(|x| x.as_str()) != Some("assistant") {
+                    continue;
+                }
+                let text = concat_text_parts(msg.get("content"));
+                if !text.trim().is_empty() {
+                    op_intent = Some(clean_intent(&text));
+                }
+            }
+            "context.append_loop_event" => {
+                let ev = v.get("event").cloned().unwrap_or_default();
+                if ev.get("type").and_then(|x| x.as_str()) != Some("tool.call") {
+                    continue;
+                }
+                let name = ev.get("name").and_then(|x| x.as_str()).unwrap_or("");
+                if !matches!(name, "Edit" | "Write") {
+                    continue;
+                }
+                let args = ev.get("args").cloned().unwrap_or_default();
+                let file = args
+                    .get("path")
+                    .or_else(|| args.get("file_path"))
+                    .and_then(|x| x.as_str())
+                    .map(|f| relativize(&normalize_file(f), &session.project));
+                let patch = args
+                    .get("new_string")
+                    .or_else(|| args.get("content"))
+                    .and_then(|x| x.as_str())
+                    .map(|s| s.to_string());
+                out.push(TraceEvent {
+                    agent: session.agent.clone(),
+                    session_id: session.id.clone(),
+                    call_id: ev
+                        .get("toolCallId")
+                        .and_then(|x| x.as_str())
+                        .map(|s| s.to_string()),
+                    tool: Some(name.to_string()),
+                    file,
+                    kind: EditKind::Modify,
+                    user_intent: user_intent.clone(),
+                    op_intent: op_intent.clone(),
+                    ts: ts.clone(),
+                    ts_ms: ms,
+                    patch,
+                });
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
+/// ContentPart 数组（[{type:"text",text},...]）取 text 拼接；跳过 think/blob_ref/媒体 part。
+fn concat_text_parts(v: Option<&serde_json::Value>) -> String {
+    let Some(v) = v else { return String::new() };
+    if let Some(s) = v.as_str() {
+        return s.to_string();
+    }
+    let Some(arr) = v.as_array() else { return String::new() };
+    let mut out = String::new();
+    for p in arr {
+        if p.get("type").and_then(|x| x.as_str()) == Some("text") {
+            if let Some(t) = p.get("text").and_then(|x| x.as_str()) {
+                out.push_str(t);
+            }
         }
     }
     out
@@ -623,6 +942,22 @@ mod tests {
     }
 
     #[test]
+    fn time_conversions_round_trip() {
+        let ms = ts_to_ms("2026-08-31T09:24:32.851Z").expect("iso");
+        assert!(ms > 1_700_000_000_000);
+        assert_eq!(ms_to_iso(ms), "2026-08-31T09:24:32.851Z");
+        assert_eq!(ts_to_ms("1787407580274"), Some(1_787_407_580_274));
+        assert_eq!(ts_to_ms("not-a-time"), None);
+    }
+
+    #[test]
+    fn grok_uuid_v7_ms_extracts_unix_time() {
+        let ms = grok_uuid_v7_ms("01a04d17-eb80-72b3-93e8-7988431e5f8c").expect("v7");
+        assert!(ms > 1_700_000_000_000 && ms < 2_000_000_000_000, "{ms}");
+        assert_eq!(grok_uuid_v7_ms("not-a-uuid"), None);
+    }
+
+    #[test]
     fn claude_events_extract_edit_with_dual_intent() {
         let dir = fixture("claude");
         let sessions = claude_sessions_in(&dir, Path::new(r"D:\demo"));
@@ -638,30 +973,36 @@ mod tests {
         assert_eq!(e.op_intent.as_deref(), Some("我来修改 greet 函数返回中文"));
         assert!(e.call_id.as_deref().unwrap().starts_with("call_"));
         assert!(e.ts.as_deref().unwrap().starts_with("2026-"));
+        assert!(e.ts_ms.is_some());
         assert!(e.patch.as_deref().unwrap().contains("你好"));
         assert!(e.operation_id().contains(":call_"));
     }
 
     #[test]
-    fn codex_events_extract_apply_patch() {
+    fn codex_events_prefer_filechange_over_custom_tool_call() {
         let dir = fixture("codex");
-        let sessions = codex_sessions_under(&dir, Path::new(r"D:\demo"));
-        assert_eq!(sessions.len(), 1);
-        assert_eq!(sessions[0].id.len(), 36);
+        let mut sessions = codex_sessions_under(&dir, Path::new(r"D:\demo"));
+        assert_eq!(sessions.len(), 2);
+        sessions.sort_by(|a, b| a.id.cmp(&b.id));
+        // A：有 FileChange item_completed → 主源（changes 绝对路径 + add/update 双键）。
+        // serde_json 的 map 按键字典序迭代，不假设文件顺序。
         let events = codex_events(&sessions[0]);
         assert_eq!(events.len(), 2);
-        assert_eq!(events[0].kind, EditKind::Create);
-        assert!(events[0].file.as_deref().unwrap().ends_with("notes.md"));
-        assert_eq!(events[1].kind, EditKind::Modify);
-        assert!(events[1].file.as_deref().unwrap().ends_with("README.md"));
-        assert_eq!(events[0].user_intent.as_deref(), Some("加一个笔记文件并更新 README"));
-        assert!(events[0]
-            .op_intent
-            .as_deref()
-            .unwrap()
-            .contains("先创建笔记再改 README"));
-        assert_eq!(events[0].tool.as_deref(), Some("apply_patch"));
-        assert!(events[0].call_id.as_deref().unwrap().starts_with("call_"));
+        let by_file = |f: &str| events.iter().find(|e| e.file.as_deref() == Some(f)).unwrap();
+        assert_eq!(by_file("notes.md").kind, EditKind::Create);
+        assert_eq!(by_file("README.md").kind, EditKind::Modify);
+        assert!(by_file("notes.md").patch.as_deref().unwrap().contains("hello"));
+        for e in &events {
+            assert_eq!(e.tool.as_deref(), Some("apply_patch"));
+            assert!(e.call_id.as_deref().unwrap().starts_with("call_"));
+            assert!(e.ts_ms.is_some());
+            assert_eq!(e.user_intent.as_deref(), Some("加一个笔记文件并更新 README"));
+        }
+        // B：无 FileChange（旧版形状）→ 退回 custom_tool_call 补丁头解析。
+        let events = codex_events(&sessions[1]);
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].kind, EditKind::Delete);
+        assert!(events[0].file.as_deref().unwrap().ends_with("old.txt"));
     }
 
     #[test]
@@ -682,20 +1023,70 @@ mod tests {
     fn codex_injected_context_is_recognized() {
         assert!(is_codex_injected_context("# AGENTS.md instructions for D:\\x"));
         assert!(is_codex_injected_context("<environment_context>"));
+        assert!(is_codex_injected_context("<user_shell_command>"));
         assert!(!is_codex_injected_context("正常用户输入"));
+    }
+
+    #[test]
+    fn grok_events_extract_search_replace_with_synthetic_filter() {
+        let dir = fixture("grok");
+        let sessions = grok_sessions_in(&dir, Path::new(r"D:\demo"));
+        assert_eq!(sessions.len(), 1);
+        let events = grok_events(&sessions[0]);
+        assert_eq!(events.len(), 1);
+        let e = &events[0];
+        assert_eq!(e.tool.as_deref(), Some("search_replace"));
+        assert!(e.file.as_deref().unwrap().ends_with("src/app.rs"));
+        assert!(e.call_id.as_deref().unwrap().starts_with("call-"));
+        // synthetic_reason 的注入 user 行不能污染用户意图。
+        assert_eq!(e.user_intent.as_deref(), Some("把标题改成中文"));
+        assert_eq!(e.op_intent.as_deref(), Some("修改 app.rs 的标题渲染"));
+        assert!(e.ts_ms.is_some());
+        assert!(e.patch.as_deref().unwrap().contains("你好"));
+    }
+
+    #[test]
+    fn kimi_events_extract_edit_with_origin_filter() {
+        let dir = fixture("kimi");
+        let index = dir.join("session_index.jsonl");
+        let sessions = kimi_sessions_in(&index, Path::new(r"D:\demo"));
+        assert_eq!(sessions.len(), 1);
+        let events = kimi_events(&sessions[0]);
+        assert_eq!(events.len(), 1);
+        let e = &events[0];
+        assert_eq!(e.tool.as_deref(), Some("Write"));
+        assert!(e.file.as_deref().unwrap().ends_with("out.md"));
+        assert!(e.call_id.as_deref().unwrap().starts_with("tool_"));
+        // origin.kind != user 的 turn.prompt（系统触发）不能污染用户意图。
+        assert_eq!(e.user_intent.as_deref(), Some("生成一个说明文件"));
+        assert_eq!(e.op_intent.as_deref(), Some("我来写说明文件"));
+        assert_eq!(e.ts_ms, Some(1_787_407_580_274));
+    }
+
+    #[test]
+    fn kimi_index_tombstones_hide_sessions() {
+        let dir = fixture("kimi");
+        let index = dir.join("session_index_deleted.jsonl");
+        let sessions = kimi_sessions_in(&index, Path::new(r"D:\demo"));
+        assert!(sessions.is_empty(), "墓碑行应隐藏会话");
     }
 
     #[test]
     fn group_blocks_aggregates_multi_file_operation() {
         let dir = fixture("codex");
-        let sessions = codex_sessions_under(&dir, Path::new(r"D:\demo"));
+        let mut sessions = codex_sessions_under(&dir, Path::new(r"D:\demo"));
+        sessions.sort_by(|a, b| a.id.cmp(&b.id));
         let events = codex_events(&sessions[0]);
         let blocks = group_blocks(&events);
         assert_eq!(blocks.len(), 1);
         let b = &blocks[0];
         assert_eq!(b.edits, 2);
-        assert_eq!(b.files, vec!["notes.md".to_string(), "README.md".to_string()]);
-        assert_eq!(b.kinds, vec!["create".to_string(), "modify".to_string()]);
+        let mut files = b.files.clone();
+        files.sort();
+        assert_eq!(files, vec!["README.md".to_string(), "notes.md".to_string()]);
+        let mut kinds = b.kinds.clone();
+        kinds.sort();
+        assert_eq!(kinds, vec!["create".to_string(), "modify".to_string()]);
         assert_eq!(b.user_intent.as_deref(), Some("加一个笔记文件并更新 README"));
         assert!(b.op.ends_with(":call_xyz789"));
     }
@@ -712,6 +1103,7 @@ mod tests {
             user_intent: Some(format!("任务{i}")),
             op_intent: None,
             ts: Some(format!("2026-08-31T00:00:{i:02}Z")),
+            ts_ms: Some(1_787_407_600_000 + i as u64 * 1000),
             patch: Some(format!("fn v{i}() {{}}")),
         };
         let events: Vec<TraceEvent> = (0..10).map(mk).collect();

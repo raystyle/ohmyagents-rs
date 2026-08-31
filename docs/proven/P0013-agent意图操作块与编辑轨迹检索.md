@@ -1,6 +1,6 @@
 # agent 意图操作块与编辑轨迹检索
 
-- 状态：进行中（claude/codex 全链验收通过——无头双家产编辑、五视图检索可见；grok/kimi 事件 loader 待 S019 源码核实）
+- 状态：已完成（2026-08-31：四家 loader 全落地并活体验证——claude/codex 无头双家验收、grok/kimi 真实历史检索命中；S019 源码核实闭环）
 - 日期：2026-08-31
 - 关联：研究 `S018`（aitrace 机制与 oma 映射）、`S009`（状态四层）、`S015`（hook 矩阵）；前置 P0006-P0012（编排与安装底座）；用户定调 2026-08-31：「增加研究 D:\aitrace，实现指定项目下的各 Agent 意图操作块及编辑文件轨迹的检索功能」
 
@@ -65,11 +65,11 @@ operation_id = session_id:call_id   （S018 核心设计，一根线串会话与
 
 ### 切片
 
-1. **S019 四家会话日志格式研究**：本地实证已完成；源码核实进行中（grok 编辑类 tool 形状、kimi tool.result、codex 行序保证）
-2. **联邦检索层**：`src\trace.rs`——四家会话发现 + claude/codex 事件 loader（已落地）+ grok/kimi loader（待源码核实）
-3. **CLI 检索面**：`oma trace sessions|timeline|blocks|agent|file|search`（分页 clamp 1-1000；非法正则退字面子串；先匹配后截断）——已落地
-4. **验收**：无头通道（ohmypwsh S010 实测基准：claude -p / codex exec / kimi -p）在临时项目产真实编辑后检索可见
-5. **P0011 联动**：检索面同签名挂 MCP tool；输出带 buildHash 风格版本行
+1. **S019 四家会话日志格式研究**：已完成——本地实证 + 三仓源码核实（三处纠偏：grok 是 Rust 仓、chat_history 是派生缓存、kimi agentId 是版本分水岭），见 `docs\research\S019`
+2. **联邦检索层**：已完成——四家会话发现 + 四家事件 loader（codex FileChange 主源 + apply_patch 兜底；时间统一 epoch ms）
+3. **CLI 检索面**：已完成——`oma trace sessions|timeline|blocks|agent|file|search`
+4. **验收**：claude/codex 无头双家通过（见验收实录）；grok/kimi 真实历史检索命中
+5. **P0011 联动**：待续——检索面挂 MCP tool；输出带 buildHash 风格版本行
 
 ## 风险与回滚
 
@@ -92,6 +92,18 @@ operation_id = session_id:call_id   （S018 核心设计，一根线串会话与
 - 无头一次性任务的 `op_intent` 为 `-`：模型直奔工具没有前置文本——意图是尽力而为不是保证（S018 同结论）。
 - claude `Write` 无显式 create/delete 信息，v1 kind 一律 modify（文档化局限；磁盘真相归远期缓存层）。
 - 验收顺带踩了 M031 同族坑：没切 cwd 两家把文件写进本仓——先清误产物再 `Set-Location` 重跑。[实证]
+
+### grok 与 kimi 收官
+
+> 2026-08-31，S019 源码核实回报后当日接完。
+
+- **codex 升级为双源**：编辑主源切 `event_msg/item_completed` 的 `FileChange`（绝对路径 + add/delete/update 三键 + unified_diff/content + completed_at_ms + call_id，shell 拦截形式的 apply_patch 也产生 FileChange），旧版无 FileChange 自动退回 `custom_tool_call` 补丁头解析；注入过滤清单对齐 codex 源码 `CONTEXTUAL_USER_FRAGMENT_MATCHERS` 主要项。[实证: 本机 hyper-v-lab 会话采样]
+- **grok loader**：编辑在 `assistant.tool_calls[]`（search_replace 等写文件族，`backend_tool_call` 只是服务端三工具——源码纠偏）；真实 user 行以 `synthetic_reason == null` 过滤；行无时间戳，用会话 uuidv7 前 48 bit unix ms 近似会话起点。活体验证：本仓 2026-08-29 的 grok review 历史全量命中（search_replace + `<user_query>` 用户意图 + assistant 操作意图原文）。[实证]
+- **kimi loader**：`turn.prompt` 且 `origin.kind=="user"` 是用户意图闸门（12 种 origin 只有 user 是真人）；编辑 = loop `tool.call`（Edit/Write，`args.path` 键）；墓碑行（`{sessionId,deleted:true}` 无 workDir）必须**先于项目过滤**判断——实踩一次修掉。活体验证：ohmypwsh/win-rmux 的真实 review 任务命中。[实证]
+- **时间统一 epoch ms**：四家时间源不同（ISO/原生 ms/uuidv7 近似），跨家排序靠 `ts_ms` 归一（Howard Hinnant 算法自带互转，免引 chrono）；grok uuidv7 解析初版多移 16 位被单测抓出（12 个 hex 字本身就是 ms）。
+- **serde_json 的 map 按键字典序迭代**——FileChange changes 的多文件顺序不保证插入序，断言改按集合比较（夹具单测抓出）。
+- **M034 惨案**：用 Python 脚本批改 trace.rs 时 `io.open(p,"w")` 的 newline 参数校验失败，但文件在抛错前已被截断——trace.rs 清零，靠 git 恢复后改用整文件 Write 重写。教训：脚本改源码必须「写临时文件 + 原子替换」，禁止对源文件直开写模式。
+- 遗留：grok v1 读 chat_history（派生缓存），updates.jsonl（`{timestamp,method,params}` 信封）是权威升级路径；claude Write/grok/kimi 的 kind 无显式 create/delete 信息一律 modify（文档化局限）。
 
 ## 实施过程与经验
 
