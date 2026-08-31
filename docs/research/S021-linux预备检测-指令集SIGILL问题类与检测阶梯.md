@@ -62,7 +62,9 @@ grep -m1 flags /proc/cpuinfo
 
 Rust 侧 `std::os::unix::process::ExitStatusExt::signal() == Some(4)`（`code()` 为 None）；Windows 对应形态是 `STATUS_ILLEGAL_INSTRUCTION`（0xC000001D）。**探针打到真二进制上，比任何 CPU 检查都权威**——它测的就是「这份制品在这台机器」的组合。
 
-## 五、oma 落点（P0012 预备，设计口径）
+## 五、oma 落点
+
+> P0012 预备件；以下均为设计口径。
 
 - `oma agents`：Linux 下探针退出形态记全——signal 4 单列报告行（如 `probe=sigill hint=cpu lacks AVX-512; try npm variant or older build`），与现有「校验产物不校验退出码」的装机探针合流。[设计口径]
 - `oma doctor`：Linux 加 CPU 能力段——`lscpu` flags 摘要（avx / avx2 / avx512f 三布尔）加各已装二进制探针结果；任一 sigill 则该路 `status=block`（doctor 现有语义）。[设计口径]
