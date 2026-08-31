@@ -1,6 +1,6 @@
 # 项目工具Python库选型细则：pypi与uv
 
-> AGENTS 操作规则「写临时脚本时」的 Python 侧细则。与 `R005-选型研究细则-cratesio与github双通道.md` 分工：R005 管产品 Rust 依赖（crates.io + GitHub）；本篇管项目工具（`.tools\` 脚本与自定义 py 工具）的 Python 选库与开发稳定。素材为 2026-08-31 用户提供的《Python 库选择与开发稳定指南》，关键断言已本机实证（见六态标注）。
+> AGENTS 操作规则「写临时脚本时」的 Python 侧细则。与 `R005-选型研究细则-cratesio与github双通道.md` 分工：R005 管产品 Rust 依赖（crates.io + GitHub）；本篇管项目工具（`.tools\` 脚本与自定义 py 工具）的 Python 选库与开发稳定。PowerShell 侧另见 `R009-项目工具PowerShell模块选型细则-psgallery与psresourceget.md`。素材为 2026-08-31 用户提供的《Python 库选择与开发稳定指南》，关键断言已本机实证（见六态标注）。
 
 ## 一、搜索能力对照
 

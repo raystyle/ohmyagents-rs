@@ -75,8 +75,8 @@
     - 禁止：重言式断言（期望值来自被测同款逻辑或镜像实现分支，AI 生成测试高发）；公开 API 测试塞 `mod tests{}` 不进 `tests\`；默认 mock（oma 拿真 daemon）；计时进断言；测试设施无 feature gate 进生产构建；只测 happy path。
 
 11. **写临时脚本时**
-   - 可以：按需自定义的 ps1 / py / Rust 工具，有复用价值即归档 `.tools\`（规则与清单见 `.tools\README.md`；Python 带 PEP 723 头，用 `uv run --script` 运行；py 选库走 `docs\references\R008-项目工具Python库选型细则-pypi与uv.md`——关键词搜索只有网页，已知名字走 PyPI JSON API 加 pypistats）；文档结构大改（改名、编号、移目录）后跑 `uv run --script .tools\md-ref-scan.py` 做断链回归。
-   - 禁止：可复用脚本散落仓库根或只留在对话里；把 `pypi.org/search` 或抓网页当可编程选型接口；用 sed 批改中文与反斜杠路径（用 `md-replace.py`，见 M023）；归档不带自述与用法。
+    - 可以：按需自定义的 ps1 / py / Rust 工具，有复用价值即归档 `.tools\`（规则与清单见 `.tools\README.md`；Python 带 PEP 723 头，用 `uv run --script` 运行，py 选库走 `docs\references\R008-项目工具Python库选型细则-pypi与uv.md`；PowerShell 选模块走 `docs\references\R009`）；文档结构大改（改名、编号、移目录）后跑 `uv run --script .tools\md-ref-scan.py` 做断链回归。
+    - 禁止：可复用脚本散落仓库根或只留在对话里；把 `pypi.org/search` 或抓网页当可编程选型接口；用 sed 批改中文与反斜杠路径（用 `md-replace.py`，见 M023）；归档不带自述与用法。
 
 ## 三、意图路由
 
