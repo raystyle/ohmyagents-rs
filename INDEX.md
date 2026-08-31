@@ -35,7 +35,7 @@
 | `src\doctor.rs` | `oma doctor`：只读诊断（yolo / 信任 / 二进制 / state） |
 | `src\yolo.rs` | `oma init --yolo`：四家配置落盘与 pretrust |
 | `src\pathutil.rs` | 路径工具 |
-| `examples\poc-*.rs` | 七个部件 POC（见下） |
+| `examples\poc-*.rs` | 八个部件 POC（见下） |
 | `catalog\rmux.toml` | rmux tag 与各平台 SHA256（信任锚） |
 
 ```text
@@ -52,6 +52,7 @@ ohmyagents/
   examples\
     poc-yolo-doctor.rs  poc-endpoint.rs  poc-session.rs
     poc-layout.rs  poc-drive.rs  poc-dialogs.rs  poc-paste.rs
+    poc-locate.rs
   docs\
     proven\      P 编号，已完成 plan 归档
     diary\       一天一篇总结自省
@@ -139,4 +140,4 @@ ohmyagents/
 ## 十、代码与 pin
 
 - 代码文件位置见第二节表；`catalog\rmux.toml` 是 `oma check` 的信任锚
-- `examples` 七个部件 POC 对应方案 P0005 的部件表（yolo-doctor / endpoint / session / layout / drive / dialogs / paste）
+- `examples` 八个部件 POC 对应方案 P0005 的部件表（yolo-doctor / endpoint / session / layout / drive / dialogs / paste / locate）

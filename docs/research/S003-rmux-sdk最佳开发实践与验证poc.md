@@ -149,6 +149,8 @@ async fn main() -> rmux_sdk::Result<()> {
 
 验证：四格 `info()` pid 与 `Get-CimInstance Win32_Process`（或 `/proc`）进程名一致；故意错位 `send_key` 前必须 throw，不能 warn-and-continue。
 
+**2026-08-31 结果（Windows 绿）**：`examples/poc-locate.rs` 退出 0。四格 pid 经批量 CIM 查询全反查为 `pwsh.exe`；SDK 侧确认 `PaneProcessState::Running { pid }` 无进程名字段。[实证] 守卫 `expect_process` 落在 rmuxpoc 共用层，死 pid（4000000）与错位（期望 notepad/claude）均 Err，且守卫在 `send_key` 之前；正路守卫通过后 Enter 发到交互 pane、marker `OMA-LOCATE-GUARD` 可见。[实证: poc-locate 标记行]
+
 #### POC-7 字节流观察
 
 验证：`output_stream_starting_at(Oldest)` 收到非空字节；POC-4 的 echo 能在流里看到。这是以后网页镜像的最小核。不在 POC 里开 HTTP。

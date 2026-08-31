@@ -313,6 +313,89 @@ pub async fn running_pid(pane: &Pane) -> Result<u32, String> {
     pane_running_pid(&info, id)
 }
 
+/// OS-side pid -> process name lookup. One query per batch; pids that are
+/// dead (or never existed) simply do not appear in the map. The SDK only
+/// surfaces `pid` (`PaneProcessState::Running`), never the process name.
+pub fn process_names(pids: &[u32]) -> Result<std::collections::HashMap<u32, String>, String> {
+    let mut names = std::collections::HashMap::new();
+    if pids.is_empty() {
+        return Ok(names);
+    }
+    if cfg!(windows) {
+        let filter = pids
+            .iter()
+            .map(|p| format!("ProcessId={p}"))
+            .collect::<Vec<_>>()
+            .join(" OR ");
+        let script = format!(
+            "Get-CimInstance Win32_Process -Filter '{filter}' | ForEach-Object {{ '{{0}}={{1}}' -f $_.ProcessId, $_.Name }}"
+        );
+        let out = Command::new(pwsh_bin())
+            .args(["-NoProfile", "-Command", &script])
+            .output()
+            .map_err(|e| format!("pwsh CIM: {e}"))?;
+        if !out.status.success() {
+            return Err(format!(
+                "CIM query failed: {} {}",
+                String::from_utf8_lossy(&out.stdout).trim(),
+                String::from_utf8_lossy(&out.stderr).trim()
+            ));
+        }
+        for line in String::from_utf8_lossy(&out.stdout).lines() {
+            if let Some((pid, name)) = line.split_once('=') {
+                if let Ok(pid) = pid.trim().parse::<u32>() {
+                    names.insert(pid, name.trim().to_string());
+                }
+            }
+        }
+    } else {
+        let list = pids
+            .iter()
+            .map(|p| p.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+        let out = Command::new("ps")
+            .args(["-p", &list, "-o", "pid=,comm="])
+            .output()
+            .map_err(|e| format!("ps: {e}"))?;
+        if !out.status.success() {
+            return Err(format!(
+                "ps query failed: {} {}",
+                String::from_utf8_lossy(&out.stdout).trim(),
+                String::from_utf8_lossy(&out.stderr).trim()
+            ));
+        }
+        for line in String::from_utf8_lossy(&out.stdout).lines() {
+            let mut parts = line.split_whitespace();
+            if let (Some(pid), Some(name)) = (parts.next(), parts.next()) {
+                if let Ok(pid) = pid.parse::<u32>() {
+                    names.insert(pid, name.to_string());
+                }
+            }
+        }
+    }
+    Ok(names)
+}
+
+/// Locate guard: pane pid must map to the expected process. Dead pid and
+/// name mismatch are both hard errors -- never warn-and-continue before a
+/// send. Returns the actual name on success.
+pub fn expect_process(
+    names: &std::collections::HashMap<u32, String>,
+    pid: u32,
+    expected: &str,
+) -> Result<String, String> {
+    let actual = names
+        .get(&pid)
+        .ok_or_else(|| format!("pid {pid} not found (dead or recycled); expected {expected}"))?;
+    if !actual.to_ascii_lowercase().contains(&expected.to_ascii_lowercase()) {
+        return Err(format!(
+            "pid {pid} is '{actual}', expected '{expected}' -- refusing to send"
+        ));
+    }
+    Ok(actual.clone())
+}
+
 pub fn state_path(root: &std::path::Path, agent: &str) -> PathBuf {
     root.join(".ohmyagents")
         .join("state")
@@ -359,5 +442,18 @@ mod tests {
         assert!(is_job_object_error("Access is denied. (os error 5)"));
         assert!(!is_job_object_error("session not found"));
         assert!(is_transport_closed("rmux daemon closed the transport"));
+    }
+
+    #[test]
+    fn expect_process_throws_on_dead_pid_and_mismatch() {
+        let mut names = std::collections::HashMap::new();
+        names.insert(4242u32, "pwsh.exe".to_string());
+        assert_eq!(expect_process(&names, 4242, "pwsh").unwrap(), "pwsh.exe");
+        // Case-insensitive contains, so PWSH.EXE matches "pwsh".
+        assert!(expect_process(&names, 4242, "PWsh").is_ok());
+        // Dead / recycled pid: must throw, not map to some default.
+        assert!(expect_process(&names, 4000000, "pwsh").is_err());
+        // Name mismatch: must throw before any send.
+        assert!(expect_process(&names, 4242, "notepad").is_err());
     }
 }
