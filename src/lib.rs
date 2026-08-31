@@ -1,5 +1,6 @@
 pub mod agents;
 pub mod catalog;
+pub mod deploy;
 pub mod doctor;
 pub mod hook;
 pub mod pathutil;

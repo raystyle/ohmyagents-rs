@@ -34,8 +34,9 @@
 | `src\agents.rs` | `oma agents`：PATH / 环境变量 / 默认目录探测 |
 | `src\doctor.rs` | `oma doctor`：只读诊断（yolo / 信任 / 二进制 / state） |
 | `src\yolo.rs` | `oma init --yolo`：四家配置落盘与 pretrust |
+| `src\deploy.rs` | `oma init` hook/skill 部署层：按 S015 矩阵落项目文件，幂等合并 |
 | `src\pathutil.rs` | 路径工具 |
-| `examples\poc-*.rs` | 十个部件 POC（见下） |
+| `examples\poc-*.rs` | 十一个部件 POC（见下） |
 | `catalog\rmux.toml` | rmux tag 与各平台 SHA256（信任锚） |
 
 ```text
@@ -52,7 +53,7 @@ ohmyagents/
   examples\
     poc-yolo-doctor.rs  poc-endpoint.rs  poc-session.rs
     poc-layout.rs  poc-drive.rs  poc-dialogs.rs  poc-paste.rs
-    poc-locate.rs  poc-stream.rs  poc-state.rs
+    poc-locate.rs  poc-stream.rs  poc-state.rs  poc-init.rs
   docs\
     proven\      P 编号，已完成 plan 归档
     diary\       一天一篇总结自省
@@ -131,7 +132,7 @@ ohmyagents/
 | M106 | `M106-Windows进程与daemon启动错误.md` | os error 5、Job Object、WMI、exit-empty | M015、M017、M021-M022 |
 | M107 | `M107-工具链与脚本错误.md` | sed、grep、PowerShell、中文路径 | M023-M026、M028 |
 
-迭代规则：踩坑按当前最大号接编 MNNN 进对应分类文件（M0xx 行级、新分类用 M1xx 接编）；一行一事；反复踩落 `docs\research\`；改「正确处理」不删历史行；新分类文件登记本节。
+迭代规则：踩坑按当前最大号接编 MNNN 进对应分类文件（M0xx 行级、新分类用 M1xx 接编）；一行一事；同根因或同型坑**可合并聚合**进已有条目（保留最早编号与首踩日期，聚合后的正解写全），避免同型条目无限线性追加；反复踩落 `docs\research\`；改「正确处理」不删历史行；新分类文件登记本节。
 
 ## 九、阶段与版本
 
@@ -141,4 +142,4 @@ ohmyagents/
 ## 十、代码与 pin
 
 - 代码文件位置见第二节表；`catalog\rmux.toml` 是 `oma check` 的信任锚
-- `examples` 十个部件 POC 对应方案 P0005 的部件表（yolo-doctor / endpoint / session / layout / drive / dialogs / paste / locate / stream / state）
+- `examples` 十一个部件 POC 对应方案 P0005 的部件表（yolo-doctor / endpoint / session / layout / drive / dialogs / paste / locate / stream / state / init）

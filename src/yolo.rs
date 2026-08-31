@@ -12,19 +12,19 @@ pub struct ApplyReport {
     pub wrote: Vec<String>,
 }
 
-fn ensure_parent(path: &Path) -> Result<(), String> {
+pub(crate) fn ensure_parent(path: &Path) -> Result<(), String> {
     if let Some(dir) = path.parent() {
         fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     }
     Ok(())
 }
 
-fn write_text(path: &Path, text: &str) -> Result<(), String> {
+pub(crate) fn write_text(path: &Path, text: &str) -> Result<(), String> {
     ensure_parent(path)?;
     fs::write(path, text).map_err(|e| format!("{}: {e}", path.display()))
 }
 
-fn read_json(path: &Path) -> Result<Json, String> {
+pub(crate) fn read_json(path: &Path) -> Result<Json, String> {
     if !path.exists() {
         return Ok(json!({}));
     }
@@ -35,12 +35,12 @@ fn read_json(path: &Path) -> Result<Json, String> {
     serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))
 }
 
-fn write_json(path: &Path, value: &Json) -> Result<(), String> {
+pub(crate) fn write_json(path: &Path, value: &Json) -> Result<(), String> {
     let text = serde_json::to_string_pretty(value).map_err(|e| e.to_string())? + "\n";
     write_text(path, &text)
 }
 
-fn read_toml(path: &Path) -> Result<Toml, String> {
+pub(crate) fn read_toml(path: &Path) -> Result<Toml, String> {
     if !path.exists() {
         return Ok(Toml::Table(toml::map::Map::new()));
     }
@@ -54,6 +54,10 @@ fn read_toml(path: &Path) -> Result<Toml, String> {
 fn write_toml(path: &Path, value: &Toml) -> Result<(), String> {
     let text = toml::to_string_pretty(value).map_err(|e| e.to_string())?;
     write_text(path, &text)
+}
+
+pub(crate) fn toml_write(path: &Path, value: &Toml) -> Result<(), String> {
+    write_toml(path, value)
 }
 
 fn table_mut(v: &mut Toml) -> Result<&mut toml::map::Map<String, Toml>, String> {

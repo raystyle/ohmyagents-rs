@@ -37,7 +37,7 @@
    - 禁止：不核对三原语就干活；偏离当前目标；推进了不更新 todo/plan。
 
 2. **踩坑时**
-   - 可以：当场按当前最大号接编 MNNN，落 `docs\mistakes\` 对应分类文件一行（文件名即错误主题，分类表见 `INDEX.md`）；主题深挖落 `docs\research\`。
+   - 可以：当场按当前最大号接编 MNNN，落 `docs\mistakes\` 对应分类文件一行（文件名即错误主题，分类表见 `INDEX.md`）；同根因或同型坑合并聚合进已有条目（保留最早编号与首踩日期），不必每踩必新增；主题深挖落 `docs\research\`。
    - 禁止：只留在对话里反复试错。
 
 3. **发现问题时（循环自迭代）**
@@ -87,7 +87,7 @@
 - **无阻塞诊断**：`oma doctor`（进程存活 + hook 语义 + 任务指向 + yolo；不把 wait-pane Quiet 当 idle）
 - **检测已装 agent**：`oma agents`（PATH、`OMA_AGENT_PATH`、`OMA_*_BIN`、各家默认安装目录；Windows / Linux / macOS）
 - **hook 写状态**：`oma hook`（agent lifecycle hook 调用；stdin JSON 或参数；写 `OHMYAGENTS_STATE_FILE`；缺环境则静默。不连 rmux 管道）
-- **Windows 最小 pane POC**：`cargo run --example poc-endpoint|poc-session|poc-layout|poc-drive|poc-dialogs|poc-paste|poc-locate|poc-stream|poc-state`（专用 pipe、CreateOnly、2x2、send_text+Enter、hook blocked + sendkeys、load-buffer+paste-buffer -p 中文、pid 反查进程名错位 throw、output_stream Oldest 回放 Now 直播、terminal_state 分类 Quiet 不当 idle）。Linux/mac 委托后续仓库
+- **Windows 最小 pane POC**：`cargo run --example poc-endpoint|poc-session|poc-layout|poc-drive|poc-dialogs|poc-paste|poc-locate|poc-stream|poc-state|poc-init`（专用 pipe、CreateOnly、2x2、send_text+Enter、hook blocked + sendkeys、load-buffer+paste-buffer -p 中文、pid 反查进程名错位 throw、output_stream Oldest 回放 Now 直播、terminal_state 分类 Quiet 不当 idle、hook/skill 项目级部署幂等不改家目录）。Linux/mac 委托后续仓库
 - **部署项目级 hook/skill/yolo**：`oma init [--yolo]`
 - **开会话**：`oma`（REPL，spawn 默认不阻塞）；`--no-web` 不起 HTTP；`--open` 才尝试打开浏览器。阻塞用 `doctor`/`status` 诊断，不在主命令里长时间 `wait_ready` 卡住委派
 - **委派**：`oma run <task> --assign …` 或 REPL / `send`。Drive 遵守三段式铁律（发前扫框、`paste-buffer -p`、Enter 单独发，细则见 `docs\research\S005-drive铁律与三段式粘贴.md`）：禁止文本和 Enter 同发、对 Codex 发 `C-c`、发送侧自包 `\x1b[200~`

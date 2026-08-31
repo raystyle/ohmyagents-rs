@@ -20,6 +20,8 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-08-31 | POC init 绿（Windows）：按 S015 一手矩阵部署四家 hook/skill；幂等合并保留外条目；家目录指纹零变化 |
+| 2026-08-31 | S015 四家 hook 注册一手形态：Claude 官方 hooks reference + codex/grok-build/kimi-code 三仓源码；订正 Claude PermissionRequest 旧口径、关闭 Kimi 项目级悬案 |
 | 2026-08-31 | POC state 绿（Windows）：最小 detect_terminal_state 分类器落地；Quiet 静止不映射 idle；confirm/password 阻塞可判可点掉 |
 | 2026-08-31 | POC stream 绿（Windows）：output_stream Oldest 回放 backlog、Now 只收新字节；11ms 见 marker；marker 子串坑记 M027 |
 | 2026-08-31 | POC locate 绿（Windows）：pid 经 CIM 批量反查进程名；死 pid 与错位守卫 throw，置于 send_key 前 |
@@ -37,7 +39,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：各功能部件 POC 验证原型。check、yolo、doctor、Windows pane 最小集（endpoint/session/layout/drive/dialogs/paste/locate/stream/state）已完成；init/negatives 未开；Linux/mac pane 跑测委托后续仓库。
+- 当前目标：各功能部件 POC 验证原型。check、yolo、doctor、Windows pane 最小集（endpoint/session/layout/drive/dialogs/paste/locate/stream/state/init）已完成；negatives 未开；Linux/mac pane 跑测委托后续仓库。
 
 ## 历史
 
