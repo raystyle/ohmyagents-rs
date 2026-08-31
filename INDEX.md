@@ -124,6 +124,7 @@ ohmyagents/
 | R005 | `R005-选型研究细则-cratesio与github双通道.md` | 选库检索双通道 |
 | R006 | `R006-rmux开发参考-连接会话布局与驱动.md` | 写 rmux 相关代码时查 |
 | R007 | `R007-agent信任与无阻塞参考-四家配置与检测.md` | 写 init/doctor/hook 时查 |
+| R008 | `R008-项目工具Python库选型细则-pypi与uv.md` | py 工具选库与 uv 工作流 |
 
 （R003 退役：原全量清单并入本索引，编号不复用。）
 

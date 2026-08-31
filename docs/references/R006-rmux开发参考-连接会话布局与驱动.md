@@ -1,4 +1,4 @@
-# R006-R006-rmux开发参考-连接会话布局与驱动
+# R006-rmux开发参考-连接会话布局与驱动
 
 > 角色：写 `oma` 的 rmux 相关代码时查的**做法参考**（要做什么怎么做）。从 `docs\research\` 的 rmux-sdk、win-rmux、drive、clum 四篇研究与 POC 实证浓缩；出错排查见 `INDEX.md（mistakes 节）`，证据链见研究原文。全部条目可溯源六态。
 

@@ -1,4 +1,4 @@
-# R007-R007-agent信任与无阻塞参考-四家配置与检测
+# R007-agent信任与无阻塞参考-四家配置与检测
 
 > 角色：写 `oma init` / `doctor` / `hook` 相关代码时查的**做法参考**（要做什么怎么做）。从 `docs\research\` 的信任阻塞门、yolo 与无阻塞、项目级 hook、agent 状态判断四篇浓缩；出错排查见 `INDEX.md（mistakes 节）`。全部条目可溯源六态。
 
