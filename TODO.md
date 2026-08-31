@@ -4,16 +4,16 @@
 
 ## 当前目标
 
-产品完备收口（对应 `GOAL.md`，方案 P0019，2026-08-31 用户问「windows全部开发完了？」盘点出三件）：①README/CHANGELOG 对齐现状 ②SSE 切渲染行流 ③四家真 agent 全链验收。当日全部完成；真路验收另揪出四缺陷当场修掉。
+官方 web 镜像集成（对应 `GOAL.md`，方案 P0021，2026-08-31 用户定调「和官方的 demo 一样」并点破 rmux 自带 web-share）。当日完成。
 
 ## 任务进度清单
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
-| 立项 0019 | 已完成 | 三切片定界（门面文档、SSE line_stream、真路四家） | 2026-08-31 |
-| SSE 终端镜像 | 已完成 | line_stream 实测仍带 ANSI，正解 render_stream：`/screen/{agent}` 全屏纯文本加首帧；网页双模式 | 2026-08-31 |
-| README 与 CHANGELOG | 已完成 | 加 ROADMAP 三份对齐现状（阶段 1-4 已完成、5 排后） | 2026-08-31 |
-| 四家真路全链验收 | 已完成 | 四家全绿；揪出四缺陷当场修（status 降级、CHILD_SESSION、settle 三态、镜像首帧）；三条已知差异记档 | 2026-08-31 |
+| 立项 0021 | 已完成 | 集成定界：oma 接管 rmux web-share，自建 xterm 桥下线 | 2026-08-31 |
+| api 与 HTTP 面 | 已完成 | web_share/shares/stop 三函数（stderr 合并解析）；POST/GET/DELETE 三端点 | 2026-08-31 |
+| CLI 与网页 | 已完成 | `oma web [agent]`；状态卡「官方镜像」按钮 | 2026-08-31 |
+| 三面验收 | 已完成 | CLI 打 URL/PIN、HTTP list/create/stop、用户浏览器 operator 直操 | 2026-08-31 |
 
 ## 前目标 0017 与 0018 残表
 

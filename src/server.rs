@@ -18,6 +18,7 @@ use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{delete, get, post};
 use axum::Json;
+use rmux_sdk::PaneOutputStart;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use tokio::sync::{mpsc, Mutex};
@@ -89,6 +90,9 @@ fn router(state: Arc<ServeState>) -> axum::Router {
         .route("/session", delete(cleanup))
         .route("/stream/{agent}", get(stream))
         .route("/screen/{agent}", get(screen))
+        .route("/share/{agent}", post(share_agent))
+        .route("/share", get(share_list))
+        .route("/share/{id}/stop", delete(share_stop))
         .route("/trace/sessions", get(trace_sessions))
         .route("/trace/timeline", get(trace_timeline))
         .route("/trace/search", get(trace_search))
@@ -229,12 +233,53 @@ async fn page() -> Html<&'static str> {
     Html(WEB_PAGE)
 }
 
+/// 起一路官方 web 镜像（rmux web-share，P0021）：operator 可操作真 attach，
+/// spectator 只看；URL 与 PIN 在 stderr，api 层已合并解析。
+async fn share_agent(
+    State(st): State<Arc<ServeState>>,
+    AxPath(agent): AxPath<String>,
+    body: String,
+) -> Response {
+    let command = "share";
+    #[derive(Deserialize)]
+    struct ShareReq {
+        spectator: Option<bool>,
+        ttl: Option<u64>,
+    }
+    let req: ShareReq = if body.trim().is_empty() {
+        ShareReq { spectator: None, ttl: None }
+    } else {
+        match parse_body(&body, command, &st.root) {
+            Ok(r) => r,
+            Err(r) => return r,
+        }
+    };
+    finish(
+        command,
+        &st.root,
+        api::web_share(&st.root, &agent, req.spectator.unwrap_or(false), req.ttl.unwrap_or(3600)).await,
+    )
+}
+
+async fn share_list(State(st): State<Arc<ServeState>>) -> Response {
+    finish("shares", &st.root, api::web_shares(&st.root).await)
+}
+
+async fn share_stop(State(st): State<Arc<ServeState>>, AxPath(id): AxPath<String>) -> Response {
+    let _guard = st.gate.lock().await;
+    finish("share.stop", &st.root, api::web_share_stop(&st.root, &id).await)
+}
+
 async fn index(State(st): State<Arc<ServeState>>) -> Response {
     let data = json!({
         "name": "oma",
         "page": "/",
+        "tui": "/tui",
         "endpoints": [
             {"method": "GET", "path": "/api"},
+            {"method": "POST", "path": "/share/{agent}", "body": {"spectator": false, "ttl": 3600}},
+            {"method": "GET", "path": "/share"},
+            {"method": "DELETE", "path": "/share/{id}/stop"},
             {"method": "POST", "path": "/spawn", "body": {"agents": ["claude"], "stub": false}},
             {"method": "GET", "path": "/status"},
             {"method": "POST", "path": "/send", "body": {"agent": "claude", "text": "..."}},

@@ -103,6 +103,7 @@ ohmyagents/
 | P0017 | `P0017-Windows全量收口.md` | 已完成（send 回显间隔、HTTP trace 三端点、SKILL 命令图、grok 无头、mcp 配置打印） |
 | P0018 | `P0018-Windows侧指令集检测落地.md` | 已完成（caps 检测进 doctor；探针退出分类进 agents 与装机） |
 | P0019 | `P0019-产品完备收口与四家真路验收.md` | 已完成（SSE 终端镜像、门面文档对齐、四家真路全链验收；修 status 降级、CHILD_SESSION、settle 三态） |
+| P0021 | `P0021-官方web镜像集成.md` | 已完成（oma web 三面集成 rmux web-share；自建 xterm 桥下线） |
 
 ## 四、项目日记
 

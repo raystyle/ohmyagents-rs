@@ -116,6 +116,88 @@ pub async fn cleanup(root: &Path) -> Result<Value, String> {
     Ok(json!({ "killed": existed, "scope": "session" }))
 }
 
+// ---- 官方 web 镜像（rmux web-share，P0021）----
+
+/// rmux CLI 输出（URL/PIN 在 stderr）。
+fn web_share_cli(
+    link: &orch::Link,
+    args: &[&str],
+) -> Result<String, String> {
+    let mut full: Vec<&str> = vec!["-L", link.label.as_str()];
+    full.extend(args.iter().copied());
+    let out = crate::rmuxpoc::run_cli(&link.rmux_bin, &full)?;
+    let text = format!(
+        "{}\n{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    if !out.status.success() {
+        return Err(format!("web-share: {}", text.trim()));
+    }
+    Ok(text)
+}
+
+/// 起一路官方 web 镜像：operator 可操作（真 attach），spectator 只看。
+pub async fn web_share(
+    root: &Path,
+    agent: &str,
+    spectator: bool,
+    ttl: u64,
+) -> Result<Value, String> {
+    let link = orch::connect(root, false).await?;
+    let (pane_id, _) = orch::pane_for_agent(&link, root, agent).await?;
+    let target = format!("%{pane_id}");
+    let ttl_s = ttl.to_string();
+    let mode = if spectator { "--spectator-only" } else { "--operator-only" };
+    let text = web_share_cli(
+        &link,
+        &["web-share", "-t", &target, mode, "--ttl", &ttl_s],
+    )?;
+    let url = text
+        .lines()
+        .filter_map(|l| l.split_whitespace().find(|w| w.starts_with("https://")))
+        .next()
+        .ok_or_else(|| "web-share 输出里没有 URL".to_string())?
+        .to_string();
+    let pin = text
+        .lines()
+        .find(|l| l.contains("pin"))
+        .and_then(|l| l.split_whitespace().last())
+        .unwrap_or("-")
+        .to_string();
+    let expires = text
+        .lines()
+        .find(|l| l.contains("expires"))
+        .map(|l| l.trim().to_string())
+        .unwrap_or_default();
+    Ok(json!({ "agent": agent, "url": url, "pin": pin, "expires": expires }))
+}
+
+/// 列活动 share（web-share list：`<id> <session>:<pane> ...`）。
+pub async fn web_shares(root: &Path) -> Result<Value, String> {
+    let link = orch::connect(root, false).await?;
+    let text = web_share_cli(&link, &["web-share", "list"])?;
+    let rows: Vec<Value> = text
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .map(|l| {
+            let mut it = l.split_whitespace();
+            let id = it.next().unwrap_or("");
+            let target = it.next().unwrap_or("");
+            json!({ "id": id, "target": target, "raw": l })
+        })
+        .collect();
+    Ok(json!({ "shares": rows }))
+}
+
+/// 断开一路 share（--disconnect <id>）。
+pub async fn web_share_stop(root: &Path, id: &str) -> Result<Value, String> {
+    let link = orch::connect(root, false).await?;
+    web_share_cli(&link, &["web-share", "--disconnect", id])?;
+    Ok(json!({ "disconnected": id }))
+}
+
 /// 轨迹检索三件（P0013 联动）：sessions / timeline / search。
 /// 同样走 JSON，供 MCP tools 与将来的 HTTP trace 端点共用。
 

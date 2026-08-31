@@ -184,7 +184,16 @@ async function refreshStatus() {
     ];
     card.innerHTML = '<h3></h3><table>' +
       rows.map(([k, v]) => `<tr><td class="k"></td><td></td></tr>`).join('') +
-      '</table>';
+      '</table><div class="share"><button>官方镜像</button><span class="link"></span></div>';
+    card.querySelector('.share button').onclick = async () => {
+      const env = await call('POST', '/share/' + p.agent, {});
+      const el = card.querySelector('.share .link');
+      if (env.ok) {
+        el.innerHTML = `<a href="${env.data.url}" target="_blank" rel="noopener">打开</a> PIN ${env.data.pin}`;
+      } else {
+        el.textContent = env.error || '失败';
+      }
+    };
     card.querySelector('h3').textContent = p.agent;
     card.querySelectorAll('tr').forEach((tr, i) => {
       tr.children[0].textContent = rows[i][0];

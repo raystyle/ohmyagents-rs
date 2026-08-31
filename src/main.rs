@@ -175,6 +175,20 @@ enum Commands {
         /// 目标 shell
         shell: clap_complete::Shell,
     },
+    /// 起官方 web 镜像（rmux web-share）：operator 可操作真 attach
+    Web {
+        /// agent 名；缺省全会话各起一路
+        agent: Option<String>,
+        /// 只读旁观（缺省 operator 可操作）
+        #[arg(long)]
+        spectator: bool,
+        /// 有效期秒数（缺省 3600）
+        #[arg(long, default_value_t = 3600)]
+        ttl: u64,
+        /// 项目根；默认当前目录
+        #[arg(long)]
+        project: Option<PathBuf>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -334,7 +348,41 @@ fn run() -> Result<(), String> {
         Commands::Serve { port, project } => cmd_serve(port, project),
         Commands::Mcp { project, print_config } => cmd_mcp(project, print_config),
         Commands::Completions { shell } => cmd_completions(shell),
+        Commands::Web { agent, spectator, ttl, project } => {
+            tokio_block(cmd_web(agent, spectator, ttl, project))
+        }
     }
+}
+
+/// 起官方 web 镜像：缺省全会话各一路；打印 URL 与 PIN（PIN 等同键盘权限，勿外传）。
+async fn cmd_web(
+    agent: Option<String>,
+    spectator: bool,
+    ttl: u64,
+    project: Option<PathBuf>,
+) -> Result<(), String> {
+    let root = project_root(project)?;
+    let manifest = orch::read_manifest_for(&root)
+        .ok_or_else(|| "no session manifest; run `oma spawn` first".to_string())?;
+    let targets: Vec<String> = match &agent {
+        Some(a) => {
+            if manifest.agents.iter().any(|m| &m.name == a) {
+                vec![a.clone()]
+            } else {
+                return Err(format!("agent {a} not in this session"));
+            }
+        }
+        None => manifest.agents.iter().map(|m| m.name.clone()).collect(),
+    };
+    for a in &targets {
+        let v = oma::api::web_share(&root, a, spectator, ttl).await?;
+        println!("web.{a}.url={}", v["url"].as_str().unwrap_or("-"));
+        println!("web.{a}.pin={}", v["pin"].as_str().unwrap_or("-"));
+        println!("web.{a}.expires={}", v["expires"].as_str().unwrap_or("-"));
+    }
+    println!("web.mode={}", if spectator { "spectator" } else { "operator" });
+    println!("web.ok=true");
+    Ok(())
 }
 
 /// 裸 `oma` 进 REPL：spawn 默认不阻塞、起网页打印 URL、行循环分派。
