@@ -4,17 +4,17 @@
 
 ## 当前目标
 
-S016 吸收件收口：`--json` 信封、`oma status` TTY 表格、`oma completions`、R002 输出规范节（对应 `GOAL.md`，方案 P0015，2026-08-31 从队列接续；吸收裁决表见 `S016`）。
+S016 吸收件收口：`--json` 信封、`oma status` TTY 表格、`oma completions`、R002 输出规范节（对应 `GOAL.md`，方案 P0015，2026-08-31 从队列接续；吸收裁决表见 `S016`）。当日已完成。
 
 ## 任务进度清单
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
 | 立项 0015 | 已完成 | 吸收表四件定界（--json 六命令、TTY 表格、completions、R002 规范节） | 2026-08-31 |
-| json 信封 | 待办 | 六会话命令加 `--json`：api 层 envelope 复用（三传输同形） | — |
-| status 表格 | 待办 | TTY 时对齐表，管道与测试仍 marker 行 | — |
-| completions | 待办 | clap_complete（官方生态）；`oma completions <shell>` | — |
-| R002 规范节 | 待办 | marker 加表格双轨、错误带下一步 hint、--json 口径 | — |
+| json 信封 | 已完成 | api::envelope 上提共用；六命令 `--json`；失败信封进 stdout 加退出非 0 | 2026-08-31 |
+| status 表格 | 已完成 | TTY 对齐表（手写 formatter）；非 TTY 保持 marker，既有测试零改动 | 2026-08-31 |
+| completions | 已完成 | clap_complete；bash/powershell 实测出脚本 | 2026-08-31 |
+| R002 规范节 | 已完成 | 输出规范四条：marker 默认、TTY 表格、--json 三传输同形、错误带下一步 | 2026-08-31 |
 
 ## 队列目标
 

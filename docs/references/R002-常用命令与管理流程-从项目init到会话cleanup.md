@@ -48,7 +48,7 @@ cargo run --example poc-negatives     # C-c Codex 守卫与 daemon-wide kill 负
 | 权限模式 | `oma init --permission-mode auto\|yolo\|manual` | 覆盖默认 yolo；manual 不写 bypass（设计口径） |
 | 拉起会话 | `oma spawn [--agents a,b] [--stub] [--project PATH]` | 项目专属会话（`oma-<slug>`）里按布局拉 1-4 路 agent，缺省取已装交集；注入 `OHMYAGENTS_PROJECT/AGENT/STATE_FILE`；不阻塞返回；已存在则拒绝叠格 |
 | 桩会话 | `oma spawn --stub [--agents a,b]` | 用 shell 桩替代真实 agent（验收与调试） |
-| 看状态 | `oma status [--project PATH]` | 只读列各路 pid、进程名（locate）、终端态（1b 分类）、hook 态（层 2，沉默标 silent）；不 attach |
+| 看状态 | `oma status [--project PATH]` | 双读者（S016 吸收）：stdout 是 TTY 时打对齐表格（AGENT/PID/PROCESS/TERMINAL/HOOK），管道与测试时打 marker 行；只读不 attach |
 | 发任务 | `oma send <agent> "<text>" [--confirm MARKER] [--project PATH]` | 守卫链（键策略、locate 进程名）后：单行走 SDK `send_text` 与 Enter 两段式；多行（含换行）走三段式粘贴（临时文件 + CLI `load-buffer` + `paste-buffer -p -t %<pane_id>`，Enter 仍单独发，中文可用）；`--confirm` 等短头可见 |
 | 收尾 | `oma cleanup [--project PATH]` | 只杀本项目会话并清 manifest；不 kill-server，daemon 随末 session 自然退 |
 | 自愈信任 | `oma settle [--wait N] [--project PATH]` | 轮询各路画面（SDK snapshot），白名单匹配信任/审查框自动确认（claude 工作区信任 Enter、codex 审查 Trust all）；密码类永不自动 |
@@ -62,6 +62,8 @@ cargo run --example poc-negatives     # C-c Codex 守卫与 daemon-wide kill 负
 | 检索 agent 轨迹 | `oma trace agent <名> [--limit N] [--project PATH]` | 某家 agent 的操作块时间线（名不在四家内退出非 0） |
 | 检索单文件轨迹 | `oma trace file <相对路径\|glob> [--agent A] [--limit N] [--project PATH]` | 文件维度：该文件被哪些 agent、何时、基于什么意图改过（创建/修改/删除），时间正序 |
 | 检索关键词 | `oma trace search <query> [--agent A] [--limit N] [--project PATH]` | 正则匹配 patch、file、双意图四域，非法正则退字面子串；先全量匹配后截断；输出元素命中数与匹配块数两个粒度 |
+| JSON 信封输出 | 六会话命令加 `--json`（spawn/status/send/run/settle/cleanup） | 输出 `{ok, data\|error, meta:{command, project}}` 信封，与 HTTP/MCP 同形（api 层共用）；业务失败信封仍进 stdout 且退出非 0，机器读者拿信封、人类拿 stderr 错误行 |
+| 生成补全 | `oma completions <shell>` | clap_complete 出 bash/zsh/fish/powershell 等补全脚本到 stdout（如 `oma completions powershell >> $PROFILE` 用法自取） |
 | 起 HTTP 编排面 | `oma serve [--port 7900] [--project PATH]` | 六操作 RESTish：`POST /spawn`（body `{"agents":["a"],"stub":false}`）、`GET /status`、`POST /send`、`POST /run`、`POST /settle`、`DELETE /session`；`GET /` 直出可视化网页（`docs\web\index.html` 单页：状态卡、委派按钮、SSE 画面）；`GET /api` 端点自述；`GET /stream/{agent}?from=oldest\|now` pane 输出 SSE（`open` 事件带 pane_id，回放积压用 oldest）。JSON 信封 `{ok, data\|error, meta:{command, project}}`；业务失败 200 加 `ok:false`，坏 JSON 400；只绑 127.0.0.1，写操作会话锁串行（一次一命令）；Ctrl-C 只停 serve 不清会话。需 `--features server` 构建，缺 feature 报错退出 1 |
 | 起 MCP server | `oma mcp [--project PATH]` | stdio 传输（无网络面），九 tools：六操作（oma_spawn/oma_status/oma_send/oma_run/oma_settle/oma_cleanup）加 trace 检索（oma_trace_sessions/oma_trace_timeline/oma_trace_search）。返回信封与 HTTP 同形（`structured`/`structured_error`，业务失败 caller 可见）；stdout 是 JSON-RPC 通道，进度只进 stderr。需 `--features mcp` 构建。MCP 客户端配置示例：`oma mcp --project D:\path\to\proj` |
 
@@ -76,6 +78,15 @@ cargo run --example poc-negatives     # C-c Codex 守卫与 daemon-wide kill 负
 ```
 
 `quit` 只 detach。拆会话用 `cleanup`。
+
+## 输出规范
+
+> S016 吸收裁决表的落点。双读者三轨，错误一律带下一步。
+
+- **marker 行（机器面，默认）**：`命令.键=值` 行式输出进 stdout，管道与测试消费；断言只押 marker 行与退出码。
+- **TTY 表格（人读面）**：stdout 是 TTY 时 `oma status` 打对齐表格（手写 formatter，无 toon 依赖）；同一份数据两副面孔，测试跑在非 TTY 下天然走 marker。
+- **`--json` 信封（三传输同形）**：六会话命令 `--json` 出 `{ok, data|error, meta}`，api 层一份信封三消费（CLI 直吐、HTTP 直吐、MCP 包 structured）。
+- **错误 CTA**：用户可见错误自带下一步（如 `no session manifest; run `oma spawn` first`、`run `oma check` first`）——新增错误路径保持同款，禁止裸报错。
 
 ## 文档检查
 

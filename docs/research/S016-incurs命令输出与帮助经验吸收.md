@@ -72,6 +72,8 @@
 - 本轮实装：`oma status` TTY 人读表格（管道/测试仍 marker 行）+ 错误 hint 规范入 R002。
 - 后续切片：`--json` 信封、命令图生成 SKILL.md、`oma completions`。
 
+> 2026-08-31 追记：`--json` 信封（六会话命令，api 层共用信封三传输同形）、TTY 表格、`oma completions` 与 R002 输出规范节已由 `P0015` 收口；裁决表仅剩「命令图生成 SKILL.md」未动。
+
 ## 事实源
 
 | 类型 | 定位 | 日期 | 提供 |

@@ -1,6 +1,8 @@
-use std::path::PathBuf;
+use std::io::IsTerminal;
+use std::path::{Path, PathBuf};
 
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
+use serde_json::Value;
 
 use oma::agents;
 use oma::catalog::RmuxPin;
@@ -66,12 +68,18 @@ enum Commands {
         /// 项目根；默认当前目录
         #[arg(long)]
         project: Option<PathBuf>,
+        /// 输出 JSON 信封（与 HTTP/MCP 同形）而非 marker 行
+        #[arg(long)]
+        json: bool,
     },
     /// 只读列出本项目会话各 agent 的 pid、进程名、终端态与 hook 态
     Status {
         /// 项目根；默认当前目录
         #[arg(long)]
         project: Option<PathBuf>,
+        /// 输出 JSON 信封（与 HTTP/MCP 同形）而非 marker 行
+        #[arg(long)]
+        json: bool,
     },
     /// 向会话内某路 agent 发单行任务（文本与 Enter 分发）
     Send {
@@ -85,12 +93,18 @@ enum Commands {
         /// 项目根；默认当前目录
         #[arg(long)]
         project: Option<PathBuf>,
+        /// 输出 JSON 信封（与 HTTP/MCP 同形）而非 marker 行
+        #[arg(long)]
+        json: bool,
     },
     /// 只杀本项目的会话（不动 daemon 与其它会话）
     Cleanup {
         /// 项目根；默认当前目录
         #[arg(long)]
         project: Option<PathBuf>,
+        /// 输出 JSON 信封（与 HTTP/MCP 同形）而非 marker 行
+        #[arg(long)]
+        json: bool,
     },
     /// 把任务分派给会话内多路 agent（状态门：一路 blocked 不堵其它路）
     Run {
@@ -105,6 +119,9 @@ enum Commands {
         /// 项目根；默认当前目录
         #[arg(long)]
         project: Option<PathBuf>,
+        /// 输出 JSON 信封（与 HTTP/MCP 同形）而非 marker 行
+        #[arg(long)]
+        json: bool,
     },
     /// 自检测并自动确认信任框（各家自己持久化信任；预置信任的兜底）
     Settle {
@@ -114,6 +131,9 @@ enum Commands {
         /// 项目根；默认当前目录
         #[arg(long)]
         project: Option<PathBuf>,
+        /// 输出 JSON 信封（与 HTTP/MCP 同形）而非 marker 行
+        #[arg(long)]
+        json: bool,
     },
     /// 检索项目的 agent 意图操作块与编辑轨迹（查询时读各家原生会话库）
     Trace {
@@ -134,6 +154,11 @@ enum Commands {
         /// 项目根；默认当前目录
         #[arg(long)]
         project: Option<PathBuf>,
+    },
+    /// 生成 shell 补全脚本到 stdout（S016 吸收）
+    Completions {
+        /// 目标 shell
+        shell: clap_complete::Shell,
     },
 }
 
@@ -268,25 +293,29 @@ fn run() -> Result<(), String> {
             agents,
             stub,
             project,
-        } => tokio_block(cmd_spawn(agents, stub, project)),
-        Commands::Status { project } => tokio_block(cmd_status(project)),
+            json,
+        } => tokio_block(cmd_spawn(agents, stub, project, json)),
+        Commands::Status { project, json } => tokio_block(cmd_status(project, json)),
         Commands::Send {
             agent,
             text,
             confirm,
             project,
-        } => tokio_block(cmd_send(agent, text, confirm, project)),
-        Commands::Cleanup { project } => tokio_block(cmd_cleanup(project)),
+            json,
+        } => tokio_block(cmd_send(agent, text, confirm, project, json)),
+        Commands::Cleanup { project, json } => tokio_block(cmd_cleanup(project, json)),
         Commands::Run {
             text,
             assign,
             confirm,
             project,
-        } => tokio_block(cmd_run(text, assign, confirm, project)),
-        Commands::Settle { wait, project } => tokio_block(cmd_settle(wait, project)),
+            json,
+        } => tokio_block(cmd_run(text, assign, confirm, project, json)),
+        Commands::Settle { wait, project, json } => tokio_block(cmd_settle(wait, project, json)),
         Commands::Trace { cmd } => cmd_trace(cmd),
         Commands::Serve { port, project } => cmd_serve(port, project),
         Commands::Mcp { project } => cmd_mcp(project),
+        Commands::Completions { shell } => cmd_completions(shell),
     }
 }
 
@@ -324,12 +353,84 @@ fn cmd_mcp(_project: Option<PathBuf>) -> Result<(), String> {
     Err("oma mcp needs the `mcp` feature; rebuild with --features mcp".to_string())
 }
 
+/// --json 出口：信封进 stdout（机器面），业务失败先吐信封再向上传播退出非 0。
+fn print_json(command: &str, root: &Path, outcome: Result<Value, String>) -> Result<(), String> {
+    let env = oma::api::envelope(command, root, outcome);
+    let text = serde_json::to_string_pretty(&env).map_err(|e| e.to_string())?;
+    println!("{text}");
+    match env.get("ok").and_then(|v| v.as_bool()) {
+        Some(true) => Ok(()),
+        _ => Err(env
+            .get("error")
+            .and_then(|v| v.as_str())
+            .unwrap_or("command failed")
+            .to_string()),
+    }
+}
+
+/// completions：clap_complete 生成，stdout 直接吐脚本。
+fn cmd_completions(shell: clap_complete::Shell) -> Result<(), String> {
+    let mut cmd = Cli::command();
+    clap_complete::generate(shell, &mut cmd, "oma", &mut std::io::stdout());
+    Ok(())
+}
+
+/// TTY 人读表格（S016 吸收）：列宽取表头与单元格最大字符宽，两空格槽。
+fn render_status_table(panes: &[orch::PaneStatus]) -> String {
+    let headers = ["AGENT", "PID", "PROCESS", "TERMINAL", "HOOK"];
+    let rows: Vec<Vec<String>> = panes
+        .iter()
+        .map(|p| {
+            vec![
+                p.agent.clone(),
+                p.pid.map(|v| v.to_string()).unwrap_or_else(|| "-".into()),
+                p.process.clone().unwrap_or_else(|| "-".into()),
+                p.terminal.to_string(),
+                p.hook_state.clone().unwrap_or_else(|| "silent".into()),
+            ]
+        })
+        .collect();
+    let mut widths: Vec<usize> = headers.iter().map(|h| h.chars().count()).collect();
+    for r in &rows {
+        for (i, c) in r.iter().enumerate() {
+            widths[i] = widths[i].max(c.chars().count());
+        }
+    }
+    let render = |cells: Vec<String>| -> String {
+        cells
+            .iter()
+            .enumerate()
+            .map(|(i, c)| {
+                let pad = " ".repeat(widths[i] - c.chars().count());
+                format!("{c}{pad}")
+            })
+            .collect::<Vec<_>>()
+            .join("  ")
+            .trim_end()
+            .to_string()
+    };
+    let mut out = String::new();
+    out.push_str(&render(headers.iter().map(|s| s.to_string()).collect()));
+    out.push('\n');
+    out.push_str(&render(widths.iter().map(|w| "-".repeat(*w)).collect()));
+    out.push('\n');
+    for r in rows {
+        out.push_str(&render(r));
+        out.push('\n');
+    }
+    out
+}
+
 async fn cmd_spawn(
     wanted: Option<Vec<String>>,
     stub: bool,
     project: Option<PathBuf>,
+    json: bool,
 ) -> Result<(), String> {
     let root = project_root(project)?;
+    if json {
+        return print_json("spawn", &root, oma::api::spawn(&root, wanted, stub).await);
+    }
     let plan = orch::plan_agents(wanted, stub)?;
     println!("spawn.project={}", root.display());
     println!("spawn.stub={stub}");
@@ -348,8 +449,20 @@ async fn cmd_spawn(
     Ok(())
 }
 
-async fn cmd_status(project: Option<PathBuf>) -> Result<(), String> {
+async fn cmd_status(project: Option<PathBuf>, json: bool) -> Result<(), String> {
     let root = project_root(project)?;
+    if json {
+        return print_json("status", &root, oma::api::status(&root).await);
+    }
+    // 双读者（S016）：TTY 走人读表格，管道与测试走 marker 行。
+    if std::io::stdout().is_terminal() {
+        let link = orch::connect(&root, false).await?;
+        let panes = orch::status(&link, &root).await?;
+        println!("oma status: {} (session {})", root.display(), orch::session_name(&root)?.as_str());
+        println!();
+        print!("{}", render_status_table(&panes));
+        return Ok(());
+    }
     println!("status.project={}", root.display());
     println!(
         "status.session={}",
@@ -385,16 +498,27 @@ async fn cmd_send(
     text: String,
     confirm: Option<String>,
     project: Option<PathBuf>,
+    json: bool,
 ) -> Result<(), String> {
     let root = project_root(project)?;
+    if json {
+        return print_json(
+            "send",
+            &root,
+            oma::api::send(&root, &agent, &text, confirm.as_deref()).await,
+        );
+    }
     let link = orch::connect(&root, false).await?;
     orch::send(&link, &root, &agent, &text, confirm.as_deref()).await?;
     println!("send.ok=true");
     Ok(())
 }
 
-async fn cmd_cleanup(project: Option<PathBuf>) -> Result<(), String> {
+async fn cmd_cleanup(project: Option<PathBuf>, json: bool) -> Result<(), String> {
     let root = project_root(project)?;
+    if json {
+        return print_json("cleanup", &root, oma::api::cleanup(&root).await);
+    }
     let link = orch::connect(&root, false).await?;
     let existed = orch::cleanup(&link, &root).await?;
     println!("cleanup.killed={existed}");
@@ -403,8 +527,11 @@ async fn cmd_cleanup(project: Option<PathBuf>) -> Result<(), String> {
     Ok(())
 }
 
-async fn cmd_settle(wait: u64, project: Option<PathBuf>) -> Result<(), String> {
+async fn cmd_settle(wait: u64, project: Option<PathBuf>, json: bool) -> Result<(), String> {
     let root = project_root(project)?;
+    if json {
+        return print_json("settle", &root, oma::api::settle(&root, wait).await);
+    }
     let link = orch::connect(&root, false).await?;
     orch::settle(&link, &root, wait).await?;
     println!("settle.scope=trust-dialogs");
@@ -417,8 +544,16 @@ async fn cmd_run(
     assign: Option<Vec<String>>,
     confirm: Option<String>,
     project: Option<PathBuf>,
+    json: bool,
 ) -> Result<(), String> {
     let root = project_root(project)?;
+    if json {
+        return print_json(
+            "run",
+            &root,
+            oma::api::run(&root, &text, assign, confirm.as_deref()).await,
+        );
+    }
     let link = orch::connect(&root, false).await?;
     let outcome = orch::run(&link, &root, &text, assign, confirm.as_deref()).await?;
     println!("run.task.id={}", outcome.task_id);
@@ -771,5 +906,43 @@ fn cmd_check(no_install: bool) -> Result<(), String> {
             pin.tag
         )),
         Err(CheckError::Message(m)) => Err(m),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn pane(agent: &str, pid: Option<u32>, terminal: &'static str) -> orch::PaneStatus {
+        orch::PaneStatus {
+            agent: agent.into(),
+            pid,
+            process: Some("pwsh.exe".into()),
+            terminal,
+            hook_state: None,
+        }
+    }
+
+    #[test]
+    fn status_table_aligns_columns() {
+        let panes = vec![pane("claude", Some(123), "idle"), pane("codex", Some(45678), "idle")];
+        let table = render_status_table(&panes);
+        let mut lines = table.lines();
+        let header = lines.next().expect("header");
+        let sep = lines.next().expect("separator");
+        let row1 = lines.next().expect("row1");
+        let row2 = lines.next().expect("row2");
+        assert!(header.contains("AGENT") && header.contains("TERMINAL") && header.contains("HOOK"));
+        assert!(sep.starts_with("------"), "separator dashes under AGENT column");
+        // 对齐契约：同列单元格起始字符位一致（idle 与 pid 列各验一次）。
+        assert_eq!(row1.find("idle"), row2.find("idle"));
+        assert_eq!(row1.find("123"), row2.find("45678"));
+    }
+
+    #[test]
+    fn status_table_marks_missing_fields() {
+        let table = render_status_table(&[pane("grok", None, "blocked")]);
+        let row = table.lines().nth(2).expect("row");
+        assert!(row.contains("-") && row.contains("silent") && row.contains("blocked"));
     }
 }

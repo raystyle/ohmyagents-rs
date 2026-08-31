@@ -196,3 +196,50 @@ fn dies_send_without_a_session_fails_fast() {
     .stderr(contains("no session manifest"));
     let _ = std::fs::remove_dir_all(&tmp);
 }
+
+#[test]
+fn status_json_envelope_reports_domain_error() {
+    // 无 manifest 的 status --json：stdout 是完整信封（ok:false 带错误与 meta），
+    // 退出码非 0——机器读者拿信封，人类拿 stderr 错误行。
+    let tmp = std::env::temp_dir().join(format!(
+        "oma-json-{}-{}",
+        std::process::id(),
+        NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    std::fs::create_dir_all(&tmp).unwrap();
+    let out = oma()
+        .args(["status", "--json", "--project", tmp.to_str().unwrap()])
+        .assert()
+        .failure()
+        .get_output()
+        .stdout
+        .clone();
+    let v: serde_json::Value = serde_json::from_slice(&out).expect("stdout parses as envelope");
+    assert_eq!(v["ok"], false);
+    assert!(v["error"].as_str().unwrap().contains("spawn"));
+    assert_eq!(v["meta"]["command"], "status");
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn completions_emit_shell_scripts() {
+    for shell in ["bash", "powershell"] {
+        let out = oma()
+            .args(["completions", shell])
+            .assert()
+            .success()
+            .get_output()
+            .stdout
+            .clone();
+        let s = String::from_utf8_lossy(&out);
+        assert!(!s.is_empty() && s.contains("oma"), "{shell} script mentions oma");
+    }
+    let out = oma()
+        .args(["completions", "bash"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    assert!(String::from_utf8_lossy(&out).contains("_oma"));
+}

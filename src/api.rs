@@ -7,6 +7,20 @@ use std::path::Path;
 
 use crate::orch;
 
+/// 三传输共用的响应信封（S016 吸收）：HTTP 直接吐它，CLI `--json` 吐它，
+/// MCP 包成 `structured`。形：`{ok, data|error, meta:{command, project}}`。
+pub fn envelope(command: &str, root: &Path, outcome: Result<Value, String>) -> Value {
+    let mut v = json!({
+        "ok": outcome.is_ok(),
+        "meta": { "command": command, "project": root.display().to_string() },
+    });
+    match outcome {
+        Ok(d) => v["data"] = d,
+        Err(e) => v["error"] = Value::String(e),
+    }
+    v
+}
+
 /// 拉起会话：返回项目、会话名与 manifest 概要。
 pub async fn spawn(
     root: &Path,
@@ -199,5 +213,19 @@ mod tests {
             .block_on(spawn(Path::new("."), Some(vec!["nope".into()]), false))
             .unwrap_err();
         assert!(err.contains("nope"), "error should name the agent: {err}");
+    }
+
+    #[test]
+    fn envelope_carries_meta_and_single_payload() {
+        let root = Path::new(r"D:\demo");
+        let ok = envelope("status", root, Ok(json!({"panes": []})));
+        assert_eq!(ok["ok"], true);
+        assert_eq!(ok["data"]["panes"].as_array().map(Vec::len), Some(0));
+        assert!(ok.get("error").is_none());
+        assert_eq!(ok["meta"]["command"], "status");
+        let bad = envelope("send", root, Err("no manifest".into()));
+        assert_eq!(bad["ok"], false);
+        assert_eq!(bad["error"], "no manifest");
+        assert!(bad.get("data").is_none());
     }
 }

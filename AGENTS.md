@@ -102,8 +102,10 @@
 - **起 MCP server**：`oma mcp [--project PATH]`（P0011 已落地，需 `--features mcp` 构建）：stdio 九 tools（六操作加 trace 检索），信封与 HTTP 同形；三通道共测口径见 `docs\references\R002`
 - **查文档**：先搜 `INDEX.md` 定位编号，再读文件；rg / mq / ast-grep 全套搜索方法见四、资源索引
 - **项目工具**：`.tools\`（自定义脚本归档；Python 用 `uv run --script .tools\<名>.py`，清单见 `.tools\README.md`；py 选库细则 `docs\references\R008`）；文档验证三件套：断链回归 `md-ref-scan.py`、标题括号 `md-heading-scan.py`、`rumdl check .`
+- **JSON 信封**：六会话命令加 `--json`（spawn/status/send/run/settle/cleanup）出 `{ok, data|error, meta}` 信封，与 HTTP/MCP 同形（P0015 已落地）
+- **生成补全**：`oma completions <shell>`（clap_complete，bash/zsh/fish/powershell 等）
 
-已落地：`check`、`init`（全套）、`doctor`、`agents`、`agents install`、`agents update`、`hook`、`spawn`、`status`、`send`、`cleanup`、`run`、`settle`、`trace` 六视图、`serve`（HTTP 编排面加网页可视化）、`mcp`（stdio 九 tools）。其余（REPL）仍是设计口径，禁止假装已经可跑。
+已落地：`check`、`init`（全套）、`doctor`、`agents`、`agents install`、`agents update`、`hook`、`spawn`、`status`（TTY 表格）、`send`、`cleanup`、`run`、`settle`、`trace` 六视图、`serve`（HTTP 编排面加网页可视化）、`mcp`（stdio 九 tools）、`completions`、六会话命令 `--json` 信封。其余（REPL）仍是设计口径，禁止假装已经可跑。
 
 ## 四、资源索引
 

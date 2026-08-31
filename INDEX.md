@@ -25,7 +25,7 @@
 | `.tools\` | 项目自定义脚本工具归档（ps1 / py / Rust；`README.md` 含清单与规则；`uv run --script` 载体） |
 | `.tools\md-ref-scan.py` | markdown 仓内引用断链扫描（文档大改后回归门禁；豁免清单 `md-ref-allow.txt`） |
 | `.tools\md-replace.py` | 中文与反斜杠路径安全的字面批量替换（规避 sed 坑 M023） |
-| `src\main.rs` | CLI 入口与子命令分发（check / init / doctor / agents / hook） |
+| `src\main.rs` | CLI 入口与全部子命令分发（check/init/doctor/agents/hook/spawn/status/send/cleanup/run/settle/trace/serve/mcp/completions）；`--json` 信封出口与 status TTY 表格 |
 | `src\lib.rs` | 模块声明 |
 | `src\catalog.rs` | `catalog\rmux.toml` 与 `catalog\agents.toml` pin 读取与加载期校验 |
 | `src\rmux.rs` | `oma check`：布局探测、归档下载安装、哈希校验 |
@@ -96,6 +96,7 @@ ohmyagents/
 | P0012 | `P0012-自适应本机安装部署-rmux与四家agent接管.md` | 已完成（Windows 四家装机全绿；Linux/mac 待环境切换） |
 | P0013 | `P0013-agent意图操作块与编辑轨迹检索.md` | 已完成（四家 loader 活体验证；MCP 挂载归 P0011） |
 | P0014 | `P0014-grok权威日志升级.md` | 已完成（updates 主源加 chat_history 兜底；逐事件真实时间） |
+| P0015 | `P0015-S016吸收件收口.md` | 已完成（--json 信封、TTY 表格、completions、R002 输出规范） |
 
 ## 四、项目日记
 

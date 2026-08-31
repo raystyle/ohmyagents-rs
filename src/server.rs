@@ -268,25 +268,11 @@ fn finish(command: &str, root: &Path, outcome: Result<Value, String>) -> Respons
 }
 
 fn ok_reply(command: &str, root: &Path, data: Value) -> Response {
-    (StatusCode::OK, Json(envelope(command, root, Some(data), None))).into_response()
+    (StatusCode::OK, Json(api::envelope(command, root, Ok(data)))).into_response()
 }
 
 fn err_reply(command: &str, root: &Path, code: StatusCode, msg: String) -> Response {
-    (code, Json(envelope(command, root, None, Some(msg)))).into_response()
-}
-
-fn envelope(command: &str, root: &Path, data: Option<Value>, error: Option<String>) -> Value {
-    let mut v = json!({
-        "ok": error.is_none(),
-        "meta": { "command": command, "project": root.display().to_string() },
-    });
-    if let Some(d) = data {
-        v["data"] = d;
-    }
-    if let Some(e) = error {
-        v["error"] = Value::String(e);
-    }
-    v
+    (code, Json(api::envelope(command, root, Err(msg)))).into_response()
 }
 
 #[cfg(test)]
@@ -299,7 +285,7 @@ mod tests {
 
     #[test]
     fn envelope_ok_carries_data_and_meta() {
-        let v = envelope("spawn", &root(), Some(json!({"agents": ["claude"]})), None);
+        let v = api::envelope("spawn", &root(), Ok(json!({"agents": ["claude"]})));
         assert_eq!(v["ok"], true);
         assert_eq!(v["data"]["agents"][0], "claude");
         assert_eq!(v["meta"]["command"], "spawn");
@@ -309,7 +295,7 @@ mod tests {
 
     #[test]
     fn envelope_error_replaces_data() {
-        let v = envelope("send", &root(), None, Some("no manifest".into()));
+        let v = api::envelope("send", &root(), Err("no manifest".into()));
         assert_eq!(v["ok"], false);
         assert_eq!(v["error"], "no manifest");
         assert!(v.get("data").is_none());
