@@ -50,7 +50,9 @@ pub struct EditEvent {
 
 **`operation_id = "session_id:tool_use_id"` 一根线串起「hook 元数据 ↔ transcript 意图 ↔ 编辑帧」——这是该项目最值钱的设计。** 无 tool_use_id 时退回 session_id。[实证: src\hook\send.rs:70-74]
 
-### 意图切分算法（查询时活走父链）
+### 意图切分算法
+
+> 查询时活走父链。
 
 1. `operation_id` 用 `rsplit_once(':')` 取回 tool_use_id，transcript 里 `tool_use` 块登记 `tool_use_id → entry uuid`。
 2. 沿 `parentUuid` 父链上溯：**最近一个 assistant text 块胜出；链上无 text 取最近 thinking**；ToolUse/UserText/Other 是游走边界。批量并行工具调用共享同一前置文本。[实证: intent_index.rs:268-290 与测试 :393-414]
@@ -106,7 +108,9 @@ CLI：`sessions` / `replay`（文本表 + 每行 `op:`/`ask:` 双意图）/ `res
 | 自建 watcher | 切片内定 | 编辑真相源方案在 P0013 切片 3 决（notify 引入与否） |
 | Cursor/Codex `.agent-trace/` 导入 | 不吸收 | 上游遗留未验证 |
 
-### 坑清单（oma 直接设防）
+### 坑清单
+
+> oma 直接设防。
 
 1. patch 全文内联 JSONL 体积（最大 583KB/会话）＋空会话目录堆积（51 个目录约一半只有 127 字节 meta）——oma：daemon/采集启动即建会话目录改为**首事件才建**。[实证: 磁盘实测]
 2. 查询全量线性扫——oma：v1 JSONL 可接受，量大再 sqlite（R005 选型）。
