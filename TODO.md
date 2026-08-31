@@ -4,17 +4,18 @@
 
 ## 当前目标
 
-（P0013 已完成 2026-08-31：四家联邦检索全落地。下一目标待用户定调或接续队列。）
+三传输编排面：HTTP API、MCP 接口、CLI 三通道编排 oma，网页可视化编排（对应 `GOAL.md`，方案 P0011，2026-08-31 从队列接续；S016 incurs 三传输参照已备）。
 
 ## 任务进度清单
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
-| S018 aitrace 研究 | 已完成 | operation_id 归组、双意图、补账队列、裁决表与八坑 | 2026-08-31 |
-| S019 四家会话日志格式 | 已完成 | 本地实证 + 三仓源码核实（grok Rust 纠偏、chat_history 派生缓存、kimi agentId 分水岭、codex FileChange/ordinal），`docs\research\S019` | 2026-08-31 |
-| 联邦检索层 | 已完成 | `src\trace.rs` 四家 loader：codex FileChange 主源加 apply_patch 兜底、grok tool_calls 加 synthetic 过滤、kimi origin 闸门加墓碑过滤、时间 epoch ms 归一 | 2026-08-31 |
-| 检索面 | 已完成 | `oma trace sessions\|timeline\|blocks\|agent\|file\|search` 六视图 | 2026-08-31 |
-| 验收 | 已完成 | claude/codex 无头双家；grok 本仓 8-29 历史与 kimi ohmypwsh/win-rmux 真实任务全命中；67 测过 | 2026-08-31 |
+| 立项 0011 | 已完成 | 方案与选型（axum 可选 feature、rmcp beta 可选、无构建链单页、JSON 信封） | 2026-08-31 |
+| 选型核实 | 已完成 | axum 0.8.9 stable（4.4 亿下载）；rmcp 已 stable 3.1.4（2310 万下载，2026-08-20 发版）非方案旧记 beta，P0011 选型节已订正 | 2026-08-31 |
+| HTTP API 最小集 | 进行中 | `oma serve`：六操作 RESTish 加 JSON 信封，127.0.0.1 | — |
+| 网页最小可视化 | 待办 | 状态卡 + 委派按钮 + SSE 画面（单页直开） | — |
+| MCP server | 待办 | `oma mcp` stdio：六操作 tools 加 trace 检索 tools（P0013 联动） | — |
+| 三通道共测 | 待办 | 同项目 CLI/HTTP/MCP 各走六操作 | — |
 
 ## 队列目标
 

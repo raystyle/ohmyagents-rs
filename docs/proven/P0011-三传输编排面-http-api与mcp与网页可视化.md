@@ -44,8 +44,8 @@ orch.rs（编排核心，已有：Link + 六函数）
 
 | 件 | 候选 | 裁决 |
 | --- | --- | --- |
-| HTTP | axum 0.8 | 事实标准、tokio 同栈、incurs 同款；可选 feature 隔离依赖 [实证: S016 依赖清单] |
-| MCP | rmcp 3.0.0-beta（官方 Rust SDK） | 官方出品但 beta：进可选 feature，beta 破坏性变更不伤核心 [经验: incurs 同款 beta] |
+| HTTP | axum 0.8（核实：0.8.9，crates.io 4.4 亿下载，稳定线） | 事实标准、tokio 同栈、incurs 同款；可选 feature 隔离依赖 [实证: S016 依赖清单 + crates.io 2026-08-31 核实] |
+| MCP | rmcp 3.1.4（官方 Rust SDK，已 stable；2310 万下载，2026-08-20 发版，3.1.x 月更节奏） | 立项时记 3.0.0-beta 已过时，2026-08-31 核实订正为 stable——beta 风险解除；feature 隔离保留（依赖面隔离价值不变）[实证: crates.io API] |
 | 网页 | 无构建链单页（原生 JS/HTML） | 符合「弹不出浏览器不是错误」的轻边界；不引 node 工具链 |
 | 信封 | 手写 `{ok, data|error, meta}` serde 类型 | S016 吸收，无需 toon |
 
@@ -59,7 +59,7 @@ orch.rs（编排核心，已有：Link + 六函数）
 
 ## 风险与回滚
 
-- rmcp beta 破坏性变更：feature 隔离，核心无损
+- rmcp 版本漂移：3.1.4 已 stable（2026-08-31 核实），beta 破坏性变更风险解除；feature 隔离保留，核心无损
 - HTTP 会话并发写：oma 单项目会话语义下加串行化（一次一命令）
 - 回滚：三传输都是可选 feature，关掉即回 CLI 单通道
 

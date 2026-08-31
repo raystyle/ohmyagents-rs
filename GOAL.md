@@ -14,7 +14,7 @@
 
 > 当前锚定的目标 + 推进时间线。
 
-- **锚定的目标**：agent 意图操作块与编辑轨迹检索（方案 P0013）已达成（2026-08-31 四家全落地）；下一目标待定调，queued：P0011 三传输编排面实现切片、P0012 的 Linux/mac 环境切换接管。
+- **锚定的目标**：三传输编排面（方案 P0011，2026-08-31 从队列接续）：HTTP API 最小集、网页最小可视化、MCP server、三通道共测；P0013 的 trace 检索面挂 MCP 归此目标。queued：P0012 的 Linux/mac 环境切换接管、grok updates.jsonl 升级。
 
 ### 推进时间线
 
@@ -55,7 +55,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标（已完成）：agent 意图操作块与编辑轨迹检索（P0013）。四家联邦 loader 活体验证、六视图检索面、67 测过；S018/S019 落档。 queued：P0011 三传输切片（含 trace 挂 MCP）、P0012 Linux/mac 接管、grok updates.jsonl 升级。
+- 当前目标（进行中）：三传输编排面（P0011）。方案与选型已立（axum/rmcp 可选 feature）；切片 1 HTTP API 开工。 queued：P0012 Linux/mac 接管、grok updates.jsonl 升级。
 
 ## 历史
 
