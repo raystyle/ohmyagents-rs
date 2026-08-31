@@ -4,15 +4,17 @@
 
 ## 当前目标
 
-oma run 委派与任务映射（对应 `GOAL.md`，方案 P0008，登记日 2026-08-31）。**2026-08-31 达成：stub 全链路验收过（双路分派、置忙跳过、任务文件）。** 下一刀候选：REPL + HTTP 观察面、真四路拉通（需装齐）。
+真四路拉通验收（对应 `GOAL.md`，方案 P0009，登记日 2026-08-31）。**2026-08-31 达成：claude 路全通（信任→hook 注册→事件流迁移→真任务执行）；spawn cwd 缺陷发现并修复（M031）；codex/grok/kimi 因各自信任流未通被状态门保守拦截（符合设计）。** 剩余候选：REPL + HTTP 观察面、codex/grok/kimi 信任流打通（hooks trusted_hash / grok hooks-trust / kimi 用户级决策）。
 
 ## 任务进度清单
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
-| 立项 0008 | 已完成 | `docs\proven\P0008-oma-run委派与任务映射.md` | 2026-08-31 |
-| orch 加 run 与任务文件 | 已完成 | `gate` 状态门（层 2 赢、沉默走 1b，单测十组合）、`t00N` id 递增、原子写、RunOutcome | 2026-08-31 |
-| 子命令接线 | 已完成 | `main.rs` 加 run（assign/confirm/project；全拦退出 1） | 2026-08-31 |
-| 测试与验收 | 已完成 | cargo test 41 过；stub：双路 confirm 双见 t001 双路、置忙 claude 后 `run.skipped=claude:busy` codex 照发 t002 单路 | 2026-08-31 |
+| 立项 0009 | 已完成 | 方案与风险预案 | 2026-08-31 |
+| 环境与铺底 | 已完成 | 四家已装齐；init --pretrust 全套（hook 部署 10 文件） | 2026-08-31 |
+| spawn 四路真 agent | 已完成 | manifest 四路 pane id；locate 反查四家 exe 全中；cwd 缺陷修复（working_directory + split cwd） | 2026-08-31 |
+| claude 路全链 | 已完成 | 信任框现场处置→REPL；run 过门发送；层 2 事件流 idle/working/idle 实时迁移；t001 落 | 2026-08-31 |
+| 其余三路 | 已完成（保守拦截） | hook silent + 1b 对 TUI 判 busy → 状态门拦截不误发；信任流打通留后续 | 2026-08-31 |
+| cleanup | 已完成 | 会话与临时目录清净；误信任 System32 条目已清 | 2026-08-31 |
 
-（P0006/P0007/P0008 已完成；过程与经验在对应 proven 方案。）
+（P0006 至 P0009 已完成；过程与经验在对应 proven 方案。）

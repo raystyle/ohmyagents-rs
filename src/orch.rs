@@ -282,6 +282,7 @@ pub async fn spawn(link: &Link, root: &Path, plan: &SpawnPlan) -> Result<Manifes
                 .create_only()
                 .detached(true)
                 .size(TerminalSizeSpec::new(120, 32))
+                .working_directory(root.display().to_string())
                 .process(root_spec(&first.1, env_entries(root, &first.0))),
         )
         .await
@@ -296,6 +297,7 @@ pub async fn spawn(link: &Link, root: &Path, plan: &SpawnPlan) -> Result<Manifes
             &second.1,
             env_entries(root, &second.0),
             &second.0,
+            root,
         )
         .await?;
         handles.push(pane);
@@ -308,6 +310,7 @@ pub async fn spawn(link: &Link, root: &Path, plan: &SpawnPlan) -> Result<Manifes
             &third.1,
             env_entries(root, &third.0),
             &third.0,
+            root,
         )
         .await?;
         handles.push(pane);
@@ -320,6 +323,7 @@ pub async fn spawn(link: &Link, root: &Path, plan: &SpawnPlan) -> Result<Manifes
             &fourth.1,
             env_entries(root, &fourth.0),
             &fourth.0,
+            root,
         )
         .await?;
         handles.push(pane);
@@ -361,8 +365,13 @@ async fn split_spawn(
     argv: &[String],
     env: Vec<String>,
     title: &str,
+    cwd: &Path,
 ) -> Result<Pane, String> {
-    let mut builder = pane.split_with(dir).spawn(argv.to_vec()).title(title);
+    let mut builder = pane
+        .split_with(dir)
+        .spawn(argv.to_vec())
+        .title(title)
+        .cwd(cwd.to_path_buf());
     for entry in env {
         let (k, v) = entry.split_once('=').expect("K=V form");
         builder = builder.env(k, v);

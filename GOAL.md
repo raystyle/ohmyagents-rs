@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-08-31 | P0009 达成：真四路拉通——claude 路全通（hook 事件流实时迁移、真任务执行）；spawn cwd 缺陷修复（M031）；三路保守拦截符合设计 |
 | 2026-08-31 | P0008 达成：oma run 状态门分派（一路忙/blocked 跳过不堵其它路）加层 3 任务文件；cargo test 41 过。附 init 接 deploy 层收尾 |
 | 2026-08-31 | P0007 达成：label 端点融合（CLI 起 daemon、`#{socket_path}` 桥 SDK）、send 多行三段式粘贴（中文验收）、stale pipe 自愈；boot 前缀坑记 M029 |
 | 2026-08-31 | label-bridge 实证绿：CLI 起 label daemon 后 `#{socket_path}` 桥出实际 pipe，SDK 直连同一 daemon（poc-label-bridge）；P0007 立项 |
@@ -46,7 +47,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标（收尾中）：oma run 委派与任务映射。stub 全链路验收过（2026-08-31）；剩余候选见 TODO（REPL/HTTP 观察面、真四路拉通）。
+- 当前目标（收尾中）：真四路拉通验收。claude 路全通、cwd 缺陷已修（2026-08-31）；剩余候选见 TODO（REPL/HTTP 观察面、三路信任流打通）。
 
 ## 历史
 
@@ -54,6 +55,7 @@
 
 | 日期 | 目标 | 结果 |
 | --- | --- | --- |
+| 2026-08-31 | 真四路拉通验收（P0009） | 达成：claude 路全通；spawn cwd 缺陷修复；三路保守拦截符合设计 |
 | 2026-08-31 | oma run 委派与任务映射（P0008） | 达成：状态门分派加层 3 任务文件；stub 验收过 |
 | 2026-08-31 | send 多行粘贴与 label 端点融合（P0007） | 达成：一个 daemon 双传输面；多行中文三段式；自愈与引导 |
 | 2026-08-31 | 产品命令最小闭环（P0006） | 达成：spawn/status/send/cleanup 全链路绿；tests/cli.rs 起步；cargo test 38 过 |
