@@ -40,7 +40,7 @@
 | `src\trace.rs` | 意图轨迹检索层：四家会话发现 + 四家联邦 loader（codex FileChange 主源、grok updates 权威日志加 chat_history 兜底、注入过滤、epoch ms 归一）+ 块聚合与过滤分页检索 |
 | `src\api.rs` | 传输无关编排操作层（P0011）：六操作加 trace 检索三件返回结构化 JSON，HTTP 与 MCP 共用 |
 | `src\mcp.rs` | MCP 适配层（feature `mcp`，P0011）：rmcp 3.1.4 stdio 九 tools，信封同形，stdout 纯协议 |
-| `src\server.rs` | HTTP 适配层（feature `server`，P0011）：axum 六操作 RESTish + JSON 信封 + 会话写串行化 + 网页直出 + pane 输出 SSE 桥；`serve_in_background` 供 REPL 内嵌 |
+| `src\server.rs` | HTTP 适配层（feature `server`，P0011/P0019）：axum 六操作 RESTish + JSON 信封 + 会话写串行化 + 网页直出 + 行日志 SSE + 终端镜像 SSE（render_stream 加首帧）+ trace 三端点；`serve_in_background` 供 REPL 内嵌 |
 | `src\repl.rs` | REPL 交互层（P0016）：裸 `oma` 进；stdin 线程喂 mpsc、行命令分派、编排面内嵌、状态表格渲染（CLI 共用） |
 | `docs\web\index.html` | 可视化编排单页（无构建链；include_str 进 serve）：状态卡、委派按钮、SSE 画面 |
 | `tests\cli.rs` | CLI 集成冒烟（assert_cmd；check/agents/hook/doctor/send 快败） |
@@ -102,6 +102,7 @@ ohmyagents/
 | P0016 | `P0016-REPL与编排面内嵌.md` | 已完成（裸 oma 进 REPL；编排面内嵌端口顺延；stub 验收过） |
 | P0017 | `P0017-Windows全量收口.md` | 已完成（send 回显间隔、HTTP trace 三端点、SKILL 命令图、grok 无头、mcp 配置打印） |
 | P0018 | `P0018-Windows侧指令集检测落地.md` | 已完成（caps 检测进 doctor；探针退出分类进 agents 与装机） |
+| P0019 | `P0019-产品完备收口与四家真路验收.md` | 已完成（SSE 终端镜像、门面文档对齐、四家真路全链验收；修 status 降级、CHILD_SESSION、settle 三态） |
 
 ## 四、项目日记
 

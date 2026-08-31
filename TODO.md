@@ -4,16 +4,16 @@
 
 ## 当前目标
 
-产品完备收口（对应 `GOAL.md`，方案 P0019，2026-08-31 用户问「windows全部开发完了？」盘点出三件）：①README/CHANGELOG 对齐现状 ②SSE 切渲染行流 ③四家真 agent 全链验收。
+产品完备收口（对应 `GOAL.md`，方案 P0019，2026-08-31 用户问「windows全部开发完了？」盘点出三件）：①README/CHANGELOG 对齐现状 ②SSE 切渲染行流 ③四家真 agent 全链验收。当日全部完成；真路验收另揪出四缺陷当场修掉。
 
 ## 任务进度清单
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
 | 立项 0019 | 已完成 | 三切片定界（门面文档、SSE line_stream、真路四家） | 2026-08-31 |
-| SSE 渲染行流 | 待办 | `line_stream_starting_at` 替 raw bytes——真 agent TUI 的 ANSI 不再成转义汤 | — |
-| README 与 CHANGELOG | 待办 | 从 POC 时代口径对齐到十八方案十四命令现状 | — |
-| 四家真路全链验收 | 待办 | 真 spawn 四路、真任务下发、hook 状态流、run 状态门、网页画面各走一遍 | — |
+| SSE 终端镜像 | 已完成 | line_stream 实测仍带 ANSI，正解 render_stream：`/screen/{agent}` 全屏纯文本加首帧；网页双模式 | 2026-08-31 |
+| README 与 CHANGELOG | 已完成 | 加 ROADMAP 三份对齐现状（阶段 1-4 已完成、5 排后） | 2026-08-31 |
+| 四家真路全链验收 | 已完成 | 四家全绿；揪出四缺陷当场修（status 降级、CHILD_SESSION、settle 三态、镜像首帧）；三条已知差异记档 | 2026-08-31 |
 
 ## 前目标 0017 与 0018 残表
 

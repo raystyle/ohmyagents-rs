@@ -74,7 +74,13 @@
   <h2>画面</h2>
   <div class="row">
     <select id="stream-agent"></select>
-    <label class="check"><input type="checkbox" id="stream-oldest"> 回放积压（oldest）</label>
+    <label class="check">模式：
+      <select id="screen-mode">
+        <option value="mirror">镜像（全屏替换，TUI 干净）</option>
+        <option value="log">日志（逐行追加）</option>
+      </select>
+    </label>
+    <label class="check"><input type="checkbox" id="stream-oldest"> 回放积压（oldest，日志模式）</label>
     <button id="btn-stream">开始</button>
     <button id="btn-stream-stop">停止</button>
     <button id="btn-stream-clear">清空</button>
@@ -215,6 +221,24 @@ let es = null;
 $('btn-stream').onclick = () => {
   if (es) es.close();
   const agent = $('stream-agent').value;
+  const mode = $('screen-mode').value;
+  if (mode === 'mirror') {
+    es = new EventSource(`/screen/${agent}`);
+    es.addEventListener('open', ev => log(`GET /screen/${agent} -> 镜像已建立 pane=${ev.data}`));
+    es.onmessage = ev => {
+      try {
+        const lines = JSON.parse(ev.data);
+        const el = $('screen');
+        el.textContent = Array.isArray(lines) ? lines.join('\n') : String(lines);
+        el.scrollTop = el.scrollHeight;
+      } catch { /* 坏帧跳过 */ }
+    };
+    es.addEventListener('end', () => { appendScreen('[screen end]'); if (es) es.close(); });
+    es.addEventListener('error', ev => {
+      if (ev.data !== undefined) appendScreen('[screen error] ' + ev.data);
+    });
+    return;
+  }
   const from = $('stream-oldest').checked ? 'oldest' : 'now';
   es = new EventSource(`/stream/${agent}?from=${from}`);
   es.addEventListener('open', ev => appendScreen(`[stream open pane=${ev.data}]`));

@@ -243,14 +243,22 @@ fn validate_count(plan: SpawnPlan) -> Result<SpawnPlan, String> {
 }
 
 fn env_entries(root: &Path, agent: &str) -> Vec<String> {
-    vec![
+    let mut env = vec![
         format!("OHMYAGENTS_PROJECT={}", root.display()),
         format!("OHMYAGENTS_AGENT={agent}"),
         format!(
             "OHMYAGENTS_STATE_FILE={}",
             state_file(root, agent).display()
         ),
-    ]
+    ];
+    // claude 路清掉子会话标记（P0019 真路实测）：oma 从 Claude Code 会话里
+    // 拉起的 claude 会继承 CHILD_SESSION 而关闭 transcript，联邦 trace 检索
+    // 不到该路的会话记录。覆盖为空值并显式开启 session 持久化。
+    if agent == "claude" {
+        env.push("CLAUDE_CODE_CHILD_SESSION=".into());
+        env.push("CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1".into());
+    }
+    env
 }
 
 fn root_spec(argv: &[String], env: Vec<String>) -> ProcessSpec {
@@ -440,7 +448,16 @@ pub async fn status(link: &Link, root: &Path) -> Result<Vec<PaneStatus>, String>
 
     let mut entries = Vec::new();
     for a in &manifest.agents {
-        let pane = pane_for(&session, a.pane_id).await?;
+        // 一路 pane 消失（agent 进程退出、TUI 被对话框退出）不拖垮整份状态：
+        // 该路降级为 dead，其余照报（P0019 真路验收实踩：codex 路退出后
+        // status 整条报错，死路本身正是要看的信息）。
+        let pane = match pane_for(&session, a.pane_id).await {
+            Ok(p) => p,
+            Err(_) => {
+                entries.push((a.name.clone(), None, None));
+                continue;
+            }
+        };
         let info = pane.info().await.map_err(|e| format!("info: {e}"))?;
         let pid = pane
             .id()
@@ -451,7 +468,7 @@ pub async fn status(link: &Link, root: &Path) -> Result<Vec<PaneStatus>, String>
                 PaneProcessState::Running { pid: Some(pid) } => Some(pid),
                 _ => None,
             });
-        entries.push((a.name.clone(), pane, pid));
+        entries.push((a.name.clone(), Some(pane), pid));
     }
 
     let pids: Vec<u32> = entries.iter().filter_map(|(_, _, p)| *p).collect();
@@ -460,9 +477,12 @@ pub async fn status(link: &Link, root: &Path) -> Result<Vec<PaneStatus>, String>
     let mut out = Vec::new();
     for (agent, pane, pid) in entries {
         let process = pid.and_then(|p| names.get(&p).cloned());
-        let terminal = match pane.snapshot().await {
-            Ok(snap) => classify_snapshot(&snap).oma_state(),
-            Err(_) => "unknown",
+        let terminal = match pane {
+            None => "dead",
+            Some(pane) => match pane.snapshot().await {
+                Ok(snap) => classify_snapshot(&snap).oma_state(),
+                Err(_) => "unknown",
+            },
         };
         out.push(PaneStatus {
             process,
@@ -625,9 +645,13 @@ pub async fn cleanup(link: &Link, root: &Path) -> Result<bool, String> {
 
 /// Whitelisted trust-dialog markers only. Task-semantic confirmations
 /// ("run this command?") are never auto-answered here.
-const TRUST_DIALOGS: &[(&str, &str)] = &[
-    // (marker, confirm key)
-    ("trust this folder", "Enter"), // claude workspace trust (P0009)
+/// (marker, key 序列)。P0019 真路实测三态：claude 信任框默认焦点即信任项；
+/// kimi 默认焦点在 Don't trust（Enter 会选不信任并退出，先上移）；
+/// codex 升级提示屏选 2 Skip（自动升级不属 settle 职责，保守项）。
+const TRUST_DIALOGS: &[(&str, &[&str])] = &[
+    ("do you trust the files", &["Enter"]),
+    ("don't trust", &["Up", "Enter"]),
+    ("update available", &["2", "Enter"]),
 ];
 
 pub async fn settle(
@@ -651,28 +675,24 @@ pub async fn settle(
                 Ok(snap) => snap.visible_lines(),
                 Err(_) => Vec::new(),
             };
-            let tail: String = lines
-                .iter()
-                .rev()
-                .take(12)
-                .rev()
-                .cloned()
-                .collect::<Vec<String>>()
-                .join("\n")
-                .to_lowercase();
+            // 全屏匹配（P0019 实测：codex 升级屏在屏顶、kimi 信任菜单在屏中，
+            // 只扫屏底 12 行会漏）；marker 足够特异，正文误触发面可接受。
+            let tail: String = lines.join("\n").to_lowercase();
             let hit = TRUST_DIALOGS
                 .iter()
                 .find(|(marker, _)| tail.contains(marker));
-            let Some((marker, key)) = hit else { break };
+            let Some((marker, keys)) = hit else { break };
             if std::time::Instant::now() > deadline {
                 break;
             }
-            let key = key.to_string();
             let marker = marker.to_string();
-            pane.send_key(&key)
-                .await
-                .map_err(|e| format!("settle {}: {e}", agent.name))?;
-            dismissed.push(format!("{marker}:{key}"));
+            for key in keys.iter() {
+                pane.send_key(*key)
+                    .await
+                    .map_err(|e| format!("settle {}: {e}", agent.name))?;
+                tokio::time::sleep(Duration::from_millis(400)).await;
+            }
+            dismissed.push(format!("{marker}:{}", keys.join("+")));
             tokio::time::sleep(Duration::from_millis(1500)).await;
         }
         let outcome = if dismissed.is_empty() {

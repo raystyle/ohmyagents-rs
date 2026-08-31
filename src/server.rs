@@ -88,10 +88,82 @@ fn router(state: Arc<ServeState>) -> axum::Router {
         .route("/settle", post(settle))
         .route("/session", delete(cleanup))
         .route("/stream/{agent}", get(stream))
+        .route("/screen/{agent}", get(screen))
         .route("/trace/sessions", get(trace_sessions))
         .route("/trace/timeline", get(trace_timeline))
         .route("/trace/search", get(trace_search))
         .with_state(state)
+}
+
+/// SSE 终端镜像（P0019）：`render_stream` 是 daemon 侧 surface 投影（非视觉
+/// 输出在 daemon 已过滤），每次更新发全屏 `visible_lines`（JSON 数组）——
+/// 网页替换渲染，TUI 画面无 ANSI 转义。`/stream` 的行日志仍保留（append 面）。
+async fn screen(
+    State(st): State<Arc<ServeState>>,
+    AxPath(agent): AxPath<String>,
+) -> Response {
+    let command = "screen";
+    let link = match orch::connect(&st.root, false).await {
+        Ok(l) => l,
+        Err(e) => return err_reply(command, &st.root, StatusCode::OK, e),
+    };
+    let (pane_id, pane) = match orch::pane_for_agent(&link, &st.root, &agent).await {
+        Ok(v) => v,
+        Err(e) => return err_reply(command, &st.root, StatusCode::OK, e),
+    };
+    let mut render = match pane.render_stream().await {
+        Ok(s) => s,
+        Err(e) => return err_reply(command, &st.root, StatusCode::OK, format!("open render stream: {e}")),
+    };
+    // render_stream 只在变化时推送（静屏连接后一直空白）：先补一帧当前快照。
+    let first = pane
+        .snapshot()
+        .await
+        .map(|s| s.visible_lines())
+        .unwrap_or_default();
+    let (tx, rx) = mpsc::channel::<Result<Event, Infallible>>(4);
+    tokio::spawn(async move {
+        let open = Event::default().event("open").data(pane_id.to_string());
+        if tx.send(Ok(open)).await.is_err() {
+            return;
+        }
+        if tx
+            .send(Ok(Event::default().data(serde_json::to_string(&first).unwrap_or_default())))
+            .await
+            .is_err()
+        {
+            return;
+        }
+        loop {
+            match render.next().await {
+                Ok(Some(update)) => {
+                    let lines = update.snapshot().visible_lines();
+                    if tx
+                        .send(Ok(Event::default().data(serde_json::to_string(&lines).unwrap_or_default())))
+                        .await
+                        .is_err()
+                    {
+                        break;
+                    }
+                }
+                Ok(None) => {
+                    let _ = tx
+                        .send(Ok(Event::default().event("end").data("closed")))
+                        .await;
+                    break;
+                }
+                Err(e) => {
+                    let _ = tx
+                        .send(Ok(Event::default().event("error").data(e.to_string())))
+                        .await;
+                    break;
+                }
+            }
+        }
+    });
+    Sse::new(ReceiverStream::new(rx))
+        .keep_alive(KeepAlive::default())
+        .into_response()
 }
 
 async fn trace_sessions(State(st): State<Arc<ServeState>>) -> Response {
@@ -170,6 +242,7 @@ async fn index(State(st): State<Arc<ServeState>>) -> Response {
             {"method": "POST", "path": "/settle", "body": {"wait": 30}},
             {"method": "DELETE", "path": "/session"},
             {"method": "GET", "path": "/stream/{agent}?from=oldest|now"},
+            {"method": "GET", "path": "/screen/{agent}"},
             {"method": "GET", "path": "/trace/sessions"},
             {"method": "GET", "path": "/trace/timeline?agent=&file=&limit="},
             {"method": "GET", "path": "/trace/search?q=&agent=&limit="},

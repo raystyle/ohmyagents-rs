@@ -46,12 +46,12 @@ cargo run --example poc-negatives     # C-c Codex 守卫与 daemon-wide kill 负
 | 部署项目级 yolo | `oma init --yolo [--project PATH]` | 仅无阻塞键：`.claude/settings.json`（`defaultMode=bypassPermissions`）、`.claude/settings.local.json`（顶层 `skipDangerousModePermissionPrompt`）、`.codex/config.toml`（sandbox/approval）、`.kimi-code/config.toml`（`yolo`）。不部署 hook/skill |
 | 预写信任库 | `oma init --yolo --pretrust [--project PATH]` | 额外写用户家：claude.json trust、codex projects、kimi workspace-trust、grok trusted_folders；grok 的 `permission_mode` 只能写 `~/.grok/config.toml` |
 | 权限模式 | `oma init --permission-mode auto\|yolo\|manual` | 覆盖默认 yolo；manual 不写 bypass（设计口径） |
-| 拉起会话 | `oma spawn [--agents a,b] [--stub] [--project PATH]` | 项目专属会话（`oma-<slug>`）里按布局拉 1-4 路 agent，缺省取已装交集；注入 `OHMYAGENTS_PROJECT/AGENT/STATE_FILE`；不阻塞返回；已存在则拒绝叠格 |
+| 拉起会话 | `oma spawn [--agents a,b] [--stub] [--project PATH]` | 项目专属会话（`oma-<slug>`）里按布局拉 1-4 路 agent，缺省取已装交集；注入 `OHMYAGENTS_PROJECT/AGENT/STATE_FILE`；claude 路另清 `CLAUDE_CODE_CHILD_SESSION` 并强开 session 持久化（从 Claude Code 里拉起的子 claude 否则不写 transcript，P0019）；不阻塞返回；已存在则拒绝叠格 |
 | 桩会话 | `oma spawn --stub [--agents a,b]` | 用 shell 桩替代真实 agent（验收与调试） |
-| 看状态 | `oma status [--project PATH]` | 双读者（S016 吸收）：stdout 是 TTY 时打对齐表格（AGENT/PID/PROCESS/TERMINAL/HOOK），管道与测试时打 marker 行；只读不 attach |
+| 看状态 | `oma status [--project PATH]` | 双读者（S016 吸收）：stdout 是 TTY 时打对齐表格（AGENT/PID/PROCESS/TERMINAL/HOOK），管道与测试时打 marker 行；只读不 attach；一路 pane 消失该路报 `terminal=dead` 其余照报（P0019） |
 | 发任务 | `oma send <agent> "<text>" [--confirm MARKER] [--project PATH]` | 守卫链（键策略、locate 进程名）后：单行走 SDK `send_text` 与 Enter 两段式；多行（含换行）走三段式粘贴（临时文件 + CLI `load-buffer` + `paste-buffer -p -t %<pane_id>`，Enter 仍单独发，中文可用）；`--confirm` 等短头可见 |
 | 收尾 | `oma cleanup [--project PATH]` | 只杀本项目会话并清 manifest；不 kill-server，daemon 随末 session 自然退 |
-| 自愈信任 | `oma settle [--wait N] [--project PATH]` | 轮询各路画面（SDK snapshot），白名单匹配信任/审查框自动确认（claude 工作区信任 Enter、codex 审查 Trust all）；密码类永不自动 |
+| 自愈信任 | `oma settle [--wait N] [--project PATH]` | 轮询各路画面（SDK snapshot 全屏匹配，P0019），白名单按 (marker, key 序列) 三态自动确认：claude 工作区信任 Enter、kimi 文件夹信任 Up+Enter（默认焦点在不信任项）、codex 升级提示 2+Enter（Skip）；密码类与用户级 hook 审查永不自动 |
 | 开会话（REPL） | `oma [--stub] [--agents a,b] [--no-web] [--open]` | 裸调用进 REPL：会话已在则重连（不叠格），否则缺省拉起（不阻塞）；默认内嵌 HTTP 编排面（7900 被占顺延到 7909）并打印 URL；`--no-web` 不起、`--open` 才开浏览器（失败只警告）。行命令见下节 REPL |
 | 无网页 | `oma --no-web` | 不起 HTTP（REPL 顶层 flag） |
 | 尝试打开浏览器 | `oma --open` | opener 失败只警告 |
@@ -64,7 +64,7 @@ cargo run --example poc-negatives     # C-c Codex 守卫与 daemon-wide kill 负
 | 检索关键词 | `oma trace search <query> [--agent A] [--limit N] [--project PATH]` | 正则匹配 patch、file、双意图四域，非法正则退字面子串；先全量匹配后截断；输出元素命中数与匹配块数两个粒度 |
 | JSON 信封输出 | 六会话命令加 `--json`（spawn/status/send/run/settle/cleanup） | 输出 `{ok, data\|error, meta:{command, project}}` 信封，与 HTTP/MCP 同形（api 层共用）；业务失败信封仍进 stdout 且退出非 0，机器读者拿信封、人类拿 stderr 错误行 |
 | 生成补全 | `oma completions <shell>` | clap_complete 出 bash/zsh/fish/powershell 等补全脚本到 stdout（如 `oma completions powershell >> $PROFILE` 用法自取） |
-| 起 HTTP 编排面 | `oma serve [--port 7900] [--project PATH]` | 六操作 RESTish：`POST /spawn`（body `{"agents":["a"],"stub":false}`）、`GET /status`、`POST /send`、`POST /run`、`POST /settle`、`DELETE /session`；`GET /` 直出可视化网页（`docs\web\index.html` 单页：状态卡、委派按钮、SSE 画面、轨迹检索面板）；`GET /api` 端点自述；`GET /stream/{agent}?from=oldest\|now` pane 输出 SSE（`open` 事件带 pane_id，回放积压用 oldest）；`GET /trace/sessions\|timeline\|search` 轨迹检索三端点（四家联邦，参数 agent/file/limit/q）。JSON 信封 `{ok, data\|error, meta:{command, project}}`；业务失败 200 加 `ok:false`，坏 JSON 400；只绑 127.0.0.1，写操作会话锁串行（一次一命令）；Ctrl-C 只停 serve 不清会话。需 `--features server` 构建，缺 feature 报错退出 1 |
+| 起 HTTP 编排面 | `oma serve [--port 7900] [--project PATH]` | 六操作 RESTish：`POST /spawn`（body `{"agents":["a"],"stub":false}`）、`GET /status`、`POST /send`、`POST /run`、`POST /settle`、`DELETE /session`；`GET /` 直出可视化网页（`docs\web\index.html` 单页：状态卡、委派按钮、SSE 画面、轨迹检索面板）；`GET /api` 端点自述；`GET /stream/{agent}?from=oldest\|now` pane 行日志 SSE（按行加 lossy UTF-8，回放积压用 oldest）；`GET /screen/{agent}` 终端镜像 SSE（render_stream surface 投影，全屏纯文本无 ANSI，含首帧快照，P0019）；`GET /trace/sessions\|timeline\|search` 轨迹检索三端点（四家联邦，参数 agent/file/limit/q）。JSON 信封 `{ok, data\|error, meta:{command, project}}`；业务失败 200 加 `ok:false`，坏 JSON 400；只绑 127.0.0.1，写操作会话锁串行（一次一命令）；Ctrl-C 只停 serve 不清会话。需 `--features server` 构建，缺 feature 报错退出 1 |
 | 起 MCP server | `oma mcp [--project PATH]` | stdio 传输（无网络面），九 tools：六操作（oma_spawn/oma_status/oma_send/oma_run/oma_settle/oma_cleanup）加 trace 检索（oma_trace_sessions/oma_trace_timeline/oma_trace_search）。返回信封与 HTTP 同形（`structured`/`structured_error`，业务失败 caller 可见）；stdout 是 JSON-RPC 通道，进度只进 stderr。需 `--features mcp` 构建。注册片段用 `oma mcp --print-config`（Claude Code、codex、通用 mcpServers 三形态；任何构建可用） |
 
 ## REPL
