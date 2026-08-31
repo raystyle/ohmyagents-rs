@@ -148,8 +148,9 @@ async fn cmd_spawn(
     println!("spawn.stub={stub}");
     let names: Vec<&str> = plan.agents.iter().map(|(n, _)| n.as_str()).collect();
     println!("spawn.agents={}", names.join(","));
-    let rmux = orch::connect(&root).await?;
-    let manifest = orch::spawn(&rmux, &root, &plan).await?;
+    let link = orch::connect(&root, true).await?;
+    println!("spawn.label={}", link.label);
+    let manifest = orch::spawn(&link, &root, &plan).await?;
     println!(
         "spawn.session={}",
         orch::session_name(&root)?.as_str()
@@ -167,8 +168,8 @@ async fn cmd_status(project: Option<PathBuf>) -> Result<(), String> {
         "status.session={}",
         orch::session_name(&root)?.as_str()
     );
-    let rmux = orch::connect(&root).await?;
-    let panes = orch::status(&rmux, &root).await?;
+    let link = orch::connect(&root, false).await?;
+    let panes = orch::status(&link, &root).await?;
     for p in &panes {
         println!(
             "status.pane.{}.pid={}",
@@ -199,16 +200,16 @@ async fn cmd_send(
     project: Option<PathBuf>,
 ) -> Result<(), String> {
     let root = project_root(project)?;
-    let rmux = orch::connect(&root).await?;
-    orch::send(&rmux, &root, &agent, &text, confirm.as_deref()).await?;
+    let link = orch::connect(&root, false).await?;
+    orch::send(&link, &root, &agent, &text, confirm.as_deref()).await?;
     println!("send.ok=true");
     Ok(())
 }
 
 async fn cmd_cleanup(project: Option<PathBuf>) -> Result<(), String> {
     let root = project_root(project)?;
-    let rmux = orch::connect(&root).await?;
-    let existed = orch::cleanup(&rmux, &root).await?;
+    let link = orch::connect(&root, false).await?;
+    let existed = orch::cleanup(&link, &root).await?;
     println!("cleanup.killed={existed}");
     println!("cleanup.scope=session");
     println!("cleanup.ok=true");

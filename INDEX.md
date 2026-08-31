@@ -38,7 +38,7 @@
 | `src\orch.rs` | 产品编排层：项目 slug 会话、spawn/status/send/cleanup、pane 清单 |
 | `tests\cli.rs` | CLI 集成冒烟（assert_cmd；check/agents/hook/doctor/send 快败） |
 | `src\pathutil.rs` | 路径工具 |
-| `examples\poc-*.rs` | 十二个部件 POC（见下） |
+| `examples\poc-*.rs` | 十三个 POC（见下；label-bridge 为产品端点融合实证） |
 | `catalog\rmux.toml` | rmux tag 与各平台 SHA256（信任锚） |
 
 ```text
@@ -59,7 +59,7 @@ ohmyagents/
     poc-yolo-doctor.rs  poc-endpoint.rs  poc-session.rs
     poc-layout.rs  poc-drive.rs  poc-dialogs.rs  poc-paste.rs
     poc-locate.rs  poc-stream.rs  poc-state.rs  poc-init.rs
-    poc-negatives.rs
+    poc-negatives.rs  poc-label-bridge.rs
   docs\
     proven\      P 编号，已完成 plan 归档
     diary\       一天一篇总结自省
@@ -78,7 +78,8 @@ ohmyagents/
 | P0003 | `P0003-rmux检测版本哈希与全平台安装.md` | `oma check` |
 | P0004 | `P0004-项目重新定位-通用智能体多路复用任务编排器.md` | 现役定位 |
 | P0005 | `P0005-各功能部件POC验证原型.md` | 已完成（Windows 全表绿） |
-| P0006 | `P0006-产品命令最小闭环-spawn状态send与cleanup.md` | 现役目标 |
+| P0006 | `P0006-产品命令最小闭环-spawn状态send与cleanup.md` | 已完成（同日验收） |
+| P0007 | `P0007-send多行粘贴与label端点融合.md` | 已完成（同日验收，含自愈） |
 
 ## 四、项目日记（`docs\diary\`，一天一篇总结自省）
 
@@ -134,7 +135,7 @@ ohmyagents/
 | M101 | `M101-drive与paste错误.md` | send-keys、Enter、`C-c`、bracketed paste、marker 假阳性 | M001、M008、M027 |
 | M102 | `M102-信任与hook配置错误.md` | 信任框、trust、pretrust、init、yolo | M002、M009-M011 |
 | M103 | `M103-文档与命名错误.md` | 命名、显示名、CLI 名、六态、diary | M003-M005、M013-M014 |
-| M104 | `M104-rmux安装与CLI调用错误.md` | 安装、`-V`、`-S`、`-L`、`cmd()` | M006-M007、M016、M020 |
+| M104 | `M104-rmux安装与CLI调用错误.md` | 安装、`-V`、`-S`、`-L`、`cmd()`、`-t` 前缀匹配 | M006-M007、M016、M020、M029 |
 | M105 | `M105-agent检测与状态判断错误.md` | PATH、which、idle、Quiet、CPU | M012、M018-M019 |
 | M106 | `M106-Windows进程与daemon启动错误.md` | os error 5、Job Object、WMI、exit-empty | M015、M017、M021-M022 |
 | M107 | `M107-工具链与脚本错误.md` | sed、grep、PowerShell、中文路径 | M023-M026、M028 |
@@ -149,4 +150,4 @@ ohmyagents/
 ## 十、代码与 pin
 
 - 代码文件位置见第二节表；`catalog\rmux.toml` 是 `oma check` 的信任锚
-- `examples` 十二个部件 POC 对应方案 P0005 的部件表（yolo-doctor / endpoint / session / layout / drive / dialogs / paste / locate / stream / state / init / negatives），Windows 范围全表绿（2026-08-31）
+- `examples` 十二个部件 POC 对应方案 P0005 的部件表（yolo-doctor / endpoint / session / layout / drive / dialogs / paste / locate / stream / state / init / negatives），Windows 范围全表绿（2026-08-31）；`poc-label-bridge` 是 P0007 的 label 端点融合实证

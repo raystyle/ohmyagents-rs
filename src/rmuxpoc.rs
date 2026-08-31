@@ -502,6 +502,116 @@ pub fn check_send_key(agent: &str, key: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Run one rmux CLI invocation against a labeled daemon.
+pub fn run_cli(rmux_bin: &Path, args: &[&str]) -> Result<std::process::Output, String> {
+    Command::new(rmux_bin)
+        .args(args)
+        .output()
+        .map_err(|e| format!("spawn {}: {e}", rmux_bin.display()))
+}
+
+pub fn run_cli_checked(rmux_bin: &Path, args: &[&str], what: &str) -> Result<String, String> {
+    let out = run_cli(rmux_bin, args)?;
+    if !out.status.success() {
+        return Err(format!(
+            "{what} exit={:?} stderr={}",
+            out.status.code(),
+            String::from_utf8_lossy(&out.stderr).trim()
+        ));
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).into_owned())
+}
+
+/// Is the labeled daemon answering yet?
+pub fn label_alive(rmux_bin: &Path, label: &str) -> bool {
+    run_cli(rmux_bin, &["-L", label, "list-sessions"])
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
+/// Ask a live labeled daemon for its real pipe name (`#{socket_path}`) and
+/// pid. The name carries a random salt, so it must be queried, not derived.
+pub fn label_socket_path(rmux_bin: &Path, label: &str) -> Result<(String, u32), String> {
+    let pipe = run_cli_checked(
+        rmux_bin,
+        &["-L", label, "display-message", "-p", "#{socket_path}"],
+        "display-message socket_path",
+    )?;
+    let pid = run_cli_checked(
+        rmux_bin,
+        &["-L", label, "display-message", "-p", "#{pid}"],
+        "display-message pid",
+    )?;
+    let pid: u32 = pid
+        .trim()
+        .parse()
+        .map_err(|e| format!("daemon pid {pid:?}: {e}"))?;
+    Ok((pipe.trim().to_string(), pid))
+}
+
+/// Boot a labeled daemon outside the caller's Windows job object via WMI.
+/// The boot command is `new-session -d` (a bare server would exit-empty).
+pub fn wmi_new_session(rmux_bin: &Path, argv: &[String]) -> Result<(), String> {
+    let mut inner = String::new();
+    inner.push_str(&format!("& '{}'", rmux_bin.display()));
+    for arg in argv {
+        inner.push_str(&format!(" '{arg}'"));
+    }
+    let escaped = inner.replace('\'', "''");
+    let script = format!(
+        "$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{{ CommandLine = 'pwsh -NoProfile -Command {escaped}' }}; if ($null -eq $r) {{ throw 'wmi returned null' }}; if ($r.ReturnValue -ne 0) {{ throw \"wmi create return=$($r.ReturnValue)\" }}"
+    );
+    let out = Command::new(pwsh_bin())
+        .args(["-NoProfile", "-Command", &script])
+        .output()
+        .map_err(|e| format!("pwsh WMI: {e}"))?;
+    if !out.status.success() {
+        return Err(format!(
+            "WMI new-session failed: {} {}",
+            String::from_utf8_lossy(&out.stdout).trim(),
+            String::from_utf8_lossy(&out.stderr).trim()
+        ));
+    }
+    Ok(())
+}
+
+/// Boot (or reuse) a labeled daemon and return its real pipe name plus pid.
+/// Boot keeper session must not collide with the product session name.
+pub fn ensure_label_daemon(
+    rmux_bin: &Path,
+    label: &str,
+    boot_session: &str,
+) -> Result<(String, u32), String> {
+    if !label_alive(rmux_bin, label) {
+        let mut argv: Vec<String> = vec![
+            "-L".into(),
+            label.into(),
+            "new-session".into(),
+            "-d".into(),
+            "-s".into(),
+            boot_session.into(),
+            "-x".into(),
+            "120".into(),
+            "-y".into(),
+            "32".into(),
+        ];
+        argv.extend(interactive_shell_argv());
+        wmi_new_session(rmux_bin, &argv)?;
+        let mut last = "never probed".to_string();
+        for _ in 0..40 {
+            if label_alive(rmux_bin, label) {
+                break;
+            }
+            last = "daemon not answering yet".into();
+            std::thread::sleep(Duration::from_millis(250));
+        }
+        if !label_alive(rmux_bin, label) {
+            return Err(format!("labeled daemon {label} never became ready: {last}"));
+        }
+    }
+    label_socket_path(rmux_bin, label)
+}
+
 pub fn state_path(root: &std::path::Path, agent: &str) -> PathBuf {
     root.join(".ohmyagents")
         .join("state")

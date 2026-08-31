@@ -40,14 +40,24 @@ pub fn session_name(root: &Path) -> Result<SessionName, String> {
     SessionName::new(&raw).map_err(|e| e.to_string())
 }
 
-pub fn endpoint(root: &Path) -> RmuxEndpoint {
-    let slug = project_slug(root);
+/// The CLI label namespace for this project's daemon. Stable across
+/// invocations; the real pipe name (with salt) is queried, not derived.
+pub fn label(root: &Path) -> String {
+    format!("oma-{}", project_slug(root))
+}
+
+/// The boot keeper must not have the product session name as a prefix:
+/// rmux `-t` matching is prefix-based, so `oma-<slug>` would otherwise
+/// resolve against `oma-<slug>-boot` and look like the session exists.
+fn boot_session_name(root: &Path) -> String {
+    format!("oma-boot-{}", project_slug(root))
+}
+
+fn endpoint_from_pipe(pipe: &str) -> RmuxEndpoint {
     if cfg!(windows) {
-        RmuxEndpoint::WindowsPipe(format!(r"\\.\pipe\rmux-oma-{slug}"))
+        RmuxEndpoint::WindowsPipe(pipe.to_string())
     } else {
-        let dir = std::env::temp_dir().join(format!("ohmyagents-oma-{slug}"));
-        let _ = std::fs::create_dir_all(&dir);
-        RmuxEndpoint::UnixSocket(dir.join("socket"))
+        RmuxEndpoint::UnixSocket(PathBuf::from(pipe))
     }
 }
 
@@ -62,10 +72,16 @@ fn manifest_path(root: &Path) -> PathBuf {
 }
 
 /// Spawn manifest: the agent -> stable pane id map that survives CLI
-/// invocations (pane ids are stable for one daemon lifetime).
+/// invocations (pane ids are stable for one daemon lifetime), plus the
+/// label endpoint so later commands can reach the same daemon.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Manifest {
     pub stub: bool,
+    #[serde(default)]
+    pub label: String,
+    /// Real daemon pipe path (salted); healed on reconnect when stale.
+    #[serde(default)]
+    pub pipe: String,
     pub agents: Vec<ManifestAgent>,
 }
 
@@ -89,16 +105,77 @@ fn write_manifest(root: &Path, m: &Manifest) -> Result<(), String> {
     std::fs::write(&path, body).map_err(|e| format!("{}: {e}", path.display()))
 }
 
-/// Connect to the project's dedicated daemon, starting it when absent (WMI
-/// breakaway under a Job Object, same escape as the POC layer).
-pub async fn connect(root: &Path) -> Result<Rmux, String> {
+/// A live handle to the project daemon from both transports: the SDK for
+/// snapshots/waits/input and the CLI binary for load-buffer/paste-buffer
+/// (Windows rejects every `-S` form, so the CLI rides the `-L` label).
+pub struct Link {
+    pub rmux: Rmux,
+    pub rmux_bin: PathBuf,
+    pub label: String,
+    pub pipe: String,
+}
+
+async fn sdk_connect(pipe: &str) -> Result<Rmux, String> {
+    rmuxpoc::prepare_env();
+    Rmux::builder()
+        .endpoint(endpoint_from_pipe(pipe))
+        .default_timeout(Duration::from_secs(20))
+        .connect()
+        .await
+        .map_err(|e| format!("connect {pipe}: {e}"))
+}
+
+/// Connect to the project's labeled daemon. Booting it (spawn path) is the
+/// caller's distinction: `boot` runs when no manifest points at a live one.
+/// A stale pipe heals by re-querying `#{socket_path}` while the label lives.
+pub async fn connect(root: &Path, boot: bool) -> Result<Link, String> {
     let pin = RmuxPin::load()?;
     let report =
         rmux::ensure(&pin, false).map_err(|e| format!("{e}; run `oma check` first"))?;
     if let Some(dir) = report.layout.dispatcher.parent() {
         prepend_path(dir);
     }
-    rmuxpoc::connect_dedicated(&report, endpoint(root)).await
+    let rmux_bin = report.layout.dispatcher.clone();
+    let label = label(root);
+
+    if !boot {
+        let manifest = read_manifest(root)
+            .ok_or_else(|| "no session manifest; run `oma spawn` first".to_string())?;
+        if !manifest.pipe.is_empty() {
+            if let Ok(rmux) = sdk_connect(&manifest.pipe).await {
+                return Ok(Link {
+                    rmux,
+                    rmux_bin,
+                    label,
+                    pipe: manifest.pipe,
+                });
+            }
+        }
+        if rmuxpoc::label_alive(&rmux_bin, &label) {
+            let (pipe, _) = rmuxpoc::label_socket_path(&rmux_bin, &label)?;
+            let rmux = sdk_connect(&pipe).await?;
+            let mut healed = manifest;
+            healed.pipe = pipe.clone();
+            write_manifest(root, &healed)?;
+            return Ok(Link {
+                rmux,
+                rmux_bin,
+                label,
+                pipe,
+            });
+        }
+        return Err("session daemon is gone; run `oma spawn` to start a new one".into());
+    }
+
+    let boot_session = boot_session_name(root);
+    let (pipe, _pid) = rmuxpoc::ensure_label_daemon(&rmux_bin, &label, &boot_session)?;
+    let rmux = sdk_connect(&pipe).await?;
+    Ok(Link {
+        rmux,
+        rmux_bin,
+        label,
+        pipe,
+    })
 }
 
 pub struct SpawnPlan {
@@ -183,8 +260,11 @@ fn root_spec(argv: &[String], env: Vec<String>) -> ProcessSpec {
     process
 }
 
-/// Lay out 1/2/4 panes and record the agent -> pane id manifest.
-pub async fn spawn(rmux: &Rmux, root: &Path, plan: &SpawnPlan) -> Result<Manifest, String> {
+/// Lay out 1/2/4 panes and record the agent -> pane id manifest. The boot
+/// keeper session (which pulled the daemon up) dies once the product session
+/// exists, so the daemon stays only for the real session.
+pub async fn spawn(link: &Link, root: &Path, plan: &SpawnPlan) -> Result<Manifest, String> {
+    let rmux = &link.rmux;
     let name = session_name(root)?;
     if rmuxpoc::reuse_only(rmux, name.clone()).await.is_ok() {
         return Err(format!(
@@ -247,6 +327,8 @@ pub async fn spawn(rmux: &Rmux, root: &Path, plan: &SpawnPlan) -> Result<Manifes
 
     let mut m = Manifest {
         stub: plan.stub,
+        label: link.label.clone(),
+        pipe: link.pipe.clone(),
         agents: Vec::new(),
     };
     for ((agent, _argv), pane) in plan.agents.iter().zip(&handles) {
@@ -262,6 +344,14 @@ pub async fn spawn(rmux: &Rmux, root: &Path, plan: &SpawnPlan) -> Result<Manifes
         });
     }
     write_manifest(root, &m)?;
+
+    // The product session now keeps the daemon alive; drop the boot keeper.
+    let boot = boot_session_name(root);
+    let _ = rmuxpoc::run_cli_checked(
+        &link.rmux_bin,
+        &["-L", link.label.as_str(), "kill-session", "-t", &boot],
+        "kill boot session",
+    );
     Ok(m)
 }
 
@@ -303,11 +393,11 @@ fn hook_state(root: &Path, agent: &str) -> Option<String> {
 
 /// Read-only status: layer 0 (alive/pid) + locate (process name) + layer 1b
 /// (terminal semantics) + layer 2 (state file when present).
-pub async fn status(rmux: &Rmux, root: &Path) -> Result<Vec<PaneStatus>, String> {
+pub async fn status(link: &Link, root: &Path) -> Result<Vec<PaneStatus>, String> {
     let manifest = read_manifest(root)
         .ok_or_else(|| "no session manifest; run `oma spawn` first".to_string())?;
     let name = session_name(root)?;
-    let session = rmuxpoc::reuse_only(rmux, name).await?;
+    let session = rmuxpoc::reuse_only(&link.rmux, name).await?;
 
     let mut entries = Vec::new();
     for a in &manifest.agents {
@@ -346,18 +436,18 @@ pub async fn status(rmux: &Rmux, root: &Path) -> Result<Vec<PaneStatus>, String>
     Ok(out)
 }
 
-/// Two-step send with the full guard chain: agent key policy, locate, then
-/// text and Enter as separate sends (M001 / S005 iron rule).
+/// Two send shapes share one guard chain (agent key policy, manifest
+/// locate, process locate):
+/// - single line: SDK `send_text` then `send_key("Enter")` (two dispatches)
+/// - multi line: three-step paste over the CLI label (`load-buffer` +
+///   `paste-buffer -p`), Enter still a separate dispatch (S005 iron rule)
 pub async fn send(
-    rmux: &Rmux,
+    link: &Link,
     root: &Path,
     agent: &str,
     text: &str,
     confirm: Option<&str>,
 ) -> Result<(), String> {
-    if text.contains('\n') || text.contains('\r') {
-        return Err("multi-line text is not supported yet; send single-line tasks".into());
-    }
     check_send_key(agent, "Enter")?;
     let manifest = read_manifest(root)
         .ok_or_else(|| "no session manifest; run `oma spawn` first".to_string())?;
@@ -367,7 +457,7 @@ pub async fn send(
         .find(|a| a.name == agent)
         .ok_or_else(|| format!("agent {agent} not in this session"))?;
     let name = session_name(root)?;
-    let session = rmuxpoc::reuse_only(rmux, name).await?;
+    let session = rmuxpoc::reuse_only(&link.rmux, name).await?;
     let pane = pane_for(&session, entry.pane_id).await?;
 
     let pid = rmuxpoc::running_pid(&pane).await?;
@@ -375,15 +465,24 @@ pub async fn send(
     let names = process_names(&[pid])?;
     let actual = expect_process(&names, pid, expected)?;
 
-    pane.send_text(text.to_string())
-        .await
-        .map_err(|e| format!("send_text: {e}"))?;
+    let multiline = text.contains('\n') || text.contains('\r');
+    if multiline {
+        paste_three_step(link, &pane, entry.pane_id, text)?;
+    } else {
+        pane.send_text(text.to_string())
+            .await
+            .map_err(|e| format!("send_text: {e}"))?;
+    }
+    // Enter is always its own dispatch; the pasted payload carries none.
     pane.send_key("Enter")
         .await
         .map_err(|e| format!("send_key Enter: {e}"))?;
     println!("send.agent={agent}");
     println!("send.proc={actual}");
-    println!("send.split=text+Enter");
+    println!(
+        "send.split={}",
+        if multiline { "paste-buffer-p+Enter" } else { "text+Enter" }
+    );
 
     if let Some(marker) = confirm {
         pane.expect_visible_text()
@@ -396,11 +495,55 @@ pub async fn send(
     Ok(())
 }
 
+/// Three-step paste: payload file (UTF-8, no ESC, sender never wraps
+/// bracketed-paste escapes) -> `load-buffer` -> `paste-buffer -p` onto the
+/// pane. Targeting rides the stable pane id (`%N`), same source as the SDK.
+fn paste_three_step(link: &Link, _pane: &Pane, pane_id: u64, text: &str) -> Result<(), String> {
+    if text.contains('\u{1b}') {
+        return Err("payload must not contain ESC; bracketed-paste wrappers belong to the daemon".into());
+    }
+    let file = std::env::temp_dir().join(format!(
+        "oma-paste-{}-{}.txt",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis()
+    ));
+    std::fs::write(&file, text).map_err(|e| format!("{}: {e}", file.display()))?;
+    let buffer = format!("oma-paste-{}", std::process::id());
+    let target = format!("%{pane_id}");
+    let path = file.display().to_string();
+    let label = link.label.as_str();
+
+    let result = (|| -> Result<(), String> {
+        rmuxpoc::run_cli_checked(
+            &link.rmux_bin,
+            &["-L", label, "load-buffer", "-b", &buffer, &path],
+            "load-buffer",
+        )?;
+        rmuxpoc::run_cli_checked(
+            &link.rmux_bin,
+            &["-L", label, "paste-buffer", "-p", "-b", &buffer, "-t", &target],
+            "paste-buffer",
+        )?;
+        Ok(())
+    })();
+    // Buffer and payload file are scratch; clean up either way.
+    let _ = rmuxpoc::run_cli_checked(
+        &link.rmux_bin,
+        &["-L", label, "delete-buffer", "-b", &buffer],
+        "delete-buffer",
+    );
+    let _ = std::fs::remove_file(&file);
+    result
+}
+
 /// Session-scoped cleanup: never the daemon-wide stop. The manifest goes
 /// away with the session.
-pub async fn cleanup(rmux: &Rmux, root: &Path) -> Result<bool, String> {
+pub async fn cleanup(link: &Link, root: &Path) -> Result<bool, String> {
     let name = session_name(root)?;
-    let existed = match rmuxpoc::reuse_only(rmux, name).await {
+    let existed = match rmuxpoc::reuse_only(&link.rmux, name).await {
         Ok(session) => match session.kill().await {
             Ok(existed) => existed,
             Err(e) if is_transport_closed(&e.to_string()) => true,
@@ -457,6 +600,8 @@ mod tests {
         std::fs::create_dir_all(&root).unwrap();
         let m = Manifest {
             stub: true,
+            label: "oma-abcd1234".into(),
+            pipe: r"\\.\pipe\rmux-oma-abcd1234".into(),
             agents: vec![ManifestAgent {
                 name: "claude".into(),
                 pane_id: 7,

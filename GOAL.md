@@ -8,18 +8,20 @@
 > 当前目标的起点：何时发起、为什么发起、要解决什么问题。
 
 - **日期**：2026-08-31。
-- **起点**：P0005 十二部件 POC 在 Windows 全表绿（12 个 example 退出 0），共用层就位未组装。按其实施步骤 4 开产品命令最小闭环。
+- **起点**：P0006 产品命令闭环验收过，但 `oma send` 只收单行（多行被拒）；三段式粘贴在 poc-paste 已实证却困在独立 label daemon，与产品 SDK 端点不互通。label-bridge 实证（CLI `#{socket_path}` 桥接 SDK）打通两传输面。
 
 ## 锚点
 
 > 当前锚定的目标 + 推进时间线。
 
-- **锚定的目标**：`oma spawn` / `status` / `send` / `cleanup` 最小产品闭环（方案 P0006），含 `tests/cli.rs` 集成起步。
+- **锚定的目标**：send 多行粘贴与 label 端点融合（方案 P0007）。
 
 ### 推进时间线（倒序）
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-08-31 | P0007 达成：label 端点融合（CLI 起 daemon、`#{socket_path}` 桥 SDK）、send 多行三段式粘贴（中文验收）、stale pipe 自愈；boot 前缀坑记 M029 |
+| 2026-08-31 | label-bridge 实证绿：CLI 起 label daemon 后 `#{socket_path}` 桥出实际 pipe，SDK 直连同一 daemon（poc-label-bridge）；P0007 立项 |
 | 2026-08-31 | P0006 达成：spawn/status/send/cleanup 全链路绿（slug 会话 + pane 清单 + 四层 status + 守卫链 send + session 级 cleanup）；tests/cli.rs 5 例起步，cargo test 38 过 |
 | 2026-08-31 | POC negatives 绿，P0005 Windows 范围全表绿（12 个 example）：C-c Codex 守卫 throw、只杀本 session、src 无 daemon-wide kill |
 | 2026-08-31 | POC init 绿（Windows）：按 S015 一手矩阵部署四家 hook/skill；幂等合并保留外条目；家目录指纹零变化 |
@@ -41,7 +43,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标（收尾中）：产品命令最小闭环。四命令全链路验收过（2026-08-31）；REPL、HTTP 网页、`oma run`、多行粘贴留待后续方案。
+- 当前目标（收尾中）：send 多行粘贴与 label 端点融合。全链路验收过（2026-08-31，含中文多行与自愈）；下一刀候选见 TODO（init 接 deploy、oma run、REPL/HTTP、真四路）。
 
 ## 历史
 
@@ -49,6 +51,7 @@
 
 | 日期 | 目标 | 结果 |
 | --- | --- | --- |
+| 2026-08-31 | send 多行粘贴与 label 端点融合（P0007） | 达成：一个 daemon 双传输面；多行中文三段式；自愈与引导 |
 | 2026-08-31 | 产品命令最小闭环（P0006） | 达成：spawn/status/send/cleanup 全链路绿；tests/cli.rs 起步；cargo test 38 过 |
 | 2026-08-29 | 各功能部件 POC 验证原型（P0005） | 达成（Windows 范围）：12 个 example 全表绿；locate/stream/state/init/negatives 五件与 paste 同日收官；Linux/mac 委托后续仓库 |
 | 2026-08-29 | 对照 ohmypwsh 建立项目结构与项目文档 | 达成：四段 AGENTS、三原语大写、定位 0004、`oma check` 装上 rmux 0.10.0 |

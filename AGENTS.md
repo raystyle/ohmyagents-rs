@@ -91,7 +91,7 @@
 - **部署项目级 hook/skill/yolo**：`oma init [--yolo]`（hook/skill 部署层在 `src\deploy.rs`，接 CLI 待 P0006 后续）
 - **拉起多路会话**：`oma spawn [--agents a,b] [--stub] [--project PATH]`（1-4 路，缺省已装交集；项目专属会话可跨命令重连；不阻塞）；阻塞用 `doctor`/`status` 诊断，不在主命令里长时间 `wait_ready` 卡住委派
 - **开会话（REPL）**：`oma`（设计口径）；`--no-web` 不起 HTTP；`--open` 才尝试打开浏览器
-- **委派**：`oma send <agent> "<单行文本>"`（守卫链加两段式；`--confirm MARKER` 等短头确认）；多行粘贴与 `oma run` 仍是设计口径。Drive 遵守三段式铁律（发前扫框、`paste-buffer -p`、Enter 单独发，细则见 `docs\research\S005-drive铁律与三段式粘贴.md`）：禁止文本和 Enter 同发、对 Codex 发 `C-c`、发送侧自包 `\x1b[200~`
+- **委派**：`oma send <agent> "<文本>"`（单行两段式、多行三段式粘贴均实测可用；`--confirm MARKER` 等短头确认）；`oma run` 仍是设计口径。Drive 遵守三段式铁律（发前扫框、`paste-buffer -p`、Enter 单独发，细则见 `docs\research\S005-drive铁律与三段式粘贴.md`）：禁止文本和 Enter 同发、对 Codex 发 `C-c`、发送侧自包 `\x1b[200~`
 - **看状态**：`oma status`（层 0 pid + locate 进程名 + 1b 终端态 + 层 2 hook 态）
 - **收尾**：`oma cleanup`（只杀本 session）
 - **查文档**：先搜 `INDEX.md` 定位编号，再读文件；rg / mq / ast-grep 全套搜索方法见四、资源索引
