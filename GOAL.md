@@ -24,7 +24,7 @@
 | 2026-08-29 | 核实 tddh/clum `68a90e4` 源码：等待族与 `terminal_state` 属实；订正 wait_exit 5s 注释 |
 | 2026-08-29 | 研究 clum 等待原语：hook 沉默时用 `terminal_state` / `wait_for_text` 兜底，不引入 clum 运行时 |
 | 2026-08-29 | 对齐 ohmypwsh 文档结构：方案在 `docs\history\`，日记拆到 `docs\diary\` |
-| 2026-08-29 | 对齐 ohmypwsh 六态文档规则：AGENTS 规则 10 + `guide.md` + 研究关键结论标记 |
+| 2026-08-29 | 对齐 ohmypwsh 六态文档规则：AGENTS 六态规则 + `guide.md` + 研究关键结论标记 |
 | 2026-08-29 | 立项方案 0005；GOAL/TODO/PLAN 切到本目标；check 部件已验收 |
 | 2026-08-29 | Windows 最小 pane POC 已绿：endpoint / session / layout / drive / dialogs；Linux/mac 委托后续仓库 |
 | 2026-08-29 | 用户点名先做项目级 yolo 与提示阻塞诊断；`oma init --yolo` / `oma doctor` / `poc-yolo-doctor` 已绿 |

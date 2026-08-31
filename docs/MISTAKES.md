@@ -18,7 +18,7 @@
 | 把项目 `.codex/config.toml` 的 `[projects]` 当成已信任 | Codex 先看用户 store，未信任则跳过项目层 | doctor 的 codex trust 只读 `~/.codex/config.toml` | 2026-08-29 |
 | 把普通项目 skill 标成 n/a、只把 plugin 形态当门 | 官方 `allowed-tools` 不被 trust 挡，误当成交互也不会堵 | 有 `.claude/skills` / `commands` 就报 `trust.skill`；MCP 审批是另一扇门，`--yolo` 不够、要 `--pretrust` | 2026-08-29 |
 | 只用 PATH/`which` 判断 agent 未装 | 官方安装常在 `~\.local\bin` 或 Codex junction，当前进程 PATH 未刷新 | 同时扫 PATH、`OMA_AGENT_PATH`、`OMA_*_BIN`、各家默认目录 | 2026-08-29 |
-| 文档骨架曾去掉六态章节 | 当时用户说不需要 | ohmypwsh 2026-08-29 把六态升为 AGENTS 规则 10；研究与测试文档的结论断言必须标 | 2026-08-29 |
+| 文档骨架曾去掉六态章节 | 当时用户说不需要 | ohmypwsh 2026-08-29 把六态升为 AGENTS 写研究与测试文档规则；研究与测试文档的结论断言必须标 | 2026-08-29 |
 | 项目日记和方案混在 `docs\history\` | 初版对照时 ohmypwsh 尚未拆 diary | 方案只放 `docs\history\NNNN-*.md`；当天流水账放 `docs\diary\YYYY-MM-DD-*.md` | 2026-08-29 |
 | `connect_or_start` 报 os error 5 / 拒绝访问 | 宿主在 Job Object 里，SDK 拒绝在 job 内起独立 daemon | 专用 pipe 上用 WMI `Win32_Process.Create` 在 job 外拉起 `libexec\rmux\rmux.exe --__internal-daemon`，再 `connect()`；不 kill-server，不把 wt 当默认 | 2026-08-29 |
 | Windows `-S` 拒自定义 pipe 名 | **订正**：`-S` 对一切形态无条件拒绝（含 `\\.\pipe\rmux-...` 前缀与 SID 派生全名），报错文案误导 | CLI 专用端点只用 `-L <label>`（pipe 名 `\\.\pipe\rmux-S-<SID>-il-medium-<label>`）；`\\.\pipe\rmux-...` 形只用于 SDK `WindowsPipe` 与 `--__internal-daemon` | 2026-08-29 |

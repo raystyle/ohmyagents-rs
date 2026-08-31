@@ -14,7 +14,7 @@
 4. 三源在原则上完全收敛：测行为不测实现（MS 的 M-INTEGRATION-TESTS 明说「能集成就不单元」）、一个测试一件事、覆盖错误路径、随机与外部状态要确定化、性能与正确性分离。这些不变，变的只是工具。[实证: 三源并列对照，rust-guidelines commit c1d2efc]
 5. MS 规范层补了两条前两源没有的硬规则：**测试设施必须 feature gate**（mock、安全检查旁路、假数据收进单一 `test-util` feature，M-TEST-UTIL）；**测试不得断言重言式**（M-TAUTOLOGICAL-TESTS：不得用被测同款逻辑复述期望值或镜像实现分支，否则按构造通过、纯噪声；点名这是 Agent 生成测试的高发病）。[实证: rust-guidelines 对应条目]
 6. mock 策略两说调和：社区「少 mock 多真替身」与 MS「做 IO/系统调用的类型必须可 mock」（M-MOCKABLE-SYSCALLS，含文件、网络、时钟、熵源）不冲突——真依赖做集成路径，mock 口留给难触发的边界（故障注入、不可复现环境）。[推断: 两条并列读]
-7. 本仓落地：`oma` 的无 daemon 子命令（check/agents/hook/init）可直接套地基全套；有 rmux 依赖的 POC 需加闸门与隔离，这是三源都没有的场景；现代层按阶段引入，不一步到位（AGENTS 规则 9：最少依赖）。[推断: 对照本仓 POC 已证的 Job Object 与 label 端点坑]
+7. 本仓落地：`oma` 的无 daemon 子命令（check/agents/hook/init）可直接套地基全套；有 rmux 依赖的 POC 需加闸门与隔离，这是三源都没有的场景；现代层按阶段引入，不一步到位（AGENTS 写 Rust 规则：最少依赖）。[推断: 对照本仓 POC 已证的 Job Object 与 label 端点坑]
 
 ## 现状或实测
 
@@ -51,7 +51,7 @@
 | 意图 | 书 2022 | 社区 2026 | oma 现阶段取舍 |
 | --- | --- | --- | --- |
 | 冒烟（活着即可） | `runs()` 断 exit 0 | 同 | `oma --version` / `oma check --no-install` 退出码 |
-| 单元（函数正确） | `#[cfg(test)]` 测纯函数 | 同 + rstest 参数化 | 用官方形态；rstest 暂缓（case 少，AGENTS 规则 9） |
+| 单元（函数正确） | `#[cfg(test)]` 测纯函数 | 同 + rstest 参数化 | 用官方形态；rstest 暂缓（case 少，AGENTS 写 Rust 规则） |
 | 集成（用户方式整跑） | tests/cli.rs + assert_cmd/predicates | 同；执行层换 cargo-nextest | tests/cli.rs 先行；nextest 待 daemon 类测试上量再引（超时/隔离价值在彼） |
 | 文档示例 | 未展开 | doctest（`cargo test --doc`，nextest 不跑） | lib 公开 API 少；暂不做 |
 | 回归（改动不破旧） | 黄金文件 + 全量重跑 | insta 快照 + `cargo insta review`，CI 禁静默改快照 | 黄金文件对齐 `poc.*` 标记行已够；status 输出复杂后再 insta |
@@ -109,8 +109,8 @@
 
 ## 待办
 
-> 按阶段三段式引入，不一步到位（AGENTS 规则 9 最少依赖；每段绿了再进下一段）。
-> **2026-08-31 沉淀**：本研究的规则性结论已固化为 AGENTS 操作规则 11「写测试时」与 `docs\references\测试标准细则-分层断言与门禁流程.md`（细则事实性断言均标六态溯源回本文三源）；本节三段即细则第五节演进路线，后续以细则为准。
+> 按阶段三段式引入，不一步到位（AGENTS 写 Rust 规则最少依赖；每段绿了再进下一段）。
+> **2026-08-31 沉淀**：本研究的规则性结论已固化为 AGENTS 写测试规则「写测试时」与 `docs\references\测试标准细则-分层断言与门禁流程.md`（细则事实性断言均标六态溯源回本文三源）；本节三段即细则第五节演进路线，后续以细则为准。
 
 **第一段（本目标内可做，地基）**
 

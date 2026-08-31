@@ -28,51 +28,47 @@
 
 ## 二、操作规则
 
-> 每条规则一个操作场景，下分可以与禁止。
+> 两类场景：**工作节奏**（何时做什么）与**写作编码**（写什么按什么标准）。每条下分可以与禁止。产品与 rmux 的行为约束不在此层，见意图路由与 `docs\research\`。
+
+### 工作节奏
 
 1. **每轮对话**
-   - 可以：先核对三原语 `GOAL.md`、`docs\TODO.md`、`docs\PLAN.md`；实质推进当场更新 todo 与 plan；改代码同步文档、改文档同步索引与 `docs\diary\`。
-   - 禁止：不核对三原语就干活；偏离当前目标；推进了不更新 todo/plan；只改代码不落文档。
+   - 可以：先核对三原语 `GOAL.md`、`docs\TODO.md`、`docs\PLAN.md`；实质推进当场更新 todo 与 plan。
+   - 禁止：不核对三原语就干活；偏离当前目标；推进了不更新 todo/plan。
 
 2. **踩坑时**
    - 可以：当场落 `docs\MISTAKES.md` 一行；主题深挖落 `docs\research\`。
    - 禁止：只留在对话里反复试错。
 
-3. **执行命令时**
-   - 可以：Windows 用 PowerShell 7（`pwsh`）；Linux / macOS / WSL 用该平台常规 shell。
-   - 禁止：Windows 上默认用 `powershell.exe` 5.1。
+3. **交付变更时**
+   - 可以：改代码同步对应文档，改文档同步索引与 `docs\diary\`；遵守命名标准；技术文档按文档标准细则写。
+   - 禁止：只改代码不落文档；改了文档不更新索引。
 
-4. **写文件时**
-   - 可以：Markdown / Rust 源码 UTF-8；Windows 上若需兼容 5.1 的脚本用 UTF-8 BOM。
-   - 禁止：无 BOM 的中文 ps1 给 5.1 读。
-
-5. **交付变更时**
-   - 可以：同步对应文档、遵守命名标准、按技术文档格式写。
-   - 禁止：只改代码不落文档；文档用 emoji 与箭头等装饰符号（用文字替代）。
-
-6. **提交时**
+4. **提交时**
    - 可以：`feat:` / `docs:` / `fix:` / `chore:` 前缀加中文描述；一次提交只做一件事。
    - 禁止：多事混一提交；未经指示推远端。
 
-7. **Drive 与无阻塞启动时**
-   - 可以：evo-harness 三段式（发前扫框、`paste-buffer -p`、`send-keys -H 0d`）；locate 按进程名；yolo 与项目信任优先写配置（ohmypwsh 0017），flags 只作单次覆盖；spawn 默认立即返回，用 `doctor`/`status` 诊断。
-   - 禁止：文本和 Enter 同发；对 Codex 发 `C-c`；发送侧自包 `\x1b[200~`；默认改用户家目录 hook；主命令里长时间 `wait_ready` 卡住委派。
+### 写作编码
 
-8. **写文档时**
-   - 可以：遵守 `docs\references\文档标准细则-命名写作规范与rumdl检查.md`（树形、标题干净、无 emoji/箭头、文件名即标题、rumdl）。
-   - 禁止：标题带括号口号或破折号；整段混杂不成树。
+5. **执行命令与写文件时**
+   - 可以：Windows 命令用 PowerShell 7（`pwsh`），Linux / macOS / WSL 用该平台常规 shell；Markdown / Rust 源码 UTF-8；Windows 上需兼容 5.1 的脚本用 UTF-8 BOM。
+   - 禁止：Windows 上默认用 `powershell.exe` 5.1；无 BOM 的中文 ps1 给 5.1 读。
 
-9. **写 Rust 时**
+6. **写 Rust 时**
    - 可以：先查 crates.io / docs.rs / GitHub 上是否已有最流行、最稳定、或已经覆盖本需求的库；选定后用最少代码接上，优先组合而不是自写协议、解压、HTTP、哈希、CLI 解析。
    - 禁止：在现成库已能稳定完成的前提下从零实现；为风格引入冷门或实验 crate；一次拉一堆用不上的依赖。
 
-10. **写研究与测试文档时**
-    - 可以：事实性断言必须标六态之一——`[实证]`（本机实测）、`[推断]`（逻辑推出）、`[经验]`（历史惯例）、`[记忆]`（待复核）、`[假设]`（待验证）、`[直觉]`（主观倾向）；标准见 `docs\research\guide.md`；研究与测试的结论断言不标六态即视为未完成。
-    - 禁止：把「没验证」写成「已验证」（实证滥用）；断言不标六态；用猜测冒充结论。
+7. **写文档时**
+   - 可以：遵守 `docs\references\文档标准细则-命名写作规范与rumdl检查.md`（树形、标题干净、无 emoji 与箭头等装饰符号、文件名即标题、rumdl）。
+   - 禁止：标题带括号口号或破折号；整段混杂不成树。
 
-11. **写测试时**
-    - 可以：遵守 `docs\references\测试标准细则-分层断言与门禁流程.md`。分层按官方三层（单元 `#[cfg(test)]`、集成 `tests\*.rs`、doctest），集成优先于单元；意图对应方法（冒烟断退出码、回归用黄金文件、验收对照 oracle）；测试名写成可读规格，负例带 `dies_` 前缀；期望值必须来自独立来源（规范、黄金文件、属性），断言只写稳定字段（标记行、退出码），放过 pid 与时间戳；测试体用 `TestResult` 加 `?` 传播错误；rmux 依赖的测试按闸门 skip；测试设施收 `test-util` feature。
-    - 禁止：重言式断言（期望值来自被测同款逻辑或镜像实现分支，AI 生成测试高发）；公开 API 测试塞 `mod tests{}` 不进 `tests\`；默认 mock（oma 拿真 daemon）；计时进断言；测试设施无 feature gate 进生产构建；只测 happy path。
+8. **写研究与测试文档时**
+   - 可以：事实性断言必须标六态之一——`[实证]`（本机实测）、`[推断]`（逻辑推出）、`[经验]`（历史惯例）、`[记忆]`（待复核）、`[假设]`（待验证）、`[直觉]`（主观倾向）；标准见 `docs\research\guide.md`；研究与测试的结论断言不标六态即视为未完成。
+   - 禁止：把「没验证」写成「已验证」（实证滥用）；断言不标六态；用猜测冒充结论。
+
+9. **写测试时**
+   - 可以：遵守 `docs\references\测试标准细则-分层断言与门禁流程.md`。分层按官方三层（单元 `#[cfg(test)]`、集成 `tests\*.rs`、doctest），集成优先于单元；意图对应方法（冒烟断退出码、回归用黄金文件、验收对照 oracle）；测试名写成可读规格，负例带 `dies_` 前缀；期望值必须来自独立来源（规范、黄金文件、属性），断言只写稳定字段（标记行、退出码），放过 pid 与时间戳；测试体用 `TestResult` 加 `?` 传播错误；rmux 依赖的测试按闸门 skip；测试设施收 `test-util` feature。
+   - 禁止：重言式断言（期望值来自被测同款逻辑或镜像实现分支，AI 生成测试高发）；公开 API 测试塞 `mod tests{}` 不进 `tests\`；默认 mock（oma 拿真 daemon）；计时进断言；测试设施无 feature gate 进生产构建；只测 happy path。
 
 ## 三、意图路由
 
@@ -83,10 +79,10 @@
 - **无阻塞诊断**：`oma doctor`（进程存活 + hook 语义 + 任务指向 + yolo；不把 wait-pane Quiet 当 idle）
 - **检测已装 agent**：`oma agents`（PATH、`OMA_AGENT_PATH`、`OMA_*_BIN`、各家默认安装目录；Windows / Linux / macOS）
 - **hook 写状态**：`oma hook`（agent lifecycle hook 调用；stdin JSON 或参数；写 `OHMYAGENTS_STATE_FILE`；缺环境则静默。不连 rmux 管道）
-- **Windows 最小 pane POC**：`cargo run --example poc-endpoint|poc-session|poc-layout|poc-drive|poc-dialogs`（专用 pipe、CreateOnly、2x2、send_text+Enter、hook blocked + sendkeys）。Linux/mac 委托后续仓库
+- **Windows 最小 pane POC**：`cargo run --example poc-endpoint|poc-session|poc-layout|poc-drive|poc-dialogs|poc-paste`（专用 pipe、CreateOnly、2x2、send_text+Enter、hook blocked + sendkeys、load-buffer+paste-buffer -p 中文）。Linux/mac 委托后续仓库
 - **部署项目级 hook/skill/yolo**：`oma init [--yolo]`
-- **开会话**：`oma`（REPL，spawn 默认不阻塞）；`--no-web` 不起 HTTP；`--open` 才尝试打开浏览器
-- **委派**：`oma run <task> --assign …` 或 REPL / `send`
+- **开会话**：`oma`（REPL，spawn 默认不阻塞）；`--no-web` 不起 HTTP；`--open` 才尝试打开浏览器。阻塞用 `doctor`/`status` 诊断，不在主命令里长时间 `wait_ready` 卡住委派
+- **委派**：`oma run <task> --assign …` 或 REPL / `send`。Drive 遵守三段式铁律（发前扫框、`paste-buffer -p`、Enter 单独发，细则见 `docs\research\drive铁律与三段式粘贴.md`）：禁止文本和 Enter 同发、对 Codex 发 `C-c`、发送侧自包 `\x1b[200~`
 - **看状态**：`oma status`
 - **收尾**：`oma cleanup`（只杀本 session）
 - **查文档**：文件名即标题，`rg --files docs | rg <关键词>`
