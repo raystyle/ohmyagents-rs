@@ -14,14 +14,15 @@
 | `docs\history\` | `NNNN-动词短语.md` | 方案（编号 4 位递增，不复用） |
 | `docs\history\` | `template.md` | 方案模板 |
 | `docs\diary\` | `YYYY-MM-DD-动词短语.md` | 项目日记（一天一篇，只记当天做了什么） |
-| `docs\research\` | 博客式长标题.md | 研究；`guide.md` 是写作规范 |
-| `docs\references\` | 博客式长标题.md | 拆分细则 |
+| `docs\research\` | 博客式长标题.md | 研究；写作规范见 `docs\guide\研究标准细则-结构与六态标记.md` |
+| `docs\guide\` | 博客式长标题.md | 指南与细则（怎么写、怎么测、怎么用） |
+| `docs\references\` | 博客式长标题.md | 参考与索引（定位、全量清单） |
 
 规则细项：
 
 - 禁止模糊词（`misc` / `other` / `temp` / `new`）
 - 编号 `NNNN` 全局唯一
-- 特殊名固定大写：`GOAL` / `PLAN` / `TODO` / `MISTAKES`；小写固定：`template` / `guide`
+- 特殊名固定大写：`GOAL` / `PLAN` / `TODO` / `MISTAKES`；小写固定：`template`
 - `docs\history\` 只放 `NNNN` 方案与 `template.md`；当天流水账不进 history
 
 ## 二、写作规范
@@ -29,7 +30,7 @@
 - **树形结构**（人工）：节点加子项，禁止整段混杂叙述
 - **标题干净**（人工）：不带括号、不喊口号、不用破折号；解释放标题下一行引用 `>`
 - **正文标准**（人工 + 自动）：中文为主；命令与专有名词原文；不用 emoji 与箭头
-- **事实性断言**（强制，AGENTS 操作规则 10）：研究与测试文档的事实性断言必须标六态（实证 / 推断 / 经验 / 记忆 / 假设 / 直觉），标准见 `docs\research\guide.md`；不标或实证滥用即视为未完成
+- **事实性断言**（强制，AGENTS 写研究与测试文档规则）：研究与测试文档的事实性断言必须标六态（实证 / 推断 / 经验 / 记忆 / 假设 / 直觉），标准见 `docs\guide\研究标准细则-结构与六态标记.md`；不标或实证滥用即视为未完成
 
 ## 三、检查与修正
 

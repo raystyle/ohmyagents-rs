@@ -59,20 +59,20 @@
    - 禁止：在现成库已能稳定完成的前提下从零实现；为风格引入冷门或实验 crate；一次拉一堆用不上的依赖。
 
 7. **写文档时**
-   - 可以：遵守 `docs\references\文档标准细则-命名写作规范与rumdl检查.md`（树形、标题干净、无 emoji 与箭头等装饰符号、文件名即标题、rumdl）。
+   - 可以：遵守 `docs\guide\文档标准细则-命名写作规范与rumdl检查.md`（树形、标题干净、无 emoji 与箭头等装饰符号、文件名即标题、rumdl）。
    - 禁止：标题带括号口号或破折号；整段混杂不成树。
 
 8. **写研究与测试文档时**
-   - 可以：事实性断言必须标六态之一——`[实证]`（本机实测）、`[推断]`（逻辑推出）、`[经验]`（历史惯例）、`[记忆]`（待复核）、`[假设]`（待验证）、`[直觉]`（主观倾向）；标准见 `docs\research\guide.md`；研究与测试的结论断言不标六态即视为未完成。
+   - 可以：事实性断言必须标六态之一——`[实证]`（本机实测）、`[推断]`（逻辑推出）、`[经验]`（历史惯例）、`[记忆]`（待复核）、`[假设]`（待验证）、`[直觉]`（主观倾向）；标准见 `docs\guide\研究标准细则-结构与六态标记.md`；研究与测试的结论断言不标六态即视为未完成。
    - 禁止：把「没验证」写成「已验证」（实证滥用）；断言不标六态；用猜测冒充结论。
 
 9. **写测试时**
-   - 可以：遵守 `docs\references\测试标准细则-分层断言与门禁流程.md`。分层按官方三层（单元 `#[cfg(test)]`、集成 `tests\*.rs`、doctest），集成优先于单元；意图对应方法（冒烟断退出码、回归用黄金文件、验收对照 oracle）；测试名写成可读规格，负例带 `dies_` 前缀；期望值必须来自独立来源（规范、黄金文件、属性），断言只写稳定字段（标记行、退出码），放过 pid 与时间戳；测试体用 `TestResult` 加 `?` 传播错误；rmux 依赖的测试按闸门 skip；测试设施收 `test-util` feature。
+   - 可以：遵守 `docs\guide\测试标准细则-分层断言与门禁流程.md`。分层按官方三层（单元 `#[cfg(test)]`、集成 `tests\*.rs`、doctest），集成优先于单元；意图对应方法（冒烟断退出码、回归用黄金文件、验收对照 oracle）；测试名写成可读规格，负例带 `dies_` 前缀；期望值必须来自独立来源（规范、黄金文件、属性），断言只写稳定字段（标记行、退出码），放过 pid 与时间戳；测试体用 `TestResult` 加 `?` 传播错误；rmux 依赖的测试按闸门 skip；测试设施收 `test-util` feature。
    - 禁止：重言式断言（期望值来自被测同款逻辑或镜像实现分支，AI 生成测试高发）；公开 API 测试塞 `mod tests{}` 不进 `tests\`；默认 mock（oma 拿真 daemon）；计时进断言；测试设施无 feature gate 进生产构建；只测 happy path。
 
 ## 三、意图路由
 
-> 需求意图与操作方法的映射。命令细则见 `docs\references\常用命令与管理流程-从项目init到会话cleanup.md`。
+> 需求意图与操作方法的映射。命令细则见 `docs\guide\常用命令与管理流程-从项目init到会话cleanup.md`。
 > 显示名 Oh My Agents；仓库 `ohmyagents`；CLI 二进制 `oma`。数据目录仍是 `.ohmyagents`。
 
 - **核对照**：`oma check`（rmux 版本 + 哈希 + 完整布局；缺则按 `catalog/rmux.toml` 安装。`--no-install` 只诊断）
@@ -95,7 +95,7 @@
 
 | 类别 | 目录 | 说明 |
 | --- | --- | --- |
-| 文档 | `docs\`（PLAN/TODO/history/diary/research/references）+ 根目录 GOAL/README/AGENTS/CHANGELOG/ROADMAP | 见文档指南 |
+| 文档 | `docs\`（PLAN/TODO/history/diary/research/guide/references）+ 根目录 GOAL/README/AGENTS/CHANGELOG/ROADMAP | 见文档指南 |
 | 代码 | `src\` + `catalog\` | Rust CLI `oma`；rmux pin 在 catalog |
 | 运行时产物 | 目标项目下 `.ohmyagents\`；本机工具 `%LOCALAPPDATA%\ohmyagents\rmux\<ver>\` | gitignore 项目态；工具前缀不进仓 |
 
@@ -105,10 +105,11 @@
 - **方案详情**：`docs\history\NNNN-*.md`（进行中与否见 todo）；项目日记 `docs\diary\YYYY-MM-DD-*.md`
 - **全量清单**：`docs\references\文档全量清单-方案与研究目录的完整索引.md`
 - **阶段/版本**：`ROADMAP.md`、`CHANGELOG.md`（只记大里程碑）
-- **研究/踩坑**：`docs\research\`，规范见 `docs\research\guide.md`（六态是强规则，见操作规则 10）
+- **研究/踩坑**：`docs\research\`，规范见 `docs\guide\研究标准细则-结构与六态标记.md`（六态是强规则，见 AGENTS 写研究与测试文档规则）
 - **错误速查**：`docs\MISTAKES.md`
-- **命令手册**：`docs\references\常用命令与管理流程-从项目init到会话cleanup.md`
-- **文档标准**：`docs\references\文档标准细则-命名写作规范与rumdl检查.md`
-- **测试标准**：`docs\references\测试标准细则-分层断言与门禁流程.md`
+- **命令手册**：`docs\guide\常用命令与管理流程-从项目init到会话cleanup.md`
+- **文档标准**：`docs\guide\文档标准细则-命名写作规范与rumdl检查.md`
+- **测试标准**：`docs\guide\测试标准细则-分层断言与门禁流程.md`
+- **研究规范**：`docs\guide\研究标准细则-结构与六态标记.md`
 
 新文档按类别落位，并登记进全量清单。

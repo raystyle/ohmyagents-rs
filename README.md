@@ -43,7 +43,8 @@ ohmyagents/
   docs\history\      方案 NNNN
   docs\diary\        项目日记
   docs\research\     研究（文件名即标题）
-  docs\references\   定位、命令、标准、清单
+  docs\guide\        指南与细则（怎么写、怎么测、怎么用）
+  docs\references\   定位与全量清单
 ```
 
 ## 核心概念
@@ -51,7 +52,7 @@ ohmyagents/
 - **自动配置**：`init` 把 hook、skill 写进启动的项目目录
 - **任务编排**：CLI 下发、看状态、收尾；网页只镜像，默认不弹窗
 - **可扩展 agent 表**：当前默认四家，缺已启用的一家则 check 失败
-- **六态标记**：研究与测试文档的事实性断言标实证 / 推断 / 经验 / 记忆 / 假设 / 直觉，标准见 `docs\research\guide.md`
+- **六态标记**：研究与测试文档的事实性断言标实证 / 推断 / 经验 / 记忆 / 假设 / 直觉，标准见 `docs\guide\研究标准细则-结构与六态标记.md`
 
 ## 常用命令
 
@@ -61,13 +62,14 @@ ohmyagents/
 rumdl check .
 ```
 
-命令设计见 `docs\references\常用命令与管理流程-从项目init到会话cleanup.md`。
+命令设计见 `docs\guide\常用命令与管理流程-从项目init到会话cleanup.md`。
 
 ## 文档导航
 
 - `AGENTS.md`：定位 / 操作规则 / 意图路由 / 资源索引
-- `docs\references\文档标准细则-命名写作规范与rumdl检查.md`：命名与写作
-- `docs\research\guide.md`：研究规范与六态标记
+- `docs\guide\文档标准细则-命名写作规范与rumdl检查.md`：命名与写作
+- `docs\guide\研究标准细则-结构与六态标记.md`：研究规范与六态标记
+- `docs\guide\测试标准细则-分层断言与门禁流程.md`：测试分层与门禁
 - `docs\references\文档全量清单-方案与研究目录的完整索引.md`：全量索引
 - `docs\references\项目定位-通用智能体多路复用任务编排器.md`：现役定位
 - `docs\research\四路会话的控制面与观察面.md`：先读的研究
