@@ -9,7 +9,7 @@
 ```text
 AGENTS.md          最高约束
 GOAL.md            当前目标
-docs\PLAN.md       怎么做
+PLAN.md       怎么做
 TODO.md       做到哪
 docs\proven\0001-四路会话工具-CLI控制面与网页观察面.md
 ```

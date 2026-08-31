@@ -33,7 +33,7 @@
 ### 工作节奏
 
 1. **每轮对话**
-   - 可以：先核对三原语 `GOAL.md`、`TODO.md`、`docs\PLAN.md`；实质推进当场更新 todo 与 plan。
+   - 可以：先核对三原语 `GOAL.md`、`TODO.md`、`PLAN.md`；实质推进当场更新 todo 与 plan。
    - 禁止：不核对三原语就干活；偏离当前目标；推进了不更新 todo/plan。
 
 2. **踩坑时**
@@ -103,7 +103,7 @@
 
 > 四目录职能：`research` = 研究原型过程（为什么，对齐六态）；`references` = 开发测试参考（要做什么怎么做，六态溯源）；`guide` = 元规范（怎么写字怎么研究）；`mistakes` = 出错怎么纠。`MISTAKES` 与 `references` 是经验教训的两面。
 
-- **目标/怎么做/做什么**：`GOAL.md`（起点/锚点/进程/历史）、`docs\PLAN.md`（当前目标怎么做）、`TODO.md`（当前目标进度清单）
+- **目标/怎么做/做什么**：`GOAL.md`（起点/锚点/进程/历史）、`PLAN.md`（当前目标怎么做）、`TODO.md`（当前目标进度清单）
 - **方案详情**：`docs\proven\NNNN-*.md`（已完成 plan 的归档；进行中与否见 todo）；项目日记 `docs\diary\YYYY-MM-DD-*.md`（**一天一篇**，写当天总结与自省，不写工作细节）
 - **全量清单**：`docs\references\文档全量清单-方案与研究目录的完整索引.md`
 - **阶段/版本**：`ROADMAP.md`、`CHANGELOG.md`（只记大里程碑）
