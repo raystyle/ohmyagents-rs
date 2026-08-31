@@ -22,6 +22,8 @@ rmux 能判「pane 活着、画面静了、进程换了」，判不了「agent �
 
 裁决：**权威链 = 层 0 先行，层 2 有则用，沉默走 1b 终端语义兜底**；层 1 只给 Drive 同步。禁止 CPU 当主判据。[推断: 分层与通道对照；Quiet 不当 idle 经验: rmux 官方定义 + win-rmux 2026-08-21 误报现场]
 
+2026-08-31 `examples/poc-state.rs` 实证：1b 分类器（`detect_terminal_state`，rmuxpoc 共用层）在 hook 全沉默下判出 ready/confirm/password；Quiet 静止成立时 verdict 非 idle。[实证: poc-state 标记行]
+
 ### 2. 通道选型：项目内文件总线
 
 - 主通道：`<project>/.ohmyagents/state/<agent>.json`。spawn 注入 `OHMYAGENTS_PROJECT` / `OHMYAGENTS_AGENT` / `OHMYAGENTS_STATE_FILE`；各家项目 hook 的 `command` 调 `oma hook`（stdin 事件 JSON 或 `oma hook blocked`），原子写文件；缺环境变量或项目对不上则 exit 0——某家 agent 只肯加载用户级 hook 时也不污染别的仓库。[实证: 2026-08-29 poc-dialogs `oma hook` 写 blocked 再 idle]

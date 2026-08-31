@@ -24,7 +24,7 @@
 | POC paste | 已完成（Windows） | `examples/poc-paste.rs`：全 CLI `-L` label；load-buffer + paste-buffer -p 中文；WMI 起 daemon；SDK cmd() Windows 不可用（-S 注入必拒） | 2026-08-31 |
 | POC locate | 已完成（Windows） | `examples/poc-locate.rs`：pane pid 经 `Get-CimInstance Win32_Process` 反查进程名；死 pid 与错位均 throw（不发才安全）；守卫置于 send_key 前 | 2026-08-31 |
 | POC stream | 已完成（Windows） | `examples/poc-stream.rs`：`output_stream_starting_at(Oldest)` 回放 backlog、`Now` 只收新字节不回放；echo 到流中可见 11ms；无 HTTP | 2026-08-31 |
-| POC state | 待办 | Quiet 不当 idle；`terminal_state` / `wait_for_text` 作 hook 沉默兜底（见 clum 等待原语文） | 2026-08-29 |
+| POC state | 已完成（Windows） | `examples/poc-state.rs`：最小 `detect_terminal_state` 分类器（rmuxpoc 共用层 + 7 单测）；Quiet 静止不映射 idle；confirm/password 阻塞与点掉；hook 沉默走 1b 兜底 | 2026-08-31 |
 | POC init | 待办 | 临时目录落 hook/skill，不改家目录 | 2026-08-29 |
 | POC negatives | 待办 | 禁止 C-c Codex、禁止 kill-server 进主路径 | 2026-08-29 |
 | 测试规范研究 | 已完成 | 三源对照沉淀为规则：AGENTS 写测试规则「写测试时」+ `docs\references\R004-测试标准细则-分层断言与门禁流程.md`；`tests/` 建设见细则第一段 | 2026-08-31 |

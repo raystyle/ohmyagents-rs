@@ -396,6 +396,82 @@ pub fn expect_process(
     Ok(actual.clone())
 }
 
+/// 1b terminal-semantic fallback states (S010). Maps onto the oma four:
+/// Ready -> idle, Running -> working, Confirm/Password -> blocked,
+/// Unknown -> unknown (never idle).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TermState {
+    Ready,
+    Running,
+    Confirm,
+    Password,
+    Unknown,
+}
+
+impl TermState {
+    /// oma four-state mapping; Quiet never appears here because Quiet is a
+    /// Drive-sync signal, not a state source.
+    pub fn oma_state(self) -> &'static str {
+        match self {
+            TermState::Ready => "idle",
+            TermState::Running => "working",
+            TermState::Confirm | TermState::Password => "blocked",
+            TermState::Unknown => "unknown",
+        }
+    }
+}
+
+/// Keyword tables are English-only and tail-scoped, mirroring clum's
+/// `terminal_state` gaps: Chinese prompts fall through to Unknown instead of
+/// being misclassified (extend before production, see S010).
+pub const PASSWORD_TAIL_KEYWORDS: &[&str] = &["password:", "[sudo] password", "passphrase:"];
+pub const CONFIRM_TAIL_KEYWORDS: &[&str] =
+    &["[y/n]", "(y/n)", "are you sure", "continue?", "proceed?"];
+
+/// Minimal terminal-state classifier over a captured pane grid.
+///
+/// Priority mirrors clum `detect_terminal_state`: password (tail, wins even
+/// at col 0) > confirm (tail) > hidden cursor means running > live shell
+/// prompt (tail must be the prompt row with a visible cursor) > Unknown.
+pub fn detect_terminal_state(
+    lines: &[String],
+    cursor_row: u16,
+    cursor_visible: bool,
+) -> TermState {
+    // Tail = last non-empty line plus its row index.
+    let tail = lines
+        .iter()
+        .enumerate()
+        .filter(|(_, l)| !l.trim().is_empty())
+        .map(|(i, l)| (i, l.trim()))
+        .next_back();
+    let Some((tail_row, tail)) = tail else {
+        return TermState::Unknown;
+    };
+    let lower = tail.to_lowercase();
+    if PASSWORD_TAIL_KEYWORDS.iter().any(|k| lower.contains(k)) {
+        return TermState::Password;
+    }
+    if CONFIRM_TAIL_KEYWORDS.iter().any(|k| lower.contains(k)) {
+        return TermState::Confirm;
+    }
+    if !cursor_visible {
+        // Mid-render or alternate screen: treat as working, never idle.
+        return TermState::Running;
+    }
+    // pwsh -NoProfile prompt: "PS <path>>". Ready only when the visible
+    // caret is parked on that prompt row.
+    if tail.starts_with("PS ") && tail.ends_with('>') && cursor_row == tail_row as u16 {
+        return TermState::Ready;
+    }
+    TermState::Unknown
+}
+
+/// Classify a live snapshot.
+pub fn classify_snapshot(snap: &rmux_sdk::PaneSnapshot) -> TermState {
+    detect_terminal_state(&snap.visible_lines(), snap.cursor.row, snap.cursor.visible)
+}
+
 pub fn state_path(root: &std::path::Path, agent: &str) -> PathBuf {
     root.join(".ohmyagents")
         .join("state")
@@ -455,5 +531,54 @@ mod tests {
         assert!(expect_process(&names, 4000000, "pwsh").is_err());
         // Name mismatch: must throw before any send.
         assert!(expect_process(&names, 4242, "notepad").is_err());
+    }
+
+    fn lines(v: &[&str]) -> Vec<String> {
+        v.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn classifier_password_wins_even_at_col_zero() {
+        // clum P0 parity: password rule fires before any shell check.
+        let l = lines(&["work", "[sudo] password for ray:"]);
+        assert_eq!(detect_terminal_state(&l, 2, true), TermState::Password);
+        assert_eq!(detect_terminal_state(&l, 2, false), TermState::Password);
+    }
+
+    #[test]
+    fn classifier_confirm_and_chinese_gap() {
+        let l = lines(&["Allow this action? [y/n]"]);
+        assert_eq!(detect_terminal_state(&l, 0, true), TermState::Confirm);
+        // Chinese text still classifies when an ASCII marker is present.
+        let zh_mixed = lines(&["是否继续？(y/n)"]);
+        assert_eq!(detect_terminal_state(&zh_mixed, 0, true), TermState::Confirm);
+        // Known gap (S010): pure-Chinese confirm words are not in the keyword
+        // tables and must fall through to Unknown, never Ready.
+        let zh = lines(&["是否继续？"]);
+        assert_eq!(detect_terminal_state(&zh, 0, true), TermState::Unknown);
+        assert_ne!(detect_terminal_state(&zh, 0, true).oma_state(), "idle");
+        let zh_pw = lines(&["密码："]);
+        assert_eq!(detect_terminal_state(&zh_pw, 0, true), TermState::Unknown);
+    }
+
+    #[test]
+    fn classifier_ready_needs_prompt_row_and_visible_cursor() {
+        let l = lines(&["PS D:\\ohmyagents>"]);
+        assert_eq!(detect_terminal_state(&l, 0, true), TermState::Ready);
+        // Same prompt but the caret sits elsewhere: not Ready.
+        assert_eq!(detect_terminal_state(&l, 5, true), TermState::Unknown);
+        // Prompt text present but cursor hidden: mid-render, working.
+        assert_eq!(detect_terminal_state(&l, 0, false), TermState::Running);
+        // Typed command on the prompt line (mid-command): never Ready.
+        let mid = lines(&["PS D:\\ohmyagents> Start-Sleep -Seconds 8"]);
+        assert_eq!(detect_terminal_state(&mid, 0, true), TermState::Unknown);
+    }
+
+    #[test]
+    fn classifier_hidden_cursor_is_running_and_empty_is_unknown() {
+        let l = lines(&["some output"]);
+        assert_eq!(detect_terminal_state(&l, 0, false), TermState::Running);
+        let empty: Vec<String> = Vec::new();
+        assert_eq!(detect_terminal_state(&empty, 0, true), TermState::Unknown);
     }
 }

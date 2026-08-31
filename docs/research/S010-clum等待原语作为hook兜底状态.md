@@ -107,15 +107,16 @@ hook 仍有用：备屏 TUI 上确认文案可能不进 snapshot（win-rmux obse
 
 ## 对本仓 POC 的落点
 
-- `poc-state` 应证明：Quiet 超时 ≠ idle；`terminal_state=ready` 或可见提示符才算可发。不必先装 hook。
-- `poc-dialogs` 已是 `wait_for_text("Allow this action?")` + sendkeys；下一步是分类器而不是再加 hook 管道。
-- `poc-stream` 继续走 `output_stream`，对照 clum `stream_pane` 的「超时文案引导续传」，不要把流当忙闲权威。
+- `poc-state` 应证明：Quiet 超时 ≠ idle；`terminal_state=ready` 或可见提示符才算可发。不必先装 hook。**2026-08-31 已绿**：Quiet 静止成立（revision 不变）而 verdict 非 idle；confirm/password 从画面判出并分别以 y+Enter、裸 Enter 点掉。[实证: examples/poc-state.rs 退出 0]
+- `poc-dialogs` 已是 `wait_for_text("Allow this action?")` + sendkeys；下一步是分类器而不是再加 hook 管道。**分类器已落 rmuxpoc `detect_terminal_state`（2026-08-31）。[实证]**
+- `poc-stream` 继续走 `output_stream`，对照 clum `stream_pane` 的「超时文案引导续传」，不要把流当忙闲权威。**2026-08-31 已绿。[实证]**
 - per-op `.timeout()` 必须显式，避免 SDK 5s 假超时。
 - 中文确认框：关键词表要可扩展，英文规则不能当生产默认。
 
 ## 待办
 
-- 本仓实现最小 `detect_terminal_state`（ready / running / confirm / password / unknown 即可；editor/pager/repl 可后补）
-- 单测覆盖：列 0 的 password、行中的 `➜`、中文「是否继续」
+- ~~本仓实现最小 `detect_terminal_state`（ready / running / confirm / password / unknown 即可；editor/pager/repl 可后补）~~ 2026-08-31 完成，rmuxpoc 共用层。[实证: 7 单测过]
+- 单测覆盖：列 0 的 password（已覆盖）、行中的 `➜`（未做，本仓桩是 pwsh `PS>` 提示符，无生产默认价值）、中文「是否继续」（已覆盖，纯中文行落 Unknown 不误判 idle；注意 `是否继续？(y/n)` 含 ASCII 标记会正确命中 Confirm，测缺口必须纯中文）
+- editor / pager / repl 三态后补；中文关键词表生产前再扩
 - 备屏 TUI 上 snapshot 为空时，兜底失效，仍要 hook 或禁止乱发
 - 不把 `tddh/clum` 加进 Cargo.toml

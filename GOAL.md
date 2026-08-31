@@ -20,6 +20,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-08-31 | POC state 绿（Windows）：最小 detect_terminal_state 分类器落地；Quiet 静止不映射 idle；confirm/password 阻塞可判可点掉 |
 | 2026-08-31 | POC stream 绿（Windows）：output_stream Oldest 回放 backlog、Now 只收新字节；11ms 见 marker；marker 子串坑记 M027 |
 | 2026-08-31 | POC locate 绿（Windows）：pid 经 CIM 批量反查进程名；死 pid 与错位守卫 throw，置于 send_key 前 |
 | 2026-08-31 | 研究体系建设：测试三源与编码经验落地为规则；知识库四目录分职加全库 P/S/R/G/M 编号；INDEX 唯一索引与 rg/mq/ast-grep 搜索链 |
@@ -36,7 +37,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：各功能部件 POC 验证原型。check、yolo、doctor、Windows pane 最小集（endpoint/session/layout/drive/dialogs/paste/locate/stream）已完成；state/init/negatives 未开；Linux/mac pane 跑测委托后续仓库。
+- 当前目标：各功能部件 POC 验证原型。check、yolo、doctor、Windows pane 最小集（endpoint/session/layout/drive/dialogs/paste/locate/stream/state）已完成；init/negatives 未开；Linux/mac pane 跑测委托后续仓库。
 
 ## 历史
 
