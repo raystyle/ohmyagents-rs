@@ -733,6 +733,10 @@ pub async fn run(
 mod tests {
     use super::*;
 
+    /// Unique per-call suffix: same-millisecond parallel tests must not
+    /// share (and mutually delete) a temp dir.
+    static NEXT_TEST_DIR: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
     #[test]
     fn slug_is_stable_and_path_sensitive() {
         let a = Path::new("D:\\code\\alpha");
@@ -756,12 +760,13 @@ mod tests {
     #[test]
     fn manifest_round_trips() {
         let root = std::env::temp_dir().join(format!(
-            "oma-orch-test-{}-{}",
+            "oma-orch-test-{}-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_millis()
+                .as_millis(),
+            NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         ));
         std::fs::create_dir_all(&root).unwrap();
         let m = Manifest {
@@ -815,12 +820,13 @@ mod tests {
     #[test]
     fn task_ids_increment_and_records_round_trip() {
         let root = std::env::temp_dir().join(format!(
-            "oma-run-test-{}-{}",
+            "oma-run-test-{}-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_millis()
+                .as_millis(),
+            NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         ));
         std::fs::create_dir_all(&root).unwrap();
         assert_eq!(next_task_id(&root), "t001");

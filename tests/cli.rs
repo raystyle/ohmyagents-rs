@@ -6,6 +6,10 @@
 use assert_cmd::Command;
 use predicates::str::contains;
 
+/// Unique per-call suffix: same-millisecond parallel tests must not share a
+/// temp dir.
+static NEXT_TEST_DIR: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 fn oma() -> Command {
     Command::cargo_bin("oma").unwrap()
 }
@@ -44,12 +48,13 @@ fn hook_is_silent_without_state_env() {
 #[test]
 fn doctor_blocks_on_a_fresh_project_and_says_so() {
     let tmp = std::env::temp_dir().join(format!(
-        "oma-cli-doctor-{}-{}",
+        "oma-cli-doctor-{}-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_millis()
+            .as_millis(),
+    NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     ));
     std::fs::create_dir_all(&tmp).unwrap();
     // A fresh project has no yolo keys: doctor exits 1 by contract.
@@ -64,12 +69,13 @@ fn doctor_blocks_on_a_fresh_project_and_says_so() {
 #[test]
 fn init_full_deploys_hooks_skills_and_yolo() {
     let tmp = std::env::temp_dir().join(format!(
-        "oma-cli-init-{}-{}",
+        "oma-cli-init-{}-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_millis()
+            .as_millis(),
+    NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     ));
     std::fs::create_dir_all(&tmp).unwrap();
     oma().args(["init", "--project"]).arg(&tmp)
@@ -96,12 +102,13 @@ fn init_full_deploys_hooks_skills_and_yolo() {
     assert!(!kimi_cfg.contains("[[hooks]]"), "kimi config must stay hook-free");
     // --yolo narrows to keys only: no hook files.
     let tmp2 = std::env::temp_dir().join(format!(
-        "oma-cli-init-yolo-{}-{}",
+        "oma-cli-init-yolo-{}-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_millis()
+            .as_millis(),
+    NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     ));
     std::fs::create_dir_all(&tmp2).unwrap();
     oma().args(["init", "--yolo", "--project"]).arg(&tmp2)
@@ -120,12 +127,13 @@ fn dies_send_without_a_session_fails_fast() {
     // No manifest means no session: send must fail with guidance instead
     // of starting a daemon or touching anything.
     let tmp = std::env::temp_dir().join(format!(
-        "oma-cli-send-{}-{}",
+        "oma-cli-send-{}-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_millis()
+            .as_millis(),
+    NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     ));
     std::fs::create_dir_all(&tmp).unwrap();
     oma().args([

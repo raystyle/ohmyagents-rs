@@ -435,14 +435,19 @@ fn read_version(bin: &Path) -> Option<String> {
 mod tests {
     use super::*;
 
+    /// Unique per-call suffix: same-millisecond parallel tests must not
+    /// share (and mutually delete) a temp dir.
+    static NEXT_TEST_DIR: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
     fn fresh() -> PathBuf {
         let p = std::env::temp_dir().join(format!(
-            "oma-agents-{}-{}",
+            "oma-agents-{}-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_millis()
+                .as_millis(),
+            NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         ));
         fs::create_dir_all(&p).unwrap();
         p

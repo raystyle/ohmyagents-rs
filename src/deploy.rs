@@ -335,14 +335,19 @@ pub fn apply_project_hooks(root: &Path) -> Result<DeployReport, String> {
 mod tests {
     use super::*;
 
+    /// Unique per-call suffix: same-millisecond parallel tests must not
+    /// share (and mutually delete) a temp dir.
+    static NEXT_TEST_DIR: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
     fn fresh_dir(tag: &str) -> PathBuf {
         let p = std::env::temp_dir().join(format!(
-            "oma-deploy-test-{tag}-{}-{}",
+            "oma-deploy-test-{tag}-{}-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_millis()
+                .as_millis(),
+            NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         ));
         fs::create_dir_all(&p).unwrap();
         p

@@ -341,11 +341,16 @@ mod tests {
     use super::*;
     use crate::doctor::{diagnose, Status};
 
+    /// Unique per-call suffix: same-millisecond parallel tests must not
+    /// share (and mutually delete) a temp dir.
+    static NEXT_TEST_DIR: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
     fn fresh_dir() -> std::path::PathBuf {
         let p = std::env::temp_dir().join(format!(
-            "oma-yolo-test-{}-{}",
+            "oma-yolo-test-{}-{}-{}",
             std::process::id(),
-            unix_millis()
+            unix_millis(),
+            NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         ));
         fs::create_dir_all(&p).unwrap();
         p

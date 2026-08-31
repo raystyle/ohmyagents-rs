@@ -112,7 +112,7 @@ P0005 十二个部件 POC 已在 Windows 全部跑绿，共用层（专用端点
 - cleanup：`reuse_only` 拿会话后 kill，transport 断开按已死处理；manifest 随删；cleanup 后 status 的报错文案引导 `oma spawn`。[实证: cleanup.killed=true，后续 status 报 no session manifest]
 - 集成测试起步（R004 第一段）：assert_cmd/predicates（clap 官方生态标准件，R005）5 例——check/agents/hook 静默/doctor 空目录退出 1/send 无 manifest 快败；断言只写退出码与 marker 行。全套 `cargo test` 38 过。
 - 教训两笔：先写实现后核 API 会臆造方法名（`spawn_argv`/`panes()`/`find_pane_by_text` 全是没核实的），`PaneId` 也不是 u64——写 SDK 调用前先 rg 源码签名，与 M024/M025 同族；CLI 子命令用 current_thread runtime 就够（无并发 future），不必 rt-multi-thread。
-- 偶发未定位：全量 `cargo test` 首轮 1 例 lib 失败（截断未见名），连跑两次 33+5 全绿；疑为并行测试临时目录毫秒碰撞，留观复发再修。
+- 偶发未定位（已闭环）：全量 `cargo test` 首轮 1 例 lib 失败，当时留观。2026-08-31 P0009 期间二现并抓到真凶 `agents::tests::path_beats_default`——测试临时目录同毫秒碰撞互删夹具，原子序号修复（M032）。
 
 ### 追记：init 接 deploy 层
 
