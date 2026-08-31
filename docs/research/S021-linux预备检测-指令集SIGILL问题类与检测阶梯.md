@@ -77,3 +77,11 @@ Rust 侧 `std::os::unix::process::ExitStatusExt::signal() == Some(4)`（`code()`
 2. flags 筛查只能排除「肯定没有」；CPUID 有而 XCR0 无、hypervisor 谎报两类必须靠实测指令或真二进制探针兜底。[实证: 文献]
 3. P0012 的 Linux 验收清单应含一节「指令集预备检测」：先跑第 1 级与第 4 级（oma agents），有 sigill 再走缓解表，避免把环境问题误诊为 oma 接管缺陷。[设计口径]
 4. Windows 本机不受此问题类影响（本机四家已装机全绿）；本文全部 Linux 面断言待环境切换后按六态升级。[记忆: 待实机复核]
+
+## 七、追记：Windows 侧当场落地
+
+> 2026-08-31，`P0018`。
+
+- 用户反问「Windows 要不要检测」——要：第三节两案（codex 17410 捆绑 `codex.exe`、25367 CLI `STATUS_ILLEGAL_INSTRUCTION`）本来就是 Windows 形态。
+- 已落地（`src\caps.rs`）：`is_x86_feature_detected!` 检测（std 内部验 OSXSAVE/XCR0）进 `oma doctor` CPU 段；`--version` 探针失败路径的退出码分类（0xC000001D 即 illegal-instruction）进 `oma agents` 与装后探针，命中带缓解 hint。Unix signal 4 细分仍留 P0012。
+- 本机实测：`avx=true avx2=true avx512f=false`——消费级无 AVX-512 的谱系本机即中，若某 agent 制品改要求 AVX-512，本机会当场全灭，doctor CPU 段即第一诊断入口。[实证]

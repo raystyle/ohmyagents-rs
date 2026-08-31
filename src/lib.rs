@@ -1,5 +1,6 @@
 pub mod agents;
 pub mod api;
+pub mod caps;
 pub mod catalog;
 pub mod deploy;
 pub mod doctor;

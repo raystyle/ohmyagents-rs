@@ -597,7 +597,17 @@ fn cmd_agents_install(
                 println!("install.{name}.status=installed version={version}");
                 match &probed {
                     Some(v) => println!("install.{name}.probe={v}"),
-                    None => println!("install.{name}.probe=unavailable"),
+                    None => {
+                        // 失败才补分类（S021）：illegal-instruction 即指令集不匹配。
+                        let kind = oma::caps::classify_probe_exit(
+                            std::process::Command::new(&path)
+                                .arg("--version")
+                                .output()
+                                .ok()
+                                .and_then(|o| o.status.code()),
+                        );
+                        println!("install.{name}.probe=unavailable({kind})");
+                    }
                 }
                 println!("install.{name}.path={}", path.display());
             }

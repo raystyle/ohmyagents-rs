@@ -44,6 +44,7 @@
 | `src\repl.rs` | REPL 交互层（P0016）：裸 `oma` 进；stdin 线程喂 mpsc、行命令分派、编排面内嵌、状态表格渲染（CLI 共用） |
 | `docs\web\index.html` | 可视化编排单页（无构建链；include_str 进 serve）：状态卡、委派按钮、SSE 画面 |
 | `tests\cli.rs` | CLI 集成冒烟（assert_cmd；check/agents/hook/doctor/send 快败） |
+| `src\caps.rs` | CPU 指令集能力与探针退出形态分类（S021/P0018：is_x86_feature_detected 加 0xC000001D 识别） |
 | `src\pathutil.rs` | 路径工具 |
 | `examples\poc-*.rs` | 十四个 POC（见下；label-bridge 端点融合、dump 备屏诊断） |
 | `catalog\rmux.toml` | rmux tag 与各平台 SHA256（信任锚） |
@@ -100,6 +101,7 @@ ohmyagents/
 | P0015 | `P0015-S016吸收件收口.md` | 已完成（--json 信封、TTY 表格、completions、R002 输出规范） |
 | P0016 | `P0016-REPL与编排面内嵌.md` | 已完成（裸 oma 进 REPL；编排面内嵌端口顺延；stub 验收过） |
 | P0017 | `P0017-Windows全量收口.md` | 已完成（send 回显间隔、HTTP trace 三端点、SKILL 命令图、grok 无头、mcp 配置打印） |
+| P0018 | `P0018-Windows侧指令集检测落地.md` | 已完成（caps 检测进 doctor；探针退出分类进 agents 与装机） |
 
 ## 四、项目日记
 

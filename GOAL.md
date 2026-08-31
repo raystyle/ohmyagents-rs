@@ -22,6 +22,8 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-08-31 | P0018 达成：Windows 侧指令集检测落地（用户反问触发）——caps 模块（std 检测加退出码分类）进 doctor CPU 段与 agents 探针失败路径；本机实测 avx=true avx2=true avx512f=false；S021 追记 |
+| 2026-08-31 | S021 落档：linux 预备检测研究——指令集 SIGILL 问题类（Bun 踩 AVX/AVX2、Rust 原生踩 AVX-512，两案核实到 issue 级）、四级检测阶梯、oma 探针落点 |
 | 2026-08-31 | P0017 达成：Windows 全量收口——send 间隔产品化（等回显再 Enter，S005 铁律进产品路径）、HTTP trace 三端点加网页面板（三传输对齐）、SKILL.md 命令图生成（S016 末件）、grok 无头实跑（S007 回填，联邦 trace 同场检出）、`oma mcp --print-config` |
 | 2026-08-31 | P0016 达成：REPL 落地——裸 `oma` 重连或拉起会话、编排面内嵌（7900 顺延 7909、--no-web/--open）、行循环分派（all/agent/status/web/quit）；stdin 线程喂 mpsc 保 serve 同活；顺手删 mcp 冗余 tool_router 字段并回归冒烟 |
 | 2026-08-31 | P0015 达成：S016 吸收件收口——api::envelope 上提三传输共用、六会话命令 `--json`、status TTY 对齐表（非 TTY 恒 marker 保测试契约）、`oma completions`（clap_complete）、R002 输出规范节 |
@@ -70,6 +72,7 @@
 
 | 日期 | 目标 | 结果 |
 | --- | --- | --- |
+| 2026-08-31 | Windows 侧指令集检测落地（P0018） | 达成：caps 检测进 doctor、退出分类进 agents 探针与装机；本机 avx512f=false |
 | 2026-08-31 | Windows 全量收口（P0017） | 达成：send 回显间隔、HTTP trace 三端点、SKILL 命令图、grok 无头、mcp 配置打印 |
 | 2026-08-31 | REPL 与编排面内嵌（P0016） | 达成：裸 oma 进 REPL；内嵌编排面端口顺延；stub 管道驱动验收 |
 | 2026-08-31 | S016 吸收件收口（P0015） | 达成：--json 信封三传输同形、TTY 表格、completions、R002 输出规范节 |

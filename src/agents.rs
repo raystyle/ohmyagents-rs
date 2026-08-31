@@ -232,6 +232,15 @@ pub fn print_reports(reports: &[Report]) {
                 );
                 if let Some(v) = &h.version {
                     print!(" version={v}");
+                } else {
+                    // 探针失败才补跑一次分类（S021）：illegal-instruction 即
+                    // 指令集不匹配命中，与「装了但说不出版本」区分开。
+                    if let Some(kind) = probe_failure_kind(&h.path) {
+                        print!(" probe={kind}");
+                        if kind == "illegal-instruction" {
+                            print!(" hint=cpu lacks instructions this binary needs; try npm variant or older build (S021)");
+                        }
+                    }
                 }
                 println!();
                 for extra in &h.extras {
@@ -449,6 +458,16 @@ fn read_version(bin: &Path) -> Option<String> {
     } else {
         Some(s.chars().take(120).collect())
     }
+}
+
+/// 探针失败路径的退出形态分类（S021）：跑一次 `--version` 只为拿退出码。
+/// 有版本输出的正常面不进这里（print_reports 只在 version 为 None 时调用）。
+fn probe_failure_kind(bin: &Path) -> Option<&'static str> {
+    let out = Command::new(bin).arg("--version").output().ok()?;
+    // Windows 崩溃：exit code 0xC000001D；Unix 信号退出：code() 为 None
+    // （SIGILL=4 的 signal 细分留给 P0012 的 unix 分支）。
+    let _ = out;
+    Some(crate::caps::classify_probe_exit(out.status.code()))
 }
 
 #[cfg(test)]

@@ -37,7 +37,7 @@ cargo run --example poc-negatives     # C-c Codex 守卫与 daemon-wide kill 负
 | --- | --- | --- |
 | 核对依赖 | `oma check` | 检测 rmux pin 版本与哈希；缺则安装完整包；打印路径/版本/sha256 |
 | 只诊断 rmux | `oma check --no-install` | 缺失或哈希/版本不符则非 0，不下载 |
-| 无阻塞诊断 | `oma doctor [--project PATH]` | 只读 yolo 键、信任库、已装二进制、`.ohmyagents/state`；不 attach。任一项 `status=block` 则退出 1 |
+| 无阻塞诊断 | `oma doctor [--project PATH]` | 只读 yolo 键、信任库、已装二进制、`.ohmyagents/state` 加 CPU 能力段（`agent=cpu check=caps`，avx/avx2/avx512f 三布尔，S021）；不 attach。任一项 `status=block` 则退出 1 |
 | 检测已装 agent | `oma agents` | 扫 PATH、`OMA_AGENT_PATH`、`OMA_<AGENT>_BIN`、oma 自管根、各家默认目录；打印 `source=env|path|oma|default` 与 version。缺装不退出非 0，缺装行带 `hint=oma agents install <名>` |
 | 安装缺失 agent | `oma agents install [名…] [--force] [--root PATH]` | 自适应：已装（任何来源）跳过，只补缺；`--force` 重装。按 catalog pin 走渠道序（github 默认、CDN 兜底）下载并 sha256 校验，解包落 oma 自管根（缺省 `~/.ohmyagents/agents/<名>/<版本>/`，`OMA_HOME` 或 `--root` 覆盖），leaf 名找二进制、写 manifest、装后 `--version` 探针。pin 源 `catalog\agents.toml`（信任锚是文件哈希） |
 | 升级与 pin 维护 | `oma agents update [名…] [--force] [--root PATH]` | 解析最新版（github `releases/latest`、grok `x.ai/cli/stable`、kimi CDN `latest`），取证新 sha（github `assets[].digest` 优先、SUMS 清单与边车兜底、kimi CDN manifest、grok 下载自算），升级 oma 自管安装并把 pin **写回用户本地层** `~/.ohmyagents\catalog\agents.toml`（删该文件重置出厂锚）。已最新报 uptodate；取证不全则整体失败保旧 pin |

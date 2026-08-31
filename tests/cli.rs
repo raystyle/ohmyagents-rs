@@ -58,11 +58,14 @@ fn doctor_blocks_on_a_fresh_project_and_says_so() {
     ));
     std::fs::create_dir_all(&tmp).unwrap();
     // A fresh project has no yolo keys: doctor exits 1 by contract.
+    // CPU 能力段恒在（S021）：agent=cpu check=caps。
     oma().args(["doctor", "--project"])
         .arg(&tmp)
         .assert()
         .failure()
-        .stdout(contains("doctor."));
+        .stdout(contains("doctor."))
+        .stdout(contains("check=caps"))
+        .stdout(contains("avx2="));
     let _ = std::fs::remove_dir_all(&tmp);
 }
 

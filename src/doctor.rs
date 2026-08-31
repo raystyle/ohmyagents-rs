@@ -239,6 +239,17 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
     let home = dirs::home_dir().ok_or_else(|| "cannot resolve home dir".to_string())?;
     let mut findings = Vec::new();
 
+    // CPU 能力段（S021）：Bun 系要 AVX/AVX2、Rust 原生常要 AVX-512，缺了
+    // 表现为 agent 启动即崩——先摆出事实面，探针异常退出另有分类。
+    let caps = crate::caps::detect();
+    findings.push(Finding {
+        agent: "cpu".into(),
+        check: "caps".into(),
+        status: Status::Ok,
+        path: caps.arch.into(),
+        detail: crate::caps::caps_line(&caps),
+    });
+
     let claude_shared = root.join(".claude").join("settings.json");
     let yolo_claude = json_file(&claude_shared)
         .as_ref()
