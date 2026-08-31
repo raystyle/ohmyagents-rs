@@ -18,7 +18,6 @@ use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{delete, get, post};
 use axum::Json;
-use rmux_sdk::PaneOutputChunk;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use tokio::sync::{mpsc, Mutex};
@@ -266,9 +265,10 @@ struct TraceSearchQ {
     limit: Option<usize>,
 }
 
-/// SSE 画面：pane 输出字节块桥成 `data:` 事件（lossy UTF-8）；`open` 事件带
-/// pane_id，`end`/`error` 收尾。拉取任务随接收端断开（tx send 失败）自然终止，
-/// PaneOutputStream drop 时自向 daemon 退订。
+/// SSE 画面：pane 的**渲染行**桥成 `data:` 事件（P0019：line_stream 替原始
+/// 字节——真 agent TUI 的 ANSI 转义在 daemon 侧已渲染掉，网页不再出转义汤；
+/// lossy UTF-8 加按 LF 切行由 SDK 保证）。`open` 事件带 pane_id，`end`/`error`
+/// 收尾。拉取任务随接收端断开（tx send 失败）自然终止，流 drop 时自退订。
 async fn stream(
     State(st): State<Arc<ServeState>>,
     AxPath(agent): AxPath<String>,
@@ -288,7 +288,7 @@ async fn stream(
     } else {
         rmux_sdk::PaneOutputStart::Now
     };
-    let mut out = match pane.output_stream_starting_at(start).await {
+    let mut out = match pane.line_stream_starting_at(start).await {
         Ok(s) => s,
         Err(e) => return err_reply(command, &st.root, StatusCode::OK, format!("open stream: {e}")),
     };
@@ -300,16 +300,12 @@ async fn stream(
         }
         loop {
             match out.next().await {
-                Ok(Some(PaneOutputChunk::Bytes { bytes, .. })) => {
-                    let text = String::from_utf8_lossy(&bytes).into_owned();
-                    if text.is_empty() {
-                        continue;
-                    }
+                Ok(Some(rmux_sdk::PaneLineItem::Line { text })) => {
                     if tx.send(Ok(Event::default().data(text))).await.is_err() {
                         break;
                     }
                 }
-                Ok(Some(_)) => continue, // gap 通知不携带字节
+                Ok(Some(_)) => continue, // Lag 通知不携带行
                 Ok(None) => {
                     let _ = tx
                         .send(Ok(Event::default().event("end").data("closed")))
