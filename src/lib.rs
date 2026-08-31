@@ -8,4 +8,5 @@ pub mod orch;
 pub mod pathutil;
 pub mod rmux;
 pub mod rmuxpoc;
+pub mod trace;
 pub mod yolo;

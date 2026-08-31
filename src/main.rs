@@ -8,6 +8,7 @@ use oma::doctor;
 use oma::hook;
 use oma::install;
 use oma::orch;
+use oma::trace;
 use oma::rmux::{self, bin_dir, ensure, managed_root, prepend_path, CheckError, Source};
 use oma::yolo;
 
@@ -114,6 +115,86 @@ enum Commands {
         #[arg(long)]
         project: Option<PathBuf>,
     },
+    /// 检索项目的 agent 意图操作块与编辑轨迹（查询时读各家原生会话库）
+    Trace {
+        #[command(subcommand)]
+        cmd: TraceCmd,
+    },
+}
+
+#[derive(Subcommand)]
+enum TraceCmd {
+    /// 列项目内各 agent 的会话
+    Sessions {
+        /// 项目根；默认当前目录
+        #[arg(long)]
+        project: Option<PathBuf>,
+    },
+    /// 列编辑事件（按 operation_id 归组的意图操作块）
+    Timeline {
+        /// 只看某家 agent
+        #[arg(long)]
+        agent: Option<String>,
+        /// 文件过滤（glob；解析失败退子串）
+        #[arg(long)]
+        file: Option<String>,
+        /// 条数上限（1-1000）
+        #[arg(long, default_value_t = 100)]
+        limit: usize,
+        /// 项目根；默认当前目录
+        #[arg(long)]
+        project: Option<PathBuf>,
+    },
+    /// 按正则检索 patch、file、双意图四域（非法正则退字面子串）
+    Search {
+        query: String,
+        /// 只看某家 agent
+        #[arg(long)]
+        agent: Option<String>,
+        /// 条数上限（1-1000）
+        #[arg(long, default_value_t = 100)]
+        limit: usize,
+        /// 项目根；默认当前目录
+        #[arg(long)]
+        project: Option<PathBuf>,
+    },
+    /// 单文件的 agent 修改轨迹：谁、何时、基于什么意图改了这个文件
+    File {
+        /// 项目内相对路径（可用 glob）
+        file: String,
+        /// 只看某家 agent
+        #[arg(long)]
+        agent: Option<String>,
+        /// 条数上限（1-1000）
+        #[arg(long, default_value_t = 100)]
+        limit: usize,
+        /// 项目根；默认当前目录
+        #[arg(long)]
+        project: Option<PathBuf>,
+    },
+    /// 意图操作块视图：一个 operation_id 一块（一次工具调用，可能多文件）
+    Blocks {
+        /// 只看某家 agent
+        #[arg(long)]
+        agent: Option<String>,
+        /// 条数上限（1-1000，取最新 N 块）
+        #[arg(long, default_value_t = 100)]
+        limit: usize,
+        /// 项目根；默认当前目录
+        #[arg(long)]
+        project: Option<PathBuf>,
+    },
+    /// agent 轨迹：某家 agent 在项目内的操作块时间线
+    Agent {
+        /// agent 名（claude/codex/grok/kimi）
+        name: String,
+        /// 条数上限（1-1000，取最新 N 块）
+        #[arg(long, default_value_t = 100)]
+        limit: usize,
+        /// 项目根；默认当前目录
+        #[arg(long)]
+        project: Option<PathBuf>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -188,6 +269,7 @@ fn run() -> Result<(), String> {
             project,
         } => tokio_block(cmd_run(text, assign, confirm, project)),
         Commands::Settle { wait, project } => tokio_block(cmd_settle(wait, project)),
+        Commands::Trace { cmd } => cmd_trace(cmd),
     }
 }
 
@@ -378,6 +460,157 @@ fn cmd_agents_update(names: Vec<String>, force: bool, root: Option<PathBuf>) -> 
     } else {
         Ok(())
     }
+}
+
+fn cmd_trace(cmd: TraceCmd) -> Result<(), String> {
+    let clip = |s: &str| -> String { s.chars().take(80).collect() };
+    let resolve = |p: Option<PathBuf>| {
+        p.unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+    };
+    match cmd {
+        TraceCmd::Sessions { project } => {
+            let project = resolve(project);
+            let sessions = trace::list_sessions(&project);
+            for s in &sessions {
+                println!(
+                    "trace.session agent={} id={} started={} file={}",
+                    s.agent,
+                    s.id,
+                    s.started_at.as_deref().unwrap_or("-"),
+                    s.file.display()
+                );
+            }
+            println!("trace.sessions.count={}", sessions.len());
+            Ok(())
+        }
+        TraceCmd::Timeline { agent, file, limit, project } => {
+            let project = resolve(project);
+            let filter = trace::TraceFilter {
+                agent: agent.as_deref(),
+                file_glob: file.as_deref(),
+                limit,
+            };
+            let events = trace::apply_filter(trace::timeline(&project), &filter);
+            for e in &events {
+                println!(
+                    "trace.edit agent={} session={} op={} file={} kind={} tool={} ts={} intent={} op_intent={}",
+                    e.agent,
+                    e.session_id,
+                    e.operation_id(),
+                    e.file.as_deref().unwrap_or("-"),
+                    e.kind.as_str(),
+                    e.tool.as_deref().unwrap_or("-"),
+                    e.ts.as_deref().unwrap_or("-"),
+                    clip(e.user_intent.as_deref().unwrap_or("-")),
+                    clip(e.op_intent.as_deref().unwrap_or("-")),
+                );
+            }
+            println!("trace.edits.count={}", events.len());
+            Ok(())
+        }
+        TraceCmd::Search { query, agent, limit, project } => {
+            let project = resolve(project);
+            // 先全量匹配再截断：limit 若在匹配前生效会把候选池截没。
+            let filter = trace::TraceFilter {
+                agent: agent.as_deref(),
+                file_glob: None,
+                limit: trace::MAX_LIMIT,
+            };
+            let mut events: Vec<_> = trace::apply_filter(trace::timeline(&project), &filter)
+                .into_iter()
+                .filter(|e| trace::search_matches(e, &query))
+                .collect();
+            let block_count = trace::group_blocks(&events).len();
+            events.truncate(limit.clamp(1, trace::MAX_LIMIT));
+            for e in &events {
+                println!(
+                    "trace.hit agent={} session={} op={} file={} kind={} intent={} op_intent={}",
+                    e.agent,
+                    e.session_id,
+                    e.operation_id(),
+                    e.file.as_deref().unwrap_or("-"),
+                    e.kind.as_str(),
+                    clip(e.user_intent.as_deref().unwrap_or("-")),
+                    clip(e.op_intent.as_deref().unwrap_or("-")),
+                );
+            }
+            println!("trace.hits.count={}", events.len());
+            println!("trace.blocks.count={block_count}");
+            Ok(())
+        }
+        TraceCmd::File { file, agent, limit, project } => {
+            let project = resolve(project);
+            // 文件维度轨迹：按传入路径或 glob 过滤，时间正序展示该文件的完整修改史。
+            let filter = trace::TraceFilter {
+                agent: agent.as_deref(),
+                file_glob: Some(&file),
+                limit: limit.clamp(1, trace::MAX_LIMIT),
+            };
+            let events = trace::apply_filter(trace::timeline(&project), &filter);
+            for e in &events {
+                println!(
+                    "trace.file agent={} session={} op={} kind={} tool={} ts={} intent={} op_intent={}",
+                    e.agent,
+                    e.session_id,
+                    e.operation_id(),
+                    e.kind.as_str(),
+                    e.tool.as_deref().unwrap_or("-"),
+                    e.ts.as_deref().unwrap_or("-"),
+                    clip(e.user_intent.as_deref().unwrap_or("-")),
+                    clip(e.op_intent.as_deref().unwrap_or("-")),
+                );
+            }
+            println!("trace.file.edits={}", events.len());
+            Ok(())
+        }
+        TraceCmd::Blocks { agent, limit, project } => {
+            let project = resolve(project);
+            print_block_timeline(&project, agent.as_deref(), limit);
+            Ok(())
+        }
+        TraceCmd::Agent { name, limit, project } => {
+            let project = resolve(project);
+            let known = ["claude", "codex", "grok", "kimi"];
+            if !known.contains(&name.as_str()) {
+                return Err(format!("unknown agent {name}; known: {}", known.join(", ")));
+            }
+            print_block_timeline(&project, Some(&name), limit);
+            Ok(())
+        }
+    }
+}
+
+/// 操作块时间线：时间正序展示最新 N 块（与 timeline 的「最新 N 条」语义一致）。
+fn print_block_timeline(project: &std::path::Path, agent: Option<&str>, limit: usize) {
+    let clip = |s: &str| -> String { s.chars().take(80).collect() };
+    let filter = trace::TraceFilter {
+        agent,
+        file_glob: None,
+        limit: trace::MAX_LIMIT,
+    };
+    let events = trace::apply_filter(trace::timeline(project), &filter);
+    let mut blocks = trace::group_blocks(&events);
+    let n = limit.clamp(1, trace::MAX_LIMIT);
+    if blocks.len() > n {
+        // 丢最旧，保时间正序。
+        let cut = blocks.len() - n;
+        blocks.drain(0..cut);
+    }
+    for b in &blocks {
+        println!(
+            "trace.block op={} agent={} session={} edits={} files={} kinds={} ts={} intent={} op_intent={}",
+            b.op,
+            b.agent,
+            b.session_id,
+            b.edits,
+            b.files.join(","),
+            b.kinds.join("+"),
+            b.first_ts.as_deref().unwrap_or("-"),
+            clip(b.user_intent.as_deref().unwrap_or("-")),
+            clip(b.op_intent.as_deref().unwrap_or("-")),
+        );
+    }
+    println!("trace.blocks.count={}", blocks.len());
 }
 
 fn cmd_hook(event: Option<String>) -> Result<(), String> {

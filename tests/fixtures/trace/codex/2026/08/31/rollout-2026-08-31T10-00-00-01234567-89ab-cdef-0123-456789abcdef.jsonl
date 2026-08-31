@@ -1,0 +1,6 @@
+{"timestamp":"2026-08-31T10:00:00.000Z","type":"session_meta","payload":{"id":"01234567-89ab-cdef-0123-456789abcdef","session_id":"01234567-89ab-cdef-0123-456789abcdef","cwd":"D:\\demo","timestamp":"2026-08-31T10:00:00.000Z","cli_version":"0.151.0"}}
+{"timestamp":"2026-08-31T10:00:01.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"# AGENTS.md instructions for D:\\demo\n<INSTRUCTIONS>demo</INSTRUCTIONS>\n"}]}}
+{"timestamp":"2026-08-31T10:00:02.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"加一个笔记文件并更新 README"}]}}
+{"timestamp":"2026-08-31T10:00:03.000Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"先创建笔记再改 README。"}]}}
+{"timestamp":"2026-08-31T10:00:04.000Z","type":"response_item","payload":{"type":"custom_tool_call","name":"apply_patch","call_id":"call_xyz789","input":"*** Begin Patch\n*** Add File: D:\\demo\\notes.md\n+hello\n*** Update File: D:\\demo\\README.md\n@@\n-a\n+b\n*** End Patch\n"}}
+{"timestamp":"2026-08-31T10:00:05.000Z","type":"event_msg","payload":{"type":"task_complete"}}

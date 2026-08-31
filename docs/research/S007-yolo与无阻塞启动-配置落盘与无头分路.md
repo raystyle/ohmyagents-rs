@@ -77,9 +77,10 @@ spawn 后立刻允许委派，当且仅当：doctor 全绿；pane 进程活着�
 | web | code.claude.com headless / permission-modes；docs.x.ai headless-scripting / permissions / cli-reference / enterprise；MoonshotAI kimi-command.md | 2026-08-29 | 无头默认权限、别名、dontAsk 路线、Kimi 冲突规则 |
 | 本机 | `claude --help` 2.1.246 / `grok --help` 1.0.13 / `kimi --help` 0.38.0 | 2026-08-29 | flag 面；grok 的 Claude 式 `--permission-mode` |
 | github | MoonshotAI/kimi-cli#2072 OPEN | 2026-08-29 | yolo/非交互混同议题 |
+| 本地 | ohmypwsh 仓 `D:\ohmypwsh\docs\research\S010-agent-无头模式与-YOLO-免审批对照.md` 及其实测日记 | 2026-08-31 | 同机同版本无头写文件实测：claude -p 16.1s / codex exec 15.0s / kimi -p 6.8s 均 exit 0 且产物正确；脚手架坑（Start-Process 中文 prompt 破坏参数、codex 临时目录要 `--skip-git-repo-check` 且不可喂 stdin、kimi 退出码要 Job 包装）；并推翻「claude -p 默认权限下写文件被拒」的旧推断（实测未被拒，stderr 带 `[1m]` 无害噪声） |
 
 ## 缺口
 
-- 未本机实跑三家 `-p` 写文件任务（假绿/stall 无时序证据）。
+- ~~未本机实跑三家 `-p` 写文件任务（假绿/stall 无时序证据）~~ 已由 ohmypwsh 同机实测补上（见来源表末行，2026-08-31）；grok `-p` 侧仍只有官方口径未实跑。
 - Claude 受保护路径在 bypass 下是否仍提示（原文标「随版本反复」）未核 2.1.246。
 - grok `--permission-mode` 与 `[ui] permission_mode` 取值对应未做 inspect 对照。

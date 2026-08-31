@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-08-31 | P0013 架构定案查询时联邦并首落 claude/codex：S019 本地实证四家会话库全破、`src\trace.rs` + `oma trace sessions\|timeline\|search` 活体验证（双意图自证、历史轮次回溯）；S007 无头缺口由 ohmypwsh 同机实测回填 |
 | 2026-08-31 | 目标切到 P0013：S018 aitrace 研究落档（operation_id 归组、双意图、补账、裁决表八坑，七条断言抽查全中）；P0013 立项（五切片，补 agent 过滤与项目路径两缺口） |
 | 2026-08-31 | P0012 达成：oma 自适应安装部署——catalog 两层 pin（出厂锚 + `~/.ohmyagents` 用户本地层写回）、渠道序 github 主 CDN 兜底、四家 Windows 装机全绿、update 取证闭环；S017 落档（含四家官方安装脚本逐家实证的渠道反转） |
 | 2026-08-31 | S016 incurs 双层源码研究落档（吸收裁决表，三传输模式升核心）；P0011 立项（三通道编排加网页可视化，axum/rmcp 可选 feature 选型） |

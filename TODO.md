@@ -12,11 +12,10 @@ agent 意图操作块与编辑轨迹检索（对应 `GOAL.md`，方案 P0013，�
 | --- | --- | --- | --- |
 | S018 aitrace 研究 | 已完成 | `docs\research\S018-aitrace意图轨迹机制研究与oma检索映射.md`（operation_id 归组、双意图、补账队列、裁决表与八坑；七条载荷性断言回源码抽查全中） | 2026-08-31 |
 | 立项 0013 | 已完成 | `docs\proven\P0013-agent意图操作块与编辑轨迹检索.md`（五切片；agent 过滤与项目路径显式落库补 aitrace 两缺口） | 2026-08-31 |
-| S019 四家会话日志格式 | 待办 | Claude transcript 已知；codex rollout、grok、kimi 会话文件源码定位 | — |
-| trace 存储层 | 待办 | `src\trace.rs`：edits.jsonl 追加 + id 去重 + meta 显式落 project_path | — |
-| 采集 v1 | 待办 | hook 扩 PostToolUse（Claude 先行）+ 编辑真相源定案 | — |
-| 检索面 | 待办 | `oma trace sessions\|timeline\|search`（agent/glob/regex/分页） | — |
-| 验收 | 待办 | 真实 Claude 路检索可见 + 双路 stub 同文件不张冠李戴 | — |
+| S019 四家会话日志格式 | 已完成（本地实证）| 四家位置/项目归属/工具身份/意图源全破（S019 落档待源码核实回报合流） | 2026-08-31 |
+| 联邦检索层 | 进行中 | `src\trace.rs`：claude/codex loader + 会话发现（四家）已落地并活体验证；grok/kimi 事件 loader 等源码核实 | 2026-08-31 |
+| 检索面 | 已完成 | `oma trace sessions\|timeline\|search`（agent/glob/regex/分页 clamp；先匹配后截断） | 2026-08-31 |
+| 验收 | 待办 | 无头通道（claude -p / codex exec / kimi -p，ohmypwsh S010 基准）临时项目产编辑后检索可见 | — |
 
 ## 队列目标
 

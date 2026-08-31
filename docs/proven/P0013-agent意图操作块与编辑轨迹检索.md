@@ -22,33 +22,54 @@ oma 编排四路 agent 改同一项目，事后无法回答「哪个 agent、基
 
 ## 方案
 
+> 2026-08-31 架构定案（S019 本地实证后）：**查询时联邦**取代采集落盘——四家原生会话库
+> （claude transcript / codex rollout / grok chat_history / kimi wire.jsonl）各自携带项目归属、
+> 工具调用身份、双意图与编辑内容，oma 在查询时读取并归一化。零采集设施（无 watcher、无 daemon）、
+> 可回溯 oma 部署前的全部历史。原「.ohmyagents\trace 落盘」方案降为远期缓存层。
+
 ### 数据形状
 
+归一化事件（loader 公共产出）：
+
 ```text
-.ohmyagents\trace\
-  sessions\<YYYYMMDD-HHMMSS-6f>\
-    meta.json     { id, project_path(显式), agents[]: {agent, label, pane_id, first_seen} }
-    edits.jsonl   每行一个编辑事件（首事件才建目录，防空会话堆积）：
-                  { id, ts, file(写库即归一化: 相对+正斜杠+小写), kind,
-                    patch, before/after_sha256,
-                    agent, operation_id, operation_intent, intent, tool }
+TraceEvent { agent, session_id, call_id, tool, file(项目相对+正斜杠), kind(create|modify|delete),
+             user_intent, op_intent, ts, patch }
+operation_id = session_id:call_id   （S018 核心设计，一根线串会话与工具调用）
 ```
+
+四家会话发现（本地实证）：
+
+| 家 | 位置 | 项目归属 |
+| --- | --- | --- |
+| claude | `~/.claude/projects/<slug>/*.jsonl`（slug=非字母数字换 `-`） | 目录 slug |
+| codex | `~/.codex/sessions/*/*/rollout-*.jsonl` | 首行 `session_meta.cwd` |
+| grok | `~/.grok/sessions/<百分号编码项目路径>/<uuid>/chat_history.jsonl` | 目录名解码 |
+| kimi | `~/.kimi-code/session_index.jsonl` 的 `workDir` | 索引行 |
 
 ### 意图回溯
 
-查询时活走会话日志父链（assistant text 胜出、thinking 次之）+ 同 id 追加补账（`.ohmyagents\trace\backfill.json`，上限 32）——照抄 S018 算法，中文截断按字符。
+顺序文件近似（查询时）：tool 调用前最近的 assistant text 是操作意图、最近的真实 user text 是用户意图；codex 跳过环境注入的 user message（`# AGENTS.md`/`<environment_context>` 族）；截断按字符 200（S018 坑 8）。
 
-### 并发归组
+### 检索面设计原则
 
-按 `agent + operation` 维度排队（不是按文件路径单 FIFO——S018 坑 5：两 agent 同改一文件会张冠李戴）；关联键写库即归一化。
+> 用户定调（2026-08-31）：**轨迹本身就是各实体时间线**——文件、agent、会话、操作块四个实体维度各一条时间线，search 跨实体。五个视图：
+
+| 视图 | 命令 | 实体 |
+| --- | --- | --- |
+| 编辑轨迹 | `oma trace timeline` | 编辑事件（元素），时间正序取最新 N |
+| agent 轨迹 | `oma trace agent <名>` | 某家的操作块时间线 |
+| 意图操作块 | `oma trace blocks` | operation_id 块（一次工具调用，可能多文件） |
+| 操作块时间线 | 同 blocks | 块的时间正序视图（最新 N 块，与 timeline 语义一致） |
+| 文件轨迹 | `oma trace file <路径>` | 单文件的修改史（谁、何时、何意图） |
+| 块与元素搜索 | `oma trace search <query>` | 跨实体正则，输出元素命中数与匹配块数两个粒度 |
 
 ### 切片
 
-1. **S019 四家会话日志格式研究**：Claude transcript（已知）；codex rollout jsonl；grok、kimi 会话文件定位与结构（源码法，同 S015）
-2. **trace 存储层**：`src\trace.rs`（edits.jsonl 追加 + read_all 按 id 去重保最后 + meta 落库）
-3. **采集 v1**：oma hook 扩 PostToolUse（Claude，S015 矩阵）+ 编辑真相源切片内定（notify watcher 或 hook 单源）
-4. **检索面**：`oma trace sessions|timeline|search`（agent/project/file glob/regex/分页 clamp 100-1000）；输出带 buildHash 风格版本行
-5. **P0011 联动**：检索面同签名挂 MCP tool（P0011 mcp 模块）
+1. **S019 四家会话日志格式研究**：本地实证已完成；源码核实进行中（grok 编辑类 tool 形状、kimi tool.result、codex 行序保证）
+2. **联邦检索层**：`src\trace.rs`——四家会话发现 + claude/codex 事件 loader（已落地）+ grok/kimi loader（待源码核实）
+3. **CLI 检索面**：`oma trace sessions|timeline|blocks|agent|file|search`（分页 clamp 1-1000；非法正则退字面子串；先匹配后截断）——已落地
+4. **验收**：无头通道（ohmypwsh S010 实测基准：claude -p / codex exec / kimi -p）在临时项目产真实编辑后检索可见
+5. **P0011 联动**：检索面同签名挂 MCP tool；输出带 buildHash 风格版本行
 
 ## 风险与回滚
 
@@ -65,4 +86,13 @@ oma 编排四路 agent 改同一项目，事后无法回答「哪个 agent、基
 
 ## 实施过程与经验
 
-（进行中）
+### 联邦检索首落 claude 与 codex
+
+> 2026-08-31。
+
+- **claude loader**：user 行（跳过 isMeta）更用户意图、assistant text 块更操作意图、Edit/Write/MultiEdit/NotebookEdit 的 tool_use 出事件（call_id 即 `tool_use.id`，patch 取 `new_string`/`content`）；claude 的 kind 无显式 create/delete 信息，v1 一律 modify（文档化）。[实证: 本仓 `oma trace timeline` 输出]
+- **codex loader**：`response_item` 顺序扫——assistant message 更操作意图、真实 user message 更用户意图（`is_codex_injected_context` 跳过 `# AGENTS.md`/`<environment_context>`/`<user_instructions>`/`<turn_context>` 注入）；`custom_tool_call(apply_patch)` 解析 `*** Add/Update/Delete File:` 头出事件，**一次调用多文件操作出多事件共享 call_id**（本地实证的补丁形状）。[实证: 本机 rollout 采样 + 夹具单测]
+- **双意图活体自证**：对本仓自跑 `oma trace timeline`，输出 `intent=继续 op_intent=clap 层级问题……对齐` 挂在每次 Edit 上——用户话与 assistant 话各自归位；`oma trace search` 直接挖出**历史轮次**的研究编辑（联邦架构回溯威力的实证——那些编辑发生在 oma trace 存在之前）。[实证]
+- **两个实现坑当场修**：其一 search 先截断后匹配把候选池截没（改先匹配后 truncate）；其二文件存绝对路径导致相对 glob 失配（装载时 `relativize`——项目内路径相对化，对齐 aitrace 存储形状）。[实证]
+- **夹具**：`tests\fixtures\trace\{claude,codex}` 用真实形状行（含 apply_patch 双文件操作、环境注入 user message 干扰项）锁 loader 断言（R004 黄金文件法）。
+- grok/kimi：会话发现已通（grok 百分号解码目录命中本仓、kimi session_index 过滤待接），事件 loader 等源码核实报告（grok 编辑类 tool_type 名称、kimi tool.call 的编辑 args 键位）后补。

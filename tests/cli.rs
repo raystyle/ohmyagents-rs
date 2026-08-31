@@ -123,6 +123,31 @@ fn init_full_deploys_hooks_skills_and_yolo() {
 }
 
 #[test]
+fn trace_sessions_on_empty_project_is_zero() {
+    // A fresh temp project has no agent sessions: trace must exit 0 with a
+    // zero count (read-only federation over the native session stores).
+    let tmp = std::env::temp_dir().join(format!(
+        "oma-cli-trace-{}-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis(),
+    NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    std::fs::create_dir_all(&tmp).unwrap();
+    oma().args(["trace", "sessions", "--project"]).arg(&tmp)
+        .assert()
+        .success()
+        .stdout(contains("trace.sessions.count=0"));
+    oma().args(["trace", "timeline", "--project"]).arg(&tmp)
+        .assert()
+        .success()
+        .stdout(contains("trace.edits.count=0"));
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
 fn agents_install_unknown_name_fails_fast() {
     // Unknown agent is rejected before any network access: the error must
     // name the catalog's known agents.

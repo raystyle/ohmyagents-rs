@@ -56,6 +56,12 @@ cargo run --example poc-negatives     # C-c Codex 守卫与 daemon-wide kill 负
 | 无网页 | `oma --no-web` | 不起 HTTP（设计口径） |
 | 尝试打开浏览器 | `oma --open` | opener 失败只警告（设计口径） |
 | 委派任务 | `oma run "<文本>" [--assign a,b] [--confirm MARKER] [--project PATH]` | 状态门分派（层 2 有则用，沉默走 1b，仅 idle 过）：一路 blocked/busy 跳过并报告不堵其它路；发出路写 `.ohmyagents\tasks\tNNN.json`（id 递增，assigned 记实际发出路与时间戳）；多行文本走三段式；全拦退出 1 |
+| 检索会话 | `oma trace sessions [--project PATH]` | 查询时联邦读四家原生会话库（claude projects 目录、codex rollout、grok sessions、kimi session_index），列项目内各 agent 会话 |
+| 检索编辑轨迹 | `oma trace timeline [--agent A] [--file GLOB] [--limit N] [--project PATH]` | 意图操作块（元素视图）：每条编辑事件带 operation_id（session:call）、kind、tool、ts 与双意图（intent=用户请求、op_intent=assistant 声明）；分页 clamp 1-1000。当前 claude 与 codex 全量，grok/kimi 会话发现已通事件待接 |
+| 检索操作块 | `oma trace blocks [--agent A] [--limit N] [--project PATH]` | 操作块时间线：一个 operation_id 一块（一次工具调用可能多文件），时间正序取最新 N 块，聚合 edits/files/kinds/双意图 |
+| 检索 agent 轨迹 | `oma trace agent <名> [--limit N] [--project PATH]` | 某家 agent 的操作块时间线（名不在四家内退出非 0） |
+| 检索单文件轨迹 | `oma trace file <相对路径\|glob> [--agent A] [--limit N] [--project PATH]` | 文件维度：该文件被哪些 agent、何时、基于什么意图改过（创建/修改/删除），时间正序 |
+| 检索关键词 | `oma trace search <query> [--agent A] [--limit N] [--project PATH]` | 正则匹配 patch、file、双意图四域，非法正则退字面子串；先全量匹配后截断；输出元素命中数与匹配块数两个粒度 |
 
 ## REPL
 
