@@ -42,7 +42,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 3. **会话策略按命令分。** `EnsureSessionPolicy`：`CreateOnly`（重名当错误）、`CreateOrReuse`（`new-session -A`）、`ReuseOnly`。官方例子用 CreateOrReuse。本仓 **spawn 用 CreateOnly**，撞名拒绝或 `--force` 后 `kill-session`；`send` / `status` 用 ReuseOnly。禁止默认 CreateOrReuse（会静默贴到别人的会话）。
 4. **argv spawn，不要壳。** `Pane::split_with(dir).process(ProcessSpec)` 把命令和 split 一次送出，避免中间默认 shell。`spawn(argv)` 不给交互壳追加换行。Windows 上 `.bat`/`.cmd` 被拒，agent 必须是原生 exe。
 5. **文本和 Enter 分发。** 官方 `sdk_demo_send_keys.rs`：`send_text("uname -s")` 然后 `send_key("Enter")`。`send_text` 明确：字面 UTF-8、不解析键名、**不隐式换行**。键名用 `Enter`，不用 `C-m`。
-6. **Paste 不是一等 Pane API。** 见核查 2。长文 / 中文走 `RmuxCommandKind::Request(rmux_proto::Request::LoadBuffer|PasteBuffer)`；再退 CLI `load-buffer` + `paste-buffer -p`。发送侧不自包 `\x1b[200~`。
+6. **Paste 不是一等 Pane API，Request 逃生舱也不通。** 见核查 2。0.10.0 源码核实：`RmuxCommandKind::Request` 是纯 DTO（`into_request` 只转换、不发 IPC），唯一的发送口 `Pane::transport()` 是 `pub(crate)`。Windows 上 `Rmux::cmd()` 又注入 `-S <pipe>`，而 CLI 对一切 `-S` 形态无条件拒绝（含 `\\.\pipe\rmux-...`）。因此长文 / 中文粘贴走自 spawn CLI：`-L <专用label>` + `load-buffer` + `paste-buffer -p`，label pipe 名为 `\\.\pipe\rmux-S-<SID>-il-medium-<label>`（label 明文后缀）。发送侧不自包 `\x1b[200~`。[实证: 2026-08-31 poc-paste Windows 绿；`-S` 拒绝用 pinned 0.10.0 二进制多形态实测]
 7. **等待分层。** `wait_until_stable_for` / `expect_stable` = Quiet（画面不变），官方写明不推断 prompt。`wait_for_text` 是客户端轮询 snapshot。agent 忙闲仍读 `.ohmyagents/state`。Drive 同步可用 Quiet；judge 不能用 Quiet。
 8. **定位用稳定 id + pid。** `pane.id()` 得 `%N`；`info()` 含 running pid。`foreground_state` 官方是 best-effort，Windows 报 ConPTY 根进程，**不分类 agent 名**。locate 仍按 win-rmux：pid 反查进程名。
 9. **镜像走字节流，不走 capture。** `output_stream` / `output_stream_starting_at(Oldest)` 是 web-claude-demo 路径。`snapshot()` 是 live grid，备屏 TUI 仍可能空。观察面用 stream；结论写文件。
@@ -76,7 +76,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 | 主张 | 结论 |
 | --- | --- |
 | crate 0.10.0 必须配 daemon 0.10.0 | 成立。crates.io `newest_version=0.10.0`（2026-08-05）；GitHub release 2026-08-04 写明不与 0.9.x 线兼容 |
-| SDK 有一等 paste-buffer / load-buffer / send-keys -H | **不成立**（paste/load）。`Pane` 只有 `send_text` / `send_key`；`RmuxCommandKind` 只有 Request / NewSession / AttachSession / SplitWindow / RefreshClient。协议层 `rmux_proto::Request` 有 `LoadBuffer` / `PasteBuffer`，应经 `RmuxCommandKind::Request` 发。`-H` 是 CLI 旗标，SDK 用 `send_key("Enter")` 即可，不必 hex |
+| SDK 有一等 paste-buffer / load-buffer / send-keys -H | **不成立**（paste/load）。`Pane` 只有 `send_text` / `send_key`；协议层 `rmux_proto::Request` 有 `LoadBuffer` / `PasteBuffer`。**且 Request 逃生舱不可达**：`RmuxCommandKind::Request` 是惰性 DTO，`transport()` 为 `pub(crate)`，外部无法发裸 Request。[实证: 2026-08-31 读 0.10.0 源码] `Rmux::cmd()` 注入的 `-S <pipe>` 在 Windows 被无条件拒绝，CLI 逃生舱同样经 SDK 不可用。[实证: 2026-08-31] 实际通道是自 spawn CLI `-L <label>`。`-H` 是 CLI 旗标，SDK 用 `send_key("Enter")` 即可，不必 hex |
 | 官方 quickstart 是 connect_or_start + EnsureSession | 成立。但例子用 CreateOrReuse；本仓 spawn 改 CreateOnly |
 | Default 端点会撞别人的 daemon | 成立（发现策略）。本仓必须显式 pipe/socket |
 | Quiet 等于 idle | **不成立**。`wait_for_load_state(Quiet)` 文档：画面稳定，不推断 prompt。与《rmux状态判断与hook补充》一致 |
@@ -143,6 +143,8 @@ async fn main() -> rmux_sdk::Result<()> {
 
 验证：经 `RmuxCommandKind::Request` 发 LoadBuffer + PasteBuffer（`-p` 语义）；中文 payload 出现在 pane；发送侧字符串不含 `\x1b[200~`。若 Request 构造过重，退 CLI：`RMUX_DISABLE_TINY_CLI=1` + `load-buffer` + `paste-buffer -p` + `send_key("Enter")`。
 
+**2026-08-31 结果（Windows 绿）**：Request 逃生舱不可达（见核查 2），SDK `cmd()` 在 Windows 因 `-S` 注入必败。实际路线是全 CLI：`-L <pid+tag label>` + `new-session -d`（WMI 在 job 外起 daemon 与 keeper session）+ `load-buffer -b` + `paste-buffer -p -b -t session:0.0` + `send-keys Enter` + `capture-pane -p` 轮询中文 marker。三段式与「发送侧无 ESC 壳」均达成；daemon 随末 session 退出（exit-empty），无需显式 kill-server。[实证: `examples/poc-paste.rs` 退出 0]
+
 #### POC-6 locate pid
 
 验证：四格 `info()` pid 与 `Get-CimInstance Win32_Process`（或 `/proc`）进程名一致；故意错位 `send_key` 前必须 throw，不能 warn-and-continue。
@@ -189,7 +191,7 @@ async fn main() -> rmux_sdk::Result<()> {
 - docs.rs `rmux_sdk::Rmux` / builder 页本轮 404；POC 已核 `Rmux::builder().endpoint(RmuxEndpoint).connect_or_start()` / `.connect()`。
 - `CommandRun` 本轮 code search 空；逃生舱以 `RmuxCommandKind::Request` 为准，CLI 子进程是第二退路。
 - `send-keys -H` 在 SDK 中无对应 API；Enter 用 `send_key("Enter")`。装上 rmux 后再决定 CLI 逃生舱要不要 `-H 0d`。
-- Windows POC-1..4 + dialogs 已绿（2026-08-29）。Job Object 下 `connect_or_start` 报 os error 5，改 WMI 拉起 daemon 再 `connect()`。专用 pipe 必须 `\\.\pipe\rmux-...` 前缀。Linux/mac 未跑，委托后续仓库。
-- paste / locate / stream / Quiet-idle 负例尚未跑。
+- Windows POC-1..4 + dialogs + paste 已绿（2026-08-29/31）。Job Object 下 `connect_or_start` 报 os error 5，改 WMI 拉起 daemon 再 `connect()`。**订正**：专用 pipe 的 `\\.\pipe\rmux-...` 前缀只对 SDK `WindowsPipe` 端点与 `--__internal-daemon` 成立；CLI `-S` 对一切形态无条件拒绝（2026-08-31 实测推翻前句「只要前缀」的说法），CLI 侧专用端点只能 `-L <label>`。Linux/mac 未跑，委托后续仓库。
+- locate / stream / Quiet-idle 负例尚未跑。paste 的 SDK 通道（Request 逃生舱）在 0.10.0 不可达，等上游暴露公开发送口再回补。
 - X 对本题无贡献。
 - 未 diff `Helvesec/rmux-demos` 当前树与本仓引用的 web-claude-demo API 是否仍叫 `output_stream_starting_at`。

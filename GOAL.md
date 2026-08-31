@@ -20,6 +20,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-08-31 | POC paste 绿（Windows）：全 CLI `-L` label 三段式；实证 SDK cmd() 在 Windows 不可用、`-S` 无条件拒绝 |
 | 2026-08-29 | 核实 tddh/clum `68a90e4` 源码：等待族与 `terminal_state` 属实；订正 wait_exit 5s 注释 |
 | 2026-08-29 | 研究 clum 等待原语：hook 沉默时用 `terminal_state` / `wait_for_text` 兜底，不引入 clum 运行时 |
 | 2026-08-29 | 对齐 ohmypwsh 文档结构：方案在 `docs\history\`，日记拆到 `docs\diary\` |
@@ -32,7 +33,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：各功能部件 POC 验证原型。check、yolo、doctor、Windows pane 最小集（endpoint/session/layout/drive/dialogs）已完成；paste/locate/stream/init/negatives 未开；Linux/mac pane 跑测委托后续仓库。
+- 当前目标：各功能部件 POC 验证原型。check、yolo、doctor、Windows pane 最小集（endpoint/session/layout/drive/dialogs/paste）已完成；locate/stream/init/negatives 未开；Linux/mac pane 跑测委托后续仓库。
 
 ## 历史
 

@@ -9,7 +9,7 @@
 > 当前目标「各功能部件需求的 POC 验证原型」（对应 `GOAL.md`，方案 0005，登记日 2026-08-29），任务项见 `docs\TODO.md`。
 
 1. 闸门：`cargo run -- check` 退出 0（rmux pin 已装）。
-2. 用户点名先做项目级 yolo 与提示阻塞诊断：`oma init --yolo` / `oma doctor` / `examples/poc-yolo-doctor.rs` 已绿。本机已装 agent 探测：`oma agents`。Windows 最小 pane 原型已绿：`poc-endpoint` / `poc-session` / `poc-layout` / `poc-drive` / `poc-dialogs`。Linux/mac 不在本机复跑，后续委托到对应环境仓库。状态兜底改为等待原语 + `terminal_state`（研究 clum，不引入其运行时）。其余 paste / locate / stream / init / negatives 仍按 TODO 一次一件。
+2. 用户点名先做项目级 yolo 与提示阻塞诊断：`oma init --yolo` / `oma doctor` / `examples/poc-yolo-doctor.rs` 已绿。本机已装 agent 探测：`oma agents`。Windows 最小 pane 原型已绿：`poc-endpoint` / `poc-session` / `poc-layout` / `poc-drive` / `poc-dialogs` / `poc-paste`。paste 走全 CLI `-L` label（SDK cmd() 在 Windows 因 `-S` 注入必败，见 MISTAKES）。Linux/mac 不在本机复跑，后续委托到对应环境仓库。状态兜底改为等待原语 + `terminal_state`（研究 clum，不引入其运行时）。其余 locate / stream / init / negatives 仍按 TODO 一次一件。
 3. 每件验收：`cargo run --example poc-<名>` 退出 0；失败当场记 `docs\MISTAKES.md`。
 4. 全表绿之前，不写产品子命令 `spawn` / `send` / `cleanup`。`init --yolo` 与 `doctor` 已作为本切片的薄 CLI 落地；hook/skill 仍走 `poc-init`。
 5. 四路真实 agent 不进本目标；桩进程用 `pwsh -NoProfile -Command`。
@@ -35,7 +35,7 @@
 | --- | --- | --- |
 | 高 | 已完成：check、项目级 yolo、doctor（用户点名提前） | 归档验收，不再重做 |
 | 高 | 已完成（Windows）：endpoint / session / layout / drive / dialogs / cleanup=kill-session | Linux/mac 委托 |
-| 高 | paste / locate / stream | 高项绿了再做 |
+| 高 | 已完成（Windows）：paste（全 CLI `-L`） | locate / stream 接续 |
 | 中 | state（Quiet 不当 idle） | 高项绿了再做 |
 | 低 | init hook/skill / negatives、网页 HTTP | 本目标末尾；HTTP 不进本目标 |
 

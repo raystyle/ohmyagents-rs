@@ -21,7 +21,7 @@
 | POC layout | 已完成（Windows） | 2x2 `split_with` + pwsh 桩 argv；四格独立 pid | 2026-08-29 |
 | POC drive | 已完成（Windows） | `send_text` 与 Enter 分发；短头 `OMA-POC-DRIVE` 可见 | 2026-08-29 |
 | POC dialogs | 已完成（Windows） | 假 Allow 框：`oma hook` 写 blocked（state 文件），sendkeys `y`+Enter 点掉 | 2026-08-29 |
-| POC paste | 待办 | LoadBuffer + PasteBuffer 中文 | 2026-08-29 |
+| POC paste | 已完成（Windows） | `examples/poc-paste.rs`：全 CLI `-L` label；load-buffer + paste-buffer -p 中文；WMI 起 daemon；SDK cmd() Windows 不可用（-S 注入必拒） | 2026-08-31 |
 | POC locate | 待办 | pid 反查；错位 throw | 2026-08-29 |
 | POC stream | 待办 | `output_stream` 收到字节 | 2026-08-29 |
 | POC state | 待办 | Quiet 不当 idle；`terminal_state` / `wait_for_text` 作 hook 沉默兜底（见 clum 等待原语文） | 2026-08-29 |

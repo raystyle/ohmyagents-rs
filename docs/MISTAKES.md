@@ -21,7 +21,10 @@
 | 文档骨架曾去掉六态章节 | 当时用户说不需要 | ohmypwsh 2026-08-29 把六态升为 AGENTS 规则 10；研究与测试文档的结论断言必须标 | 2026-08-29 |
 | 项目日记和方案混在 `docs\history\` | 初版对照时 ohmypwsh 尚未拆 diary | 方案只放 `docs\history\NNNN-*.md`；当天流水账放 `docs\diary\YYYY-MM-DD-*.md` | 2026-08-29 |
 | `connect_or_start` 报 os error 5 / 拒绝访问 | 宿主在 Job Object 里，SDK 拒绝在 job 内起独立 daemon | 专用 pipe 上用 WMI `Win32_Process.Create` 在 job 外拉起 `libexec\rmux\rmux.exe --__internal-daemon`，再 `connect()`；不 kill-server，不把 wt 当默认 | 2026-08-29 |
-| Windows `-S` 拒自定义 pipe 名 | CLI 只要 `\\.\pipe\rmux-...` 前缀 | 专用端点用 `\\.\pipe\rmux-omapoc-<pid>-<tag>`，仍非 Default 发现管道 | 2026-08-29 |
+| Windows `-S` 拒自定义 pipe 名 | **订正**：`-S` 对一切形态无条件拒绝（含 `\\.\pipe\rmux-...` 前缀与 SID 派生全名），报错文案误导 | CLI 专用端点只用 `-L <label>`（pipe 名 `\\.\pipe\rmux-S-<SID>-il-medium-<label>`）；`\\.\pipe\rmux-...` 形只用于 SDK `WindowsPipe` 与 `--__internal-daemon` | 2026-08-29 |
+| SDK `Rmux::cmd()` 在 Windows 必败 | cmd() 给 CLI 注入 `-S <pipe>`，被无条件拒绝 | paste 等命令自 spawn `rmux.exe -L <label> ...`；SDK 只走协议 API（session/pane/send_key/expect） | 2026-08-31 |
+| WMI 起 label daemon 后首条本地命令报哈希形 pipe 连不上 | WMI 返回时 daemon 还没绑 label pipe，client 回落哈希形名后报错 | WMI `new-session` 后轮询 `list-sessions` 直到 exit 0 再继续 | 2026-08-31 |
+| WMI 单跑 `start-server` 后 daemon 立即消失 | exit-empty 语义：无 session 的空 server 自动退出 | WMI 启动命令直接用 `new-session -d`（daemon 加 keeper session 一步到位） | 2026-08-31 |
 | `session.kill()` 偶发 `daemon closed the transport` | 末会话被杀后 daemon 先关连接再回包 | 关连接视为 kill 成功；先确认 keeper 仍在，再杀目标会话。禁止因此改杀 server | 2026-08-29 |
 | hook 不报就把 Quiet 或 CPU 当 idle | Codex Stop / Claude 无 PermissionRequest 时文件或画面会骗人 | 兜底用等待原语 + `terminal_state`（ready/running/confirm/password）；Quiet 只给 Drive 同步 | 2026-08-29 |
 | 把 YouMind 对 clum 的源码分析当成已核实 | 未打开 `tddh/clum` 就把路径与注释当实证 | 浅克隆目标 commit 再标 `[实证]`；注释与现码冲突以现码为准（`wait_exit` 5s vs facade 30s） | 2026-08-29 |
