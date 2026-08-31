@@ -19,7 +19,17 @@ rg -n "关键词" docs\mistakes\                  # 搜错误处理
 cargo run --example poc-<名>                   # 跑部件 POC
 ```
 
-**分析路径**：改产品行为先读 `docs\references\R006/R007`（怎么做）再回 `docs\research\S00x`（为什么）；踩坑查 `docs\mistakes\M1xx`；写码选库走 R005；测试规范 R004；新想法走 G003 五步。
+**代码结构定位（ast-grep 0.45.1，学 INDEX 定模块后按结构定符号）**：
+
+```powershell
+ast-grep outline -l rs --json src\             # 模块符号表（函数/行号，61 符号）
+ast-grep run -p 'pub fn gate($$$) $$$' -l rs   # 按名定位定义，免疫注释与调用行噪声
+ast-grep run -p 'fn $NAME($$$) -> Result<$RET, String> $$$' -l rs --json  # 签名表
+```
+
+坑（详见 M107）：fn 模式必须带 body 通配 `$$$`；可见性修饰要写进模式（`pub fn` 对 `fn`）；JSON 变量取 `metaVariables.single.<VAR>.text`。
+
+**分析路径**：改产品行为先读 `docs\references\R006/R007`（怎么做）再回 `docs\research\S00x`（为什么）；踩坑查 `docs\mistakes\M1xx`；写码选库走 R005；测试规范 R004；新想法走 G003 五步；定位代码先 INDEX 模块表再 ast-grep 符号。
 
 新文档按类别落位，编号接当前最大号，登记进本索引对应节。
 

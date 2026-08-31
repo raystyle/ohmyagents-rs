@@ -56,7 +56,7 @@ AGENTS 写 Rust 规则要求「先查最流行、最稳定的库」。两通道�
 
 ## 待办
 
-1. ast-grep 本机未装：clone 深读需要结构搜索时再装并补实证。
+1. ast-grep 已装已实证（2026-08-31，D:\ohmyenvst-grep 0.45.1）：outline 全仓符号表、按名结构定位、签名表三场景通，命令与坑见 INDEX.md 搜索节与 M107（fn 模式带 body 通配、metaVariables 键名）。
 2. cratesinfo 无 JSON 输出：纯管道场景走 curl 加 jq；oma 要程序化查询再引 crates_io_api。
 
 ## 事实源
