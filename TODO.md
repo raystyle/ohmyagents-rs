@@ -4,17 +4,15 @@
 
 ## 当前目标
 
-send 多行粘贴与 label 端点融合（对应 `GOAL.md`，方案 P0007，登记日 2026-08-31）。**2026-08-31 达成。** 同日收尾件：`oma init` 接 deploy 层（无 flag 全套部署 yolo 加 hook/skill，`--yolo` 仅键）。下一刀候选：`oma run` 委派与任务映射、REPL + HTTP 观察面、真四路拉通（需装齐）。
+oma run 委派与任务映射（对应 `GOAL.md`，方案 P0008，登记日 2026-08-31）。**2026-08-31 达成：stub 全链路验收过（双路分派、置忙跳过、任务文件）。** 下一刀候选：REPL + HTTP 观察面、真四路拉通（需装齐）。
 
 ## 任务进度清单
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
-| 立项 0007 | 已完成 | 方案落位；label-bridge 实证（`examples/poc-label-bridge.rs` 绿） | 2026-08-31 |
-| CLI 助手进 rmuxpoc | 已完成 | `run_cli(_checked)`、`label_alive`、`label_socket_path`（`#{socket_path}`/`#{pid}`）、`wmi_new_session`、`ensure_label_daemon` | 2026-08-31 |
-| orch 端点迁移与自愈 | 已完成 | label=`oma-<slug>`；boot keeper `oma-boot-<slug>`（前缀坑 M029）；manifest 加 label/pipe；connect 失败按 label 重查回写 | 2026-08-31 |
-| send 多行分支 | 已完成 | payload 临时文件（无 ESC）+ `load-buffer` + `paste-buffer -p -t %<pane_id>` + Enter 单独；buffer/文件用后即清 | 2026-08-31 |
-| 测试与验收 | 已完成 | cargo test 38 过；本机：中文两行 paste（第二行 confirm 可见）、单行回归、假 pipe 自愈回写、daemon 亡引导、cleanup | 2026-08-31 |
-| init 接 deploy 层 | 已完成 | 无 flag 全套（yolo 加 S015 矩阵部署），`--yolo` 仅键；cli.rs init 冒烟两例；cargo test 39 过 | 2026-08-31 |
+| 立项 0008 | 已完成 | `docs\proven\P0008-oma-run委派与任务映射.md` | 2026-08-31 |
+| orch 加 run 与任务文件 | 已完成 | `gate` 状态门（层 2 赢、沉默走 1b，单测十组合）、`t00N` id 递增、原子写、RunOutcome | 2026-08-31 |
+| 子命令接线 | 已完成 | `main.rs` 加 run（assign/confirm/project；全拦退出 1） | 2026-08-31 |
+| 测试与验收 | 已完成 | cargo test 41 过；stub：双路 confirm 双见 t001 双路、置忙 claude 后 `run.skipped=claude:busy` codex 照发 t002 单路 | 2026-08-31 |
 
-（P0006/P0007 任务清单随目标完成合并如上；过程与经验在对应 proven 方案。）
+（P0006/P0007/P0008 已完成；过程与经验在对应 proven 方案。）

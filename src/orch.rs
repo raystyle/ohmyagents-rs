@@ -563,6 +563,163 @@ pub async fn cleanup(link: &Link, root: &Path) -> Result<bool, String> {
     Ok(existed)
 }
 
+// ---------------------------------------------------------------------------
+// oma run: dispatch with a per-agent state gate (S009 order) and the layer-3
+// task mapping file.
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Gate {
+    Dispatch,
+    Blocked,
+    Busy,
+}
+
+/// Layer 2 wins when it speaks; a silent hook falls back to the 1b terminal
+/// verdict. Anything but a clear idle blocks the dispatch (never resend).
+pub fn gate(hook_state: Option<&str>, terminal: &str) -> Gate {
+    match hook_state {
+        Some("idle") => Gate::Dispatch,
+        Some("blocked") => Gate::Blocked,
+        Some("working") | Some("unknown") => Gate::Busy,
+        _ => match terminal {
+            "idle" => Gate::Dispatch,
+            "blocked" => Gate::Blocked,
+            _ => Gate::Busy,
+        },
+    }
+}
+
+fn tasks_dir(root: &Path) -> PathBuf {
+    root.join(".ohmyagents").join("tasks")
+}
+
+fn next_task_id(root: &Path) -> String {
+    let dir = tasks_dir(root);
+    let mut max = 0u32;
+    if let Ok(entries) = std::fs::read_dir(&dir) {
+        for entry in entries.flatten() {
+            let stem = entry
+                .path()
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("")
+                .to_string();
+            if let Some(num) = stem.strip_prefix('t').and_then(|n| n.parse::<u32>().ok()) {
+                max = max.max(num);
+            }
+        }
+    }
+    format!("t{:03}", max + 1)
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TaskRecord {
+    pub id: String,
+    pub text: String,
+    pub created: u64,
+    pub assigned: std::collections::BTreeMap<String, u64>,
+}
+
+fn write_task(root: &Path, record: &TaskRecord) -> Result<PathBuf, String> {
+    let dir = tasks_dir(root);
+    std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    let path = dir.join(format!("{}.json", record.id));
+    let tmp = path.with_extension("json.tmp");
+    let body = serde_json::to_string_pretty(record).map_err(|e| e.to_string())? + "\n";
+    std::fs::write(&tmp, body).map_err(|e| format!("{}: {e}", tmp.display()))?;
+    std::fs::rename(&tmp, &path).map_err(|e| format!("{}: {e}", path.display()))?;
+    Ok(path)
+}
+
+pub struct RunOutcome {
+    pub task_id: String,
+    pub sent: Vec<String>,
+    pub skipped: Vec<(String, String)>,
+}
+
+/// Dispatch one task to the session's agents: gate each lane by state, send
+/// through the guarded path, and record what was actually assigned.
+pub async fn run(
+    link: &Link,
+    root: &Path,
+    text: &str,
+    assign: Option<Vec<String>>,
+    confirm: Option<&str>,
+) -> Result<RunOutcome, String> {
+    let manifest = read_manifest(root)
+        .ok_or_else(|| "no session manifest; run `oma spawn` first".to_string())?;
+    let in_session: Vec<String> = manifest.agents.iter().map(|a| a.name.clone()).collect();
+    let targets: Vec<String> = match assign {
+        Some(list) => {
+            let unknown: Vec<String> = list
+                .iter()
+                .filter(|n| !in_session.contains(n))
+                .cloned()
+                .collect();
+            if !unknown.is_empty() {
+                return Err(format!(
+                    "agent(s) not in this session: {}",
+                    unknown.join(", ")
+                ));
+            }
+            list
+        }
+        None => in_session,
+    };
+    if targets.is_empty() {
+        return Err("no agents to dispatch to".into());
+    }
+
+    let panes = status(link, root).await?;
+    let by_agent: std::collections::HashMap<String, &PaneStatus> = panes
+        .iter()
+        .map(|p| (p.agent.clone(), p))
+        .collect();
+
+    let mut sent = Vec::new();
+    let mut skipped = Vec::new();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let mut assigned = std::collections::BTreeMap::new();
+
+    for agent in &targets {
+        let verdict = by_agent
+            .get(agent)
+            .map(|p| gate(p.hook_state.as_deref(), p.terminal))
+            .unwrap_or(Gate::Busy);
+        match verdict {
+            Gate::Dispatch => match send(link, root, agent, text, confirm).await {
+                Ok(()) => {
+                    assigned.insert(agent.clone(), now);
+                    sent.push(agent.clone());
+                }
+                Err(e) => skipped.push((agent.clone(), e)),
+            },
+            Gate::Blocked => skipped.push((agent.clone(), "blocked".into())),
+            Gate::Busy => skipped.push((agent.clone(), "busy".into())),
+        }
+    }
+
+    let task_id = next_task_id(root);
+    if !sent.is_empty() {
+        let record = TaskRecord {
+            id: task_id.clone(),
+            text: text.to_string(),
+            created: now,
+            assigned,
+        };
+        write_task(root, &record)?;
+    }
+    Ok(RunOutcome {
+        task_id,
+        sent,
+        skipped,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -629,5 +786,47 @@ mod tests {
         );
         assert!(five.is_err());
         assert!(plan_agents(Some(vec![]), true).is_err());
+    }
+
+    #[test]
+    fn gate_layer2_wins_and_silence_falls_back_to_1b() {
+        use Gate::{Blocked, Busy, Dispatch};
+        // Layer 2 speaks: hook wins regardless of the terminal verdict.
+        assert_eq!(gate(Some("idle"), "working"), Dispatch);
+        assert_eq!(gate(Some("blocked"), "idle"), Blocked);
+        assert_eq!(gate(Some("working"), "idle"), Busy);
+        assert_eq!(gate(Some("unknown"), "idle"), Busy);
+        // Silent hook: the 1b terminal verdict decides; only idle dispatches.
+        assert_eq!(gate(None, "idle"), Dispatch);
+        assert_eq!(gate(None, "blocked"), Blocked);
+        assert_eq!(gate(None, "working"), Busy);
+        assert_eq!(gate(None, "unknown"), Busy);
+    }
+
+    #[test]
+    fn task_ids_increment_and_records_round_trip() {
+        let root = std::env::temp_dir().join(format!(
+            "oma-run-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        assert_eq!(next_task_id(&root), "t001");
+        let rec = TaskRecord {
+            id: "t001".into(),
+            text: "demo".into(),
+            created: 42,
+            assigned: [("claude".to_string(), 42u64)].into_iter().collect(),
+        };
+        let path = write_task(&root, &rec).unwrap();
+        assert!(path.ends_with("t001.json"));
+        assert_eq!(next_task_id(&root), "t002");
+        let back: TaskRecord =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(back.assigned["claude"], 42);
+        let _ = std::fs::remove_dir_all(&root);
     }
 }

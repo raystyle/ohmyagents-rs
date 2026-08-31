@@ -87,6 +87,20 @@ enum Commands {
         #[arg(long)]
         project: Option<PathBuf>,
     },
+    /// 把任务分派给会话内多路 agent（状态门：一路 blocked 不堵其它路）
+    Run {
+        /// 任务文本（单行两段式，多行三段式粘贴）
+        text: String,
+        /// 指定分派路（逗号分隔）；缺省全会话
+        #[arg(long, value_delimiter = ',')]
+        assign: Option<Vec<String>>,
+        /// 期望在画面上看到的确认短头
+        #[arg(long)]
+        confirm: Option<String>,
+        /// 项目根；默认当前目录
+        #[arg(long)]
+        project: Option<PathBuf>,
+    },
 }
 
 fn main() {
@@ -124,6 +138,12 @@ fn run() -> Result<(), String> {
             project,
         } => tokio_block(cmd_send(agent, text, confirm, project)),
         Commands::Cleanup { project } => tokio_block(cmd_cleanup(project)),
+        Commands::Run {
+            text,
+            assign,
+            confirm,
+            project,
+        } => tokio_block(cmd_run(text, assign, confirm, project)),
     }
 }
 
@@ -213,6 +233,28 @@ async fn cmd_cleanup(project: Option<PathBuf>) -> Result<(), String> {
     println!("cleanup.killed={existed}");
     println!("cleanup.scope=session");
     println!("cleanup.ok=true");
+    Ok(())
+}
+
+async fn cmd_run(
+    text: String,
+    assign: Option<Vec<String>>,
+    confirm: Option<String>,
+    project: Option<PathBuf>,
+) -> Result<(), String> {
+    let root = project_root(project)?;
+    let link = orch::connect(&root, false).await?;
+    let outcome = orch::run(&link, &root, &text, assign, confirm.as_deref()).await?;
+    println!("run.task.id={}", outcome.task_id);
+    println!("run.sent={}", outcome.sent.join(","));
+    for (agent, reason) in &outcome.skipped {
+        println!("run.skipped={agent}:{reason}");
+    }
+    if outcome.sent.is_empty() {
+        eprintln!("oma: every lane was gated ({} skipped); nothing dispatched", outcome.skipped.len());
+        std::process::exit(1);
+    }
+    println!("run.ok=true");
     Ok(())
 }
 

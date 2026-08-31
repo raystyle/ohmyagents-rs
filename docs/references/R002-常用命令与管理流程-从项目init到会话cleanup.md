@@ -52,7 +52,7 @@ cargo run --example poc-negatives     # C-c Codex 守卫与 daemon-wide kill 负
 | 开会话（REPL） | `oma` | spawn 默认不阻塞 CLI + 打印 URL + REPL；不自动打开浏览器（设计口径） |
 | 无网页 | `oma --no-web` | 不起 HTTP（设计口径） |
 | 尝试打开浏览器 | `oma --open` | opener 失败只警告（设计口径） |
-| 委派任务 | `oma run <task> --assign claude,codex` | 写任务到 agent 映射后 drive；一路 blocked 不堵其它路（设计口径） |
+| 委派任务 | `oma run "<文本>" [--assign a,b] [--confirm MARKER] [--project PATH]` | 状态门分派（层 2 有则用，沉默走 1b，仅 idle 过）：一路 blocked/busy 跳过并报告不堵其它路；发出路写 `.ohmyagents\tasks\tNNN.json`（id 递增，assigned 记实际发出路与时间戳）；多行文本走三段式；全拦退出 1 |
 
 ## REPL
 
