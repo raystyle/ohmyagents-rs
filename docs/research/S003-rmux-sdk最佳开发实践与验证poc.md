@@ -155,6 +155,8 @@ async fn main() -> rmux_sdk::Result<()> {
 
 验证：`output_stream_starting_at(Oldest)` 收到非空字节；POC-4 的 echo 能在流里看到。这是以后网页镜像的最小核。不在 POC 里开 HTTP。
 
+**2026-08-31 结果（Windows 绿）**：`examples/poc-stream.rs` 退出 0。Oldest 从 backlog 头回放（7 块 291 字节，首块 sequence=0）；Now 锚定最新之后只收新字节（echo 后 11ms 见 marker），旧 backlog marker 不回放。[实证: poc-stream 标记行] chunk 是原始 bytes 带单调 sequence，收集侧按字节累积。坑：marker 互为子串导致 no-replay 断言自命中（M027），marker 必须互不为子串。
+
 #### POC-8 负例（必须失败）
 
 - 对「假 Codex」pane（本步可用 pwsh 代替）发 `send_key("C-c")` 的代码路径在 review 中禁止合入（真 Codex 等四路 POC）。

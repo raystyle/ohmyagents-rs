@@ -35,7 +35,7 @@
 | `src\doctor.rs` | `oma doctor`：只读诊断（yolo / 信任 / 二进制 / state） |
 | `src\yolo.rs` | `oma init --yolo`：四家配置落盘与 pretrust |
 | `src\pathutil.rs` | 路径工具 |
-| `examples\poc-*.rs` | 八个部件 POC（见下） |
+| `examples\poc-*.rs` | 九个部件 POC（见下） |
 | `catalog\rmux.toml` | rmux tag 与各平台 SHA256（信任锚） |
 
 ```text
@@ -52,7 +52,7 @@ ohmyagents/
   examples\
     poc-yolo-doctor.rs  poc-endpoint.rs  poc-session.rs
     poc-layout.rs  poc-drive.rs  poc-dialogs.rs  poc-paste.rs
-    poc-locate.rs
+    poc-locate.rs  poc-stream.rs
   docs\
     proven\      P 编号，已完成 plan 归档
     diary\       一天一篇总结自省
@@ -122,7 +122,7 @@ ohmyagents/
 
 | 编号 | 分类文件 | 覆盖关键词 | 行级编号段 |
 | --- | --- | --- | --- |
-| M101 | `M101-drive与paste错误.md` | send-keys、Enter、`C-c`、bracketed paste | M001、M008 |
+| M101 | `M101-drive与paste错误.md` | send-keys、Enter、`C-c`、bracketed paste、marker 假阳性 | M001、M008、M027 |
 | M102 | `M102-信任与hook配置错误.md` | 信任框、trust、pretrust、init、yolo | M002、M009-M011 |
 | M103 | `M103-文档与命名错误.md` | 命名、显示名、CLI 名、六态、diary | M003-M005、M013-M014 |
 | M104 | `M104-rmux安装与CLI调用错误.md` | 安装、`-V`、`-S`、`-L`、`cmd()` | M006-M007、M016、M020 |
@@ -140,4 +140,4 @@ ohmyagents/
 ## 十、代码与 pin
 
 - 代码文件位置见第二节表；`catalog\rmux.toml` 是 `oma check` 的信任锚
-- `examples` 八个部件 POC 对应方案 P0005 的部件表（yolo-doctor / endpoint / session / layout / drive / dialogs / paste / locate）
+- `examples` 九个部件 POC 对应方案 P0005 的部件表（yolo-doctor / endpoint / session / layout / drive / dialogs / paste / locate / stream）
