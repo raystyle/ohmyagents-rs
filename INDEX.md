@@ -37,7 +37,7 @@
 | `src\deploy.rs` | `oma init` hook/skill 部署层：按 S015 矩阵落项目文件，幂等合并 |
 | `src\orch.rs` | 产品编排层：项目 slug 会话、spawn/status/send/cleanup、pane 清单 |
 | `src\install.rs` | 自适应安装层：多渠道下载、sha 信任锚、oma 自管根布局、update 取证与 pin 写回 |
-| `src\trace.rs` | 意图轨迹检索层：四家会话发现 + 四家联邦 loader（FileChange 主源、注入过滤、epoch ms 归一）+ 块聚合与过滤分页检索 |
+| `src\trace.rs` | 意图轨迹检索层：四家会话发现 + 四家联邦 loader（codex FileChange 主源、grok updates 权威日志加 chat_history 兜底、注入过滤、epoch ms 归一）+ 块聚合与过滤分页检索 |
 | `src\api.rs` | 传输无关编排操作层（P0011）：六操作加 trace 检索三件返回结构化 JSON，HTTP 与 MCP 共用 |
 | `src\mcp.rs` | MCP 适配层（feature `mcp`，P0011）：rmcp 3.1.4 stdio 九 tools，信封同形，stdout 纯协议 |
 | `src\server.rs` | HTTP 适配层（feature `server`，P0011）：axum 六操作 RESTish + JSON 信封 + 会话写串行化 + 网页直出 + pane 输出 SSE 桥 |
@@ -92,9 +92,10 @@ ohmyagents/
 | P0008 | `P0008-oma-run委派与任务映射.md` | 已完成（同日 stub 验收） |
 | P0009 | `P0009-真四路拉通验收.md` | 已完成（claude 路全通；spawn cwd 缺陷修复 M031） |
 | P0010 | `P0010-settle自愈信任-自检测与自动确认.md` | 已完成（codex 路全通；双机制互兜） |
-| P0011 | `P0011-三传输编排面-http-api与mcp与网页可视化.md` | 挂起待续（方案已立，四切片待办） |
+| P0011 | `P0011-三传输编排面-http-api与mcp与网页可视化.md` | 已完成（api 层一份核心三消费；serve 网页 SSE、mcp 九 tools、三通道共测全绿） |
 | P0012 | `P0012-自适应本机安装部署-rmux与四家agent接管.md` | 已完成（Windows 四家装机全绿；Linux/mac 待环境切换） |
 | P0013 | `P0013-agent意图操作块与编辑轨迹检索.md` | 已完成（四家 loader 活体验证；MCP 挂载归 P0011） |
+| P0014 | `P0014-grok权威日志升级.md` | 已完成（updates 主源加 chat_history 兜底；逐事件真实时间） |
 
 ## 四、项目日记
 
@@ -128,6 +129,7 @@ ohmyagents/
 | S017 | `S017-ohmypwsh安装配置机制与四家agent渠道取证.md` | ohmypwsh 安装配置蓝本与四家渠道 checksum 取证（P0012 依据） |
 | S018 | `S018-aitrace意图轨迹机制研究与oma检索映射.md` | aitrace 三源关联机制、裁决表与坑清单（P0013 依据） |
 | S019 | `S019-四家会话日志格式与联邦检索取证.md` | 四家会话库四要素钉死与三仓源码纠偏（P0013 依据） |
+| S020 | `S020-grok权威日志updates与method分类学.md` | updates 信封两流分类学与四要素定位（P0014 依据） |
 
 ## 六、开发测试参考
 

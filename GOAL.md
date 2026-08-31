@@ -14,7 +14,7 @@
 
 > 当前锚定的目标 + 推进时间线。
 
-- **锚定的目标**：P0011 三传输编排面已于 2026-08-31 当日达成（HTTP API、网页可视化、MCP、三通道共测全绿）；当前无现役切片，待用户定向。queued：P0012 的 Linux/mac 环境切换接管、grok updates.jsonl 升级、REPL 与 S016 吸收小件。
+- **锚定的目标**：P0014 grok 权威日志升级已于 2026-08-31 当日达成（updates 主源加 chat_history 兜底、逐事件真实时间）；当前无现役切片，待用户定向。queued：P0012 的 Linux/mac 环境切换接管、REPL 与 S016 吸收小件（oma status TTY 表格、--json 信封、completions）。
 
 ### 推进时间线
 
@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-08-31 | P0014 达成：grok loader 主源切 updates.jsonl（S020 分类学先行——两流职责、hideFromScrollback 闸门、kind 判写族、信封秒逐事件真实时间）；chat_history 留旧会话兜底；本仓 8-29 历史 ts 逐秒散开验收 |
 | 2026-08-31 | P0011 达成：三传输编排面当日闭环——切片 3 `oma mcp` stdio（六操作 + trace 三 tools、信封同形、orch 进度迁 stderr 保 stdout 纯协议）+ 切片 4 三通道共测（同 stub 项目 CLI/HTTP/MCP 各走 spawn→status→send→cleanup 全绿） |
 | 2026-08-31 | P0011 切片 2 完成：网页可视化单页直出（状态卡、委派、SSE 画面）+ `/stream/{agent}` SSE 桥（tokio-stream 组合不自写 poll）；oldest 回放与未知路负例验收过 |
 | 2026-08-31 | P0011 切片 1 完成：HTTP 编排面落地——api 传输无关层 + axum server（feature 隔离）、六操作 JSON 信封、会话锁串行；stub curl 全绿（含 400 与 ok:false 负例）；选型核实订正 rmcp 为 stable 3.1.4 |
@@ -58,7 +59,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：无（P0011 三传输编排面 2026-08-31 达成后未接新目标，待用户定向）。queued：P0012 Linux/mac 接管、grok updates.jsonl 升级、REPL 与 S016 吸收小件。
+- 当前目标：无（P0014 grok 权威日志升级 2026-08-31 达成后未接新目标，待用户定向）。queued：P0012 Linux/mac 接管、REPL 与 S016 吸收小件。
 
 ## 历史
 
@@ -66,6 +67,7 @@
 
 | 日期 | 目标 | 结果 |
 | --- | --- | --- |
+| 2026-08-31 | grok 权威日志升级（P0014） | 达成：updates 主源加 chat_history 兜底；逐事件真实时间；S020 分类学落档 |
 | 2026-08-31 | 三传输编排面（P0011） | 达成：api 传输无关层一份核心三消费；`oma serve`（六操作 + 网页 + SSE）、`oma mcp`（九 tools）；同 stub 项目三通道共测全绿 |
 | 2026-08-31 | agent 意图操作块与编辑轨迹检索（P0013） | 达成：四家联邦检索（oma trace 六视图）、双意图与 operation_id、真实历史与无头双验收 |
 | 2026-08-31 | 自适应本机安装部署（P0012） | 达成：oma agents install/update、两层 pin 自维护、渠道序 github 主 CDN 兜底；Windows 四家装机全绿 |

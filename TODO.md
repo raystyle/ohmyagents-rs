@@ -4,18 +4,15 @@
 
 ## 当前目标
 
-三传输编排面：HTTP API、MCP 接口、CLI 三通道编排 oma，网页可视化编排（对应 `GOAL.md`，方案 P0011，2026-08-31 从队列接续；S016 incurs 三传输参照已备）。
+grok 权威日志升级：oma 的 grok 轨迹主源从派生缓存 chat_history 切到权威 updates.jsonl（对应 `GOAL.md`，方案 P0014，2026-08-31 从队列接续；S020 分类学已备）。P0012 Linux/mac 接管待环境切换，故先做本项；当日已完成。
 
 ## 任务进度清单
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
-| 立项 0011 | 已完成 | 方案与选型（axum 可选 feature、rmcp beta 可选、无构建链单页、JSON 信封） | 2026-08-31 |
-| 选型核实 | 已完成 | axum 0.8.9 stable（4.4 亿下载）；rmcp 已 stable 3.1.4（2310 万下载，2026-08-20 发版）非方案旧记 beta，P0011 选型节已订正 | 2026-08-31 |
-| HTTP API 最小集 | 已完成 | `oma serve`：六操作 RESTish + JSON 信封（api 层共用、会话锁串行）；stub curl 全绿 | 2026-08-31 |
-| 网页最小可视化 | 已完成 | 单页直出（状态卡/委派按钮/SSE 画面，oldest 回放验收过） | 2026-08-31 |
-| MCP server | 已完成 | `oma mcp` stdio：六操作 tools + trace 三 tools（信封同形；stdout 纯协议） | 2026-08-31 |
-| 三通道共测 | 已完成 | 同 stub 项目 CLI/HTTP/MCP 各自 spawn→status→send→cleanup 全绿 | 2026-08-31 |
+| 研究 S020 | 已完成 | updates 信封两流分类学、四要素定位、hideFromScrollback 闸门、kind 判写族 | 2026-08-31 |
+| loader 升级 | 已完成 | 会话发现优先 updates（首行秒为起点）；事件层按文件名分发；chat_history 留兜底 | 2026-08-31 |
+| 测试与活体验收 | 已完成 | updates fixture 单测双新增 + v1 回归 + 本仓 8-29 历史 ts 逐秒散开；两配置基线绿 | 2026-08-31 |
 
 ## 队列目标
 

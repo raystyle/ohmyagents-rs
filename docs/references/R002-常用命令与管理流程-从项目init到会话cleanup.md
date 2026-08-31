@@ -57,7 +57,7 @@ cargo run --example poc-negatives     # C-c Codex 守卫与 daemon-wide kill 负
 | 尝试打开浏览器 | `oma --open` | opener 失败只警告（设计口径） |
 | 委派任务 | `oma run "<文本>" [--assign a,b] [--confirm MARKER] [--project PATH]` | 状态门分派（层 2 有则用，沉默走 1b，仅 idle 过）：一路 blocked/busy 跳过并报告不堵其它路；发出路写 `.ohmyagents\tasks\tNNN.json`（id 递增，assigned 记实际发出路与时间戳）；多行文本走三段式；全拦退出 1 |
 | 检索会话 | `oma trace sessions [--project PATH]` | 查询时联邦读四家原生会话库（claude projects 目录、codex rollout、grok sessions、kimi session_index），列项目内各 agent 会话 |
-| 检索编辑轨迹 | `oma trace timeline [--agent A] [--file GLOB] [--limit N] [--project PATH]` | 意图操作块（元素视图）：每条编辑事件带 operation_id（session:call）、kind、tool、ts 与双意图（intent=用户请求、op_intent=assistant 声明）；分页 clamp 1-1000。四家全量：claude（Edit/Write）、codex（FileChange 主源加 apply_patch 兜底）、grok（tool_calls 写文件族）、kimi（loop tool.call） |
+| 检索编辑轨迹 | `oma trace timeline [--agent A] [--file GLOB] [--limit N] [--project PATH]` | 意图操作块（元素视图）：每条编辑事件带 operation_id（session:call）、kind、tool、ts 与双意图（intent=用户请求、op_intent=assistant 声明）；分页 clamp 1-1000。四家全量：claude（Edit/Write）、codex（FileChange 主源加 apply_patch 兜底）、grok（updates.jsonl 权威主源加 chat_history 兜底，逐事件真实时间）、kimi（loop tool.call） |
 | 检索操作块 | `oma trace blocks [--agent A] [--limit N] [--project PATH]` | 操作块时间线：一个 operation_id 一块（一次工具调用可能多文件），时间正序取最新 N 块，聚合 edits/files/kinds/双意图 |
 | 检索 agent 轨迹 | `oma trace agent <名> [--limit N] [--project PATH]` | 某家 agent 的操作块时间线（名不在四家内退出非 0） |
 | 检索单文件轨迹 | `oma trace file <相对路径\|glob> [--agent A] [--limit N] [--project PATH]` | 文件维度：该文件被哪些 agent、何时、基于什么意图改过（创建/修改/删除），时间正序 |

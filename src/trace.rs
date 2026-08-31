@@ -340,7 +340,10 @@ fn codex_session_meta(file: &Path) -> Option<serde_json::Value> {
     None
 }
 
-/// grok：`~/.grok/sessions/<百分号编码的项目路径>/<会话uuid>/chat_history.jsonl`。
+/// grok：`~/.grok/sessions/<百分号编码的项目路径>/<会话uuid>/`。
+/// 权威日志是 updates.jsonl（S020：chat_history 是派生缓存，compaction 会重建）；
+/// 缺 updates 的旧会话退 chat_history。started_at：updates 首行 timestamp（秒），
+/// 退 uuid v7 生成时刻近似。
 pub fn grok_sessions_in(root: &Path, project: &Path) -> Vec<TraceSession> {
     let mut out = Vec::new();
     let want = normalize_compare(project);
@@ -357,22 +360,43 @@ pub fn grok_sessions_in(root: &Path, project: &Path) -> Vec<TraceSession> {
         let Ok(inner) = fs::read_dir(&p) else { continue };
         for sdir in inner.flatten() {
             let spath = sdir.path();
-            let hist = spath.join("chat_history.jsonl");
-            if !hist.is_file() {
-                continue;
-            }
+            let updates = spath.join("updates.jsonl");
+            let file = if updates.is_file() {
+                updates
+            } else {
+                let hist = spath.join("chat_history.jsonl");
+                if hist.is_file() { hist } else { continue }
+            };
             let Some(id) = spath.file_name().and_then(|s| s.to_str()) else { continue };
+            let started = if file.file_name().and_then(|s| s.to_str()) == Some("updates.jsonl") {
+                grok_updates_first_ms(&file).or_else(|| grok_uuid_v7_ms(id))
+            } else {
+                grok_uuid_v7_ms(id)
+            };
             out.push(TraceSession {
                 agent: "grok".into(),
                 id: id.to_string(),
                 project: project.to_path_buf(),
-                file: hist,
-                started_at: grok_uuid_v7_ms(id).map(ms_to_iso),
+                file,
+                started_at: started.map(ms_to_iso),
             });
         }
     }
     out.sort_by(|a, b| a.id.cmp(&b.id));
     out
+}
+
+/// updates.jsonl 首行信封的 timestamp（秒）转 ms；读不出返回 None。
+fn grok_updates_first_ms(file: &Path) -> Option<u64> {
+    let first = std::fs::read_to_string(file)
+        .ok()?
+        .lines()
+        .next()?
+        .trim()
+        .to_string();
+    let v: serde_json::Value = serde_json::from_str(&first).ok()?;
+    let secs = v.get("timestamp")?.as_u64()?;
+    Some(secs * 1000)
 }
 
 fn percent_decode(s: &str) -> String {
@@ -696,13 +720,138 @@ pub fn parse_apply_patch(input: &str) -> Vec<(EditKind, String)> {
     out
 }
 
+/// grok 双源分发（S020）：updates.jsonl 是权威日志，chat_history.jsonl 是派生缓存
+/// （compaction 触发整体重建）。会话发现层已按存在性选源，这里按文件名分发。
+pub fn grok_events(session: &TraceSession) -> Vec<TraceEvent> {
+    if session
+        .file
+        .file_name()
+        .and_then(|s| s.to_str())
+        == Some("updates.jsonl")
+    {
+        return grok_events_from_updates(session);
+    }
+    grok_events_from_chat_history(session)
+}
+
+/// grok updates.jsonl（权威日志，S020）：信封 `{timestamp:秒, method, params:{sessionId,
+/// update:{sessionUpdate,...}}}`。method 两流：`session/update` 管内容（user/agent 分片、
+/// tool_call），`_x.ai/session/update` 管遥测（hook/turn/compaction）——内容只读前者。
+/// 四要素：user_message_chunk（`_meta.hideFromScrollback` 是合成闸门，等价 claude isMeta）
+/// 是用户意图；agent_message_chunk 连续拼接是操作意图；tool_call 的 `_meta` 下 `x.ai/tool`
+/// 带 kind（write/edit/read，判写族免名字硬编码），`rawInput` 是现成对象；时间用信封
+/// timestamp（秒）——每事件真实时间，替代 v1 的会话起点近似。
+fn grok_events_from_updates(session: &TraceSession) -> Vec<TraceEvent> {
+    let mut out = Vec::new();
+    let mut user_intent: Option<String> = None;
+    let mut op_intent: Option<String> = None;
+    for v in read_json_lines(&session.file) {
+        if v.get("method").and_then(|x| x.as_str()) != Some("session/update") {
+            continue;
+        }
+        let Some(u) = v.get("params").and_then(|p| p.get("update")) else { continue };
+        let secs = u_ms(v.get("timestamp"));
+        match u.get("sessionUpdate").and_then(|x| x.as_str()).unwrap_or("") {
+            "user_message_chunk" => {
+                // 合成闸门：hideFromScrollback 标记的注入（system-reminder 等）不是用户意图。
+                let hidden = u
+                    .pointer("/_meta/hideFromScrollback")
+                    .and_then(|x| x.as_bool())
+                    .unwrap_or(false);
+                if hidden {
+                    continue;
+                }
+                let text = u
+                    .pointer("/content/text")
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("");
+                if !text.trim().is_empty() {
+                    // 同一 prompt 可能分多片：连续拼接；新 prompt 重置操作意图。
+                    user_intent = Some(match user_intent.take() {
+                        Some(prev) => format!("{prev}\n{}", clean_intent(text)),
+                        None => clean_intent(text),
+                    });
+                    op_intent = None;
+                }
+            }
+            "agent_message_chunk" => {
+                let text = u
+                    .pointer("/content/text")
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("");
+                if !text.trim().is_empty() {
+                    op_intent = Some(match op_intent.take() {
+                        Some(prev) => format!("{prev}\n{}", clean_intent(text)),
+                        None => clean_intent(text),
+                    });
+                }
+            }
+            "tool_call" => {
+                let meta = u.pointer("/_meta/x.ai~1tool").cloned().unwrap_or_default();
+                let name = meta
+                    .get("name")
+                    .and_then(|x| x.as_str())
+                    .or_else(|| u.get("title").and_then(|x| x.as_str()))
+                    .unwrap_or("");
+                let kind = meta.get("kind").and_then(|x| x.as_str()).unwrap_or("");
+                let write_family = matches!(kind, "write" | "edit")
+                    || (kind.is_empty()
+                        && matches!(
+                            name,
+                            "search_replace" | "write" | "edit" | "hashline_edit" | "apply_patch"
+                        ));
+                if !write_family {
+                    continue;
+                }
+                let args = u.get("rawInput").cloned().unwrap_or_default();
+                let file = args
+                    .get("file_path")
+                    .or_else(|| args.get("path"))
+                    .or_else(|| args.get("target_file"))
+                    .and_then(|x| x.as_str())
+                    .map(|f| relativize(&normalize_file(f), &session.project));
+                let patch = args
+                    .get("new_string")
+                    .or_else(|| args.get("content"))
+                    .and_then(|x| x.as_str())
+                    .map(|s| s.to_string());
+                out.push(TraceEvent {
+                    agent: session.agent.clone(),
+                    session_id: session.id.clone(),
+                    call_id: u
+                        .get("toolCallId")
+                        .and_then(|x| x.as_str())
+                        .map(|s| s.to_string()),
+                    tool: Some(name.to_string()),
+                    file,
+                    kind: EditKind::Modify,
+                    user_intent: user_intent.clone(),
+                    op_intent: op_intent.clone(),
+                    ts: secs.map(ms_to_iso),
+                    ts_ms: secs,
+                    patch,
+                });
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
+/// 信封 timestamp（秒，int 或 float）转 ms。
+fn u_ms(v: Option<&serde_json::Value>) -> Option<u64> {
+    match v.and_then(|x| x.as_u64()) {
+        Some(s) => Some(s * 1000),
+        None => v.and_then(|x| x.as_f64()).map(|f| (f * 1000.0) as u64),
+    }
+}
+
 /// grok chat_history.jsonl（ConversationItem 行，S019 源码核实）：真实 user 行
 /// （`synthetic_reason == null`）更用户意图；assistant.content 是操作意图；
 /// 编辑在 `assistant.tool_calls[]`（name 属写文件族，arguments 是 JSON 串取 file_path）。
 /// 行无时间戳，ts 用会话 uuid v7 的生成时刻近似（官方口径前 48 位 unix ms）。
-/// 注：权威日志是 updates.jsonl（chat_history 是派生缓存可被重建）；v1 读 chat_history，
-/// updates.jsonl 形状（{timestamp,method,params} 信封）留作升级路径。
-pub fn grok_events(session: &TraceSession) -> Vec<TraceEvent> {
+/// 已被 updates.jsonl 主源取代（S020），留作缺 updates 的旧会话兜底。
+fn grok_events_from_chat_history(session: &TraceSession) -> Vec<TraceEvent> {
     let mut out = Vec::new();
     let mut user_intent: Option<String> = None;
     let mut op_intent: Option<String> = None;
@@ -1043,6 +1192,56 @@ mod tests {
         assert_eq!(e.op_intent.as_deref(), Some("修改 app.rs 的标题渲染"));
         assert!(e.ts_ms.is_some());
         assert!(e.patch.as_deref().unwrap().contains("你好"));
+    }
+
+    #[test]
+    fn grok_sessions_prefer_updates_log_with_real_start() {
+        // 有 updates.jsonl 的会话选权威日志，started_at 用首行信封秒时间戳。
+        let dir = fixture("grok-updates");
+        let sessions = grok_sessions_in(&dir, Path::new(r"D:\demo"));
+        assert_eq!(sessions.len(), 1);
+        assert!(
+            sessions[0]
+                .file
+                .file_name()
+                .and_then(|s| s.to_str())
+                .unwrap()
+                .ends_with("updates.jsonl")
+        );
+        // 1787999890 秒 = 2026-08-29T10:38:10Z（fixture 契约）。
+        assert_eq!(
+            sessions[0].started_at.as_deref(),
+            Some("2026-08-29T10:38:10.000Z")
+        );
+    }
+
+    #[test]
+    fn grok_updates_events_use_kind_meta_and_real_times() {
+        let dir = fixture("grok-updates");
+        let sessions = grok_sessions_in(&dir, Path::new(r"D:\demo"));
+        let events = grok_events(&sessions[0]);
+        // read_file（kind=read）与 tool_call_update 不产事件；写族两条。
+        assert_eq!(events.len(), 2);
+        let edit = events
+            .iter()
+            .find(|e| e.tool.as_deref() == Some("search_replace"))
+            .expect("search_replace event");
+        assert_eq!(edit.file.as_deref(), Some("src/app.rs"));
+        assert!(edit.call_id.as_deref().unwrap().ends_with("-1"));
+        // hideFromScrollback 的 system-reminder 分片不能污染用户意图。
+        assert_eq!(edit.user_intent.as_deref(), Some("把标题改成中文"));
+        assert_eq!(edit.op_intent.as_deref(), Some("我来修改 app.rs 的标题渲染"));
+        // 每事件真实时间：信封秒 * 1000。
+        assert_eq!(edit.ts_ms, Some(1_787_999_900_000));
+        assert!(edit.ts.as_deref().unwrap().starts_with("2026-08-29T10:38:20"));
+        assert!(edit.patch.as_deref().unwrap().contains("你好"));
+        let write = events
+            .iter()
+            .find(|e| e.tool.as_deref() == Some("write"))
+            .expect("write event");
+        assert!(write.file.as_deref().unwrap().ends_with("docs/notes.md"));
+        assert!(write.patch.as_deref().unwrap().contains("# 笔记"));
+        assert_eq!(write.ts_ms, Some(1_787_999_910_000));
     }
 
     #[test]

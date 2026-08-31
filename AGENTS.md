@@ -94,6 +94,7 @@
 - **拉起多路会话**：`oma spawn [--agents a,b] [--stub] [--project PATH]`（1-4 路，缺省已装交集；项目专属会话可跨命令重连；不阻塞）；阻塞用 `doctor`/`status` 诊断，不在主命令里长时间 `wait_ready` 卡住委派
 - **开会话（REPL）**：`oma`（设计口径）；`--no-web` 不起 HTTP；`--open` 才尝试打开浏览器
 - **委派**：`oma send <agent> "<文本>"`（单行两段式、多行三段式粘贴均实测可用；`--confirm MARKER` 等短头确认）；`oma run "<文本>" [--assign a,b]` 状态门分派多路（一路 blocked/busy 跳过不堵其它路，写层 3 任务文件）。Drive 遵守三段式铁律（发前扫框、`paste-buffer -p`、Enter 单独发**且与文本间隔**，细则见 `docs\research\S005-drive铁律与三段式粘贴.md`）：禁止文本和 Enter 同发、对 Codex 发 `C-c`、发送侧自包 `\x1b[200~`
+- **查轨迹**：`oma trace sessions|timeline|blocks|agent|file|search`（六视图，`--project` 挂叶子）：查询时联邦读四家原生会话库（grok 主源 updates.jsonl 权威日志，chat_history 兜底，S020）
 - **自愈信任**：`oma settle [--wait N]`（自检测信任/审查框并自动确认默认应选项，各家自己持久化信任；密码类永不自动）。codex 的 hook 注册形态见 `src\deploy.rs`（绝对路径加 PowerShell 调用操作符 `&`）
 - **看状态**：`oma status`（层 0 pid + locate 进程名 + 1b 终端态 + 层 2 hook 态）
 - **收尾**：`oma cleanup`（只杀本 session）
