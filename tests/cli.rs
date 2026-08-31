@@ -62,6 +62,60 @@ fn doctor_blocks_on_a_fresh_project_and_says_so() {
 }
 
 #[test]
+fn init_full_deploys_hooks_skills_and_yolo() {
+    let tmp = std::env::temp_dir().join(format!(
+        "oma-cli-init-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis()
+    ));
+    std::fs::create_dir_all(&tmp).unwrap();
+    oma().args(["init", "--project"]).arg(&tmp)
+        .assert()
+        .success()
+        .stdout(contains("init.scope=full"))
+        .stdout(contains("init.hooks.wrote.count="));
+    // The S015 matrix lands in the project, not the user home.
+    for rel in [
+        r".claude\settings.json",
+        r".codex\hooks.json",
+        r".grok\hooks\ohmyagents-state.json",
+        r".agents\skills\ohmyagents\SKILL.md",
+        r".kimi-code\skills\ohmyagents\SKILL.md",
+        r"CLAUDE.md",
+        r"AGENTS.md",
+    ] {
+        assert!(tmp.join(rel).exists(), "missing {rel}");
+    }
+    // Kimi has no project-level hook registration (S015): the config.toml
+    // the yolo pass writes must carry no hooks table.
+    let kimi_cfg = std::fs::read_to_string(tmp.join(".kimi-code").join("config.toml"))
+        .unwrap_or_default();
+    assert!(!kimi_cfg.contains("[[hooks]]"), "kimi config must stay hook-free");
+    // --yolo narrows to keys only: no hook files.
+    let tmp2 = std::env::temp_dir().join(format!(
+        "oma-cli-init-yolo-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis()
+    ));
+    std::fs::create_dir_all(&tmp2).unwrap();
+    oma().args(["init", "--yolo", "--project"]).arg(&tmp2)
+        .assert()
+        .success()
+        .stdout(contains("init.scope=yolo"))
+        .stdout(contains("init.hooks=skipped"));
+    assert!(tmp2.join(".claude").join("settings.json").exists());
+    assert!(!tmp2.join(".codex").join("hooks.json").exists());
+    let _ = std::fs::remove_dir_all(&tmp);
+    let _ = std::fs::remove_dir_all(&tmp2);
+}
+
+#[test]
 fn dies_send_without_a_session_fails_fast() {
     // No manifest means no session: send must fail with guidance instead
     // of starting a daemon or touching anything.

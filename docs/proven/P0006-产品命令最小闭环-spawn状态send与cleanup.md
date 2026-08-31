@@ -113,3 +113,8 @@ P0005 十二个部件 POC 已在 Windows 全部跑绿，共用层（专用端点
 - 集成测试起步（R004 第一段）：assert_cmd/predicates（clap 官方生态标准件，R005）5 例——check/agents/hook 静默/doctor 空目录退出 1/send 无 manifest 快败；断言只写退出码与 marker 行。全套 `cargo test` 38 过。
 - 教训两笔：先写实现后核 API 会臆造方法名（`spawn_argv`/`panes()`/`find_pane_by_text` 全是没核实的），`PaneId` 也不是 u64——写 SDK 调用前先 rg 源码签名，与 M024/M025 同族；CLI 子命令用 current_thread runtime 就够（无并发 future），不必 rt-multi-thread。
 - 偶发未定位：全量 `cargo test` 首轮 1 例 lib 失败（截断未见名），连跑两次 33+5 全绿；疑为并行测试临时目录毫秒碰撞，留观复发再修。
+
+### 追记：init 接 deploy 层
+
+- 2026-08-31 收尾件：`oma init` 无 flag 时全套（yolo 键加 `deploy::apply_project_hooks` 的 S015 矩阵部署），`--yolo` 收窄为仅键，`--pretrust` 语义不变。`tests/cli.rs` 加 init 冒烟（全套产物存在、kimi config 无 `[[hooks]]`、`--yolo` 不产 hook 文件）；全套 cargo test 39 过。[实证]
+- 断言坑：全套 init 下 `.kimi-code/config.toml` 存在是正确的（yolo 键产物），「Kimi 项目级无 hook 注册」的正确断法是文件里不含 `[[hooks]]`，不是文件不存在。

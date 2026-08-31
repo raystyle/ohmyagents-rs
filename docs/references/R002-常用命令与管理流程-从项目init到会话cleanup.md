@@ -40,7 +40,8 @@ cargo run --example poc-negatives     # C-c Codex 守卫与 daemon-wide kill 负
 | 无阻塞诊断 | `oma doctor [--project PATH]` | 只读 yolo 键、信任库、已装二进制、`.ohmyagents/state`；不 attach。任一项 `status=block` 则退出 1 |
 | 检测已装 agent | `oma agents` | 扫 PATH、`OMA_AGENT_PATH`、`OMA_<AGENT>_BIN`、各家默认目录；打印 `source=env|path|default` 与 version。缺装不退出非 0 |
 | hook 写状态 | `oma hook [event]` | 各家 hook 的 `command`。读 stdin JSON（`hook_event_name` / `hookEventName`）或参数。写 `OHMYAGENTS_STATE_FILE`。无该环境变量则 exit 0。不连 rmux |
-| 部署项目级 yolo | `oma init --yolo [--project PATH]` | 写 `.claude/settings.json`（`defaultMode=bypassPermissions`）、`.claude/settings.local.json`（顶层 `skipDangerousModePermissionPrompt`）、`.codex/config.toml`（sandbox/approval）、`.kimi-code/config.toml`（`yolo`）。不含 hook/skill |
+| 部署项目全套 | `oma init [--project PATH]` | yolo 键加 hook/skill 部署：`.claude/settings.json`（yolo 加 hooks exec form）、`.codex/hooks.json` 加 `config.toml`（yolo 加 features.hooks）、`.grok/hooks/ohmyagents-state.json`、四家 skill 目录、AGENTS/CLAUDE.md（仅缺失时）。幂等合并保留外条目，不改家目录 |
+| 部署项目级 yolo | `oma init --yolo [--project PATH]` | 仅无阻塞键：`.claude/settings.json`（`defaultMode=bypassPermissions`）、`.claude/settings.local.json`（顶层 `skipDangerousModePermissionPrompt`）、`.codex/config.toml`（sandbox/approval）、`.kimi-code/config.toml`（`yolo`）。不部署 hook/skill |
 | 预写信任库 | `oma init --yolo --pretrust [--project PATH]` | 额外写用户家：claude.json trust、codex projects、kimi workspace-trust、grok trusted_folders；grok 的 `permission_mode` 只能写 `~/.grok/config.toml` |
 | 权限模式 | `oma init --permission-mode auto\|yolo\|manual` | 覆盖默认 yolo；manual 不写 bypass（设计口径） |
 | 拉起会话 | `oma spawn [--agents a,b] [--stub] [--project PATH]` | 项目专属会话（`oma-<slug>`）里按布局拉 1-4 路 agent，缺省取已装交集；注入 `OHMYAGENTS_PROJECT/AGENT/STATE_FILE`；不阻塞返回；已存在则拒绝叠格 |

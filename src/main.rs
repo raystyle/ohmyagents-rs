@@ -244,11 +244,25 @@ fn project_root(project: Option<PathBuf>) -> Result<PathBuf, String> {
 fn cmd_init(yolo: bool, pretrust: bool, project: Option<PathBuf>) -> Result<(), String> {
     let root = project_root(project)?;
     std::fs::create_dir_all(&root).map_err(|e| format!("{}: {e}", root.display()))?;
-    // This POC's init is yolo persistence. --yolo is the documented name; omitting it still writes.
+    // Default init is the full deployment: yolo keys plus project-level
+    // hook/skill registration (S015 matrix). --yolo narrows to keys only.
     let report = yolo::apply_project_yolo(&root)?;
     println!("init.flag.yolo={yolo}");
     for p in &report.wrote {
         println!("init.wrote={p}");
+    }
+    if !yolo {
+        let deployed = oma::deploy::apply_project_hooks(&root)?;
+        for p in &deployed.wrote {
+            println!("init.hooks.wrote={p}");
+        }
+        println!("init.hooks.wrote.count={}", deployed.wrote.len());
+        println!(
+            "init.hooks.skipped.count={}",
+            deployed.skipped.len()
+        );
+    } else {
+        println!("init.hooks=skipped");
     }
     if pretrust {
         let trust = yolo::apply_pretrust(&root)?;
@@ -260,7 +274,7 @@ fn cmd_init(yolo: bool, pretrust: bool, project: Option<PathBuf>) -> Result<(), 
         println!("init.pretrust=skipped");
     }
     println!("init.project={}", root.display());
-    println!("init.scope=yolo");
+    println!("init.scope={}", if yolo { "yolo" } else { "full" });
     Ok(())
 }
 
