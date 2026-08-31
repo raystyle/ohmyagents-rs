@@ -117,7 +117,9 @@ CLI：`sessions` / `replay`（文本表 + 每行 `op:`/`ask:` 双意图）/ `res
 7. 部署耦合：daemon 从 target\debug 跑锁链接器（os error 5）；exe 被锁则改名 `.old`；workspace_root 上跳找 Cargo.toml 且不能 canonicalize（`\\?\` 前缀会断 UDS）。[实证: project.rs:13-22]
 8. 中文截断按字节 panic——按字符截。[实证: daemon\mod.rs:63-70 回归测试]
 
-## 八、oma 映射（P0013 依据）
+## 八、oma 映射
+
+> P0013 的依据。
 
 - oma 的「意图操作块」= operation_id 归组 + 双意图字段；oma 已有 hook 通道（`oma hook` 带四态）与 agent 身份（`OHMYAGENTS_AGENT`、层 2 状态文件），比 aitrace 多了**多路 agent 维度**——检索面天然要按 agent 过滤（aitrace 的缺口正是 oma 的主场）。
 - oma 比 aitrace 难的点：四家 transcript 格式各异（Claude 已知 jsonl 结构；codex/grok/kimi 待研），一等集成不能只做 Claude。
