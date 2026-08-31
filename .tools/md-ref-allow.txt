@@ -12,3 +12,5 @@
 # 外部仓内路径（描述性引用，非本仓文件）
 ^docs/scripting-sdk\.md$
 ^docs/interaction\.md$
+^docs/en/hooks\.md$
+^docs/zh/customization/hooks\.md$

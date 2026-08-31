@@ -48,8 +48,10 @@ rmux 能判「pane 活着、画面静了、进程换了」，判不了「agent �
 | --- | --- | --- |
 | idle | SessionStart、Stop、Interrupt、SessionEnd | 可 run/send；doctor 绿 |
 | working | UserPromptSubmit、Pre/PostToolUse(Failure)、SubagentStart/Stop、PreCompact | 不重复 drive 全文 |
-| blocked | PermissionRequest（Codex/Kimi）；Claude 无此标准事件，用 Notification 顶替但归 unknown 更诚实 | 停该路委派，doctor 非 0；不对 Codex 发 `C-c` |
+| blocked | PermissionRequest（Claude/Codex/Kimi 都有；Claude 还可 hook 程序化 allow/deny）；Grok **无**此事件，等待审批态走 1b 画面兜底，PermissionDenied 只代表已拒 | 停该路委派，doctor 非 0；不对 Codex 发 `C-c` |
 | unknown | Notification（tips 与权限混杂） | **不当 idle**（evo 曾因此狂催） |
+
+2026-08-31 订正（一手核实见 S015）：Claude 现有标准 `PermissionRequest` 事件并支持 `decision.behavior: allow/deny` 裁决，旧口径「Claude 无此事件、Notification 顶替归 unknown」作废；Grok（grok-build）事件集无 PermissionRequest，只有 PermissionDenied（已拒）与 Notification。事件名四家全 PascalCase、stdin 都含 `hook_event_name` 与 `cwd`，`oma hook` 双形态归一继续成立。[实证: 官方 hooks reference 与三家源码]
 
 事件名做 claude/grok 双形态归一（`hook_event_name` / `hookEventName` 去下划线 lower）。Claude 无 PermissionRequest 就不假装有；对话框靠 Drive 发前扫屏兜底（按键层不是状态权威）。Codex `Stop` 常不触发：state 停在 working，doctor 把「working 超阈值且 pane 仍在」标 stale，Drive 短头确认，不自动重发。
 

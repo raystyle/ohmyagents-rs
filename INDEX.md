@@ -95,6 +95,7 @@ ohmyagents/
 | S012 | `S012-ponytail懒人阶梯与oma编码经验.md` | 实现取舍七档阶梯 |
 | S013 | `S013-选型研究双通道实证-cratesio与github.md` | 两落地法证据链（已固化 R005） |
 | S014 | `S014-检测已装agent-PATH与默认目录与环境变量.md` | 四家二进制探测路径表 |
+| S015 | `S015-四家hook注册一手形态-官方文档与源码核实.md` | 注册落点/schema/事件全集/部署矩阵（poc-init 依据） |
 
 ## 六、开发测试参考（`docs\references\`，R 编号）
 
@@ -128,7 +129,7 @@ ohmyagents/
 | M104 | `M104-rmux安装与CLI调用错误.md` | 安装、`-V`、`-S`、`-L`、`cmd()` | M006-M007、M016、M020 |
 | M105 | `M105-agent检测与状态判断错误.md` | PATH、which、idle、Quiet、CPU | M012、M018-M019 |
 | M106 | `M106-Windows进程与daemon启动错误.md` | os error 5、Job Object、WMI、exit-empty | M015、M017、M021-M022 |
-| M107 | `M107-工具链与脚本错误.md` | sed、grep、PowerShell、中文路径 | M023 |
+| M107 | `M107-工具链与脚本错误.md` | sed、grep、PowerShell、中文路径 | M023-M026、M028 |
 
 迭代规则：踩坑按当前最大号接编 MNNN 进对应分类文件（M0xx 行级、新分类用 M1xx 接编）；一行一事；反复踩落 `docs\research\`；改「正确处理」不删历史行；新分类文件登记本节。
 
