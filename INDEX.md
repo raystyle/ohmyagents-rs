@@ -1,35 +1,12 @@
 # INDEX：项目总索引
 
-> 角色：全仓**唯一索引**——目录结构、文档指南、编号体系、代码与 pin 一处定位。规则权威源见 `AGENTS.md`；命名与编号规则见 `docs\guide\G001-文档标准细则-命名写作规范与rumdl检查.md`。
+> 角色：全仓**唯一索引**——只做定位：编号表、目录结构、代码文件位置。搜索与分析方法（rg、mq、ast-grep 怎么配合本索引）见 `AGENTS.md` 四、资源索引。规则权威源见 `AGENTS.md`；命名与编号规则见 `docs\guide\G001-文档标准细则-命名写作规范与rumdl检查.md`。
 
-## 一、怎么读与怎么搜
+## 一、编号体系
 
 **前缀定位**：`P`（proven，已完成 plan 归档，4 位）；`S`（research，研究原型过程，3 位）；`R`（references，开发测试参考，3 位）；`G`（guide，元规范，3 位）；`M`（mistakes，分类文件 M1xx、行级错误 M0xx 全局递增不复用）。根目录三原语：`GOAL`（目标轨迹）/ `PLAN`（当前目标方案，基于研究与参考）/ `TODO`（进度清单）。
 
 **目录职能**：`proven` 已完成 plan 归档；`diary` 一天一篇总结与自省；`research` 研究原型过程（为什么，六态对齐，规范见 G002）；`references` 开发测试参考（要做什么怎么做，六态溯源）；`guide` 元规范（含 `template.md`）；`mistakes` 出错怎么纠（与 references 是经验教训的两面）。
-
-**搜索**：
-
-```powershell
-rg -n "关键词" INDEX.md                       # 先搜本索引定位编号
-rg --files docs | rg 关键词                    # 按文件名搜文档
-rg -n "关键词" docs\research docs\references   # 全文搜研究参考
-rg -n "关键词" src\ examples\                  # 搜代码
-rg -n "关键词" docs\mistakes\                  # 搜错误处理
-cargo run --example poc-<名>                   # 跑部件 POC
-```
-
-**代码结构定位（ast-grep 0.45.1，学 INDEX 定模块后按结构定符号）**：
-
-```powershell
-ast-grep outline -l rs --json src\             # 模块符号表（函数/行号，61 符号）
-ast-grep run -p 'pub fn gate($$$) $$$' -l rs   # 按名定位定义，免疫注释与调用行噪声
-ast-grep run -p 'fn $NAME($$$) -> Result<$RET, String> $$$' -l rs --json  # 签名表
-```
-
-坑（详见 M107）：fn 模式必须带 body 通配 `$$$`；可见性修饰要写进模式（`pub fn` 对 `fn`）；JSON 变量取 `metaVariables.single.<VAR>.text`。
-
-**分析路径**：改产品行为先读 `docs\references\R006/R007`（怎么做）再回 `docs\research\S00x`（为什么）；踩坑查 `docs\mistakes\M1xx`；写码选库走 R005；测试规范 R004；新想法走 G003 五步；定位代码先 INDEX 模块表再 ast-grep 符号。
 
 新文档按类别落位，编号接当前最大号，登记进本索引对应节。
 

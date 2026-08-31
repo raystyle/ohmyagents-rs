@@ -91,14 +91,32 @@
 
 ## 四、资源索引
 
-> 全部索引内容（目录结构、文档指南、编号体系、怎么读怎么搜）**见 `INDEX.md`**（项目根目录，唯一索引）。
+> 定位看 `INDEX.md`（项目根目录，唯一索引：编号表、目录结构、代码文件位置）。本节是**配合 INDEX 的搜索与分析方法**。
 
 **速记**：前缀定位 `P`（proven 归档）/ `S`（research 研究）/ `R`（references 开发测试参考）/ `G`（guide 元规范）/ `M`（mistakes 错误；文件 M1xx、行级 M0xx）；根目录三原语 `GOAL` / `PLAN` / `TODO`。
 
-**搜索**：
+**搜索方法（文档）**：
 
 ```powershell
-rg -n "关键词" INDEX.md                       # 先搜总索引定位编号
-rg --files docs | rg 关键词                    # 按文件名搜
-rg -n "关键词" docs\research docs\references   # 直接全文搜
+rg -n "关键词" INDEX.md                        # 1 先搜总索引，定位编号或文件
+rg --files docs | rg 关键词                     # 2 按文件名搜文档
+rg -n "关键词" docs\research docs\references    # 3 全文搜研究参考
+rg -n "关键词" docs\mistakes\                   # 4 搜错误处理
+
+# mq（markdown 结构查询，D:\ohmyenv\mq\mq.exe，jq 风格；section 模块必须 -A）
+mq -F grep '.h2' docs\research\*.md             # 跨文件按节标题定位（文件:行号:标题）
+mq -A 'section::section(., "关键结论")' 文档     # 抽整节内容（含正文）
+mq -A -F json '.h1' 文档                        # 结构化 JSON（类型/深度/位置）
 ```
+
+**搜索方法（代码）**：
+
+```powershell
+ast-grep outline -l rs --json src\              # 模块符号表（INDEX 代码表配符号清单）
+ast-grep run -p 'pub fn name($$$) $$$' -l rs    # 按名定位定义，免疫注释与调用行
+ast-grep run -p 'fn $NAME($$$) -> Result<$RET, String> $$$' -l rs --json  # 签名表
+```
+
+坑速查：mq 的 `.h.1` 是层级值不是文本（节点用 `.h`/`.h1`）；无 `.s` 选择器（用 section 模块）；ast-grep 的 fn 模式必须带 body 通配 `$$$`、可见性要写进模式、JSON 变量取 `metaVariables.single.<VAR>.text`。详见 M107。
+
+**分析路径**：改产品行为先读 `docs\references\R006/R007`（怎么做）再回 `docs\research\S00x`（为什么）；踩坑查 `docs\mistakes\M1xx`；写码选库走 R005；测试规范 R004；新想法走 G003 五步；定位代码先 INDEX 模块表再 ast-grep 符号；抽文档节用 mq section。
