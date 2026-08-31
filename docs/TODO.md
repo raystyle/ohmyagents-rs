@@ -27,4 +27,4 @@
 | POC state | 待办 | Quiet 不当 idle；`terminal_state` / `wait_for_text` 作 hook 沉默兜底（见 clum 等待原语文） | 2026-08-29 |
 | POC init | 待办 | 临时目录落 hook/skill，不改家目录 | 2026-08-29 |
 | POC negatives | 待办 | 禁止 C-c Codex、禁止 kill-server 进主路径 | 2026-08-29 |
-| 测试规范研究 | 已完成 | `docs\research\Command-LineRust测试方法论与oma测试分层.md`：意图到方法映射；`tests/` 落地列待办 | 2026-08-31 |
+| 测试规范研究 | 已完成 | 书与 2026 社区综述双源对照；意图到方法映射与三段式落地；`tests/` 建设见研究待办第一段 | 2026-08-31 |
