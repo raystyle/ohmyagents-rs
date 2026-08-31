@@ -24,14 +24,18 @@ P0006 的 `oma send` 只收单行文本：多行任务（给 agent 的长提示�
 
 ## 方案
 
-### 端点融合（spawn 侧）
+### 端点融合
+
+> spawn 侧
 
 1. label = `oma-<slug>`（沿用 P0006 的项目 slug）
 2. 启动序列：CLI `-L label list-sessions` 试活 → 失败则 WMI 起 `new-session -d` 的 boot keeper 会话（名 `oma-<slug>-boot`，桩 shell）→ 轮询 CLI 就绪 → `#{socket_path}` 取实际 pipe → SDK `connect(pipe)`
 3. SDK 建产品会话（CreateOnly + ProcessSpec env，照 P0006）与布局；产品会话建好后 kill boot 会话（daemon 因产品会话在场不会 exit-empty）
 4. manifest 增 `label` 与 `pipe` 两字段
 
-### 连接自愈（status/send/cleanup 侧）
+### 连接自愈
+
+> status/send/cleanup 侧
 
 - 直连 manifest.pipe；失败且 label 探测活着 → 重查 `#{socket_path}` → 重连 → 回写 manifest
 - label 探测也死 → 报引导 `oma spawn`（不自动重建会话，避免半启动）
@@ -81,7 +85,9 @@ P0006 的 `oma send` 只收单行文本：多行任务（给 agent 的长提示�
 
 ## 实施过程与经验
 
-### 全链路（2026-08-31，Windows 绿）
+### 全链路
+
+> 2026-08-31 Windows 绿
 
 - **桥的形状**：产品端点从「SDK 自造 pipe 名」迁到 CLI label 命名空间（label=`oma-<slug>` 稳定）。daemon 由 CLI 语义拉起（Job Object 下 WMI `new-session -d` boot keeper 会话），就绪后 `display-message -p '#{socket_path}'` 取实际 pipe 全名（含用户 SID 与随机 salt，只能查询不能推导），SDK 以该名直连同一 daemon。此后一个 daemon 双传输面：SDK 做 snapshot/expect/输入，CLI 做 `load-buffer`/`paste-buffer`（Windows 拒一切 `-S`，CLI 只认 `-L`）。[实证: `examples/poc-label-bridge.rs` 退出 0 + 本机产品链路]
 - **多行 send**：文本含换行即三段式——payload 写临时文件（UTF-8、无 ESC、发送侧绝不自包 bracketed 壳）→ CLI `load-buffer -b` → `paste-buffer -p -b -t %<pane_id>` → Enter 仍单独发（SDK `send_key`）；buffer 与临时文件用后即清。target 用 `%N` 稳定 pane id 直达（与 manifest 同源），无需窗口坐标。[实证: 中文两行 payload，`send.split=paste-buffer-p+Enter`，第二行执行输出 confirm 可见]

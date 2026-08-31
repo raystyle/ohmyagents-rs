@@ -24,7 +24,9 @@ P0005 十二个部件 POC 已在 Windows 全部跑绿，共用层（专用端点
 
 ## 方案
 
-### 会话标识与端点（可重连是产品与 POC 的分界）
+### 会话标识与端点
+
+> 可重连是产品与 POC 的分界
 
 - 项目根（`--project` 或 cwd）规范化后取 SHA256 前 8 位得 `slug`；会话名 `oma-<slug>`，端点 WindowsPipe `\\.\pipe\rmux-oma-<slug>`（Unix socket 在 temp 下按 slug 建目录）。同一项目反复 spawn/status/send/cleanup 命中同一会话；不同项目互不干扰。
 - 连接语义照 rmuxpoc：connect_or_start，Job Object 下 WMI 在 job 外起 daemon 再轮询连接。
@@ -57,7 +59,9 @@ P0005 十二个部件 POC 已在 Windows 全部跑绿，共用层（专用端点
 
 - kill 本会话（transport 断开按已死处理）；不 kill-server；`--project` 决定杀哪个 slug
 
-### 测试（R004 细则）
+### 测试
+
+> 按 R004 细则
 
 - 单元：slug 稳定性（同路径同 slug、异路径异 slug）、argv/env 构造、send 单行守卫
 - 集成 `tests/cli.rs`：assert_cmd 冒烟 `check --no-install`、`agents`、`hook`（无 env 静默退出 0）、`doctor`（临时目录）；断言只写退出码与 stdout marker 行
@@ -96,7 +100,9 @@ P0005 十二个部件 POC 已在 Windows 全部跑绿，共用层（专用端点
 
 ## 实施过程与经验
 
-### 全链路（2026-08-31，Windows 绿）
+### 全链路
+
+> 2026-08-31 Windows 绿
 
 - **可重连身份是产品与 POC 的分界，落法是双稳定锚**：会话名/端点按项目路径 SHA256 前 8 位派生（`oma-<slug>`、`\\.\pipe\rmux-oma-<slug>`），跨命令重连；pane 定位不靠窗口坐标（`session.pane(row,col)` 语义随布局漂移），spawn 时记 **daemon 稳定 pane id** 进 `.ohmyagents\session.json` manifest（agent→pane_id，daemon 生命周期内稳定），status/send 用 `pane_by_id` 重验证。[实证: spawn 两次调用间 status/send/cleanup 均命中同一会话]
 - spawn：缺省取 `oma agents` 已装交集；`--agents` 显式指定，未装先报错不半启动；`--stub` 用交互 shell 桩。第一格走 `ensure_session` 的 `ProcessSpec`（env 用 `environment: Vec<"K=V">`），后续格走 split builder `.spawn(argv).env(k,v).title(agent)`——split 的 env 是逐键链式，与 ProcessSpec 的整体 Vec 是两套写法。[实证: 源码 split_builder.rs + 本机 spawn --stub 两格 %0/%1]

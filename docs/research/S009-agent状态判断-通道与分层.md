@@ -8,7 +8,9 @@ rmux 能判「pane 活着、画面静了、进程换了」，判不了「agent �
 
 ## 关键结论
 
-### 1. 分层模型（现行版，含 1b）
+### 1. 分层模型
+
+> 现行版，含 1b
 
 表内能力与限制为 rmux 官方文档与 SDK 源码口径，1b 层据 S010 源码核实。[实证: rmux 官方 scripting-sdk；S010 clum 核实]
 
@@ -40,7 +42,9 @@ rmux 能判「pane 活着、画面静了、进程换了」，判不了「agent �
 
 两条相反的路不合成一条 named pipe。[推断: hook 短命进程找不到专用 pipe；win-rmux set-environment 反例]
 
-### 4. 事件映射（evo-harness STATE_MAP 加本仓对齐）
+### 4. 事件映射
+
+> evo-harness STATE_MAP 加本仓对齐
 
 映射表与双形态归一来自 evo-harness `agent_state_hook.py` 与各家官方事件名；Codex `Stop` 缺失为 win-rmux 实测。[经验: evo-harness STATE_MAP；实证: win-rmux 2026-08-21]
 
@@ -65,7 +69,9 @@ rmux 能判「pane 活着、画面静了、进程换了」，判不了「agent �
 4. 委派下一条：层 2 idle，或层 3 任务文件未 assigned；blocked 跳过该路；层 2 沉默走 1b
 5. doctor：层 0 + 层 2 + 层 3 + yolo 键，全读磁盘进程表，不 attach
 
-### 6. rmux 原生能力清单（都是终端态不是 agent 态）
+### 6. rmux 原生能力清单
+
+> 都是终端态不是 agent 态
 
 清单为 rmux 0.10 官方文档与命令核验表口径；`foreground_state` 不分类 agent 名为官方明文。[实证: rmux scripting-sdk；win-rmux command-verification]
 

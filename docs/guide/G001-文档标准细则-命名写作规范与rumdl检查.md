@@ -39,6 +39,8 @@
 | 检查 | 命令 |
 | --- | --- |
 | 全仓扫描 | `rumdl check .` |
+| 标题括号机检 | `uv run --script .tools\md-heading-scan.py` |
+| 引用断链机检 | `uv run --script .tools\md-ref-scan.py` |
 | 自动修正 | `rumdl check --fix .` |
 | 纯格式化 | `rumdl fmt .` |
 

@@ -41,7 +41,9 @@ Linux/mac 委托后续环境仓库（`docs\proven\P0005` 口径）。
 
 全表绿之前不写产品子命令 `spawn` / `send` / `cleanup`；四路真实 agent 不进本目标（桩进程 `pwsh -NoProfile -Command`）。[依据: `docs\proven\P0005` 非目标节]
 
-## 完成的定义（本目标验收）
+## 完成的定义
+
+> 本目标验收口径。
 
 - TODO 表除「四路真实 agent」外全部已完成或明确跳过（跳过须写 MISTAKES 原因）
 - 每个 POC 不调用 `kill-server`

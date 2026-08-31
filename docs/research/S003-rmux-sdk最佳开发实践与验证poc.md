@@ -35,7 +35,9 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 0.10.0 与 daemon 0.10.0 同发。release note：0.10 **不**与 0.9.x daemon 线兼容。SDK crates.io 发布日 2026-08-05，比 GitHub tag 晚一天。本机 rustc 1.97.1 覆盖 MSRV 区间。
 
-### 2. 最佳实践清单（给 `oma`）
+### 2. 最佳实践清单
+
+> 给 `oma` 用
 
 1. **专用端点，不要 Default。** `RmuxEndpoint` 是 `non_exhaustive`：`Default` / `UnixSocket(PathBuf)` / `WindowsPipe(String)`。Default 走平台发现，会连上用户已有 daemon。本仓按项目 hash 独立 pipe / socket（见《S002-跨平台与无浏览器》）。
 2. **`connect_or_start` 可以，但 Job Object 要退路。** 官方 quickstart 用 `Rmux::builder().connect_or_start()`，没有 TTY 也能起 hidden daemon。win-rmux 实测宿主在 Job Object 里 `new-session -d` 报 os error 5。POC 先直接连；失败再 `--via-wt`。
@@ -92,7 +94,9 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 | web-claude-demo | 默认 attach 占终端；听 `0.0.0.0` |
 | win-rmux | 全局 hook、启发式 kill-server、整表 User env、固定名 `execution-unit` |
 
-### 6. 验证 POC 清单（装上 rmux 后按序跑）
+### 6. 验证 POC 清单
+
+> 装上 rmux 后按序跑
 
 闸门：`oma check` 非 0 则整组 skip。与方案 P0005 同一条件。
 
@@ -157,7 +161,9 @@ async fn main() -> rmux_sdk::Result<()> {
 
 **2026-08-31 结果（Windows 绿）**：`examples/poc-stream.rs` 退出 0。Oldest 从 backlog 头回放（7 块 291 字节，首块 sequence=0）；Now 锚定最新之后只收新字节（echo 后 11ms 见 marker），旧 backlog marker 不回放。[实证: poc-stream 标记行] chunk 是原始 bytes 带单调 sequence，收集侧按字节累积。坑：marker 互为子串导致 no-replay 断言自命中（M027），marker 必须互不为子串。
 
-#### POC-8 负例（必须失败）
+#### POC-8 负例
+
+> 必须失败
 
 - 对「假 Codex」pane（本步可用 pwsh 代替）发 `send_key("C-c")` 的代码路径在 review 中禁止合入（真 Codex 等四路 POC）。
 - Quiet 超时不得映射成 idle。

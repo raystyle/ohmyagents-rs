@@ -69,7 +69,9 @@ ohmyagents/
     mistakes\    M1xx 分类文件，行级 M0xx
 ```
 
-## 三、方案归档（`docs\proven\`）
+## 三、方案归档
+
+> 位置 `docs\proven\`。
 
 | 编号 | 文件 | 主题 |
 | --- | --- | --- |
@@ -81,12 +83,16 @@ ohmyagents/
 | P0006 | `P0006-产品命令最小闭环-spawn状态send与cleanup.md` | 已完成（同日验收） |
 | P0007 | `P0007-send多行粘贴与label端点融合.md` | 已完成（同日验收，含自愈） |
 
-## 四、项目日记（`docs\diary\`，一天一篇总结自省）
+## 四、项目日记
+
+> 位置 `docs\diary\`；一天一篇总结自省。
 
 - `2026-08-29-对照ohmypwsh建立文档骨架.md`
 - `2026-08-31-研究体系与POC全绿.md`
 
-## 五、研究文档（`docs\research\`，S 编号）
+## 五、研究文档
+
+> 位置 `docs\research\`；S 编号。
 
 | 编号 | 文件 | 主题 |
 | --- | --- | --- |
@@ -106,7 +112,9 @@ ohmyagents/
 | S014 | `S014-检测已装agent-PATH与默认目录与环境变量.md` | 四家二进制探测路径表 |
 | S015 | `S015-四家hook注册一手形态-官方文档与源码核实.md` | 注册落点/schema/事件全集/部署矩阵（poc-init 依据） |
 
-## 六、开发测试参考（`docs\references\`，R 编号）
+## 六、开发测试参考
+
+> 位置 `docs\references\`；R 编号。
 
 | 编号 | 文件 | 用途 |
 | --- | --- | --- |
@@ -119,7 +127,9 @@ ohmyagents/
 
 （R003 退役：原全量清单并入本索引，编号不复用。）
 
-## 七、元规范（`docs\guide\`，G 编号）
+## 七、元规范
+
+> 位置 `docs\guide\`；G 编号。
 
 | 编号 | 文件 | 用途 |
 | --- | --- | --- |
@@ -128,13 +138,15 @@ ohmyagents/
 | G003 | `G003-工作流标准细则-从登记到归档五步.md` | 五步工作流与优先级 |
 | — | `template.md` | 方案模板（不编号） |
 
-## 八、错误速查（`docs\mistakes\`，文件 M1xx；行级 M0xx）
+## 八、错误速查
+
+> 位置 `docs\mistakes\`；分类文件 M1xx，行级 M0xx。
 
 | 编号 | 分类文件 | 覆盖关键词 | 行级编号段 |
 | --- | --- | --- | --- |
 | M101 | `M101-drive与paste错误.md` | send-keys、Enter、`C-c`、bracketed paste、marker 假阳性 | M001、M008、M027 |
 | M102 | `M102-信任与hook配置错误.md` | 信任框、trust、pretrust、init、yolo | M002、M009-M011 |
-| M103 | `M103-文档与命名错误.md` | 命名、显示名、CLI 名、六态、diary | M003-M005、M013-M014 |
+| M103 | `M103-文档与命名错误.md` | 命名、显示名、CLI 名、六态、diary、标题规范 | M003-M005、M013-M014、M030 |
 | M104 | `M104-rmux安装与CLI调用错误.md` | 安装、`-V`、`-S`、`-L`、`cmd()`、`-t` 前缀匹配 | M006-M007、M016、M020、M029 |
 | M105 | `M105-agent检测与状态判断错误.md` | PATH、which、idle、Quiet、CPU | M012、M018-M019 |
 | M106 | `M106-Windows进程与daemon启动错误.md` | os error 5、Job Object、WMI、exit-empty | M015、M017、M021-M022 |

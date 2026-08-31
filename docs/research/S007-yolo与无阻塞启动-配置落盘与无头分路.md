@@ -15,7 +15,9 @@
 3. **任务指向与启动分离。** spawn 立即返回；agent 与 task-id 写项目内 JSON；主 CLI 委派只查「该 agent 对应 task 且非 blocked」。[假设: 产品 spawn 未落地]
 4. **参数与配置并存。** 默认走配置；`--yolo` 等只覆盖单次会话，受控编排不把信任绕过长期留在 argv。[经验: ohmypwsh 0017 定调]
 
-### 四家落盘表（2026-08-31 订正版）
+### 四家落盘表
+
+> 2026-08-31 订正版
 
 表内各键为各家官方文档与 poc-yolo-doctor 实测口径；Claude 列订正自 S006 核查表。[实证: 2026-08-29 poc-yolo-doctor + 官方 settings/config 文档]
 
@@ -26,7 +28,9 @@
 | kimi | 项目 `.kimi-code/config.toml`：`default_permission_mode=auto|yolo` | `~/.kimi-code/workspace-trust/wd_*` | 无 hook-trust 框 |
 | grok | **仅用户** `~/.grok/config.toml`：`[ui] permission_mode=always-approve`（官方明文不能写项目 `.grok/config.toml`；旧键 `approval_mode`/`yolo` 仍工作但 `permission_mode` 优先） | `~/.grok/trusted_folders.toml` 替代 `--trust` | always-approve 下 deny 规则与 PreToolUse hook **仍生效**（secret-guard 类 hook 在 yolo 里仍有用）[经验: 2026-08-29 官方复核] |
 
-### 无头分路：三家对照（YouMind 核查）
+### 无头分路：三家对照
+
+> YouMind 核查
 
 5. **无头 ≠ YOLO**：Claude `-p` 起点 Manual 逐项审批、无 UI 时该次调用被拒（流程可假绿）；Grok `-p` 默认 Ask、要全自动另加 `--always-approve`（alias `--yolo`）或 `dontAsk`+`--allow`；Kimi `-p` **就是 auto**、官方禁止与 `--yolo`/`--auto`/`--plan` 同用（`--yes`/`--auto-approve` 是隐藏别名）。从 Claude/Grok 脚本抄到 Kimi 最容易踩「再加一遍 --yolo」。[实证: 2026-08-29 官方 headless/permission-modes/kimi-command + 本机三家家 `--help`]
 6. 本机 `grok 1.0.13 --help` 另有 Claude 同构 `--permission-mode`（default/acceptEdits/auto/dontAsk/bypassPermissions/plan），官方 Permissions 页未写此层；CI 可走 `dontAsk`+`--allow`。[实证: 本机 help]
@@ -41,7 +45,9 @@ spawn 后立刻允许委派，当且仅当：doctor 全绿；pane 进程活着�
 
 `oma doctor` 退出码：缺二进制、缺 yolo 键、缺项目信任、blocked 过期则非 0。[实证: 2026-08-29 poc-yolo-doctor]
 
-### 委派前检查清单（回写自复核篇）
+### 委派前检查清单
+
+> 回写自复核篇
 
 实现 `init`/`spawn`/`run` 时按序核：配置优先 flags 单次覆盖；Claude skip 键写 User 或 Local；Codex 先预写 `[projects]` 再写项目 hook；Grok 权限模式写用户 config、项目只放 hooks/skills/deny；Kimi hook 注册暂走用户 config、脚本放项目；Drive 用 `paste-buffer -p`；spawn 立即返回；不把 wait-pane Quiet 当 idle。[经验: 2026-08-29 复核定调]
 

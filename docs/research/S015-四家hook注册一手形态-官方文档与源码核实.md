@@ -13,7 +13,9 @@
 
 ## 关键结论
 
-### 1. Claude（官方 hooks reference）
+### 1. Claude
+
+> 官方 hooks reference
 
 [实证: code.claude.com/docs/en/hooks.md，2026-08-31]
 
@@ -33,7 +35,9 @@
 - 项目级 `.claude/settings.json` 要 workspace trust 先行（与 S006 一致）；`-p`/SDK 会话视目录为已信任。
 - matcher 语义：纯 exact 字符集按精确串（`|`/`,` 分隔），含其它字符按非锚定 JS 正则。
 
-### 2. Codex（openai/codex 源码）
+### 2. Codex
+
+> `openai/codex` 源码
 
 [实证: codex-rs/config/src/hook_config.rs、codex-rs/hooks/src/schema.rs、hooks/src/engine/discovery.rs，浅克隆 2026-08-31]
 
@@ -52,7 +56,9 @@
 - 信任持久化：`[hooks.state."<source>:<event>[i].hooks[j]"] {enabled, trusted_hash}`（S006 的 trusted_hash 口径一手确认）；`bypass_hook_trust` 旗标跳过。
 - 事件 12 个：PreToolUse、PermissionRequest、PostToolUse、PreCompact、PostCompact、SessionStart、SessionEnd、UserPromptSubmit、SubagentStart、SubagentStop、Stop、**Interrupt**（无 Notification）。stdin snake_case 加 Codex 扩展 `turn_id`、`permission_mode`；输出 wire camelCase，注释明言兼容 Claude 语义（"Claude requires reason when decision is block"）。
 
-### 3. Grok（xai-org/grok-build 源码）
+### 3. Grok
+
+> `xai-org/grok-build` 源码
 
 [实证: crates/codegen/xai-grok-hooks/src/{config,event,discovery}.rs、xai-grok-workspace/src/{project_config,folder_trust}.rs，浅克隆 2026-08-31]
 
@@ -72,7 +78,9 @@
 - 名字前缀分层：`global/<stem>`、`project/<stem>`、`plugin/`、`agent:`；层间 additive、同命令 dedup 保高层。
 - folder-trust 门（folder_trust.rs）：repo 内 `.grok/hooks/`、`.claude/settings.json`、`.cursor/…` 等都被信任检查覆盖（与 S006/S008 口径一致，现为源码级确认）。
 
-### 4. Kimi（MoonshotAI/kimi-code TS 源码与官方文档）
+### 4. Kimi
+
+> `MoonshotAI/kimi-code` TS 源码与官方文档
 
 [实证: packages/agent-core/src/session/hooks/types.ts、src/config/schema.ts HookDefSchema、agent-core-v2 projectLocalConfigService.ts、docs/zh/customization/hooks.md，浅克隆 2026-08-31]
 
@@ -93,7 +101,9 @@ timeout = 10            # 1–600，默认 30
 - 同事件多 hook 并行、同 command 去重；Stop 防循环（stop_hook_active 只再触发一次）。
 - 区分：`MoonshotAI/kimi-cli`（11k stars）是 Python 旧版，本仓不采用；TS 本尊是 `kimi-code`。
 
-### 5. 交叉对照（oma init 部署矩阵）
+### 5. 交叉对照
+
+> `oma init` 部署矩阵
 
 [实证: 上述源码与文档汇总]
 

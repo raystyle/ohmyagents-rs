@@ -15,6 +15,7 @@
 | 工具 | 用途 | 用法 |
 | --- | --- | --- |
 | `md-ref-scan.py` | 全仓 markdown 仓内路径引用断链扫描（结构大改后的回归门禁） | `uv run --script .tools/md-ref-scan.py [--root docs] [--allow 豁免.txt]`；退出码 0/1 |
+| `md-heading-scan.py` | 标题括号规范扫描（G001 标题干净的机检项；代码围栏内的注释不计） | `uv run --script .tools/md-heading-scan.py [--root docs]`；退出码 0/1 |
 | `md-replace.py` | 中文与反斜杠路径安全的字面批量替换（规避 sed 转义坑，见 M023） | `uv run --script .tools/md-replace.py --glob 'docs/**/*.md' --map 映射.txt [--dry]` |
 
 ## 历史注记

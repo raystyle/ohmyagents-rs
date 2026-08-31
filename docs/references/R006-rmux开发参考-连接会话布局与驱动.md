@@ -16,7 +16,9 @@
 7. **argv 直 spawn 不包壳**：`[pwsh, -NoProfile, -NoExit]` / agent 原生 exe；`.bat`/`.cmd` 被拒。keep-alive 防止 agent 崩了格消失（`remain-on-exit` 默认 off）。[实证: poc-layout；经验: win-rmux]
 8. **进程模型**：安装保留 `rmux.exe` + `libexec\rmux\rmux.exe` + `rmux-daemon.exe` 三件；进程内设 `RMUX_DISABLE_TINY_CLI=1`。[经验: win-rmux environment.md；实证: oma check 布局]
 
-## 三、驱动（drive）
+## 三、驱动
+
+> drive
 
 9. **短 ASCII**：`pane.send_text(text)` 后单独 `pane.send_key("Enter")`。`send_text` 字面 UTF-8、不隐式换行、不解析键名。文本和 Enter 禁止同发。[实证: 2026-08-29 poc-drive]
 10. **长文与中文**：全 CLI 三段式——payload 写临时文件（UTF-8 无换行无 ESC）→ `load-buffer -b <name> <file>` → `paste-buffer -p -b <name> -t <session>:0.0` → `send-keys Enter` → `capture-pane -p` 轮询验证。发送侧永不自包 `\x1b[200~`。[实证: 2026-08-31 poc-paste 中文绿]
@@ -34,7 +36,9 @@
 16. **cleanup 只 `kill-session -t <本会话>`**：不 `kill-server`；`-L` label daemon 随末 session 自动退。临时 buffer `delete-buffer`、payload 文件删除。[实证: 各 POC 收尾]
 17. **环境**：spawn 前清 `NO_COLOR`、设 `TERM=xterm-256color`；PATH 注入 dispatcher 目录。[实证: rmuxpoc::prepare_env]
 
-## 六、禁止清单（写码时红线）
+## 六、禁止清单
+
+> 写码时红线
 
 - 文本和 Enter 同发；对 Codex `C-c`；自包 bracketed paste
 - `CreateOrReuse` 默认；先分空壳再 spawn；`.bat` agent

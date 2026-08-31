@@ -2,7 +2,9 @@
 
 > 角色：写 `oma init` / `doctor` / `hook` 相关代码时查的**做法参考**（要做什么怎么做）。从 `docs\research\` 的信任阻塞门、yolo 与无阻塞、项目级 hook、agent 状态判断四篇浓缩；出错排查见 `INDEX.md（mistakes 节）`。全部条目可溯源六态。
 
-## 一、四家 yolo 落盘（init --yolo 写什么）
+## 一、四家 yolo 落盘
+
+> `init --yolo` 写什么
 
 | agent | 权限/沙箱 | 信任库（`--pretrust` 才写用户家） | 注意 |
 | --- | --- | --- | --- |
@@ -13,7 +15,9 @@
 
 flags（`--yolo`、`--always-approve` 等）只作单次覆盖，配置落盘优先。[经验: ohmypwsh 0017]
 
-## 二、信任门检测（doctor 拆类）
+## 二、信任门检测
+
+> doctor 拆类
 
 - `trust.project`：folder 键在不在（父路径覆盖子目录；Windows 路径可能裂多条键）。
 - `trust.hooks`：Claude 交互下 covered_by folder；Codex 看 `[hooks.state] trusted_hash`；Grok 未信任且有 hooks 报 block（无头静默跳过）。
@@ -22,7 +26,9 @@ flags（`--yolo`、`--always-approve` 等）只作单次覆盖，配置落盘优
 - `yolo` / `skip_prompt` / `onboarding` 分立检查。
 - doctor 退出码：缺二进制、缺 yolo 键、缺信任、blocked 过期则非 0；全程只读磁盘与进程表，不 attach。[实证: poc-yolo-doctor]
 
-## 三、无头分路（将来 `oma run --headless`）
+## 三、无头分路
+
+> 将来 `oma run --headless`
 
 | 家 | 无头开关 | 默认权限 | 全自动要 |
 | --- | --- | --- | --- |
@@ -33,7 +39,9 @@ flags（`--yolo`、`--always-approve` 等）只作单次覆盖，配置落盘优
 
 [实证: 2026-08-29 官方 headless/permission-modes/kimi-command + 本机三家家 help]
 
-## 四、hook 与状态通道（oma hook 怎么接）
+## 四、hook 与状态通道
+
+> `oma hook` 怎么接
 
 1. spawn 注入 `OHMYAGENTS_PROJECT` / `OHMYAGENTS_AGENT` / `OHMYAGENTS_STATE_FILE`；各家项目 hook 的 `command` 调 `oma hook`（stdin 事件 JSON 或 `oma hook blocked`）。[实证: poc-dialogs]
 2. hook 缺环境变量或项目对不上 **exit 0**（安全带：用户级误装也不污染别的仓库）；不连 rmux 管道。[推断: evo-harness 安全带模式]
