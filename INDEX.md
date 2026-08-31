@@ -39,7 +39,8 @@
 | `src\install.rs` | 自适应安装层：多渠道下载、sha 信任锚、oma 自管根布局、update 取证与 pin 写回 |
 | `src\trace.rs` | 意图轨迹检索层：四家会话发现 + 四家联邦 loader（FileChange 主源、注入过滤、epoch ms 归一）+ 块聚合与过滤分页检索 |
 | `src\api.rs` | 传输无关编排操作层（P0011）：六操作返回结构化 JSON，HTTP 与 MCP 共用 |
-| `src\server.rs` | HTTP 适配层（feature `server`，P0011 切片 1）：axum 六操作 RESTish + JSON 信封 + 会话写串行化 |
+| `src\server.rs` | HTTP 适配层（feature `server`，P0011）：axum 六操作 RESTish + JSON 信封 + 会话写串行化 + 网页直出 + pane 输出 SSE 桥 |
+| `docs\web\index.html` | 可视化编排单页（无构建链；include_str 进 serve）：状态卡、委派按钮、SSE 画面 |
 | `tests\cli.rs` | CLI 集成冒烟（assert_cmd；check/agents/hook/doctor/send 快败） |
 | `src\pathutil.rs` | 路径工具 |
 | `examples\poc-*.rs` | 十四个 POC（见下；label-bridge 端点融合、dump 备屏诊断） |

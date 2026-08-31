@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>oma 可视化编排</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: system-ui, "Segoe UI", sans-serif; margin: 0; padding: 0 1rem 3rem; max-width: 64rem; }
+  header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: .5rem; }
+  header h1 { font-size: 1.2rem; margin: .8rem 0; }
+  header .meta { color: gray; font-size: .85rem; }
+  section { border-top: 1px solid color-mix(in srgb, currentColor 20%, transparent); padding: .8rem 0; }
+  section h2 { font-size: 1rem; margin: 0 0 .6rem; }
+  .row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin-bottom: .5rem; }
+  label.check { display: inline-flex; gap: .25rem; align-items: center; }
+  button { padding: .3rem .8rem; cursor: pointer; }
+  button.danger { color: #b00; }
+  input[type=text], textarea, select { font: inherit; padding: .25rem .4rem; }
+  textarea { width: 100%; min-height: 3.2rem; box-sizing: border-box; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); gap: .6rem; }
+  .card { border: 1px solid color-mix(in srgb, currentColor 30%, transparent); border-radius: .4rem; padding: .5rem .7rem; }
+  .card h3 { margin: 0 0 .3rem; font-size: .95rem; }
+  .card table { border-collapse: collapse; font-size: .82rem; width: 100%; }
+  .card td { padding: .1rem .3rem .1rem 0; vertical-align: top; }
+  .card td.k { color: gray; white-space: nowrap; }
+  pre { background: color-mix(in srgb, currentColor 7%, transparent); padding: .6rem; border-radius: .4rem;
+        font-size: .8rem; overflow: auto; max-height: 18rem; margin: 0; white-space: pre-wrap; word-break: break-all; }
+  .empty { color: gray; }
+</style>
+</head>
+<body>
+<header>
+  <h1>oma 可视化编排</h1>
+  <div class="meta"><span id="project">project: -</span></div>
+</header>
+
+<section id="sec-session">
+  <h2>会话</h2>
+  <div class="row" id="spawn-agents"></div>
+  <div class="row">
+    <label class="check"><input type="checkbox" id="stub"> 桩会话（stub）</label>
+    <button id="btn-spawn">拉起会话</button>
+    <button id="btn-cleanup" class="danger">收尾（只杀本会话）</button>
+  </div>
+</section>
+
+<section id="sec-status">
+  <h2>状态</h2>
+  <div class="row">
+    <label class="check"><input type="checkbox" id="auto" checked> 自动刷新（2s）</label>
+    <button id="btn-refresh">立即刷新</button>
+    <span class="empty" id="status-hint">无会话；先拉起。</span>
+  </div>
+  <div class="cards" id="cards"></div>
+</section>
+
+<section id="sec-dispatch">
+  <h2>委派</h2>
+  <div class="row">分派路（缺省全会话）：<span id="assign-agents" class="row"></span></div>
+  <textarea id="run-text" placeholder="任务文本（多行走三段式粘贴）"></textarea>
+  <div class="row">
+    <button id="btn-run">run（状态门分派）</button>
+    <button id="btn-settle">settle（自愈信任）</button>
+  </div>
+  <div class="row">
+    <select id="send-agent"></select>
+    <input type="text" id="send-text" placeholder="单路发送文本" style="flex:1">
+    <button id="btn-send">send</button>
+  </div>
+</section>
+
+<section id="sec-screen">
+  <h2>画面</h2>
+  <div class="row">
+    <select id="stream-agent"></select>
+    <label class="check"><input type="checkbox" id="stream-oldest"> 回放积压（oldest）</label>
+    <button id="btn-stream">开始</button>
+    <button id="btn-stream-stop">停止</button>
+    <button id="btn-stream-clear">清空</button>
+  </div>
+  <pre id="screen"></pre>
+</section>
+
+<section id="sec-log">
+  <h2>响应</h2>
+  <pre id="log"></pre>
+</section>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const AGENTS = ['claude', 'codex', 'grok', 'kimi'];
+
+function log(line) {
+  const el = $('log');
+  el.textContent = (line + '\n' + el.textContent).split('\n').slice(0, 200).join('\n');
+}
+
+async function call(method, path, body) {
+  const opts = { method };
+  if (body !== undefined) {
+    opts.headers = { 'Content-Type': 'application/json' };
+    opts.body = JSON.stringify(body);
+  }
+  let env;
+  try {
+    const res = await fetch(path, opts);
+    env = await res.json();
+  } catch (e) {
+    log(`${method} ${path} -> 传输失败: ${e}`);
+    return { ok: false };
+  }
+  if (env.meta && env.meta.project) $('project').textContent = 'project: ' + env.meta.project;
+  log(`${method} ${path} -> ${env.ok ? 'ok' : '失败: ' + (env.error || res.status)} [${env.meta ? env.meta.command : '?'}]`);
+  return env;
+}
+
+function checkedAgents(containerId) {
+  return Array.from($(containerId).querySelectorAll('input:checked')).map(i => i.value);
+}
+
+function buildAgentChecks() {
+  $('spawn-agents').innerHTML = '';
+  $('assign-agents').innerHTML = '';
+  for (const a of AGENTS) {
+    for (const host of ['spawn-agents']) {
+      const label = document.createElement('label');
+      label.className = 'check';
+      const box = document.createElement('input');
+      box.type = 'checkbox'; box.value = a; box.checked = true;
+      label.append(box, ' ' + a);
+      $(host).appendChild(label);
+    }
+    const assignLabel = document.createElement('label');
+    assignLabel.className = 'check';
+    const assignBox = document.createElement('input');
+    assignBox.type = 'checkbox'; assignBox.value = a; assignBox.checked = false;
+    assignLabel.append(assignBox, ' ' + a);
+    $('assign-agents').appendChild(assignLabel);
+    $('send-agent').append(new Option(a, a));
+    $('stream-agent').append(new Option(a, a));
+  }
+}
+
+async function refreshStatus() {
+  const env = await call('GET', '/status');
+  const cards = $('cards');
+  cards.innerHTML = '';
+  if (!env.ok || !env.data || !Array.isArray(env.data.panes) || env.data.panes.length === 0) {
+    $('status-hint').textContent = '无会话；先拉起。';
+    return;
+  }
+  $('status-hint').textContent = '';
+  for (const p of env.data.panes) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const rows = [
+      ['pid', p.pid == null ? '-' : p.pid],
+      ['process', p.process == null ? '-' : p.process],
+      ['terminal', p.terminal],
+      ['hook', p.hook],
+    ];
+    card.innerHTML = '<h3></h3><table>' +
+      rows.map(([k, v]) => `<tr><td class="k"></td><td></td></tr>`).join('') +
+      '</table>';
+    card.querySelector('h3').textContent = p.agent;
+    card.querySelectorAll('tr').forEach((tr, i) => {
+      tr.children[0].textContent = rows[i][0];
+      tr.children[1].textContent = rows[i][1];
+    });
+    cards.appendChild(card);
+  }
+}
+
+$('btn-spawn').onclick = async () => {
+  const agents = checkedAgents('spawn-agents');
+  await call('POST', '/spawn', { agents, stub: $('stub').checked });
+  refreshStatus();
+};
+$('btn-cleanup').onclick = async () => {
+  await call('DELETE', '/session');
+  refreshStatus();
+};
+$('btn-refresh').onclick = refreshStatus;
+$('btn-run').onclick = () => {
+  const text = $('run-text').value;
+  if (!text.trim()) { log('run -> 文本为空，未发送'); return; }
+  const assign = checkedAgents('assign-agents');
+  call('POST', '/run', assign.length ? { text, assign } : { text }).then(refreshStatus);
+};
+$('btn-settle').onclick = () => call('POST', '/settle', { wait: 30 }).then(refreshStatus);
+$('btn-send').onclick = () => {
+  const text = $('send-text').value;
+  if (!text.trim()) { log('send -> 文本为空，未发送'); return; }
+  call('POST', '/send', { agent: $('send-agent').value, text });
+};
+
+let es = null;
+$('btn-stream').onclick = () => {
+  if (es) es.close();
+  const agent = $('stream-agent').value;
+  const from = $('stream-oldest').checked ? 'oldest' : 'now';
+  es = new EventSource(`/stream/${agent}?from=${from}`);
+  es.addEventListener('open', ev => appendScreen(`[stream open pane=${ev.data}]`));
+  es.onmessage = ev => appendScreen(ev.data);
+  es.addEventListener('end', () => { appendScreen('[stream end]'); if (es) es.close(); });
+  es.addEventListener('error', ev => {
+    if (ev.data !== undefined) appendScreen('[stream error] ' + ev.data);
+  });
+  log(`GET /stream/${agent}?from=${from} -> SSE 已建立`);
+};
+$('btn-stream-stop').onclick = () => { if (es) es.close(); es = null; appendScreen('[stream stopped]'); };
+$('btn-stream-clear').onclick = () => { $('screen').textContent = ''; };
+
+function appendScreen(text) {
+  const el = $('screen');
+  el.textContent += text.endsWith('\n') ? text : text + '\n';
+  el.scrollTop = el.scrollHeight;
+}
+
+buildAgentChecks();
+refreshStatus();
+setInterval(() => { if ($('auto').checked) refreshStatus(); }, 2000);
+</script>
+</body>
+</html>

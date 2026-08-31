@@ -13,8 +13,8 @@
 | 立项 0011 | 已完成 | 方案与选型（axum 可选 feature、rmcp beta 可选、无构建链单页、JSON 信封） | 2026-08-31 |
 | 选型核实 | 已完成 | axum 0.8.9 stable（4.4 亿下载）；rmcp 已 stable 3.1.4（2310 万下载，2026-08-20 发版）非方案旧记 beta，P0011 选型节已订正 | 2026-08-31 |
 | HTTP API 最小集 | 已完成 | `oma serve`：六操作 RESTish + JSON 信封（api 层共用、会话锁串行）；stub curl 全绿 | 2026-08-31 |
-| 网页最小可视化 | 进行中 | 状态卡 + 委派按钮 + SSE 画面（单页直开） | — |
-| MCP server | 待办 | `oma mcp` stdio：六操作 tools 加 trace 检索 tools（P0013 联动） | — |
+| 网页最小可视化 | 已完成 | 单页直出（状态卡/委派按钮/SSE 画面，oldest 回放验收过） | 2026-08-31 |
+| MCP server | 进行中 | `oma mcp` stdio：六操作 tools 加 trace 检索 tools（P0013 联动） | — |
 | 三通道共测 | 待办 | 同项目 CLI/HTTP/MCP 各走六操作 | — |
 
 ## 队列目标

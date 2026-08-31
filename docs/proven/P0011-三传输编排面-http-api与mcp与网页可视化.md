@@ -80,3 +80,13 @@ orch.rs（编排核心，已有：Link + 六函数）
 - 并发：写操作过 `tokio::sync::Mutex` 会话锁（一次一命令），status 只读不锁。settle 空体接受（等价 wait=30）。[实证]
 - 验收（stub 项目 curl/Invoke-RestMethod 全绿）：index 6 端点、spawn 双路（claude,codex）、status idle、send、run 双路 dispatched、settle、坏 JSON 400、无 manifest send 200 加 `ok:false` 带「run `oma spawn` first」、cleanup killed、无 feature 构建拒绝 serve 退出 1。测试基线 63 单测 + 8 集成（新增 api 1 + server 信封 3）。[实证]
 - 门禁口径：带 server feature 跑 `cargo test --features server`（信封单测在 feature 门内）；无 feature 构建也要过 `cargo build` 保核心零依赖面。[经验]
+
+### 切片 2：网页最小可视化与 SSE 画面
+
+> 2026-08-31 完成并 HTTP 级验收。
+
+- 网页单页 `docs\web\index.html`（无构建链，原生 JS）：状态卡（2s 自动刷新可关）、spawn/cleanup、run（assign 勾选）与单路 send、settle、SSE 画面（agent 下拉、oldest 回放开关、开停清按钮）、信封响应日志。`include_str!` 进 server，改页面只动这一个文件。[实证]
+- SSE 桥：`GET /stream/{agent}?from=oldest|now`。`orch::pane_for_agent`（manifest 定位 pane_id 加 session pane_by_id）拿 Pane，`output_stream_starting_at` 起拉式流，mpsc 加 `tokio-stream` ReceiverStream 喂 axum `Sse`（不自写 poll 适配）；`open` 事件带 pane_id，`end`/`error` 收尾；接收端断开即任务终止，PaneOutputStream drop 自退订。gap 通知（无字节）跳过，字节块 lossy UTF-8。[实证]
+- 验收：`GET /` 200 出页面（title 与 EventSource 用法俱在）、`/api` 8 端点、spawn 后 send 产生输出、`from=oldest` 回放命中 marker、`open` 事件帧正确（`event: open` 带空格，正则要带空格匹配）、未知路 `ok:false` 带 agent 名、cleanup。[实证]
+- 浏览器点按验收留给用户手开 `http://127.0.0.1:7900`（弹不出浏览器不是错误，边界如此）。[经验]
+- 小坑：`std::path::Path` 与 `axum::extract::Path` 撞名（E0252 连锁出五个假错误），别名 `AxPath` 解；curl `--max-time` 掐 SSE 是预期退出码 28，验收脚本别当失败。[经验]

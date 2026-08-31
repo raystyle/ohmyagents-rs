@@ -391,6 +391,26 @@ pub fn read_manifest_for(root: &Path) -> Option<Manifest> {
     read_manifest(root)
 }
 
+/// Resolve one agent lane to its live Pane: manifest 定位 pane_id，再经
+/// session pane_by_id 拿句柄。传输面（SSE 画面等）用，与 send 同源。
+pub async fn pane_for_agent(
+    link: &Link,
+    root: &Path,
+    agent: &str,
+) -> Result<(u64, Pane), String> {
+    let manifest = read_manifest(root)
+        .ok_or_else(|| "no session manifest; run `oma spawn` first".to_string())?;
+    let entry = manifest
+        .agents
+        .iter()
+        .find(|a| a.name == agent)
+        .ok_or_else(|| format!("agent {agent} not in this session"))?;
+    let name = session_name(root)?;
+    let session = rmuxpoc::reuse_only(&link.rmux, name).await?;
+    let pane = pane_for(&session, entry.pane_id).await?;
+    Ok((entry.pane_id, pane))
+}
+
 /// Pane lookup for diagnostics and examples.
 pub async fn pane_for_test(session: &Session, id: u64) -> Result<Pane, String> {
     pane_for(session, id).await
