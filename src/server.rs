@@ -89,7 +89,44 @@ fn router(state: Arc<ServeState>) -> axum::Router {
         .route("/settle", post(settle))
         .route("/session", delete(cleanup))
         .route("/stream/{agent}", get(stream))
+        .route("/trace/sessions", get(trace_sessions))
+        .route("/trace/timeline", get(trace_timeline))
+        .route("/trace/search", get(trace_search))
         .with_state(state)
+}
+
+async fn trace_sessions(State(st): State<Arc<ServeState>>) -> Response {
+    ok_reply("trace.sessions", &st.root, api::trace_sessions(&st.root))
+}
+
+async fn trace_timeline(
+    State(st): State<Arc<ServeState>>,
+    Query(q): Query<TraceQ>,
+) -> Response {
+    let limit = q
+        .limit
+        .unwrap_or(crate::trace::DEFAULT_LIMIT)
+        .clamp(1, crate::trace::MAX_LIMIT);
+    ok_reply(
+        "trace.timeline",
+        &st.root,
+        api::trace_timeline(&st.root, q.agent.as_deref(), q.file.as_deref(), limit),
+    )
+}
+
+async fn trace_search(
+    State(st): State<Arc<ServeState>>,
+    Query(q): Query<TraceSearchQ>,
+) -> Response {
+    let limit = q
+        .limit
+        .unwrap_or(crate::trace::DEFAULT_LIMIT)
+        .clamp(1, crate::trace::MAX_LIMIT);
+    ok_reply(
+        "trace.search",
+        &st.root,
+        api::trace_search(&st.root, &q.q, q.agent.as_deref(), limit),
+    )
 }
 
 #[derive(Deserialize)]
@@ -134,6 +171,9 @@ async fn index(State(st): State<Arc<ServeState>>) -> Response {
             {"method": "POST", "path": "/settle", "body": {"wait": 30}},
             {"method": "DELETE", "path": "/session"},
             {"method": "GET", "path": "/stream/{agent}?from=oldest|now"},
+            {"method": "GET", "path": "/trace/sessions"},
+            {"method": "GET", "path": "/trace/timeline?agent=&file=&limit="},
+            {"method": "GET", "path": "/trace/search?q=&agent=&limit="},
         ],
     });
     ok_reply("index", &st.root, data)
@@ -210,6 +250,20 @@ async fn cleanup(State(st): State<Arc<ServeState>>) -> Response {
 struct StreamQ {
     /// `oldest` 回放留存积压；缺省（`now`）只看新字节。
     from: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct TraceQ {
+    agent: Option<String>,
+    file: Option<String>,
+    limit: Option<usize>,
+}
+
+#[derive(Deserialize)]
+struct TraceSearchQ {
+    q: String,
+    agent: Option<String>,
+    limit: Option<usize>,
 }
 
 /// SSE 画面：pane 输出字节块桥成 `data:` 事件（lossy UTF-8）；`open` 事件带

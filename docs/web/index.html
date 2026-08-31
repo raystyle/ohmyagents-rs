@@ -82,6 +82,21 @@
   <pre id="screen"></pre>
 </section>
 
+<section id="sec-trace">
+  <h2>轨迹检索</h2>
+  <div class="row">
+    <select id="trace-agent"><option value="">全部 agent</option></select>
+    <input type="text" id="trace-file" placeholder="文件 glob（timeline 用）" style="width:12rem">
+    <button id="btn-trace-sessions">会话</button>
+    <button id="btn-trace-timeline">编辑轨迹</button>
+  </div>
+  <div class="row">
+    <input type="text" id="trace-query" placeholder="检索词（正则；patch、file、双意图四域）" style="flex:1">
+    <button id="btn-trace-search">检索</button>
+  </div>
+  <pre id="trace-out" class="empty">轨迹输出区。</pre>
+</section>
+
 <section id="sec-log">
   <h2>响应</h2>
   <pre id="log"></pre>
@@ -219,7 +234,38 @@ function appendScreen(text) {
   el.scrollTop = el.scrollHeight;
 }
 
+$('btn-trace-sessions').onclick = async () => {
+  const env = await call('GET', '/trace/sessions');
+  if (env.ok) renderTrace(env.data);
+};
+$('btn-trace-timeline').onclick = async () => {
+  const agent = $('trace-agent').value;
+  const file = $('trace-file').value.trim();
+  const qs = new URLSearchParams();
+  if (agent) qs.set('agent', agent);
+  if (file) qs.set('file', file);
+  const env = await call('GET', '/trace/timeline' + (qs.size ? '?' + qs : ''));
+  if (env.ok) renderTrace(env.data);
+};
+$('btn-trace-search').onclick = async () => {
+  const q = $('trace-query').value.trim();
+  if (!q) { renderTrace('检索词为空。'); return; }
+  const agent = $('trace-agent').value;
+  const qs = new URLSearchParams({ q });
+  if (agent) qs.set('agent', agent);
+  const env = await call('GET', '/trace/search?' + qs);
+  if (env.ok) renderTrace(env.data);
+};
+
+function renderTrace(data) {
+  const el = $('trace-out');
+  el.classList.remove('empty');
+  el.textContent = JSON.stringify(data, null, 2);
+  el.scrollTop = 0;
+}
+
 buildAgentChecks();
+for (const a of AGENTS) $('trace-agent').append(new Option(a, a));
 refreshStatus();
 setInterval(() => { if ($('auto').checked) refreshStatus(); }, 2000);
 </script>
