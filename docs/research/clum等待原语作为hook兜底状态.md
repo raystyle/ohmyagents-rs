@@ -12,7 +12,7 @@
 
 本仓层 2 曾把各家 lifecycle hook 写成 `.ohmyagents/state` 当语义权威。已踩的洞：Codex `Stop` 常不触发、Claude 没有标准 `PermissionRequest`、hook 信任框、Windows 专用 pipe 对不上就静默丢。[经验: win-rmux hooks.md；本仓 `oma hook` 仍是可选上报口]
 
-层 1 的 `Quiet` / `wait_until_stable_for` 只表示画面不变，**不是** agent idle。深思会假绿。[经验: 《rmux状态判断与hook补充》]
+层 1 的 `Quiet` / `wait_until_stable_for` 只表示画面不变，**不是** agent idle。深思会假绿。[经验: 《agent状态判断-通道与分层》]
 
 用户要的兜底：设置和 flags 清不掉、hook 又报不出来时，编排器仍能从 PTY 读出「能发 / 在干活 / 卡确认或密码」，再决定 sendkeys 或跳过该路。
 
@@ -94,7 +94,7 @@ Bridge 等待在 `rmux-bridge/src/protocol/output.rs`。`ProtocolProxy` 两套�
 
 hook 是 agent 自愿上报。不上报时文件停在 working/unknown，编排器无法区分「还在深思」和「卡在确认框」。[经验: Codex Stop；Claude 无 PermissionRequest]
 
-等待原语读的是 **已经画在 PTY 上的东西**，不依赖各家 hook 事件表、不依赖 hook 信任、不依赖 hook 进程找得到 `oma` 或 named pipe。残差对话框：`wait_for_text` 或 `terminal_state=confirm` 之后走已有 sendkeys，与《agent状态通道》「报阻塞 / 点掉阻塞分路」仍成立，只是「报」可以从 snapshot 分类来，不必等 hook 写文件。
+等待原语读的是 **已经画在 PTY 上的东西**，不依赖各家 hook 事件表、不依赖 hook 信任、不依赖 hook 进程找得到 `oma` 或 named pipe。残差对话框：`wait_for_text` 或 `terminal_state=confirm` 之后走已有 sendkeys，与《agent状态判断-通道与分层》「报阻塞 / 点掉阻塞分路」仍成立，只是「报」可以从 snapshot 分类来，不必等 hook 写文件。
 
 hook 仍有用：备屏 TUI 上确认文案可能不进 snapshot（win-rmux observe：claude/kimi capture 常空）。那时候 hook 或扫到的可见残行才是信号。顺序建议：
 

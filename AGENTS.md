@@ -22,8 +22,8 @@
 
 4. **方案索引**
    - 定位：`docs\references\项目定位-通用智能体多路复用任务编排器.md`
-   - 定位变更：`docs\history\0004-项目重新定位-通用智能体多路复用任务编排器.md`；上一版 `docs\history\0002-项目重新定位-通用多Agents自动配置和任务编排器.md`
-   - 首期切面：`docs\history\0001-四路会话工具-CLI控制面与网页观察面.md`
+   - 定位变更：`docs\proven\0004-项目重新定位-通用智能体多路复用任务编排器.md`；上一版 `docs\proven\0002-项目重新定位-通用多Agents自动配置和任务编排器.md`
+   - 首期切面：`docs\proven\0001-四路会话工具-CLI控制面与网页观察面.md`
    - 研究：`docs\research\`（文件名即标题，按关键词搜）
 
 ## 二、操作规则
@@ -33,11 +33,11 @@
 ### 工作节奏
 
 1. **每轮对话**
-   - 可以：先核对三原语 `GOAL.md`、`docs\TODO.md`、`docs\PLAN.md`；实质推进当场更新 todo 与 plan。
+   - 可以：先核对三原语 `GOAL.md`、`TODO.md`、`docs\PLAN.md`；实质推进当场更新 todo 与 plan。
    - 禁止：不核对三原语就干活；偏离当前目标；推进了不更新 todo/plan。
 
 2. **踩坑时**
-   - 可以：当场落 `docs\MISTAKES.md` 一行；主题深挖落 `docs\research\`。
+   - 可以：当场落 `docs\mistakes\MISTAKES.md` 一行；主题深挖落 `docs\research\`。
    - 禁止：只留在对话里反复试错。
 
 3. **交付变更时**
@@ -95,22 +95,21 @@
 
 | 类别 | 目录 | 说明 |
 | --- | --- | --- |
-| 文档 | `docs\`（PLAN/TODO/history/diary/research/guide/references）+ 根目录 GOAL/README/AGENTS/CHANGELOG/ROADMAP | 见文档指南 |
+| 文档 | `docs\`（PLAN/TODO 在根；proven/diary/research/guide/references/mistakes 在 docs）+ 根目录 GOAL/README/AGENTS/CHANGELOG/ROADMAP | 见文档指南 |
 | 代码 | `src\` + `catalog\` | Rust CLI `oma`；rmux pin 在 catalog |
 | 运行时产物 | 目标项目下 `.ohmyagents\`；本机工具 `%LOCALAPPDATA%\ohmyagents\rmux\<ver>\` | gitignore 项目态；工具前缀不进仓 |
 
 ### 文档指南
 
-- **目标/怎么做/做什么**：`GOAL.md`（起点/锚点/进程/历史）、`docs\PLAN.md`（当前目标怎么做）、`docs\TODO.md`（当前目标进度清单）
-- **方案详情**：`docs\history\NNNN-*.md`（进行中与否见 todo）；项目日记 `docs\diary\YYYY-MM-DD-*.md`
+> 四目录职能：`research` = 研究原型过程（为什么，对齐六态）；`references` = 开发测试参考（要做什么怎么做，六态溯源）；`guide` = 元规范（怎么写字怎么研究）；`mistakes` = 出错怎么纠。`MISTAKES` 与 `references` 是经验教训的两面。
+
+- **目标/怎么做/做什么**：`GOAL.md`（起点/锚点/进程/历史）、`docs\PLAN.md`（当前目标怎么做）、`TODO.md`（当前目标进度清单）
+- **方案详情**：`docs\proven\NNNN-*.md`（已完成 plan 的归档；进行中与否见 todo）；项目日记 `docs\diary\YYYY-MM-DD-*.md`（**一天一篇**，写当天总结与自省，不写工作细节）
 - **全量清单**：`docs\references\文档全量清单-方案与研究目录的完整索引.md`
 - **阶段/版本**：`ROADMAP.md`、`CHANGELOG.md`（只记大里程碑）
 - **研究/踩坑**：`docs\research\`，规范见 `docs\guide\研究标准细则-结构与六态标记.md`（六态是强规则，见 AGENTS 写研究与测试文档规则）
-- **错误速查**：`docs\MISTAKES.md`
-- **命令手册**：`docs\guide\常用命令与管理流程-从项目init到会话cleanup.md`
-- **文档标准**：`docs\guide\文档标准细则-命名写作规范与rumdl检查.md`
-- **测试标准**：`docs\guide\测试标准细则-分层断言与门禁流程.md`
-- **研究规范**：`docs\guide\研究标准细则-结构与六态标记.md`
-- **选型研究**：`docs\guide\选型研究细则-cratesio与github双通道.md`
+- **开发测试参考**：`docs\references\`（写码与测试时查的做法：命令手册、测试标准、选型研究、rmux 开发参考、agent 信任参考）
+- **元规范**：`docs\guide\`（文档标准、研究标准）
+- **错误速查**：`docs\mistakes\MISTAKES.md`
 
 新文档按类别落位，并登记进全量清单。

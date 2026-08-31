@@ -8,22 +8,23 @@
 
 | 位置 | 命名模式 | 说明 |
 | --- | --- | --- |
-| 根目录 | `GOAL.md` | 任务目标管理 |
+| 根目录 | `GOAL.md` / `PLAN.md` / `TODO.md` | 任务目标管理 / 当前目标计划 / 进度清单 |
 | 根目录 | `AGENTS.md` / `CHANGELOG.md` / `ROADMAP.md` / `README.md` | 项目级文档（工具约定大写） |
-| `docs\` | `PLAN.md` / `TODO.md` / `MISTAKES.md` | 当前规划 / 进度 / 错误沉淀 |
-| `docs\history\` | `NNNN-动词短语.md` | 方案（编号 4 位递增，不复用） |
-| `docs\history\` | `template.md` | 方案模板 |
-| `docs\diary\` | `YYYY-MM-DD-动词短语.md` | 项目日记（一天一篇，只记当天做了什么） |
-| `docs\research\` | 博客式长标题.md | 研究；写作规范见 `docs\guide\研究标准细则-结构与六态标记.md` |
-| `docs\guide\` | 博客式长标题.md | 指南与细则（怎么写、怎么测、怎么用） |
-| `docs\references\` | 博客式长标题.md | 参考与索引（定位、全量清单） |
+| `docs\` | （子目录见下） | 文档区 |
+| `docs\proven\` | `NNNN-动词短语.md` | 已完成状态的 plan 归档（编号 4 位递增，不复用） |
+| `docs\proven\` | `template.md` | 方案模板 |
+| `docs\diary\` | `YYYY-MM-DD-主题.md` | 项目日记（**一天一篇**；写当天全部工作的总结与自省——概貌、关键裁决、得失；不写工作细节，细节进方案与研究） |
+| `docs\research\` | 博客式长标题.md | 研究原型过程（为什么；六态对齐）；写作规范见 `docs\guide\研究标准细则-结构与六态标记.md` |
+| `docs\references\` | 博客式长标题.md | 开发测试参考（要做什么怎么做；规则完整内容、工作流程、经验教训的正面沉淀，六态溯源） |
+| `docs\guide\` | 博客式长标题.md | 元规范（怎么写文档、怎么做研究） |
+| `docs\mistakes\` | `MISTAKES.md` | 错误速查（出错怎么纠；经验教训的反面沉淀，与 references 互补） |
 
 规则细项：
 
 - 禁止模糊词（`misc` / `other` / `temp` / `new`）
 - 编号 `NNNN` 全局唯一
 - 特殊名固定大写：`GOAL` / `PLAN` / `TODO` / `MISTAKES`；小写固定：`template`
-- `docs\history\` 只放 `NNNN` 方案与 `template.md`；当天流水账不进 history
+- `docs\proven\` 只放 `NNNN` 方案与 `template.md`；当天流水账不进 proven
 
 ## 二、写作规范
 

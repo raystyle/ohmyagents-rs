@@ -10,8 +10,8 @@
 AGENTS.md          最高约束
 GOAL.md            当前目标
 docs\PLAN.md       怎么做
-docs\TODO.md       做到哪
-docs\history\0001-四路会话工具-CLI控制面与网页观察面.md
+TODO.md       做到哪
+docs\proven\0001-四路会话工具-CLI控制面与网页观察面.md
 ```
 
 先装 Rust 工具链，再让 `oma` 自己装 rmux（pin 在 `catalog/rmux.toml`，现役 0.10.0）：
@@ -40,11 +40,11 @@ ohmyagents/
   catalog\           rmux 版本与 SHA256 pin
   src\               oma CLI
   examples\          部件 POC
-  docs\history\      方案 NNNN
+  docs\proven\       已完成 plan 归档
   docs\diary\        项目日记
   docs\research\     研究（文件名即标题）
-  docs\guide\        指南与细则（怎么写、怎么测、怎么用）
-  docs\references\   定位与全量清单
+  docs\guide\        元规范（怎么写文档、怎么做研究）
+  docs\references\   开发测试参考与索引
 ```
 
 ## 核心概念
@@ -62,14 +62,14 @@ ohmyagents/
 rumdl check .
 ```
 
-命令设计见 `docs\guide\常用命令与管理流程-从项目init到会话cleanup.md`。
+命令设计见 `docs\references\常用命令与管理流程-从项目init到会话cleanup.md`。
 
 ## 文档导航
 
 - `AGENTS.md`：定位 / 操作规则 / 意图路由 / 资源索引
 - `docs\guide\文档标准细则-命名写作规范与rumdl检查.md`：命名与写作
 - `docs\guide\研究标准细则-结构与六态标记.md`：研究规范与六态标记
-- `docs\guide\测试标准细则-分层断言与门禁流程.md`：测试分层与门禁
+- `docs\references\测试标准细则-分层断言与门禁流程.md`：测试分层与门禁
 - `docs\references\文档全量清单-方案与研究目录的完整索引.md`：全量索引
 - `docs\references\项目定位-通用智能体多路复用任务编排器.md`：现役定位
 - `docs\research\四路会话的控制面与观察面.md`：先读的研究

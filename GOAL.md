@@ -1,7 +1,7 @@
 # GOAL：任务目标管理
 
 > 角色：**工作任务管理**，四个部分——**起点**、**锚点**、**进程**、**历史**。随工作实时更新。
-> 与其它文档分工：`ROADMAP.md`=阶段路线；`CHANGELOG.md`=版本成果；`docs\diary\YYYY-MM-DD-*.md`=项目日记（当天做了什么）；`docs\history\NNNN-*.md`=方案与过程经验；`docs\TODO.md`=进度清单；`docs\PLAN.md`=实施指导。
+> 与其它文档分工：`ROADMAP.md`=阶段路线；`CHANGELOG.md`=版本成果；`docs\diary\YYYY-MM-DD-*.md`=项目日记（当天做了什么）；`docs\proven\NNNN-*.md`=方案与过程经验；`TODO.md`=进度清单；`docs\PLAN.md`=实施指导。
 
 ## 起点
 
@@ -23,7 +23,7 @@
 | 2026-08-31 | POC paste 绿（Windows）：全 CLI `-L` label 三段式；实证 SDK cmd() 在 Windows 不可用、`-S` 无条件拒绝 |
 | 2026-08-29 | 核实 tddh/clum `68a90e4` 源码：等待族与 `terminal_state` 属实；订正 wait_exit 5s 注释 |
 | 2026-08-29 | 研究 clum 等待原语：hook 沉默时用 `terminal_state` / `wait_for_text` 兜底，不引入 clum 运行时 |
-| 2026-08-29 | 对齐 ohmypwsh 文档结构：方案在 `docs\history\`，日记拆到 `docs\diary\` |
+| 2026-08-29 | 对齐 ohmypwsh 文档结构：方案在 `docs\proven\`，日记拆到 `docs\diary\` |
 | 2026-08-29 | 对齐 ohmypwsh 六态文档规则：AGENTS 六态规则 + `guide.md` + 研究关键结论标记 |
 | 2026-08-29 | 立项方案 0005；GOAL/TODO/PLAN 切到本目标；check 部件已验收 |
 | 2026-08-29 | Windows 最小 pane POC 已绿：endpoint / session / layout / drive / dialogs；Linux/mac 委托后续仓库 |
@@ -52,4 +52,4 @@
 - **进程**：只记当前目标；达成后整条移入「历史」。
 - **历史**：日期 + 目标 + 结果，倒序。
 - **一目标一路径**：起点、锚点、进程、历史同属一个目标轨迹。
-- **日记与方案**：当天流水账进 `docs\diary\`；方案与过程经验进 `docs\history\`。
+- **日记与方案**：当天流水账进 `docs\diary\`；方案与过程经验进 `docs\proven\`。

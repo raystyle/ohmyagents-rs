@@ -16,7 +16,7 @@
 | 项目级 Claude hook 弹信任框挡 launch | 命令变更触发 hook 信任 | spawn 前预写信任库；hook 注册仍只写项目目录 | 2026-08-25 |
 | 在仓库 cwd 跑 `oma init --yolo` | init 默认写当前目录的 `.claude` / `.codex` / `.kimi-code` | POC 与演示用 `--project` 临时目录；`--pretrust` 才写家目录 | 2026-08-29 |
 | 把项目 `.codex/config.toml` 的 `[projects]` 当成已信任 | Codex 先看用户 store，未信任则跳过项目层 | doctor 的 codex trust 只读 `~/.codex/config.toml` | 2026-08-29 |
-| 把普通项目 skill 标成 n/a、只把 plugin 形态当门 | 官方 `allowed-tools` 不被 trust 挡，误当成交互也不会堵 | 有 `.claude/skills` / `commands` 就报 `trust.skill`；MCP 审批是另一扇门，`--yolo` 不够、要 `--pretrust` | 2026-08-29 |
+| 把普通项目 skill 标成 n/a、只把 plugin 形态当门 | 官方 `allowed-tools` 不被 trust 挡，误当成交互也不会堵 | 2026-08-31 裁决反转：**只对 skills-dir plugin 形态报 `trust.skill`**（skill 目录带 `.claude-plugin/plugin.json`）；普通 `.claude/skills` 不报，归 `trust.project`。MCP 审批是另一扇门，`--yolo` 不够、要 `--pretrust` | 2026-08-29 |
 | 只用 PATH/`which` 判断 agent 未装 | 官方安装常在 `~\.local\bin` 或 Codex junction，当前进程 PATH 未刷新 | 同时扫 PATH、`OMA_AGENT_PATH`、`OMA_*_BIN`、各家默认目录 | 2026-08-29 |
 | 文档骨架曾去掉六态章节 | 当时用户说不需要 | ohmypwsh 2026-08-29 把六态升为 AGENTS 写研究与测试文档规则；研究与测试文档的结论断言必须标 | 2026-08-29 |
 | 项目日记和方案混在 `docs\history\` | 初版对照时 ohmypwsh 尚未拆 diary | 方案只放 `docs\history\NNNN-*.md`；当天流水账放 `docs\diary\YYYY-MM-DD-*.md` | 2026-08-29 |

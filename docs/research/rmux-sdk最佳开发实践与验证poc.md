@@ -79,7 +79,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 | SDK 有一等 paste-buffer / load-buffer / send-keys -H | **不成立**（paste/load）。`Pane` 只有 `send_text` / `send_key`；协议层 `rmux_proto::Request` 有 `LoadBuffer` / `PasteBuffer`。**且 Request 逃生舱不可达**：`RmuxCommandKind::Request` 是惰性 DTO，`transport()` 为 `pub(crate)`，外部无法发裸 Request。[实证: 2026-08-31 读 0.10.0 源码] `Rmux::cmd()` 注入的 `-S <pipe>` 在 Windows 被无条件拒绝，CLI 逃生舱同样经 SDK 不可用。[实证: 2026-08-31] 实际通道是自 spawn CLI `-L <label>`。`-H` 是 CLI 旗标，SDK 用 `send_key("Enter")` 即可，不必 hex |
 | 官方 quickstart 是 connect_or_start + EnsureSession | 成立。但例子用 CreateOrReuse；本仓 spawn 改 CreateOnly |
 | Default 端点会撞别人的 daemon | 成立（发现策略）。本仓必须显式 pipe/socket |
-| Quiet 等于 idle | **不成立**。`wait_for_load_state(Quiet)` 文档：画面稳定，不推断 prompt。与《rmux状态判断与hook补充》一致 |
+| Quiet 等于 idle | **不成立**。`wait_for_load_state(Quiet)` 文档：画面稳定，不推断 prompt。与《agent状态判断-通道与分层》一致 |
 | Drop Pane 杀进程 | **不成立**。`close` 才杀；drop/detach inert |
 
 ### 5. 不要从 demo 抄进 POC 的
