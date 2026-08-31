@@ -512,6 +512,22 @@ pub async fn send(
             .await
             .map_err(|e| format!("send_text: {e}"))?;
     }
+    // S005 铁律「隔开发」：等载荷末行短头在画面可见再单独 Enter——rmux 原生
+    // 静默等待，不盲 sleep（P0010 实证：紧连的 Enter 被 codex TUI 吞）。
+    // 超时不致命：降级为旧形态照发 Enter 并留痕。
+    let last_line = text.lines().last().unwrap_or("");
+    let head: String = last_line.trim().chars().take(24).collect();
+    if !head.is_empty() {
+        match pane
+            .expect_visible_text()
+            .to_contain(&head)
+            .timeout(Duration::from_secs(5))
+            .await
+        {
+            Ok(_) => eprintln!("send.echo=visible"),
+            Err(e) => eprintln!("send.echo=timeout ({e}); Enter 照发"),
+        }
+    }
     // Enter is always its own dispatch; the pasted payload carries none.
     pane.send_key("Enter")
         .await
