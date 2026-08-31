@@ -17,8 +17,20 @@ use oma::yolo;
 #[derive(Parser)]
 #[command(name = "oma", about = "Oh My Agents：通用智能体多路复用任务编排器")]
 struct Cli {
+    /// REPL：不开 HTTP 编排面
+    #[arg(long)]
+    no_web: bool,
+    /// REPL：打印 URL 后尝试打开浏览器（失败只警告）
+    #[arg(long)]
+    open: bool,
+    /// REPL：用 shell 桩替代真实 agent（验收与调试）
+    #[arg(long)]
+    stub: bool,
+    /// REPL：指定 agent 列表（逗号分隔）；缺省取已装交集
+    #[arg(long, value_delimiter = ',')]
+    agents: Option<Vec<String>>,
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
@@ -272,7 +284,10 @@ fn main() {
 
 fn run() -> Result<(), String> {
     let cli = Cli::parse();
-    match cli.command {
+    let Some(command) = cli.command else {
+        return cmd_repl(cli.no_web, cli.open, cli.stub, cli.agents);
+    };
+    match command {
         Commands::Check { no_install } => cmd_check(no_install),
         Commands::Init {
             yolo,
@@ -317,6 +332,21 @@ fn run() -> Result<(), String> {
         Commands::Mcp { project } => cmd_mcp(project),
         Commands::Completions { shell } => cmd_completions(shell),
     }
+}
+
+/// 裸 `oma` 进 REPL：spawn 默认不阻塞、起网页打印 URL、行循环分派。
+fn cmd_repl(
+    no_web: bool,
+    open: bool,
+    stub: bool,
+    agents: Option<Vec<String>>,
+) -> Result<(), String> {
+    tokio_block(oma::repl::run(oma::repl::ReplArgs {
+        agents,
+        stub,
+        no_web,
+        open,
+    }))
 }
 
 fn tokio_block<F: std::future::Future<Output = Result<(), String>>>(
@@ -375,52 +405,6 @@ fn cmd_completions(shell: clap_complete::Shell) -> Result<(), String> {
     Ok(())
 }
 
-/// TTY 人读表格（S016 吸收）：列宽取表头与单元格最大字符宽，两空格槽。
-fn render_status_table(panes: &[orch::PaneStatus]) -> String {
-    let headers = ["AGENT", "PID", "PROCESS", "TERMINAL", "HOOK"];
-    let rows: Vec<Vec<String>> = panes
-        .iter()
-        .map(|p| {
-            vec![
-                p.agent.clone(),
-                p.pid.map(|v| v.to_string()).unwrap_or_else(|| "-".into()),
-                p.process.clone().unwrap_or_else(|| "-".into()),
-                p.terminal.to_string(),
-                p.hook_state.clone().unwrap_or_else(|| "silent".into()),
-            ]
-        })
-        .collect();
-    let mut widths: Vec<usize> = headers.iter().map(|h| h.chars().count()).collect();
-    for r in &rows {
-        for (i, c) in r.iter().enumerate() {
-            widths[i] = widths[i].max(c.chars().count());
-        }
-    }
-    let render = |cells: Vec<String>| -> String {
-        cells
-            .iter()
-            .enumerate()
-            .map(|(i, c)| {
-                let pad = " ".repeat(widths[i] - c.chars().count());
-                format!("{c}{pad}")
-            })
-            .collect::<Vec<_>>()
-            .join("  ")
-            .trim_end()
-            .to_string()
-    };
-    let mut out = String::new();
-    out.push_str(&render(headers.iter().map(|s| s.to_string()).collect()));
-    out.push('\n');
-    out.push_str(&render(widths.iter().map(|w| "-".repeat(*w)).collect()));
-    out.push('\n');
-    for r in rows {
-        out.push_str(&render(r));
-        out.push('\n');
-    }
-    out
-}
-
 async fn cmd_spawn(
     wanted: Option<Vec<String>>,
     stub: bool,
@@ -460,7 +444,7 @@ async fn cmd_status(project: Option<PathBuf>, json: bool) -> Result<(), String> 
         let panes = orch::status(&link, &root).await?;
         println!("oma status: {} (session {})", root.display(), orch::session_name(&root)?.as_str());
         println!();
-        print!("{}", render_status_table(&panes));
+        print!("{}", oma::repl::render_status_table(&panes));
         return Ok(());
     }
     println!("status.project={}", root.display());
@@ -906,43 +890,5 @@ fn cmd_check(no_install: bool) -> Result<(), String> {
             pin.tag
         )),
         Err(CheckError::Message(m)) => Err(m),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn pane(agent: &str, pid: Option<u32>, terminal: &'static str) -> orch::PaneStatus {
-        orch::PaneStatus {
-            agent: agent.into(),
-            pid,
-            process: Some("pwsh.exe".into()),
-            terminal,
-            hook_state: None,
-        }
-    }
-
-    #[test]
-    fn status_table_aligns_columns() {
-        let panes = vec![pane("claude", Some(123), "idle"), pane("codex", Some(45678), "idle")];
-        let table = render_status_table(&panes);
-        let mut lines = table.lines();
-        let header = lines.next().expect("header");
-        let sep = lines.next().expect("separator");
-        let row1 = lines.next().expect("row1");
-        let row2 = lines.next().expect("row2");
-        assert!(header.contains("AGENT") && header.contains("TERMINAL") && header.contains("HOOK"));
-        assert!(sep.starts_with("------"), "separator dashes under AGENT column");
-        // 对齐契约：同列单元格起始字符位一致（idle 与 pid 列各验一次）。
-        assert_eq!(row1.find("idle"), row2.find("idle"));
-        assert_eq!(row1.find("123"), row2.find("45678"));
-    }
-
-    #[test]
-    fn status_table_marks_missing_fields() {
-        let table = render_status_table(&[pane("grok", None, "blocked")]);
-        let row = table.lines().nth(2).expect("row");
-        assert!(row.contains("-") && row.contains("silent") && row.contains("blocked"));
     }
 }

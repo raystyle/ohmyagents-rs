@@ -4,23 +4,22 @@
 
 ## 当前目标
 
-S016 吸收件收口：`--json` 信封、`oma status` TTY 表格、`oma completions`、R002 输出规范节（对应 `GOAL.md`，方案 P0015，2026-08-31 从队列接续；吸收裁决表见 `S016`）。当日已完成。
+REPL 与编排面内嵌（对应 `GOAL.md`，方案 P0016，2026-08-31 从队列接续；最后一个设计口径命令）。当日已完成，设计命令全部落地。
 
 ## 任务进度清单
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
-| 立项 0015 | 已完成 | 吸收表四件定界（--json 六命令、TTY 表格、completions、R002 规范节） | 2026-08-31 |
-| json 信封 | 已完成 | api::envelope 上提共用；六命令 `--json`；失败信封进 stdout 加退出非 0 | 2026-08-31 |
-| status 表格 | 已完成 | TTY 对齐表（手写 formatter）；非 TTY 保持 marker，既有测试零改动 | 2026-08-31 |
-| completions | 已完成 | clap_complete；bash/powershell 实测出脚本 | 2026-08-31 |
-| R002 规范节 | 已完成 | 输出规范四条：marker 默认、TTY 表格、--json 三传输同形、错误带下一步 | 2026-08-31 |
+| 立项 0016 | 已完成 | 裸 oma 进 REPL：重连或拉起、编排面内嵌、行循环 | 2026-08-31 |
+| REPL 骨架 | 已完成 | 解析器纯函数加单测；stdin 线程喂 mpsc；quit/EOF 只 detach | 2026-08-31 |
+| 编排面内嵌 | 已完成 | serve_in_background（路由表抽共用）；端口 7900 顺延 7909；--no-web/--open | 2026-08-31 |
+| stub 验收 | 已完成 | 管道驱动全链：banner、表格、all 双路、单路 send、web、quit、cleanup | 2026-08-31 |
 
 ## 队列目标
 
 | 目标 | 状态 | 说明 |
 | --- | --- | --- |
 | P0012 Linux/mac 接管 | 环境切换待续 | 资产与代码路径就绪，运行验收待切换环境 |
-| grok updates.jsonl 升级 | 排队 | chat_history 是派生缓存；权威日志信封形需 method 分类学（S019 第四节） |
+| 命令图生成 SKILL.md | 排队 | S016 吸收裁决表末件（oma init 进化） |
 
-（P0006 至 P0013、P0011 已完成；过程与经验在对应 proven 方案。）
+（P0006 至 P0016 已完成；过程与经验在对应 proven 方案。）

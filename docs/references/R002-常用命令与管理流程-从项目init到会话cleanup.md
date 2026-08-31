@@ -1,6 +1,6 @@
 # 常用命令与管理流程：从项目 init 到会话 cleanup
 
-> AGENTS 意图路由的细则。已落地：`oma check`、`oma init`（全套）、`oma doctor`、`oma agents`（含 install/update）、`oma hook`、`oma spawn`、`oma status`、`oma send`、`oma cleanup`、`oma run`、`oma settle`、`oma trace` 六视图、`oma serve`（HTTP 编排面，2026-08-31 实测）。REPL 与网页可视化仍是设计口径。
+> AGENTS 意图路由的细则。已落地：`oma check`、`oma init`（全套）、`oma doctor`、`oma agents`（含 install/update）、`oma hook`、`oma spawn`、`oma status`、`oma send`、`oma cleanup`、`oma run`、`oma settle`、`oma trace` 六视图、`oma serve`（HTTP 编排面）、`oma mcp`、REPL（裸 `oma`）、`oma completions`、六会话命令 `--json`。设计口径全部落地（2026-08-31）。
 > 显示名 Oh My Agents；仓库 `ohmyagents`；CLI 二进制 `oma`（对照 ohmypwsh 的 `omp`）。运行时数据目录仍是 `.ohmyagents`。
 
 ## 环境
@@ -52,9 +52,9 @@ cargo run --example poc-negatives     # C-c Codex 守卫与 daemon-wide kill 负
 | 发任务 | `oma send <agent> "<text>" [--confirm MARKER] [--project PATH]` | 守卫链（键策略、locate 进程名）后：单行走 SDK `send_text` 与 Enter 两段式；多行（含换行）走三段式粘贴（临时文件 + CLI `load-buffer` + `paste-buffer -p -t %<pane_id>`，Enter 仍单独发，中文可用）；`--confirm` 等短头可见 |
 | 收尾 | `oma cleanup [--project PATH]` | 只杀本项目会话并清 manifest；不 kill-server，daemon 随末 session 自然退 |
 | 自愈信任 | `oma settle [--wait N] [--project PATH]` | 轮询各路画面（SDK snapshot），白名单匹配信任/审查框自动确认（claude 工作区信任 Enter、codex 审查 Trust all）；密码类永不自动 |
-| 开会话（REPL） | `oma` | spawn 默认不阻塞 CLI + 打印 URL + REPL；不自动打开浏览器（设计口径） |
-| 无网页 | `oma --no-web` | 不起 HTTP（设计口径） |
-| 尝试打开浏览器 | `oma --open` | opener 失败只警告（设计口径） |
+| 开会话（REPL） | `oma [--stub] [--agents a,b] [--no-web] [--open]` | 裸调用进 REPL：会话已在则重连（不叠格），否则缺省拉起（不阻塞）；默认内嵌 HTTP 编排面（7900 被占顺延到 7909）并打印 URL；`--no-web` 不起、`--open` 才开浏览器（失败只警告）。行命令见下节 REPL |
+| 无网页 | `oma --no-web` | 不起 HTTP（REPL 顶层 flag） |
+| 尝试打开浏览器 | `oma --open` | opener 失败只警告 |
 | 委派任务 | `oma run "<文本>" [--assign a,b] [--confirm MARKER] [--project PATH]` | 状态门分派（层 2 有则用，沉默走 1b，仅 idle 过）：一路 blocked/busy 跳过并报告不堵其它路；发出路写 `.ohmyagents\tasks\tNNN.json`（id 递增，assigned 记实际发出路与时间戳）；多行文本走三段式；全拦退出 1 |
 | 检索会话 | `oma trace sessions [--project PATH]` | 查询时联邦读四家原生会话库（claude projects 目录、codex rollout、grok sessions、kimi session_index），列项目内各 agent 会话 |
 | 检索编辑轨迹 | `oma trace timeline [--agent A] [--file GLOB] [--limit N] [--project PATH]` | 意图操作块（元素视图）：每条编辑事件带 operation_id（session:call）、kind、tool、ts 与双意图（intent=用户请求、op_intent=assistant 声明）；分页 clamp 1-1000。四家全量：claude（Edit/Write）、codex（FileChange 主源加 apply_patch 兜底）、grok（updates.jsonl 权威主源加 chat_history 兜底，逐事件真实时间）、kimi（loop tool.call） |
@@ -77,7 +77,7 @@ cargo run --example poc-negatives     # C-c Codex 守卫与 daemon-wide kill 负
 > quit
 ```
 
-`quit` 只 detach。拆会话用 `cleanup`。
+`all` 走状态门分派（一路 blocked 跳过不堵其它路）；`<agent>` 单路发送（多行文本走三段式粘贴）；`status` 打对齐表格；`web` 复述编排面 URL；`quit`（或 `exit`、EOF）只 detach，会话留存。拆会话用 `cleanup`。空行忽略；裸 `all`/裸 agent 名（无文本）与未知命令给提示不崩。
 
 ## 输出规范
 

@@ -8,7 +8,6 @@
 
 use std::path::{Path, PathBuf};
 
-use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{CallToolResult, ServerCapabilities, ServerInfo};
 use rmcp::transport::io::stdio;
@@ -21,7 +20,6 @@ use crate::api;
 #[derive(Clone)]
 pub struct OmaMcp {
     root: PathBuf,
-    tool_router: ToolRouter<Self>,
 }
 
 /// stdio 起服务：stdin/stdout 走 MCP 协议，进度只进 stderr。
@@ -41,10 +39,7 @@ pub async fn run(root: PathBuf) -> Result<(), String> {
 
 impl OmaMcp {
     pub fn new(root: PathBuf) -> Self {
-        Self {
-            root,
-            tool_router: Self::tool_router(),
-        }
+        Self { root }
     }
 }
 

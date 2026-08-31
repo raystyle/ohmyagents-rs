@@ -40,7 +40,8 @@
 | `src\trace.rs` | 意图轨迹检索层：四家会话发现 + 四家联邦 loader（codex FileChange 主源、grok updates 权威日志加 chat_history 兜底、注入过滤、epoch ms 归一）+ 块聚合与过滤分页检索 |
 | `src\api.rs` | 传输无关编排操作层（P0011）：六操作加 trace 检索三件返回结构化 JSON，HTTP 与 MCP 共用 |
 | `src\mcp.rs` | MCP 适配层（feature `mcp`，P0011）：rmcp 3.1.4 stdio 九 tools，信封同形，stdout 纯协议 |
-| `src\server.rs` | HTTP 适配层（feature `server`，P0011）：axum 六操作 RESTish + JSON 信封 + 会话写串行化 + 网页直出 + pane 输出 SSE 桥 |
+| `src\server.rs` | HTTP 适配层（feature `server`，P0011）：axum 六操作 RESTish + JSON 信封 + 会话写串行化 + 网页直出 + pane 输出 SSE 桥；`serve_in_background` 供 REPL 内嵌 |
+| `src\repl.rs` | REPL 交互层（P0016）：裸 `oma` 进；stdin 线程喂 mpsc、行命令分派、编排面内嵌、状态表格渲染（CLI 共用） |
 | `docs\web\index.html` | 可视化编排单页（无构建链；include_str 进 serve）：状态卡、委派按钮、SSE 画面 |
 | `tests\cli.rs` | CLI 集成冒烟（assert_cmd；check/agents/hook/doctor/send 快败） |
 | `src\pathutil.rs` | 路径工具 |
@@ -97,6 +98,7 @@ ohmyagents/
 | P0013 | `P0013-agent意图操作块与编辑轨迹检索.md` | 已完成（四家 loader 活体验证；MCP 挂载归 P0011） |
 | P0014 | `P0014-grok权威日志升级.md` | 已完成（updates 主源加 chat_history 兜底；逐事件真实时间） |
 | P0015 | `P0015-S016吸收件收口.md` | 已完成（--json 信封、TTY 表格、completions、R002 输出规范） |
+| P0016 | `P0016-REPL与编排面内嵌.md` | 已完成（裸 oma 进 REPL；编排面内嵌端口顺延；stub 验收过） |
 
 ## 四、项目日记
 

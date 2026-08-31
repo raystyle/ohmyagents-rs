@@ -43,17 +43,7 @@ pub async fn serve(root: PathBuf, port: u16) -> Result<(), String> {
         root,
         gate: Mutex::new(()),
     });
-    let app = axum::Router::new()
-        .route("/", get(page))
-        .route("/api", get(index))
-        .route("/spawn", post(spawn))
-        .route("/status", get(status))
-        .route("/send", post(send))
-        .route("/run", post(run))
-        .route("/settle", post(settle))
-        .route("/session", delete(cleanup))
-        .route("/stream/{agent}", get(stream))
-        .with_state(state);
+    let app = router(state);
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let listener = tokio::net::TcpListener::bind(addr)
         .await
@@ -65,6 +55,41 @@ pub async fn serve(root: PathBuf, port: u16) -> Result<(), String> {
     axum::serve(listener, app)
         .await
         .map_err(|e| format!("serve: {e}"))
+}
+
+/// REPL 内嵌形态（P0016）：后台跑编排面，返回实际地址；
+/// 任务挂在当前 runtime，REPL 主循环的每个 await 都给它让路。
+pub async fn serve_in_background(root: PathBuf, port: u16) -> Result<SocketAddr, String> {
+    let state = Arc::new(ServeState {
+        root,
+        gate: Mutex::new(()),
+    });
+    let app = router(state);
+    let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
+        .map_err(|e| format!("bind {addr}: {e}"))?;
+    let local = listener.local_addr().map_err(|e| e.to_string())?;
+    tokio::spawn(async move {
+        if let Err(e) = axum::serve(listener, app).await {
+            eprintln!("oma: web server stopped: {e}");
+        }
+    });
+    Ok(local)
+}
+
+fn router(state: Arc<ServeState>) -> axum::Router {
+    axum::Router::new()
+        .route("/", get(page))
+        .route("/api", get(index))
+        .route("/spawn", post(spawn))
+        .route("/status", get(status))
+        .route("/send", post(send))
+        .route("/run", post(run))
+        .route("/settle", post(settle))
+        .route("/session", delete(cleanup))
+        .route("/stream/{agent}", get(stream))
+        .with_state(state)
 }
 
 #[derive(Deserialize)]

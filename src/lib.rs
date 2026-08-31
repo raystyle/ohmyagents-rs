@@ -7,6 +7,7 @@ pub mod hook;
 pub mod install;
 pub mod orch;
 pub mod pathutil;
+pub mod repl;
 pub mod rmux;
 pub mod rmuxpoc;
 pub mod trace;
