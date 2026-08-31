@@ -1,0 +1,14 @@
+# md-ref-scan 豁免清单：每行一条正则（反斜杠需写成 \\），匹配引用串则不计断链
+# 历史快照中的当时路径（改写即篡改历史）
+^docs\\MISTAKES\.md$
+^docs\\PLAN\.md$
+^docs\\TODO\.md$
+^docs\\research\\YouMind无头模式与YOLO免审批对照.*$
+^docs\\research\\guide\.md$
+^docs\\references\\项目定位-通用多Agents自动配置和任务编排器\.md$
+# 占位符模式（格式说明非真实文件）
+^docs\\proven\\PNNNN-短名\.md$
+^template\.md$
+# 外部仓内路径（描述性引用，非本仓文件）
+^docs/scripting-sdk\.md$
+^docs/interaction\.md$

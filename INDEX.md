@@ -22,6 +22,9 @@
 
 | 文件 | 职责 |
 | --- | --- |
+| `.tools\` | 项目自定义脚本工具归档（ps1 / py / Rust；`README.md` 含清单与规则；`uv run --script` 载体） |
+| `.tools\md-ref-scan.py` | markdown 仓内引用断链扫描（文档大改后回归门禁；豁免清单 `md-ref-allow.txt`） |
+| `.tools\md-replace.py` | 中文与反斜杠路径安全的字面批量替换（规避 sed 坑 M023） |
 | `src\main.rs` | CLI 入口与子命令分发（check / init / doctor / agents / hook） |
 | `src\lib.rs` | 模块声明 |
 | `src\catalog.rs` | `catalog\rmux.toml` pin 读取（版本与哈希） |
@@ -42,6 +45,7 @@ ohmyagents/
   Cargo.toml / LICENSE / .rumdl.toml
   catalog\
     rmux.toml
+  .tools\            自定义脚本工具（md-ref-scan / md-replace 等）
   src\
     main.rs  lib.rs  catalog.rs  rmux.rs  rmuxpoc.rs
     hook.rs  agents.rs  doctor.rs  yolo.rs  pathutil.rs

@@ -70,6 +70,10 @@
    - 可以：遵守 `docs\references\R004-测试标准细则-分层断言与门禁流程.md`。分层按官方三层（单元 `#[cfg(test)]`、集成 `tests\*.rs`、doctest），集成优先于单元；意图对应方法（冒烟断退出码、回归用黄金文件、验收对照 oracle）；测试名写成可读规格，负例带 `dies_` 前缀；期望值必须来自独立来源（规范、黄金文件、属性），断言只写稳定字段（标记行、退出码），放过 pid 与时间戳；测试体用 `TestResult` 加 `?` 传播错误；rmux 依赖的测试按闸门 skip；测试设施收 `test-util` feature。
    - 禁止：重言式断言（期望值来自被测同款逻辑或镜像实现分支，AI 生成测试高发）；公开 API 测试塞 `mod tests{}` 不进 `tests\`；默认 mock（oma 拿真 daemon）；计时进断言；测试设施无 feature gate 进生产构建；只测 happy path。
 
+10. **写临时脚本时**
+    - 可以：按需自定义的 ps1 / py / Rust 工具，有复用价值即归档 `.tools\`（规则与清单见 `.tools\README.md`；Python 带 PEP 723 头，用 `uv run --script` 运行）；文档结构大改（改名、编号、移目录）后跑 `uv run --script .tools\md-ref-scan.py` 做断链回归。
+    - 禁止：可复用脚本散落仓库根或只留在对话里；用 sed 批改中文与反斜杠路径（用 `md-replace.py`，见 M023）；归档不带自述与用法。
+
 ## 三、意图路由
 
 > 需求意图与操作方法的映射。命令细则见 `docs\references\R002-常用命令与管理流程-从项目init到会话cleanup.md`。
@@ -86,6 +90,7 @@
 - **看状态**：`oma status`
 - **收尾**：`oma cleanup`（只杀本 session）
 - **查文档**：先搜 `INDEX.md` 定位编号，再读文件；rg / mq / ast-grep 全套搜索方法见四、资源索引
+- **项目工具**：`.tools\`（自定义脚本归档；Python 用 `uv run --script .tools\<名>.py`，清单见 `.tools\README.md`）；文档大改后断链回归 `uv run --script .tools\md-ref-scan.py`
 
 已落地：`check`、`init --yolo`、`doctor`、`agents`、`hook`。其余仍是设计口径，禁止假装已经可跑。
 
