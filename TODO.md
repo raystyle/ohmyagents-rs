@@ -14,15 +14,14 @@
 | 选型核实 | 已完成 | axum 0.8.9 stable（4.4 亿下载）；rmcp 已 stable 3.1.4（2310 万下载，2026-08-20 发版）非方案旧记 beta，P0011 选型节已订正 | 2026-08-31 |
 | HTTP API 最小集 | 已完成 | `oma serve`：六操作 RESTish + JSON 信封（api 层共用、会话锁串行）；stub curl 全绿 | 2026-08-31 |
 | 网页最小可视化 | 已完成 | 单页直出（状态卡/委派按钮/SSE 画面，oldest 回放验收过） | 2026-08-31 |
-| MCP server | 进行中 | `oma mcp` stdio：六操作 tools 加 trace 检索 tools（P0013 联动） | — |
-| 三通道共测 | 待办 | 同项目 CLI/HTTP/MCP 各走六操作 | — |
+| MCP server | 已完成 | `oma mcp` stdio：六操作 tools + trace 三 tools（信封同形；stdout 纯协议） | 2026-08-31 |
+| 三通道共测 | 已完成 | 同 stub 项目 CLI/HTTP/MCP 各自 spawn→status→send→cleanup 全绿 | 2026-08-31 |
 
 ## 队列目标
 
 | 目标 | 状态 | 说明 |
 | --- | --- | --- |
-| P0011 三传输编排面 | 挂起待续 | HTTP API、MCP、网页可视化四切片全待办（方案已立；trace 检索面挂 MCP 也归此） |
 | P0012 Linux/mac 接管 | 环境切换待续 | 资产与代码路径就绪，运行验收待切换环境 |
 | grok updates.jsonl 升级 | 排队 | chat_history 是派生缓存；权威日志信封形需 method 分类学（S019 第四节） |
 
-（P0006 至 P0013 已完成；过程与经验在对应 proven 方案。）
+（P0006 至 P0013、P0011 已完成；过程与经验在对应 proven 方案。）

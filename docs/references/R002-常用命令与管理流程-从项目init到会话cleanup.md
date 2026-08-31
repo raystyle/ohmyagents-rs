@@ -63,6 +63,7 @@ cargo run --example poc-negatives     # C-c Codex 守卫与 daemon-wide kill 负
 | 检索单文件轨迹 | `oma trace file <相对路径\|glob> [--agent A] [--limit N] [--project PATH]` | 文件维度：该文件被哪些 agent、何时、基于什么意图改过（创建/修改/删除），时间正序 |
 | 检索关键词 | `oma trace search <query> [--agent A] [--limit N] [--project PATH]` | 正则匹配 patch、file、双意图四域，非法正则退字面子串；先全量匹配后截断；输出元素命中数与匹配块数两个粒度 |
 | 起 HTTP 编排面 | `oma serve [--port 7900] [--project PATH]` | 六操作 RESTish：`POST /spawn`（body `{"agents":["a"],"stub":false}`）、`GET /status`、`POST /send`、`POST /run`、`POST /settle`、`DELETE /session`；`GET /` 直出可视化网页（`docs\web\index.html` 单页：状态卡、委派按钮、SSE 画面）；`GET /api` 端点自述；`GET /stream/{agent}?from=oldest\|now` pane 输出 SSE（`open` 事件带 pane_id，回放积压用 oldest）。JSON 信封 `{ok, data\|error, meta:{command, project}}`；业务失败 200 加 `ok:false`，坏 JSON 400；只绑 127.0.0.1，写操作会话锁串行（一次一命令）；Ctrl-C 只停 serve 不清会话。需 `--features server` 构建，缺 feature 报错退出 1 |
+| 起 MCP server | `oma mcp [--project PATH]` | stdio 传输（无网络面），九 tools：六操作（oma_spawn/oma_status/oma_send/oma_run/oma_settle/oma_cleanup）加 trace 检索（oma_trace_sessions/oma_trace_timeline/oma_trace_search）。返回信封与 HTTP 同形（`structured`/`structured_error`，业务失败 caller 可见）；stdout 是 JSON-RPC 通道，进度只进 stderr。需 `--features mcp` 构建。MCP 客户端配置示例：`oma mcp --project D:\path\to\proj` |
 
 ## REPL
 

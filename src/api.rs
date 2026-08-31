@@ -102,6 +102,88 @@ pub async fn cleanup(root: &Path) -> Result<Value, String> {
     Ok(json!({ "killed": existed, "scope": "session" }))
 }
 
+/// 轨迹检索三件（P0013 联动）：sessions / timeline / search。
+/// 同样走 JSON，供 MCP tools 与将来的 HTTP trace 端点共用。
+
+pub fn trace_sessions(root: &Path) -> Value {
+    let rows: Vec<Value> = crate::trace::list_sessions(root)
+        .iter()
+        .map(|s| {
+            json!({
+                "agent": s.agent,
+                "id": s.id,
+                "started_at": s.started_at,
+                "file": s.file.display().to_string(),
+            })
+        })
+        .collect();
+    json!({ "project": root.display().to_string(), "sessions": rows })
+}
+
+fn trace_event_json(e: &crate::trace::TraceEvent, with_patch: bool) -> Value {
+    let mut v = json!({
+        "agent": e.agent,
+        "session": e.session_id,
+        "op": e.operation_id(),
+        "file": e.file,
+        "kind": e.kind.as_str(),
+        "tool": e.tool,
+        "ts": e.ts,
+        "ts_ms": e.ts_ms,
+        "intent": e.user_intent,
+        "op_intent": e.op_intent,
+    });
+    if with_patch {
+        v["patch"] = match &e.patch {
+            Some(p) => Value::String(p.clone()),
+            None => Value::Null,
+        };
+    }
+    v
+}
+
+pub fn trace_timeline(
+    root: &Path,
+    agent: Option<&str>,
+    file_glob: Option<&str>,
+    limit: usize,
+) -> Value {
+    let filter = crate::trace::TraceFilter {
+        agent,
+        file_glob,
+        limit,
+    };
+    let events = crate::trace::apply_filter(crate::trace::timeline(root), &filter);
+    let rows: Vec<Value> = events.iter().map(|e| trace_event_json(e, false)).collect();
+    json!({
+        "project": root.display().to_string(),
+        "edits": rows,
+        "count": rows.len(),
+    })
+}
+
+pub fn trace_search(root: &Path, query: &str, agent: Option<&str>, limit: usize) -> Value {
+    // 先全量匹配再截断：limit 若在匹配前生效会把候选池截没。
+    let filter = crate::trace::TraceFilter {
+        agent,
+        file_glob: None,
+        limit: crate::trace::MAX_LIMIT,
+    };
+    let mut hits: Vec<_> = crate::trace::apply_filter(crate::trace::timeline(root), &filter)
+        .into_iter()
+        .filter(|e| crate::trace::search_matches(e, query))
+        .collect();
+    let blocks = crate::trace::group_blocks(&hits).len();
+    hits.truncate(limit.clamp(1, crate::trace::MAX_LIMIT));
+    let rows: Vec<Value> = hits.iter().map(|e| trace_event_json(e, true)).collect();
+    json!({
+        "project": root.display().to_string(),
+        "hits": rows,
+        "hits_count": rows.len(),
+        "blocks_count": blocks,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

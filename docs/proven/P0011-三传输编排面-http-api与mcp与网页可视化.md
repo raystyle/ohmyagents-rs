@@ -1,6 +1,6 @@
 # 三传输编排面：http api 与 mcp 与网页可视化
 
-- 状态：进行中（方案已立，实现切片推进）
+- 状态：已完成（2026-08-31 当日达成，验收标准全过）
 - 日期：2026-08-31
 - 关联：研究 `S016`（incurs 三传输参照与输出经验）；前置 P0006 至 P0010（orch 编排核心全绿）；定位演进自 `R001` / `P0001`（网页从只观察升级为可视化编排）
 
@@ -90,3 +90,24 @@ orch.rs（编排核心，已有：Link + 六函数）
 - 验收：`GET /` 200 出页面（title 与 EventSource 用法俱在）、`/api` 8 端点、spawn 后 send 产生输出、`from=oldest` 回放命中 marker、`open` 事件帧正确（`event: open` 带空格，正则要带空格匹配）、未知路 `ok:false` 带 agent 名、cleanup。[实证]
 - 浏览器点按验收留给用户手开 `http://127.0.0.1:7900`（弹不出浏览器不是错误，边界如此）。[经验]
 - 小坑：`std::path::Path` 与 `axum::extract::Path` 撞名（E0252 连锁出五个假错误），别名 `AxPath` 解；curl `--max-time` 掐 SSE 是预期退出码 28，验收脚本别当失败。[经验]
+
+### 切片 3：MCP server
+
+> 2026-08-31 完成并 stdio 冒烟验收。
+
+- `oma mcp [--project]` stdio 起 server（feature `mcp`，rmcp 3.1.4 加 `transport-io`、`schemars` features）。九 tools：六操作（oma_spawn/status/send/run/settle/cleanup）加 trace 三件（oma_trace_sessions/timeline/search，P0013 联动）；api 层新增 trace_sessions/trace_timeline/trace_search 三函数供 MCP 与将来 HTTP trace 端点共用。[实证]
+- 信封同形：工具返回 `CallToolResult::structured({ok, data|error, meta})`，业务失败 `structured_error`（rmcp 3.x 语义：caller 可见的 tool 级错误），只有基础设施故障才 `Err(ErrorData)` JSON-RPC 错误——三传输一个信封。[实证]
+- stdout 纯协议铁律：orch 的六处进度行（spawn.pane、send.agent 等）从 println 迁 eprintln——CLI 标记行不变（那在 main.rs），MCP stdout 只剩 JSON-RPC。stdio 冒烟全解析通过。[实证]
+- rmcp 3.1.4 接法（与 0.x 教材差异）：结构体持 `tool_router: ToolRouter<Self>`，`new` 调 `Self::tool_router()`；工具体用 `Parameters<T>` 包装（松散多参不被 `#[tool_router]` 路由宏接受）；schemars 要显式 feature 且 derive 路径写 `schemars::JsonSchema`（先 `use rmcp::schemars;`）；错误类型叫 `ErrorData` 不叫 `Error`；`waiting()` 返回 `Result<QuitReason, _>` 要 `map(|_| ())`。[实证: 编译器逐条打回后修正]
+
+### 切片 4：三通道共测
+
+> 2026-08-31 完成，P0011 验收标准全过。
+
+- 同一 stub 项目（claude+codex 两路）：CLI（oma spawn/status/send/cleanup）、HTTP（curl 六操作含 run）、MCP（stdio JSON-RPC 四操作）三通道各自完整走通，全绿；MCP stdout 全部行可 json 解析（无协议污染）。[实证]
+- MCP 真数据自证：oma_trace_sessions 对本仓返回真实联邦会话（含当前会话自身的 claude 记录与 codex/grok 历史）；无 manifest 的 oma_status 返回 `ok:false` 加 `isError=true`。[实证]
+- 测试基线：63 单测 + 8 集成（--features server,mcp 与无 feature 两配置都过）；无 feature 构建 `oma serve`/`oma mcp` 给可行动报错退出 1。[实证]
+
+## 结论
+
+一份编排核心（orch 加 api）三消费（CLI 行式、HTTP 信封、MCP structured 信封）落地即验：选型核实先行（rmcp beta 已 stable 的订正避免了按过时 API 写码）、feature 隔离保核心零依赖、信封同形让三通道断言复用。后续：REPL 走 CLI 通道、HTTP trace 端点可挂 api 层现成函数。[推断: 结构性收益]

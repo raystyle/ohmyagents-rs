@@ -129,6 +129,12 @@ enum Commands {
         #[arg(long)]
         project: Option<PathBuf>,
     },
+    /// 作为 MCP server 跑在 stdio（六操作 tools 加 trace 检索 tools）
+    Mcp {
+        /// 项目根；默认当前目录
+        #[arg(long)]
+        project: Option<PathBuf>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -280,6 +286,7 @@ fn run() -> Result<(), String> {
         Commands::Settle { wait, project } => tokio_block(cmd_settle(wait, project)),
         Commands::Trace { cmd } => cmd_trace(cmd),
         Commands::Serve { port, project } => cmd_serve(port, project),
+        Commands::Mcp { project } => cmd_mcp(project),
     }
 }
 
@@ -303,6 +310,18 @@ fn cmd_serve(port: u16, project: Option<PathBuf>) -> Result<(), String> {
 #[cfg(not(feature = "server"))]
 fn cmd_serve(_port: u16, _project: Option<PathBuf>) -> Result<(), String> {
     Err("oma serve needs the `server` feature; rebuild with --features server".to_string())
+}
+
+/// MCP stdio 常驻：stdout 是协议通道，一切进度只能进 stderr。
+#[cfg(feature = "mcp")]
+fn cmd_mcp(project: Option<PathBuf>) -> Result<(), String> {
+    let root = project_root(project)?;
+    tokio_block(oma::mcp::run(root))
+}
+
+#[cfg(not(feature = "mcp"))]
+fn cmd_mcp(_project: Option<PathBuf>) -> Result<(), String> {
+    Err("oma mcp needs the `mcp` feature; rebuild with --features mcp".to_string())
 }
 
 async fn cmd_spawn(

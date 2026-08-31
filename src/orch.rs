@@ -341,7 +341,7 @@ pub async fn spawn(link: &Link, root: &Path, plan: &SpawnPlan) -> Result<Manifes
             .await
             .map_err(|e| format!("pane id: {e}"))?
             .ok_or_else(|| format!("pane for {agent} has no live id"))?;
-        println!("spawn.pane.{agent}={id}");
+        eprintln!("spawn.pane.{agent}={id}");
         m.agents.push(ManifestAgent {
             name: agent.clone(),
             pane_id: id.as_u32() as u64,
@@ -516,9 +516,9 @@ pub async fn send(
     pane.send_key("Enter")
         .await
         .map_err(|e| format!("send_key Enter: {e}"))?;
-    println!("send.agent={agent}");
-    println!("send.proc={actual}");
-    println!(
+    eprintln!("send.agent={agent}");
+    eprintln!("send.proc={actual}");
+    eprintln!(
         "send.split={}",
         if multiline { "paste-buffer-p+Enter" } else { "text+Enter" }
     );
@@ -529,7 +529,7 @@ pub async fn send(
             .timeout(Duration::from_secs(20))
             .await
             .map_err(|e| format!("confirm marker {marker} not visible: {e}"))?;
-        println!("send.confirm={marker}");
+        eprintln!("send.confirm={marker}");
     }
     Ok(())
 }
@@ -664,7 +664,7 @@ pub async fn settle(
         } else {
             format!("dismissed={}", dismissed.join(","))
         };
-        println!("settle.pane.{}={}", agent.name, outcome);
+        eprintln!("settle.pane.{}={}", agent.name, outcome);
         outcomes.push((agent.name.clone(), outcome));
     }
     Ok(outcomes)
