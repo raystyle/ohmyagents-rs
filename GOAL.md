@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-08-31 | P0022 达成：web 镜像本地化与主页化——前端源码仓发现（rmux-web-share/rmux-typescript）并 npm 构建本地托管（四挫四根因：尾斜杠、e 参数、WASM、ACAO）；session 镜像缺省加免 PIN；`oma serve` 主页即 web-mirror-server（打开即四路窗格），dashboard 删除、编排回归 CLI/API/MCP |
 | 2026-08-31 | P0021 达成：官方 web 镜像集成——`oma web` 三面接管 rmux web-share（operator 真 attach、PIN、TTL、断开管理）；自建 xterm 桥下线（用户两次纠偏：要 TUI 镜像、用平台原生 webshare） |
 | 2026-08-31 | P0019 达成：产品完备收口——SSE 终端镜像（render_stream 加首帧）、README/CHANGELOG/ROADMAP 对齐、**四家真 agent 全链验收全绿**（claude hook 流加编辑 trace、codex settle Skip、grok 干净项目直通、kimi Up+Enter 信任）；揪修四缺陷：status 逐路降级、spawn 清 CHILD_SESSION、settle 全屏三态、镜像首帧 |
 | 2026-08-31 | P0018 达成：Windows 侧指令集检测落地（用户反问触发）——caps 模块（std 检测加退出码分类）进 doctor CPU 段与 agents 探针失败路径；本机实测 avx=true avx2=true avx512f=false；S021 追记 |
@@ -74,6 +75,7 @@
 
 | 日期 | 目标 | 结果 |
 | --- | --- | --- |
+| 2026-08-31 | web 镜像本地化与主页化（P0022） | 达成：源码构建本地托管、session 免 PIN、主页即镜像、dashboard 下线；命名 web-mirror-server |
 | 2026-08-31 | 官方 web 镜像集成（P0021） | 达成：oma web 三面接管 rmux web-share；自建 xterm 桥下线 |
 | 2026-08-31 | 产品完备收口与四家真路验收（P0019） | 达成：SSE 终端镜像、门面文档对齐、四家真路全链全绿；修 status 降级、CHILD_SESSION、settle 三态 |
 | 2026-08-31 | Windows 侧指令集检测落地（P0018） | 达成：caps 检测进 doctor、退出分类进 agents 探针与装机；本机 avx512f=false |

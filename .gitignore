@@ -9,3 +9,6 @@
 Thumbs.db
 *.evobak
 .secrets/
+docs/web/share-src/node_modules/
+docs/web/share-src/dist/
+docs/web/share-src/.astro/

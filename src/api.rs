@@ -138,24 +138,42 @@ fn web_share_cli(
 }
 
 /// 起一路官方 web 镜像：operator 可操作（真 attach），spectator 只看。
+/// `agent=None` 是 **session scope**（整会话一个 URL：全窗格、operator 可编辑、
+/// 解锁分屏等 session controls——P0021 真路结论：pane scope 无窗格操作）；
+/// 给 agent 则单 pane scope。
 pub async fn web_share(
     root: &Path,
-    agent: &str,
+    agent: Option<&str>,
     spectator: bool,
     ttl: u64,
+    frontend_url: Option<&str>,
+    no_pin: bool,
 ) -> Result<Value, String> {
     let link = orch::connect(root, false).await?;
-    let (pane_id, _) = orch::pane_for_agent(&link, root, agent).await?;
-    let target = format!("%{pane_id}");
+    let target = match agent {
+        Some(a) => {
+            let (pane_id, _) = orch::pane_for_agent(&link, root, a).await?;
+            format!("%{pane_id}")
+        }
+        None => orch::session_name(root)?.as_str().to_string(),
+    };
     let ttl_s = ttl.to_string();
     let mode = if spectator { "--spectator-only" } else { "--operator-only" };
-    let text = web_share_cli(
-        &link,
-        &["web-share", "-t", &target, mode, "--ttl", &ttl_s],
-    )?;
+    let mut argv: Vec<&str> = vec!["web-share", "-t", &target, mode, "--ttl", &ttl_s];
+    if let Some(fe) = frontend_url {
+        argv.extend(["--frontend-url", fe]);
+    }
+    // 本地场景免 PIN（用户定调：127.0.0.1 直接连接）；官方域外发面保留。
+    if no_pin {
+        argv.push("--no-pin");
+    }
+    let text = web_share_cli(&link, &argv)?;
     let url = text
         .lines()
-        .filter_map(|l| l.split_whitespace().find(|w| w.starts_with("https://")))
+        .filter_map(|l| {
+            l.split_whitespace()
+                .find(|w| w.starts_with("https://") || w.starts_with("http://"))
+        })
         .next()
         .ok_or_else(|| "web-share 输出里没有 URL".to_string())?
         .to_string();
@@ -170,7 +188,7 @@ pub async fn web_share(
         .find(|l| l.contains("expires"))
         .map(|l| l.trim().to_string())
         .unwrap_or_default();
-    Ok(json!({ "agent": agent, "url": url, "pin": pin, "expires": expires }))
+    Ok(json!({ "agent": agent.unwrap_or("*session*"), "url": url, "pin": pin, "expires": expires }))
 }
 
 /// 列活动 share（web-share list：`<id> <session>:<pane> ...`）。

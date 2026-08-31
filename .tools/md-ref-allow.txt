@@ -15,3 +15,5 @@
 ^docs/en/hooks\.md$
 ^docs/zh/customization/hooks\.md$
 ^docs\\research\\S010-agent-无头模式.*$
+^docs.web.share-src.
+^docs/specs/web-share-e2ee-protocol-v1\.md$

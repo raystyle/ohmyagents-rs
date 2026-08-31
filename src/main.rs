@@ -177,7 +177,7 @@ enum Commands {
     },
     /// 起官方 web 镜像（rmux web-share）：operator 可操作真 attach
     Web {
-        /// agent 名；缺省全会话各起一路
+        /// 单路 agent 名；缺省整会话镜像（全窗格加 session 控制）
         agent: Option<String>,
         /// 只读旁观（缺省 operator 可操作）
         #[arg(long)]
@@ -185,6 +185,9 @@ enum Commands {
         /// 有效期秒数（缺省 3600）
         #[arg(long, default_value_t = 3600)]
         ttl: u64,
+        /// 免 PIN 直连（本地场景；缺省保留 PIN 防外发）
+        #[arg(long)]
+        no_pin: bool,
         /// 项目根；默认当前目录
         #[arg(long)]
         project: Option<PathBuf>,
@@ -348,8 +351,8 @@ fn run() -> Result<(), String> {
         Commands::Serve { port, project } => cmd_serve(port, project),
         Commands::Mcp { project, print_config } => cmd_mcp(project, print_config),
         Commands::Completions { shell } => cmd_completions(shell),
-        Commands::Web { agent, spectator, ttl, project } => {
-            tokio_block(cmd_web(agent, spectator, ttl, project))
+        Commands::Web { agent, spectator, ttl, no_pin, project } => {
+            tokio_block(cmd_web(agent, spectator, ttl, no_pin, project))
         }
     }
 }
@@ -359,6 +362,7 @@ async fn cmd_web(
     agent: Option<String>,
     spectator: bool,
     ttl: u64,
+    no_pin: bool,
     project: Option<PathBuf>,
 ) -> Result<(), String> {
     let root = project_root(project)?;
@@ -374,11 +378,20 @@ async fn cmd_web(
         }
         None => manifest.agents.iter().map(|m| m.name.clone()).collect(),
     };
-    for a in &targets {
-        let v = oma::api::web_share(&root, a, spectator, ttl).await?;
-        println!("web.{a}.url={}", v["url"].as_str().unwrap_or("-"));
-        println!("web.{a}.pin={}", v["pin"].as_str().unwrap_or("-"));
-        println!("web.{a}.expires={}", v["expires"].as_str().unwrap_or("-"));
+    match agent.as_deref() {
+        Some(a) => {
+            let v = oma::api::web_share(&root, Some(a), spectator, ttl, None, no_pin).await?;
+            println!("web.{a}.url={}", v["url"].as_str().unwrap_or("-"));
+            println!("web.{a}.pin={}", v["pin"].as_str().unwrap_or("-"));
+            println!("web.{a}.expires={}", v["expires"].as_str().unwrap_or("-"));
+        }
+        None => {
+            // 整会话镜像：一个 URL 全窗格、operator 可编辑、带分屏控制。
+            let v = oma::api::web_share(&root, None, spectator, ttl, None, no_pin).await?;
+            println!("web.session.url={}", v["url"].as_str().unwrap_or("-"));
+            println!("web.session.pin={}", v["pin"].as_str().unwrap_or("-"));
+            println!("web.session.expires={}", v["expires"].as_str().unwrap_or("-"));
+        }
     }
     println!("web.mode={}", if spectator { "spectator" } else { "operator" });
     println!("web.ok=true");

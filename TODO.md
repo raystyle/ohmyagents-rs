@@ -4,16 +4,17 @@
 
 ## 当前目标
 
-官方 web 镜像集成（对应 `GOAL.md`，方案 P0021，2026-08-31 用户定调「和官方的 demo 一样」并点破 rmux 自带 web-share）。当日完成。
+web 镜像本地化与主页化（对应 `GOAL.md`，方案 P0022，2026-08-31 用户连发定调：本地化、找源码仓、不要 wrangler、命名 web-mirror-server、主页即可视化、dashboard 删除）。当日完成并经用户验收。
 
 ## 任务进度清单
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
-| 立项 0021 | 已完成 | 集成定界：oma 接管 rmux web-share，自建 xterm 桥下线 | 2026-08-31 |
-| api 与 HTTP 面 | 已完成 | web_share/shares/stop 三函数（stderr 合并解析）；POST/GET/DELETE 三端点 | 2026-08-31 |
-| CLI 与网页 | 已完成 | `oma web [agent]`；状态卡「官方镜像」按钮 | 2026-08-31 |
-| 三面验收 | 已完成 | CLI 打 URL/PIN、HTTP list/create/stop、用户浏览器 operator 直操 | 2026-08-31 |
+| 本地化攻坚 | 已完成 | 四连挫四根因（尾斜杠、e 参数误判、缺 WASM、缺 ACAO）；本地前端全通 | 2026-08-31 |
+| 源码仓与构建 | 已完成 | rmux-web-share 源码 clone 进仓；autocrlf 坑；npm build 全绿（SRI 自动重打） | 2026-08-31 |
+| serve 目录托管 | 已完成 | /share-fe/* 与 /_astro/* 读盘 + 防穿越 + MIME + ACAO；rebuild 免重编 | 2026-08-31 |
+| session 镜像与免 PIN | 已完成 | agent 参数 Option 化（None=整会话）；本地自动 --no-pin | 2026-08-31 |
+| 主页即镜像 | 已完成 | GET / 自动起会话镜像注入 token（shim 方案）；dashboard 删除；编排回归 CLI/API/MCP | 2026-08-31 |
 
 ## 前目标 0017 与 0018 残表
 

@@ -4,7 +4,10 @@
 //! （信封承载语义，传输层只管传输）。只绑 127.0.0.1（本机工具，无鉴权）；
 //! 写操作经会话锁串行化（一次一命令，P0011 风险节）。中断 serve 不清会话：
 //! 会话跨命令可重连是设计，收尾走 DELETE /session。
-//! `GET /` 直出 `docs\web\index.html`（include_str 单文件，无构建链）；
+//! web-mirror-server（用户定调命名）：`/share-fe` 托管源码构建的 rmux web-share
+//! 前端，可视化后台 agent 任务；`oma web`/`POST /share` 起镜像链接。
+//! `GET /` 即 web 镜像页（share-fe 资产目录托管，原配置 dashboard 已删——
+//! 编排操作回归 CLI/API/MCP，网页只做可视化）。`GET /` 原 d `docs\web\index.html`（include_str 单文件，无构建链）；
 //! `GET /stream/{agent}?from=oldest|now` 把 pane 输出桥成 SSE（P0011 切片 2）。
 
 use std::convert::Infallible;
@@ -27,8 +30,10 @@ use tokio_stream::wrappers::ReceiverStream;
 use crate::api;
 use crate::orch;
 
-/// 网页单页直出：文件在 docs\web\，改页面不用重编 serve 之外的任何东西。
-const WEB_PAGE: &str = include_str!("../docs/web/index.html");
+/// rmux share 前端本地自托管（P0022：docs/web/share-src 源码构建，产物在
+/// docs/web/share-fe/，serve 运行时读盘——rebuild 前端不用重编 oma）。
+/// 目录锚编译期定（serve 可从任意 cwd 起）。
+const SHARE_FE_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/docs/web/share-fe");
 
 pub struct ServeState {
     root: PathBuf,
@@ -80,7 +85,14 @@ pub async fn serve_in_background(root: PathBuf, port: u16) -> Result<SocketAddr,
 
 fn router(state: Arc<ServeState>) -> axum::Router {
     axum::Router::new()
-        .route("/", get(page))
+        // 主页即 web 镜像页（用户定调：可视化页面当首页，编排走 CLI/API/MCP）。
+        // GET / 自动起整会话镜像并 302 到 #t= ——打开就是多路窗格。
+        .route("/", get(home))
+        .route("/share-fe", get(share_fe_root))
+        .route("/share-fe/", get(share_fe_root))
+        .route("/share-fe/{*path}", get(share_fe_asset))
+        // 前端 JS 以绝对路径 /_astro/... 引 wasm（SRI 锁字节），根路径原位托管。
+        .route("/_astro/{*path}", get(share_fe_astro_asset))
         .route("/api", get(index))
         .route("/spawn", post(spawn))
         .route("/status", get(status))
@@ -90,6 +102,7 @@ fn router(state: Arc<ServeState>) -> axum::Router {
         .route("/session", delete(cleanup))
         .route("/stream/{agent}", get(stream))
         .route("/screen/{agent}", get(screen))
+        .route("/share", post(share_session))
         .route("/share/{agent}", post(share_agent))
         .route("/share", get(share_list))
         .route("/share/{id}/stop", delete(share_stop))
@@ -229,15 +242,130 @@ struct SettleReq {
     wait: Option<u64>,
 }
 
-async fn page() -> Html<&'static str> {
-    Html(WEB_PAGE)
+/// 前端静态目录托管：读盘 + 扩展名 MIME + ACAO（crossorigin=anonymous 资源
+/// 的 CORS 校验）+ no-store（SRI 与资产演进同步）。路径规范化防穿越。
+fn share_fe_read(rel: &str) -> Option<( &'static str, Vec<u8>)> {
+    use std::path::Component;
+    let base = std::path::Path::new(SHARE_FE_DIR);
+    let mut full = base.to_path_buf();
+    for c in std::path::Path::new(rel).components() {
+        match c {
+            Component::Normal(p) => full.push(p),
+            _ => return None, // 拒绝 ..、绝对段等一切越界形态
+        }
+    }
+    let data = std::fs::read(&full).ok()?;
+    let mime = match full.extension().and_then(|e| e.to_str()) {
+        Some("html") => "text/html; charset=utf-8",
+        Some("js") | Some("mjs") => "application/javascript",
+        Some("css") => "text/css",
+        Some("wasm") => "application/wasm",
+        Some("json") | Some("webmanifest") => "application/json",
+        Some("png") => "image/png",
+        Some("svg") => "image/svg+xml",
+        Some("ico") => "image/x-icon",
+        Some("txt") => "text/plain; charset=utf-8",
+        _ => "application/octet-stream",
+    };
+    Some((mime, data))
 }
+
+fn share_fe_reply(rel: &str) -> Response {
+    match share_fe_read(rel) {
+        Some((mime, body)) => (
+            [
+                (axum::http::header::CONTENT_TYPE, mime),
+                (axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
+                (axum::http::header::CACHE_CONTROL, "no-store"),
+            ],
+            body,
+        )
+            .into_response(),
+        None => err_reply("share-fe", Path::new(SHARE_FE_DIR), StatusCode::NOT_FOUND, format!("{rel} not found")),
+    }
+}
+
+/// 打开即四路窗格：清本项目旧 share、起整会话 operator 镜像（本地免 PIN），
+/// 200 直出前端 HTML 并注入 hash-shim（无 hash 时 replace 到 `/#t=`，一次自
+/// 载后前端按 hash 连接——302 方案会对 `/` 自旋）。
+async fn home(
+    State(st): State<Arc<ServeState>>,
+    headers: axum::http::header::HeaderMap,
+) -> Response {
+    let host = headers
+        .get(axum::http::header::HOST)
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("127.0.0.1:7900")
+        .to_string();
+    let fe = format!("http://{host}/");
+    // 清本项目全部旧 share（pane 形态 target 是 `<session>:%N`，前缀即会话名）。
+    if let Ok(list) = api::web_shares(&st.root).await {
+        if let Ok(name) = orch::session_name(&st.root) {
+            for row in list["shares"].as_array().cloned().unwrap_or_default() {
+                if row["target"]
+                    .as_str()
+                    .is_some_and(|t| t.starts_with(name.as_str()))
+                {
+                    if let Some(id) = row["id"].as_str() {
+                        let _ = api::web_share_stop(&st.root, id).await;
+                    }
+                }
+            }
+        }
+    }
+    let mirror = api::web_share(&st.root, None, false, 43200, Some(&fe), true).await;
+    let token = mirror
+        .as_ref()
+        .ok()
+        .and_then(|v| {
+            v["url"]
+                .as_str()
+                .and_then(|u| u.split("#t=").nth(1))
+                .map(String::from)
+        });
+    let Some(token) = token else {
+        let msg = mirror
+            .err()
+            .unwrap_or_else(|| "mirror url missing token".to_string());
+        return err_reply("home", &st.root, StatusCode::OK, msg);
+    };
+    let mut html = match share_fe_read("index.html") {
+        Some((_, b)) => String::from_utf8_lossy(&b).into_owned(),
+        None => return err_reply("home", &st.root, StatusCode::NOT_FOUND, "share-fe/index.html".into()),
+    };
+    let shim = format!(
+        "<script>if(!location.hash)location.replace('/#t={token}');</script></body>"
+    );
+    html = html.replacen("</body>", &shim, 1);
+    (
+        [
+            (axum::http::header::CONTENT_TYPE, "text/html; charset=utf-8"),
+            (axum::http::header::CACHE_CONTROL, "no-store"),
+        ],
+        html,
+    )
+        .into_response()
+}
+
+async fn share_fe_root() -> Response {
+    share_fe_reply("index.html")
+}
+
+async fn share_fe_asset(AxPath(path): AxPath<String>) -> Response {
+    share_fe_reply(&path)
+}
+
+async fn share_fe_astro_asset(AxPath(path): AxPath<String>) -> Response {
+    share_fe_reply(&format!("_astro/{path}"))
+}
+
 
 /// 起一路官方 web 镜像（rmux web-share，P0021）：operator 可操作真 attach，
 /// spectator 只看；URL 与 PIN 在 stderr，api 层已合并解析。
 async fn share_agent(
     State(st): State<Arc<ServeState>>,
     AxPath(agent): AxPath<String>,
+    headers: axum::http::HeaderMap,
     body: String,
 ) -> Response {
     let command = "share";
@@ -245,19 +373,65 @@ async fn share_agent(
     struct ShareReq {
         spectator: Option<bool>,
         ttl: Option<u64>,
+        /// 缺省本地托管形态免 PIN；显式 "on" 恢复带 PIN。
+        pin: Option<String>,
     }
     let req: ShareReq = if body.trim().is_empty() {
-        ShareReq { spectator: None, ttl: None }
+        ShareReq { spectator: None, ttl: None, pin: None }
     } else {
         match parse_body(&body, command, &st.root) {
             Ok(r) => r,
             Err(r) => return r,
         }
     };
+    // serve 在跑就默认本地前端（P0021）：share.rmux.io 只是静态资产，能自托管。
+    let fe = headers
+        .get(axum::http::header::HOST)
+        .and_then(|h| h.to_str().ok())
+        .map(|host| format!("http://{host}/"));
+    // 前端本地托管即本机场景：免 PIN 直连（req 显式给 pin 才加回）。
+    let no_pin = match req.pin.as_deref() {
+        None => fe.is_some(),
+        Some("on") => false,
+        Some(_) => true,
+    };
     finish(
         command,
         &st.root,
-        api::web_share(&st.root, &agent, req.spectator.unwrap_or(false), req.ttl.unwrap_or(3600)).await,
+        api::web_share(&st.root, Some(&agent), req.spectator.unwrap_or(false), req.ttl.unwrap_or(3600), fe.as_deref(), no_pin).await,
+    )
+}
+
+/// 整会话镜像（P0021 默认形态）：一个 URL 全窗格、operator 可编辑、带分屏控制。
+async fn share_session(
+    State(st): State<Arc<ServeState>>,
+    headers: axum::http::HeaderMap,
+    body: String,
+) -> Response {
+    let command = "share";
+    #[derive(Deserialize)]
+    struct ShareReq {
+        spectator: Option<bool>,
+        ttl: Option<u64>,
+        pin: Option<String>,
+    }
+    let req: ShareReq = if body.trim().is_empty() {
+        ShareReq { spectator: None, ttl: None, pin: None }
+    } else {
+        match parse_body(&body, command, &st.root) {
+            Ok(r) => r,
+            Err(r) => return r,
+        }
+    };
+    let fe = headers
+        .get(axum::http::header::HOST)
+        .and_then(|h| h.to_str().ok())
+        .map(|host| format!("http://{host}/"));
+    let no_pin = fe.is_some() && req.pin.as_deref() != Some("on");
+    finish(
+        command,
+        &st.root,
+        api::web_share(&st.root, None, req.spectator.unwrap_or(false), req.ttl.unwrap_or(3600), fe.as_deref(), no_pin).await,
     )
 }
 
