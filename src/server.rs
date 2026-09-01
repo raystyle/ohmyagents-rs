@@ -323,23 +323,33 @@ fn kanban_reply(dir: &Path, rel: &str) -> Response {
     }
 }
 
-/// 打开即四路窗格：清本项目旧 share、起整会话 operator 镜像（本地免 PIN），
-/// 200 直出前端 HTML 并注入 hash-shim（无 hash 时 replace 到 `/#t=`，一次自
-/// 载后前端按 hash 连接——302 方案会对 `/` 自旋）。
+/// Host 头只认回环（127.0.0.1 / localhost / [::1]，任意端口）——serve 无
+/// 鉴权，防 DNS rebinding 场景把 share token 拼进外域 frontend_url（P0026 高5）。
+fn host_is_local(host: &str) -> bool {
+    let name = host.rsplit_once(':').map(|(h, _)| h).unwrap_or(host);
+    matches!(name, "127.0.0.1" | "localhost" | "[::1]" | "::1" | "[::]")
+}
+
+/// 打开即四路窗格：起整会话 **spectator 只读**镜像（本地免 PIN；P0026 用户
+/// 定调 2026-09-01：看板默认只读去操作权限，操作走 CLI/API/MCP，要可写镜像
+/// 用 `oma web`），200 直出前端 HTML 并注入 hash-shim（无 hash 时 replace 到
+/// `/#t=`，一次自载后前端按 hash 连接——302 方案会对 `/` 自旋）。
 async fn home(
     State(st): State<Arc<ServeState>>,
     headers: axum::http::HeaderMap,
 ) -> Response {
+    let host = headers
+        .get(axum::http::header::HOST)
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("127.0.0.1:7900");
+    if !host_is_local(host) {
+        return err_reply("home", &st.root, StatusCode::BAD_REQUEST, format!("non-local Host: {host}"));
+    }
     // token 与 serve 同生命周期：页面刷新复用同一 share，不清不重建。
     let mut cached = st.share_token.lock().await;
     if cached.is_none() {
-        let host = headers
-            .get(axum::http::header::HOST)
-            .and_then(|h| h.to_str().ok())
-            .unwrap_or("127.0.0.1:7900")
-            .to_string();
         let fe = format!("http://{host}/");
-        match api::web_share(&st.root, None, false, 43200, Some(&fe), true).await {
+        match api::web_share(&st.root, None, true, 43200, Some(&fe), true).await {
             Ok(v) => {
                 *cached = v["url"].as_str().and_then(|u| u.split("#t=").nth(1)).map(String::from);
             }
@@ -351,13 +361,8 @@ async fn home(
     let Some(token) = cached.clone() else {
         return err_reply("home", &st.root, StatusCode::OK, "mirror url missing token".into());
     };
-    let kanban_dir = match crate::install::oma_home()
-        .map_err(|e| e)
-        .and_then(|h| crate::webassets::ensure_web_assets_at(&h))
-    {
-        Ok(d) => d,
-        Err(e) => return err_reply("home", &st.root, StatusCode::OK, e),
-    };
+    // 资源已在 serve 启动时释放进 ServeState（P0026 低13：不再重复扫描）。
+    let kanban_dir = st.kanban.clone();
     let mut html = match kanban_read(&kanban_dir, "index.html") {
         Some((_, b)) => String::from_utf8_lossy(&b).into_owned(),
         None => return err_reply("home", &st.root, StatusCode::NOT_FOUND, format!("{}: index.html", kanban_dir.display())),
@@ -412,11 +417,17 @@ async fn share_session(
         .get(axum::http::header::HOST)
         .and_then(|h| h.to_str().ok())
         .map(|host| format!("http://{host}/"));
+    if let Some(h) = headers.get(axum::http::header::HOST).and_then(|h| h.to_str().ok()) {
+        if !host_is_local(h) {
+            return err_reply(command, &st.root, StatusCode::BAD_REQUEST, format!("non-local Host: {h}"));
+        }
+    }
     let no_pin = fe.is_some() && req.pin.as_deref() != Some("on");
+    // 缺省只读（P0026 安全缺省）：要 operator 显式传 spectator=false。
     finish(
         command,
         &st.root,
-        api::web_share(&st.root, None, req.spectator.unwrap_or(false), req.ttl.unwrap_or(3600), fe.as_deref(), no_pin).await,
+        api::web_share(&st.root, None, req.spectator.unwrap_or(true), req.ttl.unwrap_or(3600), fe.as_deref(), no_pin).await,
     )
 }
 
@@ -446,11 +457,17 @@ async fn share_agent(
         .get(axum::http::header::HOST)
         .and_then(|h| h.to_str().ok())
         .map(|host| format!("http://{host}/"));
+    if let Some(h) = headers.get(axum::http::header::HOST).and_then(|h| h.to_str().ok()) {
+        if !host_is_local(h) {
+            return err_reply(command, &st.root, StatusCode::BAD_REQUEST, format!("non-local Host: {h}"));
+        }
+    }
     let no_pin = fe.is_some() && req.pin.as_deref() != Some("on");
+    // 缺省只读（P0026 安全缺省）：要 operator 显式传 spectator=false。
     finish(
         command,
         &st.root,
-        api::web_share(&st.root, Some(&agent), req.spectator.unwrap_or(false), req.ttl.unwrap_or(3600), fe.as_deref(), no_pin).await,
+        api::web_share(&st.root, Some(&agent), req.spectator.unwrap_or(true), req.ttl.unwrap_or(3600), fe.as_deref(), no_pin).await,
     )
 }
 
@@ -476,7 +493,7 @@ async fn index(State(st): State<Arc<ServeState>>) -> Response {
         "tui": "/tui",
         "endpoints": [
             {"method": "GET", "path": "/api"},
-            {"method": "POST", "path": "/share/{agent}", "body": {"spectator": false, "ttl": 3600}},
+            {"method": "POST", "path": "/share/{agent}", "body": {"spectator": true, "ttl": 3600}},
             {"method": "GET", "path": "/share"},
             {"method": "DELETE", "path": "/share/{id}/stop"},
             {"method": "POST", "path": "/spawn", "body": {"agents": ["claude"], "stub": false}},

@@ -91,18 +91,41 @@ pub struct ManifestAgent {
     pub pane_id: u64,
 }
 
-fn read_manifest(root: &Path) -> Option<Manifest> {
-    let text = std::fs::read_to_string(manifest_path(root)).ok()?;
-    serde_json::from_str(&text).ok()
+/// 读清单：区分「文件不在」（None）与「在但解析失败」（Some(Err)）——
+/// 后者带错误上下文，恢复路径才能对症（P0026 高2）。
+fn read_manifest(root: &Path) -> Result<Option<Manifest>, String> {
+    let path = manifest_path(root);
+    let text = match std::fs::read_to_string(&path) {
+        Ok(t) => t,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(format!("{}: {e}", path.display())),
+    };
+    match serde_json::from_str(&text) {
+        Ok(m) => Ok(Some(m)),
+        Err(e) => Err(format!("{}: corrupt manifest: {e}", path.display())),
+    }
 }
 
+fn read_manifest_opt(root: &Path) -> Option<Manifest> {
+    read_manifest(root).ok().flatten()
+}
+
+/// 拿不到清单就报标准引导语；损坏时透传 corrupt 上下文（P0026 高2）。
+fn read_manifest_req(root: &Path) -> Result<Manifest, String> {
+    read_manifest(root)?.ok_or_else(|| "no session manifest; run `oma spawn` first".to_string())
+}
+
+/// 原子写：先落同目录临时文件再 rename（P0026 高1a）——直写被并发读
+/// 会撞见半截 JSON，rename 在同卷上是原子替换。
 fn write_manifest(root: &Path, m: &Manifest) -> Result<(), String> {
     let path = manifest_path(root);
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     }
     let body = serde_json::to_string_pretty(m).map_err(|e| e.to_string())? + "\n";
-    std::fs::write(&path, body).map_err(|e| format!("{}: {e}", path.display()))
+    let tmp = path.with_extension("json.tmp");
+    std::fs::write(&tmp, body).map_err(|e| format!("{}: {e}", tmp.display()))?;
+    std::fs::rename(&tmp, &path).map_err(|e| format!("{}: {e}", path.display()))
 }
 
 /// A live handle to the project daemon from both transports: the SDK for
@@ -139,24 +162,31 @@ pub async fn connect(root: &Path, boot: bool) -> Result<Link, String> {
     let label = label(root);
 
     if !boot {
-        let manifest = read_manifest(root)
-            .ok_or_else(|| "no session manifest; run `oma spawn` first".to_string())?;
-        if !manifest.pipe.is_empty() {
-            if let Ok(rmux) = sdk_connect(&manifest.pipe).await {
-                return Ok(Link {
-                    rmux,
-                    rmux_bin,
-                    label,
-                    pipe: manifest.pipe,
-                });
+        // P0026 高2：manifest 缺失/损坏不再挡死建链——label 活即连。否则
+        // 「session 在但 manifest 坏」时连 cleanup 都拿不到 link，形成只有
+        // 手工 rmux 才能解的死局。
+        let manifest = read_manifest(root).ok().flatten();
+        if let Some(m) = manifest.as_ref() {
+            if !m.pipe.is_empty() {
+                if let Ok(rmux) = sdk_connect(&m.pipe).await {
+                    return Ok(Link {
+                        rmux,
+                        rmux_bin,
+                        label,
+                        pipe: m.pipe.clone(),
+                    });
+                }
             }
         }
         if rmuxpoc::label_alive(&rmux_bin, &label) {
             let (pipe, _) = rmuxpoc::label_socket_path(&rmux_bin, &label)?;
             let rmux = sdk_connect(&pipe).await?;
-            let mut healed = manifest;
-            healed.pipe = pipe.clone();
-            write_manifest(root, &healed)?;
+            // 清单还在就顺手治愈 pipe；缺失/损坏不伪造——由 reconcile 引导
+            // cleanup 重建（cleanup 本身已不依赖 manifest）。
+            if let Some(mut healed) = manifest {
+                healed.pipe = pipe.clone();
+                write_manifest(root, &healed)?;
+            }
             return Ok(Link {
                 rmux,
                 rmux_bin,
@@ -396,7 +426,7 @@ async fn pane_for(session: &Session, id: u64) -> Result<Pane, String> {
 
 /// Read the manifest for a project (diagnostics and examples).
 pub fn read_manifest_for(root: &Path) -> Option<Manifest> {
-    read_manifest(root)
+    read_manifest_opt(root)
 }
 
 /// Resolve one agent lane to its live Pane: manifest 定位 pane_id，再经
@@ -406,8 +436,7 @@ pub async fn pane_for_agent(
     root: &Path,
     agent: &str,
 ) -> Result<(u64, Pane), String> {
-    let manifest = read_manifest(root)
-        .ok_or_else(|| "no session manifest; run `oma spawn` first".to_string())?;
+    let manifest = read_manifest_req(root)?;
     let entry = manifest
         .agents
         .iter()
@@ -441,8 +470,7 @@ fn hook_state(root: &Path, agent: &str) -> Option<String> {
 /// Read-only status: layer 0 (alive/pid) + locate (process name) + layer 1b
 /// (terminal semantics) + layer 2 (state file when present).
 pub async fn status(link: &Link, root: &Path) -> Result<Vec<PaneStatus>, String> {
-    let manifest = read_manifest(root)
-        .ok_or_else(|| "no session manifest; run `oma spawn` first".to_string())?;
+    let manifest = read_manifest_req(root)?;
     let name = session_name(root)?;
     let session = rmuxpoc::reuse_only(&link.rmux, name).await?;
 
@@ -545,7 +573,7 @@ pub async fn reconcile(
     std::fs::create_dir_all(root.join(".ohmyagents").join("state"))
         .map_err(|e| format!("state dir: {e}"))?;
     let session = rmuxpoc::reuse_only(&link.rmux, name).await?;
-    let mut m = read_manifest(root).ok_or_else(|| {
+    let mut m = read_manifest(root)?.ok_or_else(|| {
         "session exists but manifest is missing; run `oma cleanup` then `oma spawn`".to_string()
     })?;
 
@@ -561,7 +589,14 @@ pub async fn reconcile(
             eprintln!("reconcile.{agent}=attached");
             continue;
         }
-        // 死/缺：从主窗格右侧分回一路（窗格复杂性在此，命令面不感知）。
+        // 死/缺：旧 pane 仍在（进程死/错位）先清掉再分新格——防多次重开
+        // 堆积陈旧 pane（P0026 高3）；pane 已不在则直接补。
+        if let Some(entry) = m.agents.iter().find(|a| &a.name == agent) {
+            if pane_for(&session, entry.pane_id).await.is_ok() {
+                kill_pane(link, &session, entry.pane_id).await?;
+            }
+        }
+        // 从主窗格右侧分回一路（窗格复杂性在此，命令面不感知）。
         let base = session.pane(0, 0);
         let pane = split_spawn(
             &base,
@@ -592,21 +627,34 @@ pub async fn reconcile(
     Ok(ReconcileOutcome { attached, respawned })
 }
 
+/// 关单窗格（kill-pane 只打该格，不动会话与其它路）。幂等：pane 已不在
+/// 视为成功；其余失败上抛（P0026 高3：吞错会留旧进程/旧格，重开即堆积）。
+async fn kill_pane(link: &Link, session: &Session, pane_id: u64) -> Result<(), String> {
+    let target = format!("%{pane_id}");
+    if rmuxpoc::run_cli_checked(
+        &link.rmux_bin,
+        &["-L", link.label.as_str(), "kill-pane", "-t", &target],
+        "kill-pane",
+    )
+    .is_ok()
+    {
+        return Ok(());
+    }
+    // kill 报错但 pane 确已不在（并发退出等）：幂等成功。
+    if pane_for(session, pane_id).await.is_err() {
+        return Ok(());
+    }
+    Err(format!("kill-pane %{pane_id} failed and pane still present"))
+}
+
 /// 强制重新打开一路 agent 实例：关闭旧 pane（若在）再开新一路并回写。
 pub async fn respawn(link: &Link, root: &Path, agent: &str) -> Result<u64, String> {
     let name = session_name(root)?;
     let session = rmuxpoc::reuse_only(&link.rmux, name).await?;
-    let mut m = read_manifest(root)
-        .ok_or_else(|| "no session manifest; run `oma spawn` first".to_string())?;
+    let mut m = read_manifest_req(root)?;
     let argv = respawn_argv(root, &m, agent)?;
     if let Some(entry) = m.agents.iter().find(|a| a.name == agent) {
-        // 关旧：kill-pane 只打该窗格，不动会话与其它路。
-        let target = format!("%{}", entry.pane_id);
-        let _ = rmuxpoc::run_cli_checked(
-            &link.rmux_bin,
-            &["-L", link.label.as_str(), "kill-pane", "-t", &target],
-            "kill-pane",
-        );
+        kill_pane(link, &session, entry.pane_id).await?;
     }
     let base = session.pane(0, 0);
     let pane = split_spawn(
@@ -660,8 +708,7 @@ pub async fn send(
     confirm: Option<&str>,
 ) -> Result<(), String> {
     check_send_key(agent, "Enter")?;
-    let manifest = read_manifest(root)
-        .ok_or_else(|| "no session manifest; run `oma spawn` first".to_string())?;
+    let manifest = read_manifest_req(root)?;
     let entry = manifest
         .agents
         .iter()
@@ -811,8 +858,7 @@ pub async fn settle(
     root: &Path,
     wait_secs: u64,
 ) -> Result<Vec<(String, String)>, String> {
-    let manifest = read_manifest(root)
-        .ok_or_else(|| "no session manifest; run `oma spawn` first".to_string())?;
+    let manifest = read_manifest_req(root)?;
     let name = session_name(root)?;
     let session = rmuxpoc::reuse_only(&link.rmux, name).await?;
     let deadline =
@@ -942,8 +988,7 @@ pub async fn run(
     assign: Option<Vec<String>>,
     confirm: Option<&str>,
 ) -> Result<RunOutcome, String> {
-    let manifest = read_manifest(root)
-        .ok_or_else(|| "no session manifest; run `oma spawn` first".to_string())?;
+    let manifest = read_manifest_req(root)?;
     let in_session: Vec<String> = manifest.agents.iter().map(|a| a.name.clone()).collect();
     let targets: Vec<String> = match assign {
         Some(list) => {
@@ -1065,7 +1110,7 @@ mod tests {
             }],
         };
         write_manifest(&root, &m).unwrap();
-        assert_eq!(read_manifest(&root).unwrap().agents[0].pane_id, 7);
+        assert_eq!(read_manifest(&root).unwrap().unwrap().agents[0].pane_id, 7);
         let _ = std::fs::remove_dir_all(&root);
     }
 

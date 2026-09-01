@@ -196,7 +196,8 @@ fn dies_send_without_a_session_fails_fast() {
     .arg(&tmp)
     .assert()
     .failure()
-    .stderr(contains("no session manifest"));
+    // P0026 高2：connect 不再被 manifest 缺失挡死，无会话报 daemon gone。
+    .stderr(contains("run `oma spawn`"));
     let _ = std::fs::remove_dir_all(&tmp);
 }
 

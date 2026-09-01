@@ -10,11 +10,9 @@ code review 修复：并发安全与健壮性（对应 `GOAL.md`，方案 P0026�
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
-| 切片 1 安全与僵局 | 进行中 | 看板默认 spectator 只读、Host 校验（高5）、connect label 兜底解 cleanup 僵局（高2）、死路杀旧 pane（高3）、manifest 原子写（高1a） | 2026-09-01 |
+| 切片 1 安全与僵局 | 已完成 | 看板默认 spectator 只读、Host 校验（高5）、connect label 兜底解 cleanup 僵局（高2）、死路杀旧 pane（高3）、manifest 原子写（高1a）；计划外修 serve daemon 零控制台卡死（CREATE_NO_WINDOW） | 2026-09-01 |
 | 切片 2 并发与语义 | 待做 | task id 撞号（高1b）、阻塞包装（高4）、reconcile stub 语义（中8） | 2026-09-01 |
 | 切片 3 健壮性批 | 待做 | 中6/7/9/10/11/12 六条 | 2026-09-01 |
-
-## 前目标 0024 残表
 
 ## 前目标 0024 残表
 

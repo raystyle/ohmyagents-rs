@@ -1,4 +1,7 @@
 /target/
+/target-test/
+.serve-fg.log
+.t1/
 /.ohmyagents/
 .claude/
 .codex/

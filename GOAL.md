@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-01 | P0026 切片 1 达成：codex review 结果 trace 收取（15 条，高 5 核实 4 真 1 部分真）后立项三切片；看板默认 spectator 只读（用户定调）＋Host 回环校验（高5）＋cleanup 僵局解除（高2）＋死路杀旧 pane 不堆积（高3）＋manifest 原子写（高1a）；计划外抓到并修 serve daemon DETACHED 零控制台下 rmux CLI 卡死（改 CREATE_NO_WINDOW） |
 | 2026-09-01 | serve stop 协议化补齐：核对三原语时发现 `serve_stop` 实际只有 taskkill（P0025/R002 口径超写）——补 `DELETE /shutdown` 优先（ureq 复用）加轮询退出加超时强杀兜底，实测日志见 draining；顺手清三处未用导入；README/AGENTS 对齐 start/stop/status 形态 |
 | 2026-09-01 | 规则体系收口：G004 经验沉淀细则（proven/references 双链、mistakes 当场记加二犯升格）挂 AGENTS 工作节奏强规则位；M035 记档（python 替换吃 `\r` 劈行，修复过程又踩同型两次）；README 重写为介绍/安装部署/完整命令示例三段 |
 | 2026-09-01 | P0025 达成：serve 守护化——`serve start` 即调即退（DETACHED 孤儿化、端口就绪等待、状态文件）、协议化停机端点（DELETE /shutdown → AtomicBool → 优雅排空，rmux kill-server 同构）、FFI OpenProcess 探活（tasklist 在 Job Object 内管道死锁） |

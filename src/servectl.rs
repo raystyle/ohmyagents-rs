@@ -1,7 +1,9 @@
-//! serve 守护化（P0025）：`oma serve` 即调即退——DETACHED 孤儿化拉起
-//! 编排面进程（Windows CREATE_NEW_PROCESS_GROUP + DETACHED_PROCESS，日志
-//! 重定向文件），状态记 `~/.ohmyagents/serve/<slug>.json`；`stop` 按 pid
-//! 杀；`status` 探活。与 rmux 的 hidden daemon 同一进程模型（S023）。
+//! serve 守护化（P0025）：`oma serve` 即调即退——后台拉起编排面进程
+//! （Windows CREATE_NO_WINDOW + CREATE_NEW_PROCESS_GROUP，日志重定向文
+//! 件；**不用 DETACHED_PROCESS**——零控制台下 rmux CLI 子进程会卡死，
+//! P0026 实证），状态记 `~/.ohmyagents/serve/<slug>.json`；`stop` 协议化
+//! 优先（DELETE /shutdown）；`status` 探活。与 rmux 的 hidden daemon 同
+//! 一进程模型（S023）。
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -132,9 +134,14 @@ pub fn serve_start(root: &Path, port: u16) -> Result<String, String> {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
-        const DETACHED_PROCESS: u32 = 0x00000008;
+        // CREATE_NO_WINDOW 而非 DETACHED_PROCESS：后者零控制台，daemon 再
+        // spawn 的 rmux CLI（TUI 程序，初始化要碰 console）会卡死在控制台
+        // API 上——GET / 起镜像时整个 serve 挂死（P0026 切片 1 实证：前台
+        // 同代码同 manifest 秒回）。CREATE_NO_WINDOW 给隐藏 conhost，子进
+        // 程 console 可用且不可见。
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
         const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
-        cmd.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
+        cmd.creation_flags(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP);
     }
     let child = cmd
         .spawn()

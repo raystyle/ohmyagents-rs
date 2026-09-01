@@ -11,7 +11,7 @@
 
 ## 方案：三切片
 
-### 切片 1：安全与僵局（小改当天闭环）
+### 切片 1：安全与僵局
 
 - **高5 Host 校验**：`server.rs` home/share 端点不再信任请求 Host 拼 frontend_url——校验只允许 `127.0.0.1:<port>` / `localhost:<port>` / `[::1]:<port>`，其余 400（堵 DNS rebinding 偷 share token）。
 - **高2 cleanup 僵局**：`orch.rs` `connect(root, false)` 在 manifest 缺失/损坏时不再直接报错，改走既有 label 兜底（label 活则 `label_socket_path` 建 link）；仅 label 也死才报「run oma spawn」。`read_manifest` 区分「文件不在」与「解析失败」（后者带错误上下文）。
@@ -34,7 +34,7 @@
 - **中11 SSE 错误形态**：`/stream`、`/screen` 启动失败改发 SSE `error` event（不再 JSON 200）；首帧拿不到时带错误标记帧。
 - **中12 settle 收紧**：marker 匹配从全屏子串收紧到候选菜单行（含已知菜单结构上下文），降误触。
 
-## 边界（不做与理由）
+## 边界：不做与理由
 
 - 低14 Query 反序列化绕信封：axum extractor 层拒绝，自定义 extractor 成本高于收益，记档。
 - 低15 manifest version 字段：schema 尚无第二版，等真演进再做（YAGNI）。
@@ -50,4 +50,9 @@
 
 ## 实施过程与经验
 
-（实施后回填）
+### 切片 1 完成
+
+- **验收实测全过 [实证]**：高2——stub 会话删 manifest 后 `oma cleanup` 直接清成功（旧代码死局）；高3——杀 claude 路 pwsh 后 `oma spawn`，`reconcile.claude=respawned pane=5` 且 session pane 集合 {%2,%3,%4,%5}（旧死格 %1 已清，四路四格不堆积）；高5——evil Host 400 / localhost 200；看板只读——home 起镜像改 spectator=true，rmux 输出前缀佐证。测试基线 75+10 / 78+10 全绿。
+- **计划外发现（本切片最值钱的一条）**：serve daemon 改 CREATE_NO_WINDOW。DETACHED_PROCESS 零控制台下，daemon 再 spawn 的 rmux CLI（TUI，初始化碰 console）卡死——GET / 起镜像时整个 serve 无响应（连 /api/status 都 000）；前台同代码同 manifest 秒回，对照定位。Windows 后台进程要「有隐藏控制台」不要「零控制台」。
+- read_manifest 签名改 `Result<Option<Manifest>, String>`：缺失（NotFound）与损坏（corrupt 带路径上下文）分家，恢复路径才对症。无会话项目的报错从 "no session manifest" 变为更准确的 "session daemon is gone; run `oma spawn`"（cli 集成测试断言随契约更新）。
+- taskkill 在 Git Bash 里 `/PID /F` 被 MSYS 路径转换吃掉参数且吞输出后无声失败——杀进程验证用 PowerShell `Stop-Process` 并回读确认。

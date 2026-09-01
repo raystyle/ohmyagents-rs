@@ -10,7 +10,7 @@
 
 ## 方案
 
-- **守护化**（`src\servectl.rs`）：`serve_start` DETACHED 孤儿化拉起 `oma serve-daemon`（隐藏子命令，Windows `DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP`，日志重定向 `~/.ohmyagents/serve/<slug>.log`），drop(child) 故意不 wait（rmux 同款），轮询端口就绪（10s）后返回地址；状态记 `~/.ohmyagents/serve/<slug>.json`（pid/port/project/started_at）。
+- **守护化**（`src\servectl.rs`）：`serve_start` 后台拉起 `oma serve-daemon`（隐藏子命令，Windows `CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP`，日志重定向 `~/.ohmyagents/serve/<slug>.log`），drop(child) 故意不 wait（rmux 同款），轮询端口就绪（10s）后返回地址；状态记 `~/.ohmyagents/serve/<slug>.json`（pid/port/project/started_at）。
 - **协议化停机**（server.rs）：`DELETE /shutdown` 置 `ShutdownFlag`（Arc<AtomicBool>），`axum::serve().with_graceful_shutdown()` 轮询到后排空在途请求退出——**与 rmux kill-server 同构**（IPC 面 → flag → 主循环自杀）。`serve_stop` 先发 HTTP shutdown 等退出，超时/不可达才降级 taskkill 兜底。
 - **命令面**：`oma serve start [--port N] [--project]`（已活直接返回地址秒回）/ `oma serve stop` / `oma serve status`（pid/port/live）；裸 `oma serve` 保留前台（调试）；REPL 内嵌 serve 不变。
 - **pid 探活**：Windows FFI `OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION) + GetExitCodeProcess`（`STILL_ACTIVE=259`）——**不能 tasklist**（见坑）。
@@ -23,6 +23,7 @@
 
 ## 次轮纠偏补记
 
+- **DETACHED_PROCESS 是坑（P0026 切片 1 发现）**：零控制台的 daemon 再 spawn rmux CLI（TUI 程序，初始化碰 console）会卡死——GET / 起镜像时整个 serve 挂死不响应；前台同代码同 manifest 秒回。正解 `CREATE_NO_WINDOW`（隐藏 conhost，子进程 console 可用）。本文件所有「DETACHED 孤儿化」表述按此理解。
 - 首版 `serve_stop` 实际只有 taskkill 直杀，本节「HTTP 优先 + 兜底」当时属超写（`DELETE /shutdown` 端点已实现但 CLI 未接线）。次轮补齐：`serve_stop` 先发 `DELETE /shutdown`（ureq，本就是装机链非可选依赖，featureless 构建同样优雅）、轮询 pid 退出（5s）、超时才降级强杀。实测 stop 后日志尾 `serve: shutdown requested; draining`、live=false，协议化路径真走通。[实证]
 - 教训：验收节标 `[实证]` 前必须核对**命令面**真消费了该路径——端点存在不等于命令接线（G002「没验证写成已验证」的变体：部件验证过、链路没验证）。
 
