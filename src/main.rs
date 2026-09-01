@@ -175,6 +175,17 @@ enum Commands {
         /// 目标 shell
         shell: clap_complete::Shell,
     },
+    /// 强制重新打开一路 agent 实例（关闭旧窗格再开新一路；不动会话与其它路）
+    Respawn {
+        /// agent 名（claude/codex/grok/kimi）
+        agent: String,
+        /// 项目根；默认当前目录
+        #[arg(long)]
+        project: Option<PathBuf>,
+        /// 输出 JSON 信封（与 HTTP/MCP 同形）
+        #[arg(long)]
+        json: bool,
+    },
     /// 起官方 web 镜像（rmux web-share）：operator 可操作真 attach
     Web {
         /// 单路 agent 名；缺省整会话镜像（全窗格加 session 控制）
@@ -351,10 +362,28 @@ fn run() -> Result<(), String> {
         Commands::Serve { port, project } => cmd_serve(port, project),
         Commands::Mcp { project, print_config } => cmd_mcp(project, print_config),
         Commands::Completions { shell } => cmd_completions(shell),
+        Commands::Respawn { agent, project, json } => {
+            tokio_block(cmd_respawn(agent, project, json))
+        }
         Commands::Web { agent, spectator, ttl, no_pin, project } => {
             tokio_block(cmd_web(agent, spectator, ttl, no_pin, project))
         }
     }
+}
+
+/// 重新打开一路 agent 实例：关闭旧窗格再开新一路（会话与其它路不动）。
+async fn cmd_respawn(agent: String, project: Option<PathBuf>, json: bool) -> Result<(), String> {
+    let root = project_root(project)?;
+    if json {
+        return print_json("respawn", &root, oma::api::respawn(&root, &agent).await);
+    }
+    let link = orch::connect(&root, false).await?;
+    let pane_id = orch::respawn(&link, &root, &agent).await?;
+    println!("respawn.agent={agent}");
+    println!("respawn.pane={pane_id}");
+    println!("respawn.scope=pane-only");
+    println!("respawn.ok=true");
+    Ok(())
 }
 
 /// 起官方 web 镜像：缺省全会话各一路；打印 URL 与 PIN（PIN 等同键盘权限，勿外传）。
@@ -506,19 +535,19 @@ async fn cmd_spawn(
     if json {
         return print_json("spawn", &root, oma::api::spawn(&root, wanted, stub).await);
     }
-    let plan = orch::plan_agents(wanted, stub)?;
     println!("spawn.project={}", root.display());
     println!("spawn.stub={stub}");
-    let names: Vec<&str> = plan.agents.iter().map(|(n, _)| n.as_str()).collect();
-    println!("spawn.agents={}", names.join(","));
+    if json {
+        return print_json("spawn", &root, oma::api::spawn(&root, wanted, stub).await);
+    }
     let link = orch::connect(&root, true).await?;
     println!("spawn.label={}", link.label);
-    let manifest = orch::spawn(&link, &root, &plan).await?;
-    println!(
-        "spawn.session={}",
-        orch::session_name(&root)?.as_str()
-    );
-    println!("spawn.manifest.agents={}", manifest.agents.len());
+    let plan = orch::plan_agents(wanted, stub)?;
+    let out = orch::reconcile(&link, &root, &plan).await?;
+    println!("spawn.session={}", orch::session_name(&root)?.as_str());
+    println!("spawn.attached={}", out.attached.join(","));
+    println!("spawn.respawned={}", out.respawned.join(","));
+    println!("spawn.mode={}", if out.attached.is_empty() { "new" } else { "reconcile" });
     println!("spawn.blocking=false");
     println!("spawn.ok=true");
     Ok(())

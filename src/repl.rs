@@ -172,15 +172,23 @@ async fn start_session(root: &std::path::Path, args: &ReplArgs) -> Result<(), St
         return Ok(());
     }
     let v = api::spawn(root, args.agents.clone(), args.stub).await?;
-    let agents: Vec<String> = v["agents"]
-        .as_array()
-        .map(|a| {
-            a.iter()
-                .filter_map(|x| x.as_str().map(String::from))
-                .collect()
-        })
-        .unwrap_or_default();
-    println!("oma.session=spawned {} agents={}", orch::session_name(root)?.as_str(), agents.join(","));
+    let pick = |key: &str| -> String {
+        v[key]
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .filter_map(|x| x.as_str().map(String::from))
+                    .collect::<Vec<_>>()
+                    .join(",")
+            })
+            .unwrap_or_default()
+    };
+    let attached = pick("attached");
+    let respawned = pick("respawned");
+    println!(
+        "oma.session={} attached={attached} respawned={respawned}",
+        orch::session_name(root)?.as_str()
+    );
     Ok(())
 }
 

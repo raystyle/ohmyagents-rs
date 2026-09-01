@@ -495,6 +495,158 @@ pub async fn status(link: &Link, root: &Path) -> Result<Vec<PaneStatus>, String>
     Ok(out)
 }
 
+
+// ---------------------------------------------------------------------------
+// 和解式编排（P0024）：命令面只见 agent 实例，服务/会话/窗口/窗格/PTY 全部
+// 绑在 agent 背后。三态：新开（无会话整体拉起）、附加（已开且活直接绑）、
+// 重新打开（死路或 respawn 强制：关旧开新）。
+// ---------------------------------------------------------------------------
+
+pub struct ReconcileOutcome {
+    pub attached: Vec<String>,
+    pub respawned: Vec<String>,
+}
+
+/// agent 实例活判据：pane 存在 + pid 活 + 进程名匹配（stub 记 pwsh，真 agent 记本名）。
+async fn agent_alive(
+    session: &Session,
+    pane_id: u64,
+    stub: bool,
+    agent: &str,
+) -> bool {
+    let Ok(pane) = pane_for(session, pane_id).await else {
+        return false;
+    };
+    let Ok(pid) = rmuxpoc::running_pid(&pane).await else {
+        return false;
+    };
+    let expected = if stub { "pwsh" } else { agent };
+    process_names(&[pid])
+        .ok()
+        .and_then(|names| expect_process(&names, pid, expected).ok())
+        .is_some()
+}
+
+/// 和解：会话不在整体新开；在则逐路判活（附加）或重开（split 回一路并回写 manifest）。
+/// 取代旧「会话已存在即拒绝」——附加正是防叠格的正确形态。
+pub async fn reconcile(
+    link: &Link,
+    root: &Path,
+    plan: &SpawnPlan,
+) -> Result<ReconcileOutcome, String> {
+    let name = session_name(root)?;
+    if rmuxpoc::reuse_only(&link.rmux, name.clone()).await.is_err() {
+        let m = spawn(link, root, plan).await?;
+        return Ok(ReconcileOutcome {
+            attached: Vec::new(),
+            respawned: m.agents.iter().map(|a| a.name.clone()).collect(),
+        });
+    }
+    std::fs::create_dir_all(root.join(".ohmyagents").join("state"))
+        .map_err(|e| format!("state dir: {e}"))?;
+    let session = rmuxpoc::reuse_only(&link.rmux, name).await?;
+    let mut m = read_manifest(root).ok_or_else(|| {
+        "session exists but manifest is missing; run `oma cleanup` then `oma spawn`".to_string()
+    })?;
+
+    let mut attached = Vec::new();
+    let mut respawned = Vec::new();
+    for (agent, argv) in &plan.agents {
+        let alive = match m.agents.iter().find(|a| &a.name == agent) {
+            Some(entry) => agent_alive(&session, entry.pane_id, m.stub, agent).await,
+            None => false,
+        };
+        if alive {
+            attached.push(agent.clone());
+            eprintln!("reconcile.{agent}=attached");
+            continue;
+        }
+        // 死/缺：从主窗格右侧分回一路（窗格复杂性在此，命令面不感知）。
+        let base = session.pane(0, 0);
+        let pane = split_spawn(
+            &base,
+            SplitDirection::Right,
+            argv,
+            env_entries(root, agent),
+            agent,
+            root,
+        )
+        .await?;
+        let id = pane
+            .id()
+            .await
+            .map_err(|e| format!("pane id: {e}"))?
+            .ok_or_else(|| format!("respawned pane for {agent} has no live id"))?;
+        let pid_u32 = id.as_u32() as u64;
+        eprintln!("reconcile.{agent}=respawned pane={pid_u32}");
+        match m.agents.iter_mut().find(|a| &a.name == agent) {
+            Some(entry) => entry.pane_id = pid_u32,
+            None => m.agents.push(ManifestAgent {
+                name: agent.clone(),
+                pane_id: pid_u32,
+            }),
+        }
+        respawned.push(agent.clone());
+    }
+    write_manifest(root, &m)?;
+    Ok(ReconcileOutcome { attached, respawned })
+}
+
+/// 强制重新打开一路 agent 实例：关闭旧 pane（若在）再开新一路并回写。
+pub async fn respawn(link: &Link, root: &Path, agent: &str) -> Result<u64, String> {
+    let name = session_name(root)?;
+    let session = rmuxpoc::reuse_only(&link.rmux, name).await?;
+    let mut m = read_manifest(root)
+        .ok_or_else(|| "no session manifest; run `oma spawn` first".to_string())?;
+    let argv = respawn_argv(root, &m, agent)?;
+    if let Some(entry) = m.agents.iter().find(|a| a.name == agent) {
+        // 关旧：kill-pane 只打该窗格，不动会话与其它路。
+        let target = format!("%{}", entry.pane_id);
+        let _ = rmuxpoc::run_cli_checked(
+            &link.rmux_bin,
+            &["-L", link.label.as_str(), "kill-pane", "-t", &target],
+            "kill-pane",
+        );
+    }
+    let base = session.pane(0, 0);
+    let pane = split_spawn(
+        &base,
+        SplitDirection::Right,
+        &argv,
+        env_entries(root, agent),
+        agent,
+        root,
+    )
+    .await?;
+    let id = pane
+        .id()
+        .await
+        .map_err(|e| format!("pane id: {e}"))?
+        .ok_or_else(|| format!("respawn pane for {agent} has no live id"))?;
+    let pid_u32 = id.as_u32() as u64;
+    match m.agents.iter_mut().find(|a| a.name == agent) {
+        Some(entry) => entry.pane_id = pid_u32,
+        None => m.agents.push(ManifestAgent {
+            name: agent.to_string(),
+            pane_id: pid_u32,
+        }),
+    }
+    write_manifest(root, &m)?;
+    Ok(pid_u32)
+}
+
+/// 重开一路用的 argv：真 agent 沿用安装探测交集逻辑，stub 会话用 shell 桩。
+fn respawn_argv(root: &Path, m: &Manifest, agent: &str) -> Result<Vec<String>, String> {
+    if m.stub {
+        return Ok(rmuxpoc::interactive_shell_argv());
+    }
+    let _ = root;
+    let found = agents::find(agent)
+        .map(|p| p.path)
+        .ok_or_else(|| format!("agent {agent} not found; see `oma agents`"))?;
+    Ok(vec![found.display().to_string()])
+}
+
 /// Two send shapes share one guard chain (agent key policy, manifest
 /// locate, process locate):
 /// - single line: SDK `send_text` then `send_key("Enter")` (two dispatches)

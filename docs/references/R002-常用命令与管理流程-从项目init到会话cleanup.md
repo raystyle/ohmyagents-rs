@@ -46,8 +46,9 @@ cargo run --example poc-negatives     # C-c Codex 守卫与 daemon-wide kill 负
 | 部署项目级 yolo | `oma init --yolo [--project PATH]` | 仅无阻塞键：`.claude/settings.json`（`defaultMode=bypassPermissions`）、`.claude/settings.local.json`（顶层 `skipDangerousModePermissionPrompt`）、`.codex/config.toml`（sandbox/approval）、`.kimi-code/config.toml`（`yolo`）。不部署 hook/skill |
 | 预写信任库 | `oma init --yolo --pretrust [--project PATH]` | 额外写用户家：claude.json trust、codex projects、kimi workspace-trust、grok trusted_folders；grok 的 `permission_mode` 只能写 `~/.grok/config.toml` |
 | 权限模式 | `oma init --permission-mode auto\|yolo\|manual` | 覆盖默认 yolo；manual 不写 bypass（设计口径） |
-| 拉起会话 | `oma spawn [--agents a,b] [--stub] [--project PATH]` | 项目专属会话（`oma-<slug>`）里按布局拉 1-4 路 agent，缺省取已装交集；注入 `OHMYAGENTS_PROJECT/AGENT/STATE_FILE`；claude 路另清 `CLAUDE_CODE_CHILD_SESSION` 并强开 session 持久化（从 Claude Code 里拉起的子 claude 否则不写 transcript，P0019）；不阻塞返回；已存在则拒绝叠格 |
+| 和解拉起 | `oma spawn [--agents a,b] [--stub] [--project PATH] [--json]` | **和解式**（P0024）：会话不在新开；在则逐 agent 判活——活路**附加**、死路重开（`spawn.attached=`/`spawn.respawned=`/`spawn.mode=new|reconcile`）；命令面只见 agent 实例，服务/会话/窗格复杂性绑在背后；claude 路另清 `CLAUDE_CODE_CHILD_SESSION` 并强开 session 持久化（从 Claude Code 里拉起的子 claude 否则不写 transcript，P0019）；不阻塞返回；已存在则拒绝叠格 |
 | 桩会话 | `oma spawn --stub [--agents a,b]` | 用 shell 桩替代真实 agent（验收与调试） |
+| 重开一路 | `oma respawn <agent> [--project PATH] [--json]` | 强制关闭再打开该 agent 实例（kill-pane 只打该窗格，不动会话与其它路）；manifest 回写新 pane id |
 | 看状态 | `oma status [--project PATH]` | 双读者（S016 吸收）：stdout 是 TTY 时打对齐表格（AGENT/PID/PROCESS/TERMINAL/HOOK），管道与测试时打 marker 行；只读不 attach；一路 pane 消失该路报 `terminal=dead` 其余照报（P0019） |
 | 发任务 | `oma send <agent> "<text>" [--confirm MARKER] [--project PATH]` | 守卫链（键策略、locate 进程名）后：单行走 SDK `send_text` 与 Enter 两段式；多行（含换行）走三段式粘贴（临时文件 + CLI `load-buffer` + `paste-buffer -p -t %<pane_id>`，Enter 仍单独发，中文可用）；`--confirm` 等短头可见 |
 | 收尾 | `oma cleanup [--project PATH]` | 只杀本项目会话并清 manifest；不 kill-server，daemon 随末 session 自然退 |

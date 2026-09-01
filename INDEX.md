@@ -109,6 +109,7 @@ ohmyagents/
 | P0021 | `P0021-官方web镜像集成.md` | 已完成（oma web 三面集成 rmux web-share；自建 xterm 桥下线） |
 | P0022 | `P0022-web镜像本地化与主页化.md` | 已完成（前端源码构建本地托管、session 镜像免 PIN、主页即镜像、dashboard 下线；命名 web-mirror-server） |
 | P0023 | `P0023-看板资源包化.md` | 已完成（build.rs 打 tar.gz 嵌二进制、首启释放 oma 数据根、指纹一次一份） |
+| P0024 | `P0024-agent实例和解式编排.md` | 已完成（spawn 三态和解：新开/附加/死路重开；oma respawn 强制单路重开） |
 
 ## 四、项目日记
 

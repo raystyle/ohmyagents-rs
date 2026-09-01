@@ -21,7 +21,8 @@ pub fn envelope(command: &str, root: &Path, outcome: Result<Value, String>) -> V
     v
 }
 
-/// 拉起会话：返回项目、会话名与 manifest 概要。
+/// 和解式拉起（P0024）：会话不在新开；在则活路附加、死路重开。
+/// 命令面只见 agent 实例，窗格复杂性绑在背后。
 pub async fn spawn(
     root: &Path,
     agents: Option<Vec<String>>,
@@ -29,16 +30,26 @@ pub async fn spawn(
 ) -> Result<Value, String> {
     let plan = orch::plan_agents(agents, stub)?;
     let link = orch::connect(root, true).await?;
-    let manifest = orch::spawn(&link, root, &plan).await?;
-    let names: Vec<&str> = manifest.agents.iter().map(|a| a.name.as_str()).collect();
+    let out = orch::reconcile(&link, root, &plan).await?;
+    let manifest = orch::read_manifest_for(root)
+        .ok_or_else(|| "manifest missing after reconcile".to_string())?;
     Ok(json!({
         "project": root.display().to_string(),
         "session": orch::session_name(root)?.as_str(),
         "label": link.label,
         "stub": manifest.stub,
-        "agents": names,
+        "attached": out.attached,
+        "respawned": out.respawned,
+        "agents": manifest.agents.iter().map(|a| a.name.clone()).collect::<Vec<_>>(),
         "panes": manifest.agents.iter().map(|a| a.pane_id).collect::<Vec<_>>(),
     }))
+}
+
+/// 强制重新打开一路 agent 实例（关闭旧窗格再开新一路）。
+pub async fn respawn(root: &Path, agent: &str) -> Result<Value, String> {
+    let link = orch::connect(root, false).await?;
+    let pane_id = orch::respawn(&link, root, agent).await?;
+    Ok(json!({ "agent": agent, "pane": pane_id }))
 }
 
 /// 只读状态：各路 pid、进程名、终端态、hook 态。

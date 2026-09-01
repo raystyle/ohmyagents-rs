@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-01 | P0024 达成：agent 实例和解式编排——spawn 三态（新开/附加/死路重开，`attached`/`respawned` marker）＋ `oma respawn` 强制单路重开（kill-pane 单窗格）；命令面只见 agent 实例，六级原语绑在背后；S023 实测纠偏三处（internal-daemon 形态、conhost 兄弟、pane 无 shell 层） |
 | 2026-09-01 | P0023 达成：看板资源包化——build.rs 打 tar.gz 嵌二进制、首启释放 `~/.ohmyagents/web/<指纹>/`（一次一份），serve 从释放位托管；单 exe 自带看板 JS 资源，产品化收口 |
 | 2026-08-31 | P0022 达成：web 镜像本地化与主页化——前端源码仓发现（rmux-web-share/rmux-typescript）并 npm 构建本地托管（四挫四根因：尾斜杠、e 参数、WASM、ACAO）；session 镜像缺省加免 PIN；`oma serve` 主页即 web-mirror-server（打开即四路窗格），dashboard 删除、编排回归 CLI/API/MCP |
 | 2026-08-31 | P0021 达成：官方 web 镜像集成——`oma web` 三面接管 rmux web-share（operator 真 attach、PIN、TTL、断开管理）；自建 xterm 桥下线（用户两次纠偏：要 TUI 镜像、用平台原生 webshare） |
@@ -76,6 +77,7 @@
 
 | 日期 | 目标 | 结果 |
 | --- | --- | --- |
+| 2026-09-01 | agent 实例和解式编排（P0024） | 达成：spawn 三态和解、oma respawn 单路强制重开；S023 进程原语实测三纠偏 |
 | 2026-08-31 | web 镜像本地化与主页化（P0022） | 达成：源码构建本地托管、session 免 PIN、主页即镜像、dashboard 下线；命名 web-mirror-server |
 | 2026-08-31 | 官方 web 镜像集成（P0021） | 达成：oma web 三面接管 rmux web-share；自建 xterm 桥下线 |
 | 2026-08-31 | 产品完备收口与四家真路验收（P0019） | 达成：SSE 终端镜像、门面文档对齐、四家真路全链全绿；修 status 降级、CHILD_SESSION、settle 三态 |
