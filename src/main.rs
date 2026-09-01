@@ -363,6 +363,12 @@ enum TraceCmd {
 
 #[derive(Subcommand)]
 enum AgentsCmd {
+    /// 配置 claude/codex 的状态栏（幂等：claude 合并 settings.json 的
+    /// statusLine 块，codex 替换 config.toml 的 [tui] 段；脚本随 oma 释放）
+    Statusline {
+        /// 指定 agent（claude/codex）；缺省两家都配
+        names: Vec<String>,
+    },
     /// 安装缺失的 agent（oma 自管根 ~/.ohmyagents；已装任何来源即跳过；github 主 CDN 兜底）
     Install {
         /// agent 名列表；缺省 = catalog 全部的缺失者
@@ -414,6 +420,7 @@ fn run() -> Result<(), String> {
             }
             Some(AgentsCmd::Install { names, force, root }) => cmd_agents_install(names, force, root),
             Some(AgentsCmd::Update { names, force, root }) => cmd_agents_update(names, force, root),
+            Some(AgentsCmd::Statusline { names }) => cmd_agents_statusline(names),
         },
         Commands::Hook { event } => cmd_hook(event),
         Commands::Spawn {
@@ -837,6 +844,31 @@ fn cmd_task_show(id: String, project: Option<PathBuf>) -> Result<(), String> {
         }
         Err(_) => println!("task.show.{id}.output=pending"),
     }
+    Ok(())
+}
+
+/// `oma agents statusline [名]`：配置 claude/codex 状态栏（幂等）。
+fn cmd_agents_statusline(names: Vec<String>) -> Result<(), String> {
+    let home = install::oma_home()?;
+    let do_claude = names.iter().any(|n| n == "claude") || names.is_empty();
+    let do_codex = names.iter().any(|n| n == "codex") || names.is_empty();
+    let unknown: Vec<String> = names
+        .iter()
+        .filter(|n| n.as_str() != "claude" && n.as_str() != "codex")
+        .cloned()
+        .collect();
+    if !unknown.is_empty() {
+        return Err(format!("statusline supports claude/codex only: {}", unknown.join(",")));
+    }
+    if do_claude {
+        let p = oma::statusline::merge_claude(&home)?;
+        println!("statusline.claude={p}");
+    }
+    if do_codex {
+        let p = oma::statusline::merge_codex(&home)?;
+        println!("statusline.codex={p}");
+    }
+    println!("statusline.ok=true");
     Ok(())
 }
 

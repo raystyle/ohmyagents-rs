@@ -115,6 +115,8 @@ oma agents install                     # 自适应装缺（已装任何来源即
 oma agents install claude grok --force # 指定重装 oma 自管根
 oma agents update                      # 全部升到最新（取证 sha 后写回用户本地 pin）
 oma agents update kimi                 # 只升一家
+oma agents statusline                  # 配置 claude/codex 状态栏（幂等；脚本释放 oma 数据根）
+oma agents statusline codex            # 只配一家
 ```
 
 ### 项目初始化
