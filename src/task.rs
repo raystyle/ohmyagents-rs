@@ -95,7 +95,12 @@ pub async fn task_new(
         "{text}\n\n（任务协议：提示词全文在 .ohmyagents/{id}/prompt.md；产物写到 .ohmyagents/{id}/output.md；写完最后创建空文件 .ohmyagents/{id}/DONE 表示完成）",
         id = format!("tasks/{id}"),
     );
-    orch::send(&link, root, agent, &note, None).await?;
+    if let Err(e) = orch::send(&link, root, agent, &note, None).await {
+        // send 失败回滚任务目录（codex 五轮低6：残留目录会被 task list 当
+        // 未完成挂在清单里）。
+        let _ = std::fs::remove_dir_all(&dir);
+        return Err(e);
+    }
     Ok((id, dir))
 }
 
@@ -112,6 +117,17 @@ pub fn task_wait(root: &Path, id: &str, timeout_secs: u64) -> Result<String, Str
     };
     loop {
         if done.exists() {
+            // DONE 在但 output.md 缺失/空（违规 agent 先建 DONE 或还在追加，
+            // codex 五轮低5）：给 3s 宽限再读，仍缺则报错不返回半截。
+            if !output.exists() || output.metadata().map(|m| m.len() == 0).unwrap_or(true) {
+                let grace = std::time::Instant::now() + std::time::Duration::from_secs(3);
+                while std::time::Instant::now() < grace {
+                    if output.exists() && output.metadata().map(|m| m.len() > 0).unwrap_or(false) {
+                        break;
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(500));
+                }
+            }
             return std::fs::read_to_string(&output)
                 .map_err(|e| format!("DONE present but output.md unreadable: {e}"));
         }

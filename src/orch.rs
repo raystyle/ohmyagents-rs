@@ -728,7 +728,11 @@ pub async fn reconcile(
         }
         if let Some(old) = old_pane {
             if pane_for(&session, old).await.is_ok() {
-                let _ = kill_pane(link, &session, old).await;
+                // kill 失败 = 孤儿 pane（codex 五轮中3：manifest 已指向新格，
+                // 旧格此后无人重试）——强告警人工处理，不静默。
+                if let Err(e) = kill_pane(link, &session, old).await {
+                    eprintln!("spawn.alert={agent}: orphan pane %{old} left behind ({e}) — close it manually");
+                }
             }
         }
         respawned.push(agent.clone());
@@ -826,7 +830,10 @@ pub async fn respawn(link: &Link, root: &Path, agent: &str) -> Result<u64, Strin
     let pid_u32 = id.as_u32() as u64;
     if let Some(old) = old_pane {
         if pane_for(&session, old).await.is_ok() {
-            let _ = kill_pane(link, &session, old).await;
+            // 同上（codex 五轮中3）：kill 失败打孤儿强告警。
+            if let Err(e) = kill_pane(link, &session, old).await {
+                eprintln!("respawn.alert={agent}: orphan pane %{old} left behind ({e}) — close it manually");
+            }
         }
     }
     match m.agents.iter_mut().find(|a| a.name == agent) {
@@ -989,6 +996,11 @@ async fn await_task_start(
         if state == "working" {
             return Vec::new();
         }
+        // blocked 判定先于画面变化信号（codex 五轮高项：先 idle 后弹框时
+        // 首帧变化会先命中返回空，把「任务被阻塞」误报成「已开始」）。
+        if state == "blocked" {
+            return vec![format!("{agent}: blocked (confirm/password dialog) — task NOT started")];
+        }
         if let Some(prev) = last {
             if prev != hash {
                 return Vec::new();
@@ -1000,9 +1012,6 @@ async fn await_task_start(
             if idle_stable >= 2 {
                 return Vec::new();
             }
-        }
-        if state == "blocked" {
-            return vec![format!("{agent}: blocked (confirm/password dialog) — task NOT started")];
         }
         if std::time::Instant::now() > deadline {
             return vec![format!(

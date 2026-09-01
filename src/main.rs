@@ -432,8 +432,8 @@ fn run() -> Result<(), String> {
         Commands::Key { agent, key, project } => tokio_block(cmd_key(agent, key, project)),
         Commands::Task { agent, text, timeout, project, cmd } => {
             match cmd {
-                Some(TaskCmd::List { project }) => cmd_task_list(project),
-                Some(TaskCmd::Show { id, project }) => cmd_task_show(id, project),
+                Some(TaskCmd::List { project: inner }) => cmd_task_list(inner.or(project)),
+                Some(TaskCmd::Show { id, project: inner }) => cmd_task_show(id, inner.or(project)),
                 None => tokio_block(cmd_task(agent, text, timeout, project)),
             }
         }
@@ -678,13 +678,26 @@ async fn cmd_spawn(
 ) -> Result<(), String> {
     let root = project_root(project)?;
     if json {
-        return print_json("spawn", &root, oma::api::spawn(&root, wanted, stub).await);
+        // 三通道同语义（codex 五轮中2）：json 分支同样做就绪确认与自动
+        // settle，alerts 进信封 data；不再 early-return 漏掉。
+        let mut out = oma::api::spawn(&root, wanted, stub).await;
+        if let Ok(v) = &mut out {
+            if let Ok(link) = orch::connect(&root, false).await {
+                let respawned: Vec<String> = v["respawned"]
+                    .as_array()
+                    .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+                    .unwrap_or_default();
+                let alerts = orch::await_lanes_ready(&link, &root, &respawned).await;
+                if !alerts.is_empty() {
+                    v["alerts"] = serde_json::json!(alerts);
+                }
+            }
+            let _ = oma::api::settle(&root, 10).await;
+        }
+        return print_json("spawn", &root, out);
     }
     println!("spawn.project={}", root.display());
     println!("spawn.stub={stub}");
-    if json {
-        return print_json("spawn", &root, oma::api::spawn(&root, wanted, stub).await);
-    }
     let link = orch::connect(&root, true).await?;
     println!("spawn.label={}", link.label);
     let plan = orch::plan_agents(wanted, stub)?;
@@ -802,6 +815,7 @@ fn cmd_task_show(id: String, project: Option<PathBuf>) -> Result<(), String> {
     let meta = oma::task::task_show(&root, &id)?;
     println!("task.show.{id}.agent={}", meta.agent);
     println!("task.show.{id}.created={}", meta.created);
+    println!("task.show.{id}.text={}", meta.text);
     let dir = root.join(".ohmyagents").join("tasks").join(&id);
     println!("task.show.{id}.done={}", dir.join("DONE").exists());
     match std::fs::read_to_string(dir.join("output.md")) {
