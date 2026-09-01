@@ -672,7 +672,25 @@ pub async fn reconcile(
     // 的进程名判定（pwsh vs agent 本名）不再拿旧会话语义误判。
     m.stub = plan.stub;
     write_manifest(root, &m)?;
+    // 有重开动作才重排（纯附加的会话布局没被动过；tiled 幂等但省一次 CLI）。
+    if !respawned.is_empty() {
+        relayout_tiled(link);
+    }
     Ok(ReconcileOutcome { attached, respawned })
+}
+
+/// 布局自愈（2026-09-01 用户定调「任务启动时预检测布局自愈」）：respawn/
+/// 死路重开的 kill+split 会留下不规则网格（实测 kimi 独占半屏、grok 横条）。
+/// `select-layout tiled` 一键重排均匀网格——幂等，活 pane 内容不动只动
+/// 边框；label 单 session 无 -t 歧义。失败只警告不阻塞主流程。
+fn relayout_tiled(link: &Link) {
+    if let Err(e) = rmuxpoc::run_cli_checked(
+        &link.rmux_bin,
+        &["-L", link.label.as_str(), "select-layout", "tiled"],
+        "select-layout",
+    ) {
+        eprintln!("relayout.tiled=failed ({e})");
+    }
 }
 
 /// 关单窗格（kill-pane 只打该格，不动会话与其它路）。幂等：pane 已不在
@@ -728,6 +746,7 @@ pub async fn respawn(link: &Link, root: &Path, agent: &str) -> Result<u64, Strin
         }),
     }
     write_manifest(root, &m)?;
+    relayout_tiled(link);
     Ok(pid_u32)
 }
 

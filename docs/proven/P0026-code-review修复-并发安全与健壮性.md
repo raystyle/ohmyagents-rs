@@ -79,4 +79,5 @@
 - codex review 高 5 + 中 7 共 12 条全部落地；低 3 条记档不做（低14 extractor 层、低15 YAGNI、低13 顺手并入切片 1）。
 - 计划外抓到三个真雷：serve daemon 零控制台卡死（DETACHED→CREATE_NO_WINDOW）、task id 撞号实修（原子占位）、canonicalize 时序双身份（改词法归一）——review 之外的收获大于 review 本身。
 - 经验：AI review 的发现要**逐条核实再修**（15 条里高 5 有 1 条部分真）；修的过程中实测冒烟比单测先抓出两个计划外缺陷。
+- **当日追加三件**（用户验收看板连发）：①布局自愈——respawn/死路重开的 kill+split 留不规则网格（实测 kimi 独占半屏），reconcile（有重开时）与 respawn 尾部 `select-layout tiled` 一键重排均匀网格，幂等失败只警告；实测弄乱 1x4 横条后 respawn 即恢复 2x2。[实证] ②`oma key <agent> <KEY>` 单键守卫入口（codex 拒 C-c，M039：裸 rmux 绕守卫实杀过一路）。③settle 按后确认（M038：升级屏关掉后旧帧触发重按，「2」落输入框提交成任务）——等 marker 消失（3s）才认成功，顽固不消失不重按、打 `settle.<agent>.stalled` 事件。
 - **留观条目闭环（二犯当日定位修复）**：看板「画面缩成一团、不自适应」二犯，截屏实锤——**不是偶发**，rmux web-share 前端桌面分支 `scale = Math.min(1, ...)` 只缩不放，120x32 会话按自然字符尺寸（约 960px）渲染，宽屏必然缩在左上角；官方域线上版同样形态（对照实验排除本地包回归）。首次「正常了」属误判（当时窗口/接受度差异）。修复：share-src 桌面分支加 **fit-fill**——字号按容器自适应放大（13→32 封顶，xterm 原生渲染清晰，非 CSS 位图拉伸），残余比例差仍走 transform 缩小；npm 重建资源包（指纹更新，首启自动释放新包）。截屏验收四路铺满视口。[实证]
