@@ -55,4 +55,11 @@
 - **验收实测全过 [实证]**：高2——stub 会话删 manifest 后 `oma cleanup` 直接清成功（旧代码死局）；高3——杀 claude 路 pwsh 后 `oma spawn`，`reconcile.claude=respawned pane=5` 且 session pane 集合 {%2,%3,%4,%5}（旧死格 %1 已清，四路四格不堆积）；高5——evil Host 400 / localhost 200；看板只读——home 起镜像改 spectator=true，rmux 输出前缀佐证。测试基线 75+10 / 78+10 全绿。
 - **计划外发现（本切片最值钱的一条）**：serve daemon 改 CREATE_NO_WINDOW。DETACHED_PROCESS 零控制台下，daemon 再 spawn 的 rmux CLI（TUI，初始化碰 console）卡死——GET / 起镜像时整个 serve 无响应（连 /api/status 都 000）；前台同代码同 manifest 秒回，对照定位。Windows 后台进程要「有隐藏控制台」不要「零控制台」。
 - read_manifest 签名改 `Result<Option<Manifest>, String>`：缺失（NotFound）与损坏（corrupt 带路径上下文）分家，恢复路径才对症。无会话项目的报错从 "no session manifest" 变为更准确的 "session daemon is gone; run `oma spawn`"（cli 集成测试断言随契约更新）。
-- taskkill 在 Git Bash 里 `/PID /F` 被 MSYS 路径转换吃掉参数且吞输出后无声失败——杀进程验证用 PowerShell `Stop-Process` 并回读确认。
+
+### 切片 2 完成
+
+- **高1b**：`next_task_id` 改 `alloc_task_id`——scan 出初值后 `create_new` 原子占位、撞号自增重试；占位只在确有派发时发生（全忙跳过不留空文件）。[实证：单测覆盖占位残留后继续分配不回退]
+- **高4（务实分档）**：三个秒级同步段进 `tokio::task::spawn_blocking`——status 的 pwsh+CIM 批查、send/agent_alive 的单 pid 反查、web_share 系列的 rmux web-share 子进程（`web_share_cli` 改按值入参）。**不做**：run_cli 全链 async 化（label_alive 等毫秒级 CLI，10+ 调用点改签名收益不成比例）；`ensure_label_daemon` 的 sleep 循环（仅冷启动低频路径）。记档于此。
+- **中8**：reconcile 判活改用本次 `plan.stub`（非 `m.stub`）、manifest 的 stub 随计划回写——stub 会话后跑真 spawn 不再把 stub pane 误判为活路。**语义明确**：reconcile 是「补缺不移除」，`--agents` 子集时已有路保留（设计行为，多余路用 cleanup 或 respawn 管理）。
+- 验收：75+10 / 78+10 全绿；daemon 冒烟 home=200、run 端点 200、stop 干净。[实证]
+- 小坑：闭包 move 后 `id` 再用于返回值触发 use-after-move——echo 副本先行 clone；target\debug\oma.exe 被残留 serve daemon 锁住构建报「拒绝访问」——杀进程即解（M036 关联：测试完的 daemon 要 stop）。

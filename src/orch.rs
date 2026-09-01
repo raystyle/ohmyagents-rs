@@ -500,7 +500,13 @@ pub async fn status(link: &Link, root: &Path) -> Result<Vec<PaneStatus>, String>
     }
 
     let pids: Vec<u32> = entries.iter().filter_map(|(_, _, p)| *p).collect();
-    let names = process_names(&pids).unwrap_or_default();
+    // pwsh+CIM 批查是秒级同步子进程：放 spawn_blocking，不占 tokio worker
+    //（P0026 高4）。
+    let pids_for_blocking = pids.clone();
+    let names = tokio::task::spawn_blocking(move || process_names(&pids_for_blocking))
+        .await
+        .map_err(|e| format!("process_names join: {e}"))?
+        .unwrap_or_default();
 
     let mut out = Vec::new();
     for (agent, pane, pid) in entries {
@@ -549,8 +555,11 @@ async fn agent_alive(
         return false;
     };
     let expected = if stub { "pwsh" } else { agent };
-    process_names(&[pid])
+    // 同步 pwsh 批查放 blocking 池（P0026 高4）。
+    tokio::task::spawn_blocking(move || process_names(&[pid]))
+        .await
         .ok()
+        .and_then(|r| r.ok())
         .and_then(|names| expect_process(&names, pid, expected).ok())
         .is_some()
 }
@@ -579,9 +588,11 @@ pub async fn reconcile(
 
     let mut attached = Vec::new();
     let mut respawned = Vec::new();
+    // 判活按本次计划的 stub 语义（P0026 中8）：旧会话是 stub、本次真身时，
+    // stub pane 视为死路重开成真 agent；manifest 的 stub 也随计划回写。
     for (agent, argv) in &plan.agents {
         let alive = match m.agents.iter().find(|a| &a.name == agent) {
-            Some(entry) => agent_alive(&session, entry.pane_id, m.stub, agent).await,
+            Some(entry) => agent_alive(&session, entry.pane_id, plan.stub, agent).await,
             None => false,
         };
         if alive {
@@ -623,6 +634,9 @@ pub async fn reconcile(
         }
         respawned.push(agent.clone());
     }
+    // stub 随本次计划回写（中8）：manifest 反映当前语义，后续 send/status
+    // 的进程名判定（pwsh vs agent 本名）不再拿旧会话语义误判。
+    m.stub = plan.stub;
     write_manifest(root, &m)?;
     Ok(ReconcileOutcome { attached, respawned })
 }
@@ -720,7 +734,10 @@ pub async fn send(
 
     let pid = rmuxpoc::running_pid(&pane).await?;
     let expected = if manifest.stub { "pwsh" } else { agent };
-    let names = process_names(&[pid])?;
+    // 同步 pwsh 批查放 blocking 池（P0026 高4）。
+    let names = tokio::task::spawn_blocking(move || process_names(&[pid]))
+        .await
+        .map_err(|e| format!("process_names join: {e}"))??;
     let actual = expect_process(&names, pid, expected)?;
 
     let multiline = text.contains('\n') || text.contains('\r');
@@ -935,8 +952,12 @@ fn tasks_dir(root: &Path) -> PathBuf {
     root.join(".ohmyagents").join("tasks")
 }
 
-fn next_task_id(root: &Path) -> String {
+/// 分配任务 id：scan 出初值后用 `create_new` 原子占位，撞号自增重试
+/// （P0026 高1b：纯 scan-then-increment 在并发 run 下会拿到同号互覆）。
+/// 占位是零字节探测文件，随后 write_task 原子覆写。
+fn alloc_task_id(root: &Path) -> Result<String, String> {
     let dir = tasks_dir(root);
+    std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let mut max = 0u32;
     if let Ok(entries) = std::fs::read_dir(&dir) {
         for entry in entries.flatten() {
@@ -951,7 +972,19 @@ fn next_task_id(root: &Path) -> String {
             }
         }
     }
-    format!("t{:03}", max + 1)
+    let mut n = max + 1;
+    loop {
+        let id = format!("t{n:03}");
+        let probe = dir.join(format!("{id}.json"));
+        match std::fs::OpenOptions::new().write(true).create_new(true).open(&probe) {
+            Ok(_) => return Ok(id),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                n += 1;
+                continue;
+            }
+            Err(e) => return Err(format!("{}: {e}", probe.display())),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -1043,7 +1076,12 @@ pub async fn run(
         }
     }
 
-    let task_id = next_task_id(root);
+    // 占位与写盘都在确有派发时才发生（P0026 高1b：并发 run 撞号）。
+    let task_id = if !sent.is_empty() {
+        alloc_task_id(root)?
+    } else {
+        String::new()
+    };
     if !sent.is_empty() {
         let record = TaskRecord {
             id: task_id.clone(),
@@ -1160,7 +1198,7 @@ mod tests {
             NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         ));
         std::fs::create_dir_all(&root).unwrap();
-        assert_eq!(next_task_id(&root), "t001");
+        assert_eq!(alloc_task_id(&root).unwrap(), "t001");
         let rec = TaskRecord {
             id: "t001".into(),
             text: "demo".into(),
@@ -1169,7 +1207,8 @@ mod tests {
         };
         let path = write_task(&root, &rec).unwrap();
         assert!(path.ends_with("t001.json"));
-        assert_eq!(next_task_id(&root), "t002");
+        // 占位文件残留（write_task 已覆写同号）后继续分配不回退。
+        assert_eq!(alloc_task_id(&root).unwrap(), "t002");
         let back: TaskRecord =
             serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
         assert_eq!(back.assigned["claude"], 42);

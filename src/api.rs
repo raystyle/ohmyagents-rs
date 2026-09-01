@@ -129,14 +129,17 @@ pub async fn cleanup(root: &Path) -> Result<Value, String> {
 
 // ---- 官方 web 镜像（rmux web-share，P0021）----
 
-/// rmux CLI 输出（URL/PIN 在 stderr）。
+/// rmux CLI 输出（URL/PIN 在 stderr）。入参按值：调用点把它放进
+/// `spawn_blocking`（子进程可秒级，P0026 高4）。
 fn web_share_cli(
-    link: &orch::Link,
-    args: &[&str],
+    rmux_bin: std::path::PathBuf,
+    label: String,
+    args: Vec<String>,
 ) -> Result<String, String> {
-    let mut full: Vec<&str> = vec!["-L", link.label.as_str()];
-    full.extend(args.iter().copied());
-    let out = crate::rmuxpoc::run_cli(&link.rmux_bin, &full)?;
+    let args_ref: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    let mut full: Vec<&str> = vec!["-L", label.as_str()];
+    full.extend(args_ref.iter().copied());
+    let out = crate::rmuxpoc::run_cli(&rmux_bin, &full)?;
     let text = format!(
         "{}\n{}",
         String::from_utf8_lossy(&out.stdout),
@@ -170,15 +173,27 @@ pub async fn web_share(
     };
     let ttl_s = ttl.to_string();
     let mode = if spectator { "--spectator-only" } else { "--operator-only" };
-    let mut argv: Vec<&str> = vec!["web-share", "-t", &target, mode, "--ttl", &ttl_s];
+    let mut argv: Vec<String> = vec![
+        "web-share".into(),
+        "-t".into(),
+        target,
+        mode.into(),
+        "--ttl".into(),
+        ttl_s,
+    ];
     if let Some(fe) = frontend_url {
-        argv.extend(["--frontend-url", fe]);
+        argv.extend(["--frontend-url".into(), fe.to_string()]);
     }
     // 本地场景免 PIN（用户定调：127.0.0.1 直接连接）；官方域外发面保留。
     if no_pin {
-        argv.push("--no-pin");
+        argv.push("--no-pin".into());
     }
-    let text = web_share_cli(&link, &argv)?;
+    // web-share 子进程可秒级：放 blocking 池，不占 tokio worker（P0026 高4）。
+    let text = tokio::task::spawn_blocking(move || {
+        web_share_cli(link.rmux_bin.clone(), link.label.clone(), argv)
+    })
+    .await
+    .map_err(|e| format!("web-share join: {e}"))??;
     let url = text
         .lines()
         .filter_map(|l| {
@@ -205,7 +220,11 @@ pub async fn web_share(
 /// 列活动 share（web-share list：`<id> <session>:<pane> ...`）。
 pub async fn web_shares(root: &Path) -> Result<Value, String> {
     let link = orch::connect(root, false).await?;
-    let text = web_share_cli(&link, &["web-share", "list"])?;
+    let text = tokio::task::spawn_blocking(move || {
+        web_share_cli(link.rmux_bin.clone(), link.label.clone(), vec!["web-share".into(), "list".into()])
+    })
+    .await
+    .map_err(|e| format!("web-share join: {e}"))??;
     let rows: Vec<Value> = text
         .lines()
         .map(str::trim)
@@ -223,8 +242,18 @@ pub async fn web_shares(root: &Path) -> Result<Value, String> {
 /// 断开一路 share（--disconnect <id>）。
 pub async fn web_share_stop(root: &Path, id: &str) -> Result<Value, String> {
     let link = orch::connect(root, false).await?;
-    web_share_cli(&link, &["web-share", "--disconnect", id])?;
-    Ok(json!({ "disconnected": id }))
+    let id_owned = id.to_string();
+    let id_echo = id_owned.clone();
+    tokio::task::spawn_blocking(move || {
+        web_share_cli(
+            link.rmux_bin.clone(),
+            link.label.clone(),
+            vec!["web-share".into(), "--disconnect".into(), id_owned],
+        )
+    })
+    .await
+    .map_err(|e| format!("web-share join: {e}"))??;
+    Ok(json!({ "disconnected": id_echo }))
 }
 
 /// 轨迹检索三件（P0013 联动）：sessions / timeline / search。
