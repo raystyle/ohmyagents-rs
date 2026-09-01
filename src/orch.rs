@@ -629,8 +629,10 @@ pub async fn reconcile(
     })?;
 
     // 精确集合（用户定调 2026-09-01 二次，取代中8「补缺不移除」）：命令面
-    // 要几路就几路——`--agents codex` 就是一路。多余路收格并出 manifest；
-    // 收格失败容忍（格可能已死，幂等 kill 会放过）。
+    // 要几路就几路——`--agents codex` 就是一路。**先补后收**（grok 三轮
+    // 警告实炸：单路换单路时先收唯一活路 → 会话空 → daemon 随末 session
+    // 退 → 补路无 daemon 可用）；收格失败容忍（格可能已死，幂等 kill 会
+    // 放过）。
     let wanted: Vec<&str> = plan.agents.iter().map(|(a, _)| a.as_str()).collect();
     let surplus: Vec<String> = m
         .agents
@@ -639,22 +641,6 @@ pub async fn reconcile(
         .filter(|n| !wanted.contains(&n.as_str()))
         .collect();
     let mut removed = Vec::new();
-    for agent in &surplus {
-        if let Some(entry) = m.agents.iter().find(|a| &a.name == agent) {
-            let pane_id = entry.pane_id;
-            if pane_for(&session, pane_id).await.is_ok() {
-                // kill 失败（pane 仍在）不移出 manifest（codex 复核中5）：
-                // 移了会留孤儿 pane 且 relayout 的路数与实际不符。
-                if let Err(e) = kill_pane(link, &session, pane_id).await {
-                    eprintln!("reconcile.{agent}=remove-failed ({e}); lane kept");
-                    continue;
-                }
-            }
-        }
-        m.agents.retain(|a| &a.name != agent);
-        removed.push(agent.clone());
-        eprintln!("reconcile.{agent}=removed");
-    }
     let mut attached = Vec::new();
     let mut respawned = Vec::new();
     // 判活按本次计划的 stub 语义（P0026 中8）：旧会话是 stub、本次真身时，
@@ -702,6 +688,23 @@ pub async fn reconcile(
             }),
         }
         respawned.push(agent.clone());
+    }
+    // 计划路全部就位后才收多余路——任何时刻会话不空、daemon 不退。
+    for agent in &surplus {
+        if let Some(entry) = m.agents.iter().find(|a| &a.name == agent) {
+            let pane_id = entry.pane_id;
+            if pane_for(&session, pane_id).await.is_ok() {
+                // kill 失败（pane 仍在）不移出 manifest（codex 复核中5）：
+                // 移了会留孤儿 pane 且 relayout 的路数与实际不符。
+                if let Err(e) = kill_pane(link, &session, pane_id).await {
+                    eprintln!("reconcile.{agent}=remove-failed ({e}); lane kept");
+                    continue;
+                }
+            }
+        }
+        m.agents.retain(|a| &a.name != agent);
+        removed.push(agent.clone());
+        eprintln!("reconcile.{agent}=removed");
     }
     // stub 随本次计划回写（中8）：manifest 反映当前语义，后续 send/status
     // 的进程名判定（pwsh vs agent 本名）不再拿旧会话语义误判。
