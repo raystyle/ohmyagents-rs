@@ -99,9 +99,10 @@ pub async fn serve(root: PathBuf, port: u16) -> Result<(), String> {
 /// 任务挂在当前 runtime，REPL 主循环的每个 await 都给它让路。
 pub async fn serve_in_background(root: PathBuf, port: u16) -> Result<SocketAddr, String> {
     let kanban = crate::webassets::ensure_web_assets_at(&crate::install::oma_home()?)?;
+    let shutdown = ShutdownFlag::default();
     let state = Arc::new(ServeState {
         root,
-        shutdown: ShutdownFlag::default(),
+        shutdown: shutdown.clone(),
         gate: Mutex::new(()),
         kanban,
         share_token: tokio::sync::Mutex::new(None),
@@ -112,8 +113,19 @@ pub async fn serve_in_background(root: PathBuf, port: u16) -> Result<SocketAddr,
         .await
         .map_err(|e| format!("bind {addr}: {e}"))?;
     let local = listener.local_addr().map_err(|e| e.to_string())?;
+    // 与前台 serve 同款 graceful shutdown（Round3 claude2 遗留两轮：REPL
+    // 内嵌形态共享 router，DELETE /shutdown 回 draining:true 却永不退）。
+    let flag = shutdown;
     tokio::spawn(async move {
-        if let Err(e) = axum::serve(listener, app).await {
+        if let Err(e) = axum::serve(listener, app)
+            .with_graceful_shutdown(async move {
+                while !flag.is_set() {
+                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                }
+                eprintln!("serve(embedded): shutdown requested; draining");
+            })
+            .await
+        {
             eprintln!("oma: web server stopped: {e}");
         }
     });

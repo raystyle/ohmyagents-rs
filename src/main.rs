@@ -696,9 +696,12 @@ async fn cmd_spawn(
     }
     println!("spawn.project={}", root.display());
     println!("spawn.stub={stub}");
+    // 先验 plan 再 connect（Round3 claude3 遗留：`--agents typo` 会先拉起
+    // daemon 与 boot keeper 会话再报错，残留到下次成功 spawn；api 通道
+    // 本来就是这个顺序）。
+    let plan = orch::plan_agents(wanted, stub)?;
     let link = orch::connect(&root, true).await?;
     println!("spawn.label={}", link.label);
-    let plan = orch::plan_agents(wanted, stub)?;
     let out = orch::reconcile(&link, &root, &plan).await?;
     println!("spawn.session={}", orch::session_name(&root)?.as_str());
     println!("spawn.attached={}", out.attached.join(","));

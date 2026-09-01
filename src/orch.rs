@@ -1343,6 +1343,8 @@ pub enum Gate {
     Dispatch,
     Blocked,
     Busy,
+    /// 死路（pane 没了）：与 blocked/blocked 分开报——该 respawn 不是等。
+    Dead,
 }
 
 /// Layer 2 wins when it speaks; a silent hook falls back to the 1b terminal
@@ -1355,6 +1357,9 @@ pub fn gate(hook_state: Option<&str>, terminal: &str) -> Gate {
         _ => match terminal {
             "idle" => Gate::Dispatch,
             "blocked" => Gate::Blocked,
+            // dead 单列（Round3 claude5 遗留：死路与忙路语义相反——一个
+            // 该 respawn 一个该等，报 busy 会误导跟进动作）。
+            "dead" => Gate::Dead,
             _ => Gate::Busy,
         },
     }
@@ -1491,6 +1496,7 @@ pub async fn run(
             },
             Gate::Blocked => skipped.push((agent.clone(), "blocked".into())),
             Gate::Busy => skipped.push((agent.clone(), "busy".into())),
+            Gate::Dead => skipped.push((agent.clone(), "dead".into())),
         }
     }
 
@@ -1510,8 +1516,11 @@ pub async fn run(
         // 写失败清掉 alloc 留下的零字节占位（codex 复核低项：空 tNNN.json
         // 会成为将来 trace/task 读取的脏数据）。
         if let Err(e) = write_task(root, &record) {
+            // 记账失败不整单报错（Round3 claude4 遗留：send 已实际打进各
+            // 路，操作者看到 Err 重试会重复派发同一任务）——告警留痕，
+            // 派发结果照常返回。
             let _ = std::fs::remove_file(tasks_dir(root).join(format!("{task_id}.json")));
-            return Err(e);
+            eprintln!("run.alert=dispatched but task record failed: {e}");
         }
     }
     Ok(RunOutcome {
