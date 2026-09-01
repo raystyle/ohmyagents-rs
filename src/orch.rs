@@ -147,7 +147,9 @@ fn write_manifest(root: &Path, m: &Manifest) -> Result<(), String> {
         std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     }
     let body = serde_json::to_string_pretty(m).map_err(|e| e.to_string())? + "\n";
-    let tmp = path.with_extension("json.tmp");
+    // tmp 名带 pid（codex 复核中4）：固定名在 CLI/serve 并发写时会共用同
+    // 一 tmp，一方 rename 后另一方 NotFound。
+    let tmp = path.with_extension(format!("json.{}.tmp", std::process::id()));
     std::fs::write(&tmp, body).map_err(|e| format!("{}: {e}", tmp.display()))?;
     std::fs::rename(&tmp, &path).map_err(|e| format!("{}: {e}", path.display()))
 }
@@ -638,7 +640,12 @@ pub async fn reconcile(
         if let Some(entry) = m.agents.iter().find(|a| &a.name == agent) {
             let pane_id = entry.pane_id;
             if pane_for(&session, pane_id).await.is_ok() {
-                let _ = kill_pane(link, &session, pane_id).await;
+                // kill 失败（pane 仍在）不移出 manifest（codex 复核中5）：
+                // 移了会留孤儿 pane 且 relayout 的路数与实际不符。
+                if let Err(e) = kill_pane(link, &session, pane_id).await {
+                    eprintln!("reconcile.{agent}=remove-failed ({e}); lane kept");
+                    continue;
+                }
             }
         }
         m.agents.retain(|a| &a.name != agent);
@@ -1024,14 +1031,28 @@ pub async fn settle(
     let deadline =
         std::time::Instant::now() + Duration::from_secs(wait_secs);
 
-    let mut outcomes = Vec::new();
-    for agent in &manifest.agents {
-        let pane = pane_for(&session, agent.pane_id).await?;
-        let mut dismissed: Vec<String> = Vec::new();
-        loop {
+    // 窗口内外层循环（codex 复核抓的真缺陷：原「每路首扫未命中即 break」
+    // 让 wait_secs 只对命中后超时生效，config 扫描后才出现的屏等不到）：
+    // 每轮快扫全部路、命中的当场处理，全空时稍歇再扫直到窗口结束——
+    // 窗口是全局共享的，不会被第一路吃光。
+    let mut outcomes: Vec<(String, Vec<String>)> = manifest
+        .agents
+        .iter()
+        .map(|a| (a.name.clone(), Vec::new()))
+        .collect();
+    loop {
+        let mut any_hit = false;
+        for agent in &manifest.agents {
+            let Some(entry) = outcomes.iter_mut().find(|(n, _)| n == &agent.name) else {
+                continue;
+            };
+            let pane = match pane_for(&session, agent.pane_id).await {
+                Ok(p) => p,
+                Err(_) => continue,
+            };
             let lines = match pane.snapshot().await {
                 Ok(snap) => snap.visible_lines(),
-                Err(_) => Vec::new(),
+                Err(_) => continue,
             };
             // 行级短行匹配（中12 收紧）：marker 须命中**单行**且该行是对话框
             // 形态（trimmed ≤ 80 列）——P0019 三态实测（claude 问句行、kimi
@@ -1043,10 +1064,11 @@ pub async fn settle(
                     t.chars().count() <= 80 && t.to_lowercase().contains(marker)
                 })
             });
-            let Some((marker, keys)) = hit else { break };
+            let Some((marker, keys)) = hit else { continue };
             if std::time::Instant::now() > deadline {
                 break;
             }
+            any_hit = true;
             let marker = marker.to_string();
             for key in keys.iter() {
                 pane.send_key(*key)
@@ -1054,11 +1076,11 @@ pub async fn settle(
                     .map_err(|e| format!("settle {}: {e}", agent.name))?;
                 tokio::time::sleep(Duration::from_millis(400)).await;
             }
-            dismissed.push(format!("{marker}:{}", keys.join("+")));
+            entry.1.push(format!("{marker}:{}", keys.join("+")));
             // 按后确认（2026-09-01 实踩：升级屏关掉后快照仍是旧帧，立即
             // 重按一轮会把「2」落进输入框提交成任务）——等 marker 从屏上
             // 消失（最多 3s）；顽固不消失**不重按**（防重复提交），记
-            // stalled 事件退出该路，人工接手。
+            // stalled 事件，人工接手。
             let marker_still = |lines: &Vec<String>| {
                 lines.iter().any(|l| {
                     let t = l.trim();
@@ -1079,18 +1101,26 @@ pub async fn settle(
             }
             if !confirmed {
                 eprintln!("settle.{}.stalled={marker}: marker still on screen; NOT re-sending keys", agent.name);
-                break;
             }
         }
+        if std::time::Instant::now() > deadline {
+            break;
+        }
+        if !any_hit {
+            tokio::time::sleep(Duration::from_millis(500)).await;
+        }
+    }
+    let mut result = Vec::new();
+    for (agent, dismissed) in outcomes {
         let outcome = if dismissed.is_empty() {
             "none".to_string()
         } else {
             format!("dismissed={}", dismissed.join(","))
         };
-        eprintln!("settle.pane.{}={}", agent.name, outcome);
-        outcomes.push((agent.name.clone(), outcome));
+        eprintln!("settle.pane.{agent}={outcome}");
+        result.push((agent, outcome));
     }
-    Ok(outcomes)
+    Ok(result)
 }
 
 // ---------------------------------------------------------------------------
@@ -1261,7 +1291,12 @@ pub async fn run(
             created: now,
             assigned,
         };
-        write_task(root, &record)?;
+        // 写失败清掉 alloc 留下的零字节占位（codex 复核低项：空 tNNN.json
+        // 会成为将来 trace/task 读取的脏数据）。
+        if let Err(e) = write_task(root, &record) {
+            let _ = std::fs::remove_file(tasks_dir(root).join(format!("{task_id}.json")));
+            return Err(e);
+        }
     }
     Ok(RunOutcome {
         task_id,

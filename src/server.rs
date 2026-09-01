@@ -352,11 +352,16 @@ fn kanban_reply(dir: &Path, rel: &str) -> Response {
     }
 }
 
-/// Host 头只认回环（127.0.0.1 / localhost / [::1]，任意端口）——serve 无
-/// 鉴权，防 DNS rebinding 场景把 share token 拼进外域 frontend_url（P0026 高5）。
+/// Host 头只认回环（127.0.0.1 / localhost / [::1]，任意端口，大小写不敏）
+/// ——serve 无 鉴权，防 DNS rebinding 场景把 share token 拼进外域
+/// frontend_url（P0026 高5；codex 复核低项补裸 IPv6 与 Localhost）。
 fn host_is_local(host: &str) -> bool {
-    let name = host.rsplit_once(':').map(|(h, _)| h).unwrap_or(host);
-    matches!(name, "127.0.0.1" | "localhost" | "[::1]" | "::1" | "[::]")
+    let lowered = host.to_ascii_lowercase();
+    let name = lowered.rsplit_once(':').map(|(h, _)| h).unwrap_or(&lowered);
+    matches!(
+        name,
+        "127.0.0.1" | "localhost" | "[::1]" | "::1" | "[::]" | ""
+    ) || lowered == "[::1]" || lowered == "::1"
 }
 
 /// 打开即四路窗格：起整会话 **operator** 镜像（本地免 PIN 可打字可拖窗格；
@@ -549,8 +554,19 @@ async fn spawn(State(st): State<Arc<ServeState>>, body: String) -> Response {
         Ok(r) => r,
         Err(r) => return r,
     };
-    let _guard = st.gate.lock().await;
-    finish(command, &st.root, api::spawn(&st.root, req.agents, req.stub.unwrap_or(false)).await)
+    let spawned = {
+        let _guard = st.gate.lock().await;
+        api::spawn(&st.root, req.agents, req.stub.unwrap_or(false)).await
+    };
+    if spawned.is_ok() {
+        // 自动 settle 放 gate 外（codex 复核中3）：settle 最长等一个窗口，
+        // 拿着会话锁等屏会把 send/run/settle/cleanup 全堵住。失败只进
+        // stderr 留痕，不动 spawn 的成功响应。
+        if let Err(e) = api::settle(&st.root, 10).await {
+            eprintln!("spawn.auto-settle: {e}");
+        }
+    }
+    finish(command, &st.root, spawned)
 }
 
 async fn status(State(st): State<Arc<ServeState>>) -> Response {

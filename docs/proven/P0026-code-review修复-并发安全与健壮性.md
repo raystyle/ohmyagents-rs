@@ -81,4 +81,20 @@
 - 经验：AI review 的发现要**逐条核实再修**（15 条里高 5 有 1 条部分真）；修的过程中实测冒烟比单测先抓出两个计划外缺陷。
 - **当日追加三件**（用户验收看板连发）：①布局自愈——respawn/死路重开的 kill+split 留不规则网格（实测 kimi 独占半屏），reconcile（有重开时）与 respawn 尾部 `select-layout tiled` 一键重排均匀网格，幂等失败只警告；实测弄乱 1x4 横条后 respawn 即恢复 2x2。[实证] ②`oma key <agent> <KEY>` 单键守卫入口（codex 拒 C-c，M039：裸 rmux 绕守卫实杀过一路）。③settle 按后确认（M038：升级屏关掉后旧帧触发重按，「2」落输入框提交成任务）——等 marker 消失（3s）才认成功，顽固不消失不重按、打 `settle.<agent>.stalled` 事件。
 - **再追加两件（用户连发定调）**：④**布局按路数适配**——1 路全屏、2/3 路左右列分（even-horizontal）、4 路 2x2（tiled）；⑤**精确集合**（推翻中8「补缺不移除」）：`--agents codex` 就是一路——reconcile 收掉不在计划里的多余路（kill-pane + manifest 移除 + `removed` marker/json 字段），命令面即真身。stub 三形态实测：4 路 2x2 → `--agents claude,codex` 收 grok/kimi 成左右全高两列 → `--agents claude` 收 codex 成全屏。[实证]
+
+## 二轮复核：codex 对修复本身的复核
+
+codex 报告：**无高危**，中 5 / 低 4；验证通过项（cargo test 全绿、无空白错、可编译）。修复批当日闭环：
+
+- **中1 settle 等待语义**（真缺陷）：原「每路首扫未命中即 break」让 wait_secs 只对命中后超时生效，config 扫描后才出现的 hooks 屏永远等不到——重构为**窗口内外层循环**：每轮快扫全部路、命中的当场处理（含按后确认），全空稍歇再扫，窗口全局共享不被一路吃光。
+- **中2 CLI 漏 settle**（真）：cmd_spawn 直连 orch 无 settle——补 `orch::settle(&link, &root, 10)`（失败不挡 spawn），三通道口径一致。
+- **中3 settle 在 gate 锁内**（真）：HTTP /spawn 持会话锁做 settle 会堵 send/run/cleanup——settle 移出 `api::spawn`，server 侧 gate 释放后独立调（CLI 同步独立调）。
+- **中4 tmp 固定名**（真）：write_manifest 的 tmp 加 pid 后缀，并发写不再共用。
+- **中5 收路吞 kill 失败**（真）：kill_pane 返回 Err（pane 仍在）时不再移出 manifest——留 `remove-failed` 留痕，避免孤儿 pane 与 relayout 路数错位。
+- 低项顺手修：host_is_local 补裸 IPv6 与大小写；write_task 失败清零字节占位。expires token 形态与 relayout 同步 CLI 记档不修（口径一致）。
+- 验证：75+10 / 78+10 全绿。[实证]
+- 二轮复核的价值实证：一轮修复（settle 自动化）引入或掩盖的问题（等待语义、锁内等待）被同 agent 的二轮抓出——**修复本身也要过复核**。
+
+### 当日验收期追加修复
+
 - **留观条目闭环（二犯当日定位修复）**：看板「画面缩成一团、不自适应」二犯，截屏实锤——**不是偶发**，rmux web-share 前端桌面分支 `scale = Math.min(1, ...)` 只缩不放，120x32 会话按自然字符尺寸（约 960px）渲染，宽屏必然缩在左上角；官方域线上版同样形态（对照实验排除本地包回归）。首次「正常了」属误判（当时窗口/接受度差异）。修复：share-src 桌面分支加 **fit-fill**——字号按容器自适应放大（13→32 封顶，xterm 原生渲染清晰，非 CSS 位图拉伸），残余比例差仍走 transform 缩小；npm 重建资源包（指纹更新，首启自动释放新包）。截屏验收四路铺满视口。[实证]

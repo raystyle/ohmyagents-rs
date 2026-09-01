@@ -653,6 +653,9 @@ async fn cmd_spawn(
     println!("spawn.respawned={}", out.respawned.join(","));
     println!("spawn.removed={}", out.removed.join(","));
     println!("spawn.mode={}", if out.attached.is_empty() { "new" } else { "reconcile" });
+    // 拉起后自动过一轮信任框（与 api::spawn 家族同语义；codex 复核中2：
+    // 此前 CLI 路径漏 settle）。失败不挡 spawn。
+    let _ = orch::settle(&link, &root, 10).await;
     println!("spawn.blocking=false");
     println!("spawn.ok=true");
     Ok(())
