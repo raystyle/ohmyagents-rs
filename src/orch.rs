@@ -1215,6 +1215,13 @@ pub async fn cleanup(link: &Link, root: &Path) -> Result<bool, String> {
 // persists trust itself (the fallback for pre-seeded trust, P0010).
 // ---------------------------------------------------------------------------
 
+/// 行级短行匹配（中12 收紧）：marker 须命中**单行**且该行是对话框形态
+/// （trimmed ≤ 80 列）——命中检测与按后消失确认共用同一判据。
+fn short_line_contains(line: &str, marker: &str) -> bool {
+    let t = line.trim();
+    t.chars().count() <= 80 && t.to_lowercase().contains(marker)
+}
+
 /// Whitelisted trust-dialog markers only. Task-semantic confirmations
 /// ("run this command?") are never auto-answered here.
 /// (marker, key 序列)。P0019 真路实测三态：claude 信任框默认焦点即信任项；
@@ -1224,9 +1231,25 @@ const TRUST_DIALOGS: &[(&str, &[&str])] = &[
     ("do you trust the files", &["Enter"]),
     ("don't trust", &["Up", "Enter"]),
     ("update available", &["2", "Enter"]),
-    // codex hooks 审查屏（2026-09-01 实拍）：oma init 部署的项目级 hooks
-    // 首启需 review，`t` 一键 trust all 后面板仍开着，补 Esc 关闭回工作区。
+    // codex hooks 审查屏数字菜单形态（mac 0.149.1 实拍）：无 `t` 快捷键
+    // 提示行，`› 1. Review hooks / 2. Trust all and continue / 3. Continue
+    // without trusting` 光标默认在 1——Down 到 2 再 Enter 确信任。此条必须
+    // 排在旧 t 提示形态（hooks need review）之前：两种形态标题行同文，
+    // 数字菜单的菜单项短语更具体，先扫先中。
+    ("trust all and continue", &["Down", "Enter"]),
+    // codex hooks 审查屏 t 提示形态（Windows 0.148 实拍）：oma init 部署的
+    // 项目级 hooks 首启需 review，`t` 一键 trust all 后面板仍开着，补 Esc
+    // 关闭回工作区。
     ("hooks need review", &["t", "Esc"]),
+    // mac 接管实拍（2026-09-01，claude 2.1.246 / codex 0.149.1 / grok 1.0.13）：
+    // 三家信任屏措辞全漂，旧 marker 三路全 miss——claude 新问句换 Quick
+    // safety check（菜单项 Yes, I trust this folder，默认焦点即信任）；
+    // codex 改问 the contents（1. Yes, continue 默认选中）；grok 同问
+    // contents 但选项带快捷键（Yes, proceed (y)）。键面三家各异，
+    // marker 各自钉死菜单项短语，防误碰任务语义确认。
+    ("yes, i trust this folder", &["Enter"]),
+    ("yes, continue", &["Enter"]),
+    ("yes, proceed", &["y"]),
 ];
 
 pub async fn settle(
@@ -1273,16 +1296,13 @@ pub async fn settle(
                 Ok(snap) => snap.visible_lines(),
                 Err(_) => continue,
             };
-            // 行级短行匹配（中12 收紧）：marker 须命中**单行**且该行是对话框
-            // 形态（trimmed ≤ 80 列）——P0019 三态实测（claude 问句行、kimi
-            // 菜单项、codex 屏顶标题）都是短行；正文段落里的同词多在长行，
-            // 全屏子串会把普通输出误当菜单自动按键。
-            let hit = TRUST_DIALOGS.iter().find(|(marker, _)| {
-                lines.iter().any(|l| {
-                    let t = l.trim();
-                    t.chars().count() <= 80 && t.to_lowercase().contains(marker)
-                })
-            });
+            // 行级短行匹配（中12 收紧，判据见 short_line_contains）：
+            // P0019 三态实测（claude 问句行、kimi 菜单项、codex 屏顶标题）
+            // 都是对话框短行；正文段落里的同词多在长行，全屏子串会把普通
+            // 输出误当菜单自动按键。
+            let hit = TRUST_DIALOGS
+                .iter()
+                .find(|(marker, _)| lines.iter().any(|l| short_line_contains(l, marker)));
             let Some((marker, keys)) = hit else { continue };
             if std::time::Instant::now() > deadline {
                 break;
@@ -1300,12 +1320,8 @@ pub async fn settle(
             // 消失（最多 3s）；顽固不消失**不重按**（防重复提交），记
             // stalled（kimi 四轮中4：stalled 必须进 outcome，否则三通道
             // 把未自愈当已自愈），该路冷却人工接手。
-            let marker_still = |lines: &Vec<String>| {
-                lines.iter().any(|l| {
-                    let t = l.trim();
-                    t.chars().count() <= 80 && t.to_lowercase().contains(&marker)
-                })
-            };
+            let marker_still =
+                |lines: &Vec<String>| lines.iter().any(|l| short_line_contains(l, &marker));
             let confirm_deadline = std::time::Instant::now() + Duration::from_secs(3);
             let mut confirmed = false;
             while std::time::Instant::now() < confirm_deadline {
@@ -1581,6 +1597,57 @@ mod tests {
         assert_eq!(project_slug(a).len(), 16);
         let name = session_name(a).unwrap();
         assert!(name.as_str().starts_with("oma-"));
+    }
+
+    /// settle marker 表对四家信任屏实拍行的命中回归：黄金行一半来自 mac
+    /// 接管实拍（2026-09-01，措辞三路全漂整批 miss 的真身实踩），一半来自
+    /// P0019 Windows 旧措辞——表钉住「实拍行 × 期望键序」，再漂即红。
+    #[test]
+    fn trust_dialog_markers_hit_captured_dialog_lines() {
+        let hit_keys = |lines: &[&str]| {
+            TRUST_DIALOGS.iter().find_map(|(marker, keys)| {
+                lines
+                    .iter()
+                    .any(|l| short_line_contains(l, marker))
+                    .then(|| *keys)
+            })
+        };
+        // mac 实拍：claude 新问句菜单项、codex contents 问句菜单项、grok 带快捷键选项。
+        assert_eq!(hit_keys(&[" ❯ 1. Yes, I trust this folder"]), Some(&["Enter"][..]));
+        assert_eq!(hit_keys(&["› 1. Yes, continue"]), Some(&["Enter"][..]));
+        assert_eq!(
+            hit_keys(&["               Yes, proceed                 y"]),
+            Some(&["y"][..])
+        );
+        // Windows 旧措辞（P0019）保持可命中。
+        assert_eq!(
+            hit_keys(&["Do you trust the files in this folder?"]),
+            Some(&["Enter"][..])
+        );
+        assert_eq!(hit_keys(&["  Don't trust"]), Some(&["Up", "Enter"][..]));
+        assert_eq!(hit_keys(&["Update available"]), Some(&["2", "Enter"][..]));
+        assert_eq!(hit_keys(&["hooks need review"]), Some(&["t", "Esc"][..]));
+        // codex hooks 审查屏两种形态同屏时（数字菜单含同文标题行），
+        // 数字菜单条目（Down+Enter）必须先中——排序即语义。
+        assert_eq!(
+            hit_keys(&[
+                "  Hooks need review",
+                "› 1. Review hooks",
+                "  2. Trust all and continue",
+                "  3. Continue without trusting (hooks won't run)"
+            ]),
+            Some(&["Down", "Enter"][..])
+        );
+        // 旧 t 提示形态（无数字菜单项）仍走 t+Esc。
+        assert_eq!(
+            hit_keys(&["  Hooks need review", "  Press t to trust all"]),
+            Some(&["t", "Esc"][..])
+        );
+        // 负例（白名单铁律）：任务语义确认短行不命中；marker 词落进长行
+        // 正文（>80 列）不命中。
+        assert_eq!(hit_keys(&["  1. Yes, run this command"]), None);
+        let long = format!("{} yes, continue {}", "x".repeat(40), "y".repeat(40));
+        assert_eq!(hit_keys(&[long.as_str()]), None);
     }
 
     #[test]
