@@ -68,7 +68,7 @@
 
 - **中6**：send 发送前 snap baseline；`await_new_text` 两路——baseline 不含目标走 rmux 原生静默等待，已含（上轮残留）改轮询快照等「内容变化后目标仍在」；echo 超时降级照发 Enter 留痕，confirm 残留同样不再误报。
 - **中7**：slug 16 hex + 平台化小写 + 归一。**实踩两坑**：① canonicalize best-effort 回退在「目录创建前后」算出不同 slug（rm 后 spawn：label 时不存在回退原样、session 时已建又归一，同进程两个身份）——改**纯词法归一**（相对挂 cwd、清 `.`/`..`，零 IO 确定）；② slug 加长使旧 8 位会话失联——已无活会话，一次性清理（kill 旧 label daemon + 删旧 manifest）。实测相对 `.t1` 与绝对 `D:\ohmyagents\.t1` 同 slug、label==session、真看板 home 含 astro。[实证]
-- **中9**：web_share 解析行锚点——URL 只认 spectator/operator 行或行首 http 的 token，pin/expires 行首锚定。
+- **中9**：web_share 解析行锚点——URL 只认 spectator/operator 行或行首 http 的 token，pin/expires 行首锚定。**次轮实踩自纠**：官方域输出形态是 `rmux:   https://share.rmux.io/#t=`（stderr 前缀行），行首角色锚把官方域 URL 全滤掉（`oma web` 报「没有 URL」）——终版锚改为「URL token 必含 `#t=`」（share token 挂 hash 是 P0021/P0022 实证过的稳定不变量，两种形态都命中）。
 - **中10**：status 返回 `(panes, warning)`，进程名批查失败进 `data.warning`/`status.warning=`/TTY 首行告警，不伪装 process=null。
 - **中11**：`/screen`、`/stream` 启动失败改 `sse_error_reply`（text/event-stream + error event）；screen 首帧拿不到发 `error` event 不静默空屏。
 - **中12**：settle 匹配收紧「行级短行」——marker 须命中单行且 trimmed ≤ 80 列（P0019 三态实测均为短行），正文长行同词不再误触按键。
@@ -79,3 +79,4 @@
 - codex review 高 5 + 中 7 共 12 条全部落地；低 3 条记档不做（低14 extractor 层、低15 YAGNI、低13 顺手并入切片 1）。
 - 计划外抓到三个真雷：serve daemon 零控制台卡死（DETACHED→CREATE_NO_WINDOW）、task id 撞号实修（原子占位）、canonicalize 时序双身份（改词法归一）——review 之外的收获大于 review 本身。
 - 经验：AI review 的发现要**逐条核实再修**（15 条里高 5 有 1 条部分真）；修的过程中实测冒烟比单测先抓出两个计划外缺陷。
+- **留观（未定位，自愈）**：看板偶发「画面缩成一团、不自适应」——四路 agent 刚拉起、终端初始化期建的 share，前端 fit scale 异常；serve 重启（share 重建）后恢复正常，同组合（本地前端 + spectator）复现不出。rmux 侧 pane 尺寸正常（2x2 各 60x16）。二犯再深挖前端 `fitSessionStage` 的首次 fit 时序。

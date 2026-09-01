@@ -196,19 +196,16 @@ pub async fn web_share(
     })
     .await
     .map_err(|e| format!("web-share join: {e}"))??;
-    // 中9：解析加行锚点——URL 只认角色行（spectator/operator）或行首
-    // http 的 token，stderr 噪声里的 URL 不再误收；pin/expires 同样行首
-    // 锚定，输出格式微调或警告混入时不再错位。
+    // 中9：URL 用「必含 #t=」做锚（P0021/P0022 结论：share token 挂在 hash
+    // 上）——本地形态是 `spectator http://...#t=`、官方域形态是
+    // `rmux:   https://share.rmux.io/#t=`（stderr 前缀行），裸 contains 会
+    // 误收 stderr 噪声里的普通 URL，按行首角色锚又会滤掉官方域（实踩）。
     let url = text
         .lines()
         .filter_map(|l| {
-            let t = l.trim_start();
-            if t.starts_with("spectator") || t.starts_with("operator") || t.starts_with("http") {
-                l.split_whitespace()
-                    .find(|w| w.starts_with("http://") || w.starts_with("https://"))
-            } else {
-                None
-            }
+            l.split_whitespace().find(|w| {
+                (w.starts_with("http://") || w.starts_with("https://")) && w.contains("#t=")
+            })
         })
         .next()
         .ok_or_else(|| "web-share 输出里没有 URL".to_string())?
