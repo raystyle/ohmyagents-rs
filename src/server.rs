@@ -159,10 +159,13 @@ async fn host_guard(
     req: axum::extract::Request,
     next: axum::middleware::Next,
 ) -> Response {
-    let host = headers
+    // 缺 Host 头直接拒（relay2 grok1：`unwrap_or("")` 叠白名单空串会放行）。
+    let Some(host) = headers
         .get(axum::http::header::HOST)
         .and_then(|h| h.to_str().ok())
-        .unwrap_or("");
+    else {
+        return err_reply("host-guard", Path::new(""), StatusCode::BAD_REQUEST, "missing Host header".into());
+    };
     if !host_is_local(host) {
         return err_reply("host-guard", Path::new(""), StatusCode::BAD_REQUEST, format!("non-local Host: {host}"));
     }
@@ -170,10 +173,10 @@ async fn host_guard(
 }
 
 fn router(state: Arc<ServeState>) -> axum::Router {
+    // 全局 Host 回环闸：`.layer()` 必须在全部 `.route()` **之后**（relay2
+    // grok1：axum 契约 layer 只作用于已注册路由，先 layer 后 route 是空
+    // 操作——批5 的「全局拦截」实际没生效）。
     axum::Router::new()
-        // 全局 Host 回环闸（静态资源同源需求内的本地资源除外也无妨——
-        // 一并过闸，语义统一）。
-        .layer(axum::middleware::from_fn(host_guard))
         // 主页即 web 镜像页（用户定调：可视化页面当首页，编排走 CLI/API/MCP）。
         // GET / 自动起整会话镜像并 302 到 #t= ——打开就是多路窗格。
         .route("/", get(home))
@@ -200,6 +203,8 @@ fn router(state: Arc<ServeState>) -> axum::Router {
         .route("/trace/timeline", get(trace_timeline))
         .route("/trace/search", get(trace_search))
         .with_state(state)
+        // 路由全注册后再上闸（见函数头注释）。
+        .layer(axum::middleware::from_fn(host_guard))
 }
 
 /// SSE 终端镜像（P0019）：`render_stream` 是 daemon 侧 surface 投影（非视觉
@@ -389,12 +394,13 @@ fn kanban_reply(dir: &Path, rel: &str) -> Response {
 /// ——serve 无 鉴权，防 DNS rebinding 场景把 share token 拼进外域
 /// frontend_url（P0026 高5；codex 复核低项补裸 IPv6 与 Localhost）。
 fn host_is_local(host: &str) -> bool {
+    // relay2 grok1：`""`（缺头拼接形态）与 `[::]`（未指定地址非回环）出
+    // 白名单；缺 Host 由 host_guard 先拒。
     let lowered = host.to_ascii_lowercase();
     let name = lowered.rsplit_once(':').map(|(h, _)| h).unwrap_or(&lowered);
-    matches!(
-        name,
-        "127.0.0.1" | "localhost" | "[::1]" | "::1" | "[::]" | ""
-    ) || lowered == "[::1]" || lowered == "::1"
+    matches!(name, "127.0.0.1" | "localhost" | "[::1]" | "::1")
+        || lowered == "[::1]"
+        || lowered == "::1"
 }
 
 /// 打开即四路窗格：起整会话 **operator** 镜像（本地免 PIN 可打字可拖窗格；
@@ -427,15 +433,34 @@ async fn home(
         .is_some_and(|(_, expires_at)| now + 3600 >= *expires_at);
     if cached.is_none() || expired {
         let fe = format!("http://{host}/");
+        let old_share_id: Option<String> = None; // 旧 share 无 id 缓存，重建后 best-effort 列表清理。
         match api::web_share(&st.root, None, false, SHARE_TTL, Some(&fe), true).await {
             Ok(v) => {
                 let token = v["url"].as_str().and_then(|u| u.split("#t=").nth(1)).map(String::from);
-                if let Some(t) = token {
-                    *cached = Some((t, now + SHARE_TTL));
+                match token {
+                    Some(t) => {
+                        let _ = old_share_id;
+                        *cached = Some((t, now + SHARE_TTL));
+                    }
+                    // 解析失败：不把「已过期」缓存当命中（relay2 grok2），
+                    // 也不要整页失败——旧 token 未到期就继续用。
+                    None => {
+                        if cached.as_ref().is_some_and(|(_, exp)| now < *exp) {
+                            eprintln!("home.share=renew-parse-failed; keeping old token");
+                        } else {
+                            return err_reply("home", &st.root, StatusCode::OK, "mirror url missing token".into());
+                        }
+                    }
                 }
             }
+            // 重建失败：旧 token 未到期继续用（relay2 grok2：提前 1h 重建
+            // 的窗口里旧 share 仍有效，整页失败是可用性回退），到期才报错。
             Err(e) => {
-                return err_reply("home", &st.root, StatusCode::OK, e);
+                if cached.as_ref().is_some_and(|(_, exp)| now < *exp) {
+                    eprintln!("home.share=renew-failed ({e}); keeping old token");
+                } else {
+                    return err_reply("home", &st.root, StatusCode::OK, e);
+                }
             }
         }
     }

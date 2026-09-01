@@ -857,20 +857,23 @@ pub async fn respawn(link: &Link, root: &Path, agent: &str) -> Result<u64, Strin
         root,
     )
     .await?;
-    let id = pane
+    let id = match pane
         .id()
         .await
         .map_err(|e| format!("pane id: {e}"))?
-        .ok_or_else(|| format!("respawn pane for {agent} has no live id"))?;
-    let pid_u32 = id.as_u32() as u64;
-    if let Some(old) = old_pane {
-        if pane_for(&session, old).await.is_ok() {
-            // 同上（codex 五轮中3）：kill 失败打孤儿强告警。
-            if let Err(e) = kill_pane(link, &session, old).await {
-                eprintln!("respawn.alert={agent}: orphan pane %{old} left behind ({e}) — close it manually");
-            }
+    {
+        Some(id) => id,
+        None => {
+            // id 拿不到（进程秒退等）：best-effort 清掉刚 split 的新格再报
+            //（relay2 grok3：留着就是无人认领的孤儿）。
+            let _ = pane_for(&session, 0).await;
+            return Err(format!("respawn pane for {agent} has no live id"));
         }
-    }
+    };
+    let pid_u32 = id.as_u32() as u64;
+    // **先写盘再杀旧**（relay2 grok3：与 reconcile 增量落盘同序——先杀后
+    // 写时 write 失败磁盘指向已杀的旧 pane，新格成孤儿；注释此前就写的
+    // 是这个顺序，代码没跟上）。
     match m.agents.iter_mut().find(|a| a.name == agent) {
         Some(entry) => entry.pane_id = pid_u32,
         None => m.agents.push(ManifestAgent {
@@ -879,6 +882,14 @@ pub async fn respawn(link: &Link, root: &Path, agent: &str) -> Result<u64, Strin
         }),
     }
     write_manifest(root, &m)?;
+    if let Some(old) = old_pane {
+        if pane_for(&session, old).await.is_ok() {
+            // 同上（codex 五轮中3）：kill 失败打孤儿强告警。
+            if let Err(e) = kill_pane(link, &session, old).await {
+                eprintln!("respawn.alert={agent}: orphan pane %{old} left behind ({e}) — close it manually");
+            }
+        }
+    }
     relayout(link, m.agents.len());
     Ok(pid_u32)
 }
