@@ -68,10 +68,14 @@ fn alloc_task_dir(root: &Path) -> Result<String, String> {
             Err(e) => return Err(format!("task claim: {e}")),
         }
         // 占位 json 兼作该任务的平文件记录（run 的 TaskRecord 同位面）。
-        std::fs::write(&claim, "{\"claimed_by\":\"oma task\"}\n")
-            .map_err(|e| format!("{}: {e}", claim.display()))?;
-        std::fs::create_dir(task_dir(root, &id))
-            .map_err(|e| format!("task dir: {e}"))?;
+        if let Err(e) = std::fs::write(&claim, "{\"claimed_by\":\"oma task\"}\n") {
+            let _ = std::fs::remove_file(&claim);
+            return Err(format!("{}: {e}", claim.display()));
+        }
+        if let Err(e) = std::fs::create_dir(task_dir(root, &id)) {
+            let _ = std::fs::remove_file(&claim);
+            return Err(format!("task dir: {e}"));
+        }
         return Ok(id);
     }
 }
@@ -185,8 +189,10 @@ pub fn task_wait(root: &Path, id: &str, timeout_secs: u64) -> Result<String, Str
         }
         if let Some(d) = deadline {
             if std::time::Instant::now() > d {
+                // 文案用钳位后的实际值（relay3 kimi19）。
+                let shown = timeout_secs.min(86_400);
                 return Err(format!(
-                    "task {id}: no DONE within {timeout_secs}s (agent still working or stuck; retry `oma task show {id}` later)"
+                    "task {id}: no DONE within {shown}s (agent still working or stuck; retry `oma task show {id}` later)"
                 ));
             }
         }

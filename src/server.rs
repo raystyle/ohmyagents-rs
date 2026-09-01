@@ -433,13 +433,13 @@ async fn home(
         .is_some_and(|(_, expires_at)| now + 3600 >= *expires_at);
     if cached.is_none() || expired {
         let fe = format!("http://{host}/");
-        let old_share_id: Option<String> = None; // 旧 share 无 id 缓存，重建后 best-effort 列表清理。
         match api::web_share(&st.root, None, false, SHARE_TTL, Some(&fe), true).await {
             Ok(v) => {
                 let token = v["url"].as_str().and_then(|u| u.split("#t=").nth(1)).map(String::from);
                 match token {
                     Some(t) => {
-                        let _ = old_share_id;
+                        // 旧 share 不主动拆（relay3 kimi13 清死代码）：rmux 侧
+                        // 过期自清，强拆需引 id 缓存，收益不抵复杂度。
                         *cached = Some((t, now + SHARE_TTL));
                     }
                     // 解析失败：不把「已过期」缓存当命中（relay2 grok2），

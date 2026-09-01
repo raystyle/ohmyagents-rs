@@ -864,9 +864,9 @@ pub async fn respawn(link: &Link, root: &Path, agent: &str) -> Result<u64, Strin
     {
         Some(id) => id,
         None => {
-            // id 拿不到（进程秒退等）：best-effort 清掉刚 split 的新格再报
-            //（relay2 grok3：留着就是无人认领的孤儿）。
-            let _ = pane_for(&session, 0).await;
+            // id 拿不到（进程秒退等）：pane 句柄无 id 可 kill（relay3 kimi1：
+            // 此前的「清理」是空操作）——诚实告警人工跟，manifest 未动。
+            eprintln!("respawn.alert={agent}: new pane has no live id; it may linger — close manually if visible");
             return Err(format!("respawn pane for {agent} has no live id"));
         }
     };

@@ -638,14 +638,20 @@ fn print_mcp_config(root: &Path) -> Result<(), String> {
     println!("# Claude Code（shell 里执行一次）:");
     println!("claude mcp add oma -- \"{exe}\" mcp --project \"{proj}\"");
     println!();
-    // Windows 反斜杠路径在 TOML basic string / JSON 字符串里是非法转义
-    //（Round1 kimi16）：TOML 用 literal string（单引号不转义，路径含单
-    // 引号时按 TOML 规则双写，relay1 codex 低项）；JSON 走 serde_json。
-    let toml_lit = |s: &str| format!("'{}'", s.replace('\'', "''"));
+    // TOML 转义（relay3 kimi5 订正：literal string 根本不允许单引号，
+    // 双写也不合法——literal 仅当值不含 ' 时用；含则退 basic string 双引
+    // 号加反斜杠转义）；JSON 走 serde_json。
+    let toml_str = |s: &str| {
+        if s.contains('\'') {
+            format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\""))
+        } else {
+            format!("'{s}'")
+        }
+    };
     println!("# codex（写入 ~/.codex/config.toml 的 [mcp_servers] 段）:");
     println!("[mcp_servers.oma]");
-    println!("command = {}", toml_lit(&exe));
-    println!("args = ['mcp', '--project', {}]", toml_lit(&proj));
+    println!("command = {}", toml_str(&exe));
+    println!("args = ['mcp', '--project', {}]", toml_str(&proj));
     println!();
     let json = serde_json::json!({
         "mcpServers": {
@@ -789,7 +795,7 @@ async fn cmd_task(
     println!("task.id={id}");
     println!("task.agent={agent}");
     println!("task.dir={}", dir.display());
-    println!("task.waiting=done-marker timeout={timeout}s");
+    println!("task.waiting=done-marker timeout={}s", if timeout == 0 { 0 } else { timeout.min(86_400) });
     match oma::task::task_wait(&root, &id, timeout) {
         Ok(output) => {
             println!("task.done={id}");
