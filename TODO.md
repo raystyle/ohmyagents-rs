@@ -10,11 +10,11 @@ P0012 Linux/mac 接管启动（用户定调 2026-09-01：「准备去 wsl linux 
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
-| WSL 环境搭建 | 待做 | clone、cargo test 基线、build --features server,mcp | 待定 |
-| rmux Linux 资产验收 | 待做 | oma check 真机（catalog pin 已备） | 待定 |
-| daemon 启动路径 | 待做 | WMI→Linux 等价（R010 三节 1） | 待定 |
-| 四家 agent Linux 安装 | 待做 | oma agents install 真机 | 待定 |
-| 真身四路 + settle 真机 | 待做 | 信任屏 marker Linux 差异 | 待定 |
+| WSL 环境搭建 | 已完成 | 全量构建 43s 过；测试基线首跑 5 败（1 真 bug M041 + 4 处测试 Windows 假设）全修复；78+10 与 81+10 全绿零警告；重跑 `oma init` 修复 hook 的 Windows 路径报错 | 2026-09-01 |
+| rmux Linux 资产验收 | 已完成 | `oma check` 全绿：PATH 发现 rmux 0.10.0，asset/dispatcher/helper/daemon 四层 sha256 对 pin 全过；unix socket 链路 stub 实测通 | 2026-09-01 |
+| daemon 启动路径 | 已完成 | `boot_new_session` Unix 分支（无 Job Object，裸 spawn + stdio 置空 + 独立进程组）；分类器 Unix 提示符判据与 serve `process_group(0)` 同批落地；stub 全链验收（spawn/status/send/respawn/cleanup/serve/doctor/HTTP 信封） | 2026-09-01 |
+| 四家 agent Linux 安装 | 待做 | oma agents install 真机（Linux 资产名/解包/leaf 找二进制待验收） | 待定 |
+| 真身四路 + settle 真机 | 待做 | 信任屏 marker Linux 差异（stub 的 send 开始确认对亚秒命令会建议性告警，属设计内） | 待定 |
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
