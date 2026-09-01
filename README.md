@@ -6,10 +6,15 @@
 
 - 显示名 Oh My Agents；仓库 `ohmyagents`；CLI `oma`；远端 <https://github.com/raystyle/OhMyAgents>
 - **三通道编排**：CLI、HTTP API（`oma serve`，主页即可视化看板）、MCP（`oma mcp` stdio）——一份编排核心三消费
-- **agent 实例优先**：命令面只见 agent；服务、会话、窗口、窗格、PTY 作为复杂性绑在 agent 背后——初始检测互斥、操作绑定已开实例，绝不重复开已活原语（新开/附加/重开三态和解）
-- **可视化看板**：`oma serve` 主页即 web 镜像——打开就是四路窗格实时画面，可打字可拖窗格（本地 operator）；资源包随二进制走，首启释放 oma 数据根
+- **agent 实例优先**：命令面只见 agent；服务、会话、窗口、窗格、PTY 作为复杂性绑在 agent 背后——初始检测互斥、操作绑定已开实例，绝不重复开已活原语（新开/附加/重开三态和解）；**精确集合**：`--agents` 给几路就几路，多余路自动收掉；**布局按路数自适应**：1 路全屏、2/3 路左右列分、4 路 2x2，收放后自动重排
+- **带产物等待的任务**：`oma task` 建任务目录（`prompt.md` 提示词全文）、send 带协议尾注、阻塞等 `DONE` 标记（agent 写 `output.md` 后最后创建）——委派即产物、后台收件人模式即闭环
+- **任务开始确认与阻塞告警**：send/run/task 发出后等该路真开始（working/画面变化双信号）；blocked（确认/密码框）、未启动、死路、孤儿窗格全部打 `*.alert=` 告警，信任框类由 settle 白名单自动处理
+- **单键守卫**：`oma key` 发单键（codex 拒 `C-c`——一个 C-c 杀进程；打断 codex 用 Esc）
+- **可视化看板**：`oma serve` 主页即 web 镜像——打开就是多路窗格实时画面（fit-fill 字号自适应铺满），可打字可拖窗格（本地 operator）；资源包随二进制走，首启释放 oma 数据根
 - **联邦轨迹检索**：`oma trace` 查询时直读四家原生会话库，双意图（用户请求与 assistant 声明）加 operation_id 归组，可回溯 oma 出现之前的历史
 - **自适应安装**：`oma check` 装 rmux（pin + sha256 信任锚）；`oma agents install` 装缺的 agent（github 主 CDN 兜底）；`oma agents update` 取证升级并写回用户本地 pin
+- **安全面**：serve 只绑 127.0.0.1 + 全局 Host 回环闸（防 DNS rebinding）；公网中继镜像（`oma web` 官方域）缺省 PIN，免 PIN 组合打显著警示
+- **自举工作流**：oma 编排的 agent 给 oma 自身做 review（`.tools\review-round.py` 轮询接力，FINDINGS 契约 + 已拍板不修清单收敛）
 
 ## 如何安装部署
 
@@ -35,6 +40,14 @@ cargo build --features server,mcp      # release: cargo build --release --featur
 oma init --project D:\my\proj          # hook + skill + yolo 键（幂等，不动家目录）
 oma spawn --project D:\my\proj         # 和解式拉起：缺省已装交集，1-4 路
 oma serve start --project D:\my\proj   # 后台起编排面（即调即退）；浏览器开 http://127.0.0.1:7900/ 即看板
+```
+
+把 `oma` 加进 PATH 的两种方式（任选）：
+
+```powershell
+cargo install --path D:\OhMyAgents --features server,mcp   # 装进 ~/.cargo/bin（已在 PATH）
+# 或调试期直接用构建产物 + alias：
+Add-Content $PROFILE "Set-Alias oma D:\OhMyAgents\target\debug\oma.exe"
 ```
 
 日常入口任选：
@@ -115,32 +128,52 @@ oma hook                               # agent hook 入口（读 stdin JSON 写 
 
 ### 编排
 
-> 和解式三态：会话不在新开、在则活路附加、死路重开。
+> 和解式三态：会话不在新开、在则活路附加、死路重开；精确集合：给几路就几路。
 
 ```powershell
 oma spawn                              # 新开：缺省已装交集，1-4 路
-oma spawn --agents claude,codex        # 指定路
+oma spawn --agents claude,codex        # 指定路（多余路自动收掉出 removed；1/2/3/4 路布局自适应）
 oma spawn --stub                       # shell 桩（验收与调试）
 oma spawn                              # 会话已在：活路附加、死路重开
-#   输出：spawn.attached=claude  spawn.respawned=codex  spawn.mode=reconcile
+#   输出：spawn.attached=claude  spawn.respawned=codex  spawn.removed=grok  spawn.mode=reconcile
 
-oma respawn codex                      # 强制重开一路（kill-pane 单窗格，不动会话与其它路）
+oma respawn codex                      # 强制重开一路（先分后杀保会话；不动其它路）
 oma status                             # 各路 pid/进程/终端态/hook 态（TTY 对齐表格；死路报 dead）
-oma status --json                      # JSON 信封（机器面）
+oma status --json                      # JSON 信封（机器面；进程名查询失败带 warning）
 ```
 
 ### 发任务与分派
 
 ```powershell
-oma send claude "修复 src/main.rs 的编译错误"          # 单路单行（等回显再 Enter）
+oma send claude "修复 src/main.rs 的编译错误"          # 单路单行（等回显再 Enter；阻塞框打 send.alert）
 oma send claude "多行
 任务
 文本"                                                # 多行自动三段式粘贴
 oma send claude "跑测试" --confirm "test result: ok"   # 等画面出现确认短头
-oma run "给四家都总结一下当前架构"                     # 状态门分派：忙路跳过不堵其它路
-oma run "重构登录模块" --assign claude,codex           # 只分派指定路
-oma settle --wait 30                    # 自愈信任框（claude Enter / kimi 上移+Enter / codex 升级屏 Skip）
+oma run "给四家都总结一下当前架构"                     # 状态门分派：忙路跳过不堵其它路；全拦退出非 0
+oma run "重构登录模块" --assign claude,codex           # 只分派指定路（重复名自动去重）
+oma settle --wait 30                    # 自愈信任框（claude Enter / kimi 上移+Enter / codex 升级屏与 hooks 审查屏）
+oma key codex Esc                       # 发单键（守卫：codex 拒 C-c；打断用它）
 oma cleanup                             # 只杀本项目会话（不动 daemon 与其它会话）
+```
+
+### 带产物等待的任务
+
+> 任务目录协议：`.ohmyagents\tasks\<id>\` 下 agent 读 `prompt.md`、写 `output.md`、最后创建空文件 `DONE`；oma 只认 DONE（防半写）。SKILL 已部署协议，agent 知道怎么做。
+
+```powershell
+oma task codex "review src/ 并把结论写产物"             # 建目录 + 发送 + 阻塞等 DONE → 打印产物退出
+oma task codex "..." --timeout 0                       # 无限等（上限 86400）
+oma task codex "..." &                                 # 后台阻塞（产物落盘后进程自退）
+oma task list                                          # 任务清单与完成态
+oma task show t001                                     # 元数据 + 产物收取（超时后晚到也能收）
+```
+
+等另一个 agent 的产物用**收件人模式**（不占会话前台）：
+
+```powershell
+while (-not (Test-Path .ohmyagents\tasks\t001\DONE)) { Start-Sleep 15 }
+Get-Content .ohmyagents\tasks\t001\output.md
 ```
 
 ### 轨迹检索
