@@ -82,7 +82,7 @@ struct RunParams {
 
 #[derive(Deserialize, schemars::JsonSchema)]
 struct SettleParams {
-    /// 每路最长等待秒数
+    /// 全局扫描窗口秒数（grok 复核订正：窗口内反复扫全部路等晚出现的屏，非每路各一份）
     wait: Option<u64>,
 }
 
@@ -108,16 +108,19 @@ struct SearchParams {
 
 #[tool_router]
 impl OmaMcp {
-    #[tool(description = "在项目专属会话拉起多路终端 agent（claude/codex/grok/kimi）；agents 缺省取已装交集，stub 用 shell 桩")]
+    #[tool(description = "在项目专属会话拉起多路终端 agent（claude/codex/grok/kimi）；agents 缺省取已装交集，stub 用 shell 桩；拉起后自动过一轮信任框（同 CLI/HTTP 通道）")]
     async fn oma_spawn(
         &self,
         Parameters(SpawnParams { agents, stub }): Parameters<SpawnParams>,
     ) -> Result<CallToolResult, McpError> {
-        envelope(
-            "spawn",
-            &self.root,
-            api::spawn(&self.root, agents, stub.unwrap_or(false)).await,
-        )
+        let out = api::spawn(&self.root, agents, stub.unwrap_or(false)).await;
+        if out.is_ok() {
+            // 三通道同语义（grok 复核：MCP 路径此前漏自动 settle）。
+            if let Err(e) = api::settle(&self.root, 10).await {
+                eprintln!("spawn.auto-settle: {e}");
+            }
+        }
+        envelope("spawn", &self.root, out)
     }
 
     #[tool(description = "只读列出会话各路 agent 的 pid、进程名、终端态与 hook 态")]
@@ -149,7 +152,7 @@ impl OmaMcp {
         )
     }
 
-    #[tool(description = "自检测并自动确认信任/审查框（各家自己持久化信任；密码类永不自动）；wait 为每路最长等待秒数")]
+    #[tool(description = "自检测并自动确认信任/审查框（各家自己持久化信任；密码类永不自动）；wait 为全局扫描窗口秒数（显式 settle 缺省 30，spawn 后自动 10）")]
     async fn oma_settle(
         &self,
         Parameters(SettleParams { wait }): Parameters<SettleParams>,

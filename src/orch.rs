@@ -412,6 +412,9 @@ pub async fn spawn(link: &Link, root: &Path, plan: &SpawnPlan) -> Result<Manifes
         });
     }
     write_manifest(root, &m)?;
+    // 新开会话也按路数定型（grok 复核：split 序列是 Right/Right/Down，3 路
+    // 新开成上 2 下 1，不是用户要的三列）；幂等重排，失败只警告。
+    relayout(link, m.agents.len());
 
     // The product session now keeps the daemon alive; drop the boot keeper.
     let boot = boot_session_name(root);
@@ -704,10 +707,9 @@ pub async fn reconcile(
     // 的进程名判定（pwsh vs agent 本名）不再拿旧会话语义误判。
     m.stub = plan.stub;
     write_manifest(root, &m)?;
-    // 有收放动作才重排（纯附加的会话布局没被动过；重排幂等但省一次 CLI）。
-    if !respawned.is_empty() || !removed.is_empty() {
-        relayout(link, m.agents.len());
-    }
+    // 无条件按路数定型（grok 复核：纯附加时原布局可能是残留乱格；重排幂
+    // 等且是毫秒级 CLI，「有动作才排」的省略不值得留缺口）。
+    relayout(link, m.agents.len());
     Ok(ReconcileOutcome { attached, respawned, removed })
 }
 
@@ -1040,9 +1042,16 @@ pub async fn settle(
         .iter()
         .map(|a| (a.name.clone(), Vec::new()))
         .collect();
+    // stalled 路：按后 marker 顽固不消失（屏不在白名单语义或按键无效）——
+    // 冷却到窗口结束不再按（grok 复核抓的死循环：外层重扫同 marker 立即
+    // 重按，直到 deadline 耗尽，重复提交风险回来了）。
+    let mut stalled: std::collections::HashSet<String> = Default::default();
     loop {
         let mut any_hit = false;
         for agent in &manifest.agents {
+            if stalled.contains(&agent.name) {
+                continue;
+            }
             let Some(entry) = outcomes.iter_mut().find(|(n, _)| n == &agent.name) else {
                 continue;
             };
@@ -1101,6 +1110,7 @@ pub async fn settle(
             }
             if !confirmed {
                 eprintln!("settle.{}.stalled={marker}: marker still on screen; NOT re-sending keys", agent.name);
+                stalled.insert(agent.name.clone());
             }
         }
         if std::time::Instant::now() > deadline {
