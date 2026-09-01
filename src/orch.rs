@@ -1589,7 +1589,13 @@ mod tests {
         let env = env_entries(root, "codex");
         assert_eq!(env[0], format!("OHMYAGENTS_PROJECT={}", root.display()));
         assert_eq!(env[1], "OHMYAGENTS_AGENT=codex");
-        assert!(env[2].ends_with(r".ohmyagents\state\codex.json"));
+        // 状态文件路径的分隔符随平台（Path::join 语义），断言不能写死反斜杠。
+        let state_file = if cfg!(windows) {
+            r".ohmyagents\state\codex.json".to_string()
+        } else {
+            ".ohmyagents/state/codex.json".to_string()
+        };
+        assert!(env[2].ends_with(&state_file));
     }
 
     #[test]

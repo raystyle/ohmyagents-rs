@@ -87,14 +87,15 @@ fn init_full_deploys_hooks_skills_and_yolo() {
         .stdout(contains("init.scope=full"))
         .stdout(contains("init.hooks.wrote.count="));
     // The S015 matrix lands in the project, not the user home.
+    // 相对路径用正斜杠：Windows 文件 API 同样接受，两平台通用。
     for rel in [
-        r".claude\settings.json",
-        r".codex\hooks.json",
-        r".grok\hooks\ohmyagents-state.json",
-        r".agents\skills\ohmyagents\SKILL.md",
-        r".kimi-code\skills\ohmyagents\SKILL.md",
-        r"CLAUDE.md",
-        r"AGENTS.md",
+        ".claude/settings.json",
+        ".codex/hooks.json",
+        ".grok/hooks/ohmyagents-state.json",
+        ".agents/skills/ohmyagents/SKILL.md",
+        ".kimi-code/skills/ohmyagents/SKILL.md",
+        "CLAUDE.md",
+        "AGENTS.md",
     ] {
         assert!(tmp.join(rel).exists(), "missing {rel}");
     }

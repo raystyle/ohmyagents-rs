@@ -849,19 +849,21 @@ mod tests {
     #[test]
     fn find_binary_prefers_shallowest_codex_layout() {
         let root = fresh();
-        touch(&root.join("bin").join("codex.exe"));
-        touch(&root.join("codex-resources").join("zsh").join("codex.exe"));
+        let name = binary_file_name("codex");
+        touch(&root.join("bin").join(&name));
+        touch(&root.join("codex-resources").join("zsh").join(&name));
         let found = find_binary(&root, "codex").expect("found");
-        assert!(found.ends_with(root.join("bin").join("codex.exe")));
+        assert!(found.ends_with(root.join("bin").join(&name)));
         let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
     fn find_binary_nested_kimi_layout() {
         let root = fresh();
-        touch(&root.join("kimi-code").join("bin").join("kimi.exe"));
+        let name = binary_file_name("kimi");
+        touch(&root.join("kimi-code").join("bin").join(&name));
         let found = find_binary(&root, "kimi").expect("found");
-        assert!(found.ends_with(root.join("kimi-code").join("bin").join("kimi.exe")));
+        assert!(found.ends_with(root.join("kimi-code").join("bin").join(&name)));
         let _ = fs::remove_dir_all(&root);
     }
 

@@ -14,15 +14,10 @@ pub const ILLEGAL_INSTRUCTION_EXIT: i32 = -1_073_741_795;
 pub fn classify_probe_exit(code: Option<i32>) -> &'static str {
     match code {
         Some(0) => "ok",
-        Some(c) => {
-            #[cfg(windows)]
-            {
-                if c == ILLEGAL_INSTRUCTION_EXIT {
-                    return "illegal-instruction";
-                }
-            }
-            "failed"
-        }
+        // Windows：STATUS_ILLEGAL_INSTRUCTION 的 i32 回绕形态。
+        #[cfg(windows)]
+        Some(c) if c == ILLEGAL_INSTRUCTION_EXIT => "illegal-instruction",
+        Some(_) => "failed",
         // Unix：信号退出（code() 为 None），signal 4 = SIGILL。
         // Windows 上不会出现 None 形态。
         None => "signal-exit",

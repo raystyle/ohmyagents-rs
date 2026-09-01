@@ -100,8 +100,6 @@ pub fn merge_codex(home: &Path) -> Result<String, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn codex_merge_is_idempotent_and_keeps_other_tables() {
         let home = std::env::temp_dir().join(format!("oma-sl-{}", std::process::id()));

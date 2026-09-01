@@ -687,8 +687,16 @@ mod tests {
         // Matcher participates for matcher-respecting events.
         let h3 = codex_hook_hash("PreToolUse", Some("Bash"), &handler).unwrap();
         assert_ne!(h1, h3);
-        // Timeout clamps for SessionEnd.
-        let se = codex_hook_hash("SessionEnd", None, &handler).unwrap();
+        // Timeout clamps for SessionEnd. Feed a command without
+        // commandWindows so the identity is platform-independent: on
+        // Windows the windows field would leak into the hash and the
+        // convergence below would hold only there.
+        let se = codex_hook_hash(
+            "SessionEnd",
+            None,
+            &serde_json::json!({"type":"command","command":"oma","timeout":10,"async":false}),
+        )
+        .unwrap();
         let se_clamped = codex_hook_hash(
             "SessionEnd",
             None,
@@ -704,7 +712,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(se_clamped, se_again, "clamped 99 and explicit 3 converge");
-        assert_ne!(se, se_clamped, "10 vs 99 clamp differently from 3");
+        assert_eq!(se, se_clamped, "10 and 99 both clamp to 3 and converge");
     }
 
     #[test]
