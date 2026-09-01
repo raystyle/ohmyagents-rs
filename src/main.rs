@@ -1021,10 +1021,19 @@ fn cmd_hook(event: Option<String>) -> Result<(), String> {
 }
 
 fn project_root(project: Option<PathBuf>) -> Result<PathBuf, String> {
-    match project {
-        Some(p) => Ok(p),
-        None => std::env::current_dir().map_err(|e| format!("cwd: {e}")),
+    let raw = match project {
+        Some(p) => p,
+        None => std::env::current_dir().map_err(|e| format!("cwd: {e}"))?,
+    };
+    // 相对路径必须在此展开为绝对（M031 二犯）：cwd/working_directory 传进
+    // rmux 后由 **daemon 侧**解析——WMI 起的 daemon 在 System32，`"."` 会被
+    // 解析成 C:\Windows\System32，四路 agent 全部落在系统目录（项目级
+    // yolo/hook/AGENTS.md 全不加载，claude 挂权限框、hook 全静默）。
+    if raw.is_relative() {
+        let cwd = std::env::current_dir().map_err(|e| format!("cwd: {e}"))?;
+        return Ok(cwd.join(raw));
     }
+    Ok(raw)
 }
 
 fn cmd_init(yolo: bool, pretrust: bool, project: Option<PathBuf>) -> Result<(), String> {
