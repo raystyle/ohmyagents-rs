@@ -22,7 +22,7 @@
 | --- | --- | --- | --- | --- |
 | claude | anthropics/claude-code | `v2.1.246` | `claude-win32-x64.zip` / `claude-linux-x64.tar.gz`、`claude-darwin-arm64.tar.gz` | release 附 `SHASUMS256.txt` |
 | codex | openai/codex | `rust-v0.149.1`（TagPrefix `rust-v`） | `codex-package-x86_64-pc-windows-msvc.tar.gz` / `-unknown-linux-musl.tar.gz`、`-aarch64-apple-darwin.tar.gz` | release 附 `codex-package_SHA256SUMS` |
-| grok | x.ai CDN（`https://x.ai/cli/<asset>`；GCS `storage.googleapis.com/grok-build-public-artifacts/cli` 兜底） | `1.0.13`（版本通道 `https://x.ai/cli/stable` 裸文本） | `grok-<ver>-windows-x86_64.exe` / `grok-<ver>-linux-x86_64`（裸单二进制） | 无官方清单，pin 自算 sha256 |
+| grok | x.ai CDN（`https://x.ai/cli/<asset>`；GCS `storage.googleapis.com/grok-build-public-artifacts/cli` 兜底） | `1.0.13`（版本通道 `https://x.ai/cli/stable` 裸文本） | `grok-<ver>-windows-x86_64.exe` / `grok-<ver>-linux-x86_64` / `grok-<ver>-macos-aarch64`（裸单二进制） | 无官方清单，pin 自算 sha256 |
 | kimi | MoonshotAI/kimi-code | `@moonshot-ai/kimi-code@0.38.0`（npm 式 tag） | `kimi-code-win32-x64.zip` / `-linux-x64.zip`、`-darwin-arm64.zip` | 逐资产 `.sha256` 边车 |
 
 [实证: catalog.psd1:142-176（claude）、:177-211（codex）、:345-379（grok）、:533-566（kimi）；grok CDN 与 GCS 兜底另证 set-grok.ps1:36-37；`x.ai/cli/stable` 返回 `1.0.13` 为本机 curl 实测]
@@ -114,5 +114,5 @@ key 载体一律用户级环境变量（Windows 注册表 User 层），config �
 3. **oma 不写用户 PATH、不预写用户级 agent 配置**：oma 自管安装的消费者是 oma 自己（orch spawn 与 agents 探测），把 managed root 挂进 `Probe::extra_dirs` 即闭环，不必像 ohmypwsh 那样为人类 shell 注册 PATH；grok 的 `~/.grok/config.toml` 两键留给首启自写（缺键只多一次 marketplace 注册，无功能损失），oma 装完打印提示即可。这保住 AGENTS 边界「默认不改用户家目录」。[推断: 边界推导；grok sticky flag 语义为实证]
 4. **版本口径**：oma pin 本机取证时点最新（claude 2.1.251 / codex 0.151.0 / kimi 0.39.1 / grok 1.0.13）；本机已装的旧版（如 codex 0.149.1）不冲突——oma 自适应「已装则跳过、只补缺」，managed 安装是兜底不是强制版本。[推断: 设计裁决]
 5. **ohmypwsh 的三个坑是 oma 的门禁清单**：唯一 pin 源不得有第二静态源（加载期校验拦截）；声明的解压类型必须有实现分支；残条目（有 pin 无布局）必须在加载期报错而不是运行期 Join-Path 失败。[实证: 上文半截现状三条]
-6. **平台矩阵覆盖**：claude 与 kimi 六平台全齐、codex 六资产全齐、grok 仅 win x64 与 linux x64（CDN 资产命名如此）；oma catalog 按实际存在的资产 pin，缺失组合在 `asset_for` 报「no pinned asset」即自适应拒绝，不猜。grok mac 待 x.ai 出资产或另立渠道再补。[实证: 校验和矩阵取证；推断: 矩阵策略]
+6. **平台矩阵覆盖**：claude 与 kimi 六平台全齐、codex 六资产全齐、grok 原取证仅 win x64 与 linux x64；oma catalog 按实际存在的资产 pin，缺失组合在 `asset_for` 报「no pinned asset」即自适应拒绝，不猜。**grok mac 追记（2026-09-01 mac 接管实证）**：双 CDN 均供 `grok-<ver>-macos-aarch64`（x.ai 与 GCS 同名同字节，133MB Mach-O arm64，本机探针绿），原「待 x.ai 出资产」是 Windows 侧无 mac 环境的未验证假设，已推翻并自算 sha 补 pin（catalog 同批）。[实证: 校验和矩阵取证；实证: mac 双 CDN curl 探测、自算 sha256 与探针（2026-09-01）；推断: 矩阵策略]
 7. **渠道序裁决（追记后定稿）**：github 默认、CDN 兜底；kimi 双渠道制品不同必须按 source 绑资产；codex github 即全渠道（digest 字段是最佳取证面）；claude 兜底槽空置待证；grok 双 CDN。[实证: 上文追记；推断: 空槽裁决]
