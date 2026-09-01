@@ -14,7 +14,7 @@
 
 > 当前锚定的目标 + 推进时间线。
 
-- **锚定的目标**：P0017 Windows 全量收口已于 2026-08-31 当日达成（send 回显间隔、HTTP trace 三端点、SKILL 命令图、grok 无头、mcp 配置打印五切片全验收）——**Windows 侧缺口清零**。当前无现役切片，待用户定向。queued：P0012 的 Linux/mac 环境切换接管（用户定调排后）。
+- **锚定的目标**：P0025 serve 守护化于 2026-09-01 达成后，Windows 侧产品形态全量收口（P0017 至 P0025 连续九案闭环）。当前无现役切片，待用户定向。queued：P0012 的 Linux/mac 环境切换接管（用户定调排后）。
 
 ### 推进时间线
 
@@ -22,6 +22,9 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-01 | serve stop 协议化补齐：核对三原语时发现 `serve_stop` 实际只有 taskkill（P0025/R002 口径超写）——补 `DELETE /shutdown` 优先（ureq 复用）加轮询退出加超时强杀兜底，实测日志见 draining；顺手清三处未用导入；README/AGENTS 对齐 start/stop/status 形态 |
+| 2026-09-01 | 规则体系收口：G004 经验沉淀细则（proven/references 双链、mistakes 当场记加二犯升格）挂 AGENTS 工作节奏强规则位；M035 记档（python 替换吃 `\r` 劈行，修复过程又踩同型两次）；README 重写为介绍/安装部署/完整命令示例三段 |
+| 2026-09-01 | P0025 达成：serve 守护化——`serve start` 即调即退（DETACHED 孤儿化、端口就绪等待、状态文件）、协议化停机端点（DELETE /shutdown → AtomicBool → 优雅排空，rmux kill-server 同构）、FFI OpenProcess 探活（tasklist 在 Job Object 内管道死锁） |
 | 2026-09-01 | P0024 达成：agent 实例和解式编排——spawn 三态（新开/附加/死路重开，`attached`/`respawned` marker）＋ `oma respawn` 强制单路重开（kill-pane 单窗格）；命令面只见 agent 实例，六级原语绑在背后；S023 实测纠偏三处（internal-daemon 形态、conhost 兄弟、pane 无 shell 层） |
 | 2026-09-01 | P0023 达成：看板资源包化——build.rs 打 tar.gz 嵌二进制、首启释放 `~/.ohmyagents/web/<指纹>/`（一次一份），serve 从释放位托管；单 exe 自带看板 JS 资源，产品化收口 |
 | 2026-08-31 | P0022 达成：web 镜像本地化与主页化——前端源码仓发现（rmux-web-share/rmux-typescript）并 npm 构建本地托管（四挫四根因：尾斜杠、e 参数、WASM、ACAO）；session 镜像缺省加免 PIN；`oma serve` 主页即 web-mirror-server（打开即四路窗格），dashboard 删除、编排回归 CLI/API/MCP |
@@ -69,7 +72,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：无（P0017 Windows 全量收口 2026-08-31 达成，Windows 侧缺口清零，待用户定向）。queued：P0012 Linux/mac 接管（用户定调排后）。
+- 当前目标：无（P0025 serve 守护化 2026-09-01 达成并次轮补齐停机协议化；Windows 侧产品形态全量收口，待用户定向）。queued：P0012 Linux/mac 接管（用户定调排后）。
 
 ## 历史
 
@@ -77,6 +80,7 @@
 
 | 日期 | 目标 | 结果 |
 | --- | --- | --- |
+| 2026-09-01 | serve 守护化与协议化停机（P0025） | 达成：serve start 即调即退、stop 协议化优先（次轮补齐实测）；FFI 探活避 Job Object 管道死锁 |
 | 2026-09-01 | agent 实例和解式编排（P0024） | 达成：spawn 三态和解、oma respawn 单路强制重开；S023 进程原语实测三纠偏 |
 | 2026-08-31 | web 镜像本地化与主页化（P0022） | 达成：源码构建本地托管、session 免 PIN、主页即镜像、dashboard 下线；命名 web-mirror-server |
 | 2026-08-31 | 官方 web 镜像集成（P0021） | 达成：oma web 三面接管 rmux web-share；自建 xterm 桥下线 |
