@@ -35,8 +35,9 @@ pub async fn spawn(
         .ok_or_else(|| "manifest missing after reconcile".to_string())?;
     // 拉起即自动过一轮信任框（用户定调 2026-09-01：claude 挂 Enter 确认没人
     // 管）——白名单只有信任/升级屏（S006），任务级确认永不自动按。
-    // 失败不挡 spawn 主流程，进 settled 字段留痕。
-    let settled = orch::settle(&link, root, 6).await.unwrap_or_default();
+    // 失败不挡 spawn 主流程，进 settled 字段留痕。窗口 10s：codex 的 hooks
+    // 审查屏在 config 扫描后才出现，比首屏晚。
+    let settled = orch::settle(&link, root, 10).await.unwrap_or_default();
     Ok(json!({
         "project": root.display().to_string(),
         "session": orch::session_name(root)?.as_str(),

@@ -943,6 +943,9 @@ const TRUST_DIALOGS: &[(&str, &[&str])] = &[
     ("do you trust the files", &["Enter"]),
     ("don't trust", &["Up", "Enter"]),
     ("update available", &["2", "Enter"]),
+    // codex hooks 审查屏（2026-09-01 实拍）：oma init 部署的项目级 hooks
+    // 首启需 review，`t` 一键 trust all 后面板仍开着，补 Esc 关闭回工作区。
+    ("hooks need review", &["t", "Esc"]),
 ];
 
 pub async fn settle(

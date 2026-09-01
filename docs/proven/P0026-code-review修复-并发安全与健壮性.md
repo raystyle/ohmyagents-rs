@@ -71,7 +71,7 @@
 - **中9**：web_share 解析行锚点——URL 只认 spectator/operator 行或行首 http 的 token，pin/expires 行首锚定。**次轮实踩自纠**：官方域输出形态是 `rmux:   https://share.rmux.io/#t=`（stderr 前缀行），行首角色锚把官方域 URL 全滤掉（`oma web` 报「没有 URL」）——终版锚改为「URL token 必含 `#t=`」（share token 挂 hash 是 P0021/P0022 实证过的稳定不变量，两种形态都命中）。
 - **中10**：status 返回 `(panes, warning)`，进程名批查失败进 `data.warning`/`status.warning=`/TTY 首行告警，不伪装 process=null。
 - **中11**：`/screen`、`/stream` 启动失败改 `sse_error_reply`（text/event-stream + error event）；screen 首帧拿不到发 `error` event 不静默空屏。
-- **中12**：settle 匹配收紧「行级短行」——marker 须命中单行且 trimmed ≤ 80 列（P0019 三态实测均为短行），正文长行同词不再误触按键。
+- **中12**：settle 匹配收紧「行级短行」——marker 须命中单行且 trimmed ≤ 80 列（P0019 三态实测均为短行），正文长行同词不再误触按键。**后续补第四态**：codex hooks 审查屏（`7 hooks need review` / `Press t to trust all`）——oma init 部署的项目级 hooks 首启需 review，白名单加 `("hooks need review", &["t", "Esc"])`（trust all 后 Esc 关面板回工作区），spawn 自动 settle 窗口 6s→10s（该屏在 config 扫描后才出现）。实拍验收：`settle.pane.codex=dismissed=hooks need review:t`。[实证]
 - 验收：75+10 / 78+10 全绿；GET /status 带 warning 字段（None=查询成功）。[实证]
 
 ## 整案收口
