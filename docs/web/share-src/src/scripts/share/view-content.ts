@@ -7,12 +7,8 @@ export function shareViewTemplate(): string {
     <main class="share-app" data-chrome="visible" data-navbar="visible" data-connected="false" data-operator="free" data-role="spectator" data-terminal-mode="dark" data-terminal-theme="user">
       <header class="share-topbar">
         <div class="share-brand">
-          <a class="share-brand-home" href="https://rmux.io/" aria-label="RMUX">
-            <span class="share-brand-mark" aria-hidden="true">
-              <img class="share-brand-logo share-brand-logo-dark" src="${shareAssetUrl('rmux-logo-dark.svg')}" alt="" />
-              <img class="share-brand-logo share-brand-logo-light" src="${shareAssetUrl('rmux-logo-light.svg')}" alt="" />
-            </span>
-            <span class="share-brand-title">RMUX</span>
+          <a class="share-brand-home" href="https://rmux.io/" aria-label="Oh My Agents 工作看板">
+            <span class="share-brand-title">Oh My Agents 工作看板</span>
           </a>
           <button class="share-mobile-actions-button" data-share-mobile-actions type="button" aria-haspopup="menu" aria-label="Controls" title="Controls">
             <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
@@ -301,9 +297,7 @@ export function shareViewTemplate(): string {
       </div>
       <dialog class="share-confirm" data-share-confirm>
         <form method="dialog" class="share-confirm-panel">
-          <div class="share-confirm-mark" data-share-confirm-mark aria-hidden="true">
-            <img data-share-confirm-logo src="${shareAssetUrl('rmux-logo-light.svg')}" alt="" />
-          </div>
+          <div class="share-confirm-mark" data-share-confirm-mark aria-hidden="true"></div>
           <h1 data-share-confirm-title></h1>
           <p class="share-confirm-endpoint" data-share-endpoint hidden></p>
           <p data-share-confirm-detail></p>

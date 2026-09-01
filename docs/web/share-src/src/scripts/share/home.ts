@@ -402,12 +402,8 @@ function homeTemplate(): string {
   return `
     <main class="home-shell">
       <header class="home-topbar">
-        <a class="home-brand" href="https://rmux.io/" aria-label="RMUX">
-          <span class="home-brand-mark" aria-hidden="true">
-            <img class="home-brand-logo home-brand-logo-dark" src="${shareAssetUrl('rmux-logo-dark.svg')}" alt="" />
-            <img class="home-brand-logo home-brand-logo-light" src="${shareAssetUrl('rmux-logo-light.svg')}" alt="" />
-          </span>
-          <strong>RMUX</strong>
+        <a class="home-brand" href="https://rmux.io/" aria-label="Oh My Agents 工作看板">
+          <strong>Oh My Agents 工作看板</strong>
         </a>
         <span class="home-divider" aria-hidden="true"></span>
         <a class="home-section" href="https://share.rmux.io/">SHARE</a>
@@ -459,9 +455,7 @@ function homeTemplate(): string {
       <dialog class="home-pin-dialog" data-home-pin-dialog>
         <form method="dialog" class="home-dialog-panel home-pin-panel">
           <button class="home-dialog-close" data-home-pin-close type="button" aria-label="Close">${xIcon()}</button>
-          <div class="home-pin-mark" aria-hidden="true">
-            <img data-home-pin-logo src="${shareAssetUrl('rmux-logo-light.svg')}" alt="" />
-          </div>
+          <div class="home-pin-mark" aria-hidden="true"></div>
           <h2>Pairing code</h2>
           <p>Use this 6-digit code to connect to <strong data-home-pin-name></strong>.</p>
           <output class="home-pin-code" data-home-pin-code tabindex="0" title="Hold or tap to reveal PIN"></output>
