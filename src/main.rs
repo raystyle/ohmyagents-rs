@@ -639,12 +639,13 @@ fn print_mcp_config(root: &Path) -> Result<(), String> {
     println!("claude mcp add oma -- \"{exe}\" mcp --project \"{proj}\"");
     println!();
     // Windows 反斜杠路径在 TOML basic string / JSON 字符串里是非法转义
-    //（Round1 kimi16：生成的注册片段直接解析失败）——TOML 用 literal
-    // string（单引号不转义），JSON 走 serde_json 正确转义。
+    //（Round1 kimi16）：TOML 用 literal string（单引号不转义，路径含单
+    // 引号时按 TOML 规则双写，relay1 codex 低项）；JSON 走 serde_json。
+    let toml_lit = |s: &str| format!("'{}'", s.replace('\'', "''"));
     println!("# codex（写入 ~/.codex/config.toml 的 [mcp_servers] 段）:");
     println!("[mcp_servers.oma]");
-    println!("command = '{exe}'");
-    println!("args = ['mcp', '--project', '{proj}']");
+    println!("command = {}", toml_lit(&exe));
+    println!("args = ['mcp', '--project', {}]", toml_lit(&proj));
     println!();
     let json = serde_json::json!({
         "mcpServers": {

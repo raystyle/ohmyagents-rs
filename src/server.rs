@@ -56,7 +56,7 @@ pub struct ServeState {
     /// 看板主页的 session 镜像 token（与 serve 进程同生命周期）：刷新页面
     /// 不清不重建 share——每次 GET / 清旧起新会让浏览器手里的 token 秒失效，
     /// 前端重连被拒永远 waiting（实踩）。
-    share_token: tokio::sync::Mutex<Option<String>>,
+    share_token: tokio::sync::Mutex<Option<(String, u64)>>,
 }
 
 /// 起编排面：绑定后打 banner，永不主动退出（Ctrl-C 结束进程，会话留存）。
@@ -151,8 +151,29 @@ fn sse_error_reply(command: &str, root: &Path, msg: String) -> Response {
         .into_response()
 }
 
+/// Host 回环中间件（relay1 codex 高项：此前只有 home/share 校验，
+/// /stream /screen /trace 等只读端点漏防——DNS rebinding 下恶意页面可用
+/// 外域 Host 同源读终端画面与编辑轨迹；serve 无鉴权，统一在路由层拦截）。
+async fn host_guard(
+    headers: axum::http::HeaderMap,
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> Response {
+    let host = headers
+        .get(axum::http::header::HOST)
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("");
+    if !host_is_local(host) {
+        return err_reply("host-guard", Path::new(""), StatusCode::BAD_REQUEST, format!("non-local Host: {host}"));
+    }
+    next.run(req).await
+}
+
 fn router(state: Arc<ServeState>) -> axum::Router {
     axum::Router::new()
+        // 全局 Host 回环闸（静态资源同源需求内的本地资源除外也无妨——
+        // 一并过闸，语义统一）。
+        .layer(axum::middleware::from_fn(host_guard))
         // 主页即 web 镜像页（用户定调：可视化页面当首页，编排走 CLI/API/MCP）。
         // GET / 自动起整会话镜像并 302 到 #t= ——打开就是多路窗格。
         .route("/", get(home))
@@ -392,20 +413,33 @@ async fn home(
     if !host_is_local(host) {
         return err_reply("home", &st.root, StatusCode::BAD_REQUEST, format!("non-local Host: {host}"));
     }
-    // token 与 serve 同生命周期：页面刷新复用同一 share，不清不重建。
+    // token 与 serve 同生命周期：页面刷新复用同一 share，不清不重建；
+    // 但 share TTL 固定 12h（relay1 codex 中项跨三轮遗留）——缓存记到期
+    // 时间，过期前 1h 重建，长活 daemon 不再注入死 token。
+    const SHARE_TTL: u64 = 43_200;
     let mut cached = st.share_token.lock().await;
-    if cached.is_none() {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let expired = cached
+        .as_ref()
+        .is_some_and(|(_, expires_at)| now + 3600 >= *expires_at);
+    if cached.is_none() || expired {
         let fe = format!("http://{host}/");
-        match api::web_share(&st.root, None, false, 43200, Some(&fe), true).await {
+        match api::web_share(&st.root, None, false, SHARE_TTL, Some(&fe), true).await {
             Ok(v) => {
-                *cached = v["url"].as_str().and_then(|u| u.split("#t=").nth(1)).map(String::from);
+                let token = v["url"].as_str().and_then(|u| u.split("#t=").nth(1)).map(String::from);
+                if let Some(t) = token {
+                    *cached = Some((t, now + SHARE_TTL));
+                }
             }
             Err(e) => {
                 return err_reply("home", &st.root, StatusCode::OK, e);
             }
         }
     }
-    let Some(token) = cached.clone() else {
+    let Some((token, _)) = cached.clone() else {
         return err_reply("home", &st.root, StatusCode::OK, "mirror url missing token".into());
     };
     // 资源已在 serve 启动时释放进 ServeState（P0026 低13：不再重复扫描）。

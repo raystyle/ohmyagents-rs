@@ -1350,6 +1350,12 @@ pub enum Gate {
 /// Layer 2 wins when it speaks; a silent hook falls back to the 1b terminal
 /// verdict. Anything but a clear idle blocks the dispatch (never resend).
 pub fn gate(hook_state: Option<&str>, terminal: &str) -> Gate {
+    // 死路优先（relay1 codex 低项：pane 已消失但 state 文件残留 hook
+    // "idle"/"working" 的陈旧组合会让 run 按 Dispatch/Busy 走到 send 报错，
+    // 而不是按 dead 引导 respawn）。
+    if terminal == "dead" {
+        return Gate::Dead;
+    }
     match hook_state {
         Some("idle") => Gate::Dispatch,
         Some("blocked") => Gate::Blocked,
@@ -1357,9 +1363,6 @@ pub fn gate(hook_state: Option<&str>, terminal: &str) -> Gate {
         _ => match terminal {
             "idle" => Gate::Dispatch,
             "blocked" => Gate::Blocked,
-            // dead 单列（Round3 claude5 遗留：死路与忙路语义相反——一个
-            // 该 respawn 一个该等，报 busy 会误导跟进动作）。
-            "dead" => Gate::Dead,
             _ => Gate::Busy,
         },
     }
