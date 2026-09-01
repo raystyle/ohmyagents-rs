@@ -536,16 +536,22 @@ pub async fn status(link: &Link, root: &Path) -> Result<(Vec<PaneStatus>, Option
                 continue;
             }
         };
-        let info = pane.info().await.map_err(|e| format!("info: {e}"))?;
-        let pid = pane
-            .id()
-            .await
-            .map_err(|e| e.to_string())?
-            .and_then(|id| info.pane(id))
-            .and_then(|p| match p.process {
-                PaneProcessState::Running { pid: Some(pid) } => Some(pid),
-                _ => None,
-            });
+        // info/id 同样降级（Round1 claude4 / Round3 grok2 两轮未修：resolve
+        // 成功后、info 前格子被并发 kill 时整条 status 上抛，且 run 的状态
+        // 门跟着整单失败——与「一路不拖垮其它路」相反）。
+        let pid = match pane.info().await {
+            Ok(info) => pane
+                .id()
+                .await
+                .ok()
+                .flatten()
+                .and_then(|id| info.pane(id))
+                .and_then(|p| match p.process {
+                    PaneProcessState::Running { pid: Some(pid) } => Some(pid),
+                    _ => None,
+                }),
+            Err(_) => None,
+        };
         entries.push((a.name.clone(), Some(pane), pid));
     }
 
@@ -1442,7 +1448,13 @@ pub async fn run(
                     unknown.join(", ")
                 ));
             }
-            list
+            // dedupe 保序（Round3 codex3：`--assign codex,codex` 同路连发两
+            // 次；plan_agents 已拒重复名，run 补同门——重复直接忽略而非报
+            // 错，CLI 拼写失误不该挡派发）。
+            let mut seen = std::collections::BTreeSet::new();
+            list.into_iter()
+                .filter(|n| seen.insert(n.clone()))
+                .collect()
         }
         None => in_session,
     };

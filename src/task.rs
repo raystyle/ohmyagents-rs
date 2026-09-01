@@ -79,7 +79,7 @@ fn alloc_task_dir(root: &Path) -> Result<String, String> {
 /// id 形态校验（Round1 kimi14：`task show ../../foo` 可路径遍历读任务
 /// 目录外文件；server/mcp 复用本模块时成真攻击面）。
 fn valid_id(id: &str) -> bool {
-    !id.is_empty()
+    id.len() >= 2
         && id.len() <= 8
         && id.starts_with('t')
         && id[1..].chars().all(|c| c.is_ascii_digit())
@@ -145,22 +145,29 @@ pub fn task_wait(root: &Path, id: &str, timeout_secs: u64) -> Result<String, Str
     if !valid_id(id) {
         return Err(format!("invalid task id: {id}"));
     }
-    // 同 settle：钳位在实现点防 Instant 溢出（Round2 kimi5）；0 = 无限。
-    let timeout_secs = if timeout_secs == 0 { u64::MAX / 2 } else { timeout_secs.min(86_400) };
-    let dir = task_dir(root, id);
-    let done = dir.join("DONE");
-    let output = dir.join("output.md");
+    // 0 = 真无限（None 分支，Round3 codex1：改写大数值加法在部分平台溢
+    // 出）；非零钳 86400（一天，Round3 codex2 上限写进 help）。
     let deadline = if timeout_secs == 0 {
         None
     } else {
-        Some(std::time::Instant::now() + std::time::Duration::from_secs(timeout_secs))
+        Some(
+            std::time::Instant::now()
+                + std::time::Duration::from_secs(timeout_secs.min(86_400)),
+        )
     };
+    let dir = task_dir(root, id);
+    let done = dir.join("DONE");
+    let output = dir.join("output.md");
     loop {
         if done.exists() {
             // DONE 在但 output.md 缺失/空（违规 agent 先建 DONE 或还在追加；
-            // Round1 四家全中）：3s 宽限，**仍缺失或空则报错**——空产物静默
-            // 当成功会让调用方无从判断（FINDINGS 契约也无处校验）。
-            let grace = std::time::Instant::now() + std::time::Duration::from_secs(3);
+            // Round1 四家全中）：3s 宽限（不突破 timeout 上限，Round3 codex8），
+            // **仍缺失或空则报错**——空产物静默当成功会让调用方无从判断。
+            let grace = std::time::Instant::now()
+                + std::time::Duration::from_secs(3)
+                    .min(deadline.map_or(std::time::Duration::from_secs(3), |d| {
+                        d.saturating_duration_since(std::time::Instant::now())
+                    }));
             while std::time::Instant::now() < grace {
                 if output.exists() && output.metadata().map(|m| m.len() > 0).unwrap_or(false) {
                     break;

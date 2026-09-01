@@ -126,7 +126,7 @@ enum Commands {
         agent: Option<String>,
         /// 任务文本（全文落 prompt.md，send 带协议尾注）
         text: Option<String>,
-        /// 等产物秒数；0 无限等（缺省 600）
+        /// 等产物秒数；0 无限等（缺省 600，上限 86400）
         #[arg(long, default_value_t = 600)]
         timeout: u64,
         /// 项目根；默认当前目录
@@ -686,21 +686,11 @@ async fn cmd_spawn(
 ) -> Result<(), String> {
     let root = project_root(project)?;
     if json {
-        // 三通道同语义（codex 五轮中2）：json 分支同样做就绪确认与自动
-        // settle，alerts 进信封 data；不再 early-return 漏掉。
+        // 三通道同语义单点（Round3 grok1/codex7：json 分支此前手写副本且
+        // 顺序与 api 层分叉）。
         let mut out = oma::api::spawn(&root, wanted, stub).await;
         if let Ok(v) = &mut out {
-            if let Ok(link) = orch::connect(&root, false).await {
-                let respawned: Vec<String> = v["respawned"]
-                    .as_array()
-                    .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
-                    .unwrap_or_default();
-                let alerts = orch::await_lanes_ready(&link, &root, &respawned).await;
-                if !alerts.is_empty() {
-                    v["alerts"] = serde_json::json!(alerts);
-                }
-            }
-            let _ = oma::api::settle(&root, 10).await;
+            oma::api::spawn_finalize(&root, v).await;
         }
         return print_json("spawn", &root, out);
     }
@@ -715,13 +705,14 @@ async fn cmd_spawn(
     println!("spawn.respawned={}", out.respawned.join(","));
     println!("spawn.removed={}", out.removed.join(","));
     println!("spawn.mode={}", if out.attached.is_empty() { "new" } else { "reconcile" });
-    // 新拉路就绪确认（锁外；新开分支同样覆盖——respawned 含全部新拉路）。
-    for alert in orch::await_lanes_ready(&link, &root, &out.respawned).await {
-        eprintln!("spawn.alert={alert}");
+    // 收尾单点（readiness → auto-settle；Round3 grok1：与三通道同序）。
+    let mut v = serde_json::json!({ "respawned": out.respawned });
+    oma::api::spawn_finalize(&root, &mut v).await;
+    if let Some(alerts) = v["alerts"].as_array() {
+        for a in alerts {
+            eprintln!("spawn.alert={}", a.as_str().unwrap_or_default());
+        }
     }
-    // 拉起后自动过一轮信任框（与 api::spawn 家族同语义；codex 复核中2：
-    // 此前 CLI 路径漏 settle）。失败不挡 spawn。
-    let _ = orch::settle(&link, &root, 10).await;
     println!("spawn.blocking=false");
     println!("spawn.ok=true");
     Ok(())
@@ -823,7 +814,9 @@ fn cmd_task_show(id: String, project: Option<PathBuf>) -> Result<(), String> {
     let meta = oma::task::task_show(&root, &id)?;
     println!("task.show.{id}.agent={}", meta.agent);
     println!("task.show.{id}.created={}", meta.created);
-    println!("task.show.{id}.text={}", meta.text);
+    // marker 行单行契约（Round3 codex5）：多行提示词压成单行（换行转义）。
+    let one_line = meta.text.replace('\n', "\\n");
+    println!("task.show.{id}.text={one_line}");
     let dir = root.join(".ohmyagents").join("tasks").join(&id);
     println!("task.show.{id}.done={}", dir.join("DONE").exists());
     match std::fs::read_to_string(dir.join("output.md")) {

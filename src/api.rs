@@ -132,24 +132,29 @@ pub async fn run_finalize(root: &Path, v: &mut Value) {
     }
 }
 
-/// spawn 的锁外收尾单点：就绪确认 + auto-settle（HTTP/MCP 在 gate 外调；
-/// CLI 直接调）。mutates `v` 写入 alerts。
+/// spawn 的锁外收尾单点：就绪确认在前、auto-settle 在后（Round3 grok1：
+/// settle 提前到 agent 启动窗口的开头会让 config 扫描后才出现的 hooks 屏
+/// 错过窗口——就绪等待的 ~20s 正是给屏出现的时间；settle 与 connect 成败
+/// 解耦，失败也跑）。HTTP/MCP/CLI 三通道唯一入口。
 pub async fn spawn_finalize(root: &Path, v: &mut Value) {
-    // auto-settle 不随 connect 失败被跳过（Round2 kimi17：旧序 settle 在
-    // connect 早退之后，transient 失败会静默漏掉信任框轮）。
+    let readiness_alerts = match orch::connect(root, false).await {
+        Ok(link) => {
+            let respawned: Vec<String> = v["respawned"]
+                .as_array()
+                .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+                .unwrap_or_default();
+            orch::await_lanes_ready(&link, root, &respawned).await
+        }
+        Err(e) => {
+            eprintln!("spawn.finalize: connect failed ({e}); readiness skipped");
+            Vec::new()
+        }
+    };
     if let Err(e) = settle(root, 10).await {
         eprintln!("spawn.auto-settle: {e}");
     }
-    let Ok(link) = orch::connect(root, false).await else {
-        return;
-    };
-    let respawned: Vec<String> = v["respawned"]
-        .as_array()
-        .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
-        .unwrap_or_default();
-    let alerts = orch::await_lanes_ready(&link, root, &respawned).await;
-    if !alerts.is_empty() {
-        v["alerts"] = json!(alerts);
+    if !readiness_alerts.is_empty() {
+        v["alerts"] = json!(readiness_alerts);
     }
 }
 
