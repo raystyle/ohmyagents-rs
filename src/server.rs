@@ -580,7 +580,7 @@ async fn send(State(st): State<Arc<ServeState>>, body: String) -> Response {
         Err(r) => return r,
     };
     // 锁内只做粘贴/Enter；开始确认（15s）锁外（Round1 grok3/kimi4：持
-    /// gate 跨确认会把 spawn/cleanup/settle 全堵死）。
+    // gate 跨确认会把 spawn/cleanup/settle 全堵死）。
     let mut out = {
         let _guard = st.gate.lock().await;
         api::send_locked(&st.root, &req.agent, &req.text, req.confirm.as_deref()).await
@@ -602,20 +602,7 @@ async fn run(State(st): State<Arc<ServeState>>, body: String) -> Response {
         api::run_locked(&st.root, &req.text, req.assign, req.confirm.as_deref()).await
     };
     if let Ok(v) = &mut out {
-        // 开始确认统一锁外（Round1 kimi6：派发后的确认不该持锁）。
-        let sent: Vec<String> = v["sent"]
-            .as_array()
-            .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
-            .unwrap_or_default();
-        let mut alerts = Vec::new();
-        for agent in &sent {
-            if let Ok(link) = orch::connect(&st.root, false).await {
-                alerts.extend(orch::send_start_alerts(&link, &st.root, agent).await);
-            }
-        }
-        if !alerts.is_empty() {
-            v["alerts"] = serde_json::json!(alerts);
-        }
+        api::run_finalize(&st.root, v).await;
     }
     finish(command, &st.root, out)
 }

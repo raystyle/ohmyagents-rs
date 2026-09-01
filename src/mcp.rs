@@ -155,25 +155,12 @@ impl OmaMcp {
         &self,
         Parameters(RunParams { text, assign, confirm }): Parameters<RunParams>,
     ) -> Result<CallToolResult, McpError> {
-        let out = {
+        let mut out = {
             let _guard = self.gate.lock().await;
             api::run_locked(&self.root, &text, assign, confirm.as_deref()).await
         };
-        let mut out = out;
         if let Ok(v) = &mut out {
-            let sent: Vec<String> = v["sent"]
-                .as_array()
-                .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
-                .unwrap_or_default();
-            let mut alerts = Vec::new();
-            for agent in &sent {
-                if let Ok(link) = crate::orch::connect(&self.root, false).await {
-                    alerts.extend(crate::orch::send_start_alerts(&link, &self.root, agent).await);
-                }
-            }
-            if !alerts.is_empty() {
-                v["alerts"] = serde_json::json!(alerts);
-            }
+            api::run_finalize(&self.root, v).await;
         }
         envelope("run", &self.root, out)
     }

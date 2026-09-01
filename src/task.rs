@@ -130,7 +130,13 @@ async fn task_new_inner(
         "{text}\n\n（任务协议：提示词全文在 .ohmyagents/{id}/prompt.md；产物写到 .ohmyagents/{id}/output.md；写完最后创建空文件 .ohmyagents/{id}/DONE 表示完成）",
         id = format!("tasks/{id}"),
     );
-    orch::send(&link, root, agent, &note, None).await
+    orch::send(&link, root, agent, &note, None).await?;
+    // 开始确认（Round2 grok1：task 委派同样要「阻塞框挂着就别空等到超时」
+    // 的即时告警；alerts 进 stderr，task 等待本身照旧）。
+    for a in orch::send_start_alerts(&link, root, agent).await {
+        eprintln!("task.alert={a}");
+    }
+    Ok(())
 }
 
 /// 阻塞等 DONE 出现，然后读产物。timeout_secs 为 0 表示无限等。
@@ -139,6 +145,8 @@ pub fn task_wait(root: &Path, id: &str, timeout_secs: u64) -> Result<String, Str
     if !valid_id(id) {
         return Err(format!("invalid task id: {id}"));
     }
+    // 同 settle：钳位在实现点防 Instant 溢出（Round2 kimi5）；0 = 无限。
+    let timeout_secs = if timeout_secs == 0 { u64::MAX / 2 } else { timeout_secs.min(86_400) };
     let dir = task_dir(root, id);
     let done = dir.join("DONE");
     let output = dir.join("output.md");

@@ -163,7 +163,7 @@ enum Commands {
     },
     /// 自检测并自动确认信任框（各家自己持久化信任；预置信任的兜底）
     Settle {
-        /// 每路最长等待秒数
+        /// 全局扫描窗口秒数（上限 600；窗口内反复扫全部路等晚出现的屏）
         #[arg(long, default_value_t = 30)]
         wait: u64,
         /// 项目根；默认当前目录
@@ -871,6 +871,9 @@ async fn cmd_send(
     }
     let link = orch::connect(&root, false).await?;
     orch::send(&link, &root, &agent, &text, confirm.as_deref()).await?;
+    // 锁外开始确认（Round2 grok1/kimi2：拆分后 CLI 文本路径漏接，最常用
+    // 通道反而丢了 send.alert）。
+    orch::send_start_alerts(&link, &root, &agent).await;
     println!("send.ok=true");
     Ok(())
 }
@@ -925,6 +928,10 @@ async fn cmd_run(
     if outcome.sent.is_empty() {
         eprintln!("oma: every lane was gated ({} skipped); nothing dispatched", outcome.skipped.len());
         std::process::exit(1);
+    }
+    // 锁外开始确认（同 cmd_send，Round2 补接）。
+    for agent in &outcome.sent {
+        orch::send_start_alerts(&link, &root, agent).await;
     }
     println!("run.ok=true");
     Ok(())

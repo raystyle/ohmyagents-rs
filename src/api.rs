@@ -113,9 +113,33 @@ pub async fn send_finalize(root: &Path, agent: &str, v: &mut Value) {
     }
 }
 
+/// run 的锁外收尾单点（Round2 kimi15：三通道各抄一份，任一环节破损静默
+/// 波及三通道）：对每条已派发路做开始确认，alerts 写入信封。
+pub async fn run_finalize(root: &Path, v: &mut Value) {
+    let sent: Vec<String> = v["sent"]
+        .as_array()
+        .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+        .unwrap_or_default();
+    let Ok(link) = orch::connect(root, false).await else {
+        return;
+    };
+    let mut alerts = Vec::new();
+    for agent in &sent {
+        alerts.extend(orch::send_start_alerts(&link, root, agent).await);
+    }
+    if !alerts.is_empty() {
+        v["alerts"] = json!(alerts);
+    }
+}
+
 /// spawn 的锁外收尾单点：就绪确认 + auto-settle（HTTP/MCP 在 gate 外调；
 /// CLI 直接调）。mutates `v` 写入 alerts。
 pub async fn spawn_finalize(root: &Path, v: &mut Value) {
+    // auto-settle 不随 connect 失败被跳过（Round2 kimi17：旧序 settle 在
+    // connect 早退之后，transient 失败会静默漏掉信任框轮）。
+    if let Err(e) = settle(root, 10).await {
+        eprintln!("spawn.auto-settle: {e}");
+    }
     let Ok(link) = orch::connect(root, false).await else {
         return;
     };
@@ -123,10 +147,7 @@ pub async fn spawn_finalize(root: &Path, v: &mut Value) {
         .as_array()
         .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
         .unwrap_or_default();
-    let mut alerts = orch::await_lanes_ready(&link, root, &respawned).await;
-    if let Err(e) = settle(root, 10).await {
-        eprintln!("spawn.auto-settle: {e}");
-    }
+    let alerts = orch::await_lanes_ready(&link, root, &respawned).await;
     if !alerts.is_empty() {
         v["alerts"] = json!(alerts);
     }
@@ -148,19 +169,7 @@ pub async fn run(
     confirm: Option<&str>,
 ) -> Result<Value, String> {
     let mut v = run_locked(root, text, assign, confirm).await?;
-    let sent: Vec<String> = v["sent"]
-        .as_array()
-        .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
-        .unwrap_or_default();
-    let mut alerts = Vec::new();
-    for agent in &sent {
-        if let Ok(link) = orch::connect(root, false).await {
-            alerts.extend(orch::send_start_alerts(&link, root, agent).await);
-        }
-    }
-    if !alerts.is_empty() {
-        v["alerts"] = json!(alerts);
-    }
+    run_finalize(root, &mut v).await;
     Ok(v)
 }
 

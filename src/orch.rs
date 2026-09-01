@@ -147,9 +147,11 @@ fn write_manifest(root: &Path, m: &Manifest) -> Result<(), String> {
         std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     }
     let body = serde_json::to_string_pretty(m).map_err(|e| e.to_string())? + "\n";
-    // tmp 名带 pid（codex 复核中4）：固定名在 CLI/serve 并发写时会共用同
-    // 一 tmp，一方 rename 后另一方 NotFound。
-    let tmp = path.with_extension(format!("json.{}.tmp", std::process::id()));
+    // tmp 名带 pid 加进程内原子序号（Round2 kimi4：pid 只防跨进程；同进程
+    // 内锁外 heal 写与持锁写仍共用 tmp，一方 rename 后另一方 NotFound）。
+    static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let seq = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let tmp = path.with_extension(format!("json.{}.{seq}.tmp", std::process::id()));
     std::fs::write(&tmp, body).map_err(|e| format!("{}: {e}", tmp.display()))?;
     std::fs::rename(&tmp, &path).map_err(|e| format!("{}: {e}", path.display()))
 }
@@ -743,6 +745,9 @@ pub async fn reconcile(
                 pane_id: pid_u32,
             }),
         }
+        // 每路即落盘（Round2 grok3/kimi3：循环外统一写时，下一路 split 失
+        // 走 `?` 早退会让本路新格成无人认领的孤儿，逐次累积）。
+        write_manifest(root, &m)?;
         if let Some(old) = old_pane {
             if pane_for(&session, old).await.is_ok() {
                 // kill 失败 = 孤儿 pane（codex 五轮中3：manifest 已指向新格，
@@ -1001,6 +1006,9 @@ pub async fn send_start_alerts(link: &Link, root: &Path, agent: &str) -> Vec<Str
     for a in &found {
         eprintln!("send.alert={a}");
     }
+    // Round2 kimi1：found 必须进返回值——只 eprintln 会让三通道信封
+    // alerts 恒空，锁外确认的收益被整体丢弃。
+    alerts.extend(found);
     alerts
 }
 
@@ -1190,6 +1198,9 @@ pub async fn settle(
     root: &Path,
     wait_secs: u64,
 ) -> Result<Vec<(String, String)>, String> {
+    // 钳位在唯一实现点（Round2 grok2/kimi5：只钳 api 层时，CLI 文本
+    // `--wait <巨大 u64>` 直下本函数仍会 Instant 加法溢出 panic）。
+    let wait_secs = wait_secs.min(600);
     let manifest = read_manifest_req(root)?;
     let name = session_name(root)?;
     let session = rmuxpoc::reuse_only(&link.rmux, name).await?;
@@ -1557,7 +1568,12 @@ mod tests {
     fn plan_agents_stub_shape_and_count_guard() {
         let plan = plan_agents(Some(vec!["claude".into(), "codex".into()]), true).unwrap();
         assert_eq!(plan.agents.len(), 2);
-        assert!(plan.agents[0].1.first().unwrap().contains("pwsh"));
+        // Round2 kimi22：非 Windows 桩是 sh，按平台断言。
+        if cfg!(windows) {
+            assert!(plan.agents[0].1.first().unwrap().contains("pwsh"));
+        } else {
+            assert!(plan.agents[0].1.first().unwrap().contains("sh"));
+        }
         let five = plan_agents(
             Some(vec![
                 "a".into(),
