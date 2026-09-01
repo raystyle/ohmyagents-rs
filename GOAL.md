@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-01 | Windows 侧总收口：四 agent 轮询 review 接力工作流（7 棒收敛至功能性缺陷清零，60+ 修复含 6 件修复自身回归）；oma task 带产物等待的任务目录协议（端到端双验）；任务开始确认与阻塞告警；精确集合与布局自适应；oma key 守卫；agents statusline（claude/codex 幂等）；R010 交接清单落档、P0012 Linux 接管启动 |
 | 2026-09-01 | P0026 切片 1 达成：codex review 结果 trace 收取（15 条，高 5 核实 4 真 1 部分真）后立项三切片；看板默认 spectator 只读（用户定调）＋Host 回环校验（高5）＋cleanup 僵局解除（高2）＋死路杀旧 pane 不堆积（高3）＋manifest 原子写（高1a）；计划外抓到并修 serve daemon DETACHED 零控制台下 rmux CLI 卡死（改 CREATE_NO_WINDOW） |
 | 2026-09-01 | serve stop 协议化补齐：核对三原语时发现 `serve_stop` 实际只有 taskkill（P0025/R002 口径超写）——补 `DELETE /shutdown` 优先（ureq 复用）加轮询退出加超时强杀兜底，实测日志见 draining；顺手清三处未用导入；README/AGENTS 对齐 start/stop/status 形态 |
 | 2026-09-01 | 规则体系收口：G004 经验沉淀细则（proven/references 双链、mistakes 当场记加二犯升格）挂 AGENTS 工作节奏强规则位；M035 记档（python 替换吃 `\r` 劈行，修复过程又踩同型两次）；README 重写为介绍/安装部署/完整命令示例三段 |
@@ -73,7 +74,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：无（P0026 code review 修复 2026-09-01 当日闭环：codex review 高 5 + 中 7 全修三切片，计划外抓三真雷）。queued：P0012 Linux/mac 接管（用户定调排后）。
+- 当前目标：P0012 Linux/mac 接管（2026-09-01 用户定调「准备去 wsl linux 下开发」启动）——交接读本 `docs\references\R010`；Windows 侧全量收口完成（当日 48+ 提交、七棒 review 接力收敛、statusline 落地）。
 
 ## 历史
 

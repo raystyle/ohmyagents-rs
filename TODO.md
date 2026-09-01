@@ -4,9 +4,17 @@
 
 ## 当前目标
 
-无现役切片。code review 修复（P0026，方案三切片）2026-09-01 当日闭环；待用户定向。
+P0012 Linux/mac 接管启动（用户定调 2026-09-01：「准备去 wsl linux 下开发」）。交接读本 `docs\references\R010-Windows到Linux交接清单.md`；开工顺序见其第五节。
 
 ## 任务进度清单
+
+| 任务项 | 进度 | 说明 | 日期 |
+| --- | --- | --- | --- |
+| WSL 环境搭建 | 待做 | clone、cargo test 基线、build --features server,mcp | 待定 |
+| rmux Linux 资产验收 | 待做 | oma check 真机（catalog pin 已备） | 待定 |
+| daemon 启动路径 | 待做 | WMI→Linux 等价（R010 三节 1） | 待定 |
+| 四家 agent Linux 安装 | 待做 | oma agents install 真机 | 待定 |
+| 真身四路 + settle 真机 | 待做 | 信任屏 marker Linux 差异 | 待定 |
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
@@ -40,8 +48,6 @@
 
 ## 队列目标
 
-| 目标 | 状态 | 说明 |
-| --- | --- | --- |
-| P0012 Linux/mac 接管 | 排后 | 用户定调（2026-08-31）：先把 Windows 全量开发好；资产与代码路径就绪；预备检测研究已备（S021 指令集 SIGILL 检测阶梯） |
+（无——P0012 已转正为当前目标；mac 随后。）
 
-（P0006 至 P0016 已完成；过程与经验在对应 proven 方案。）
+（P0006 至 P0026 已完成；过程与经验在对应 proven 方案。）
