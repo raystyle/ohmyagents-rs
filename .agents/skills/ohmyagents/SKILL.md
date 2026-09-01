@@ -14,6 +14,7 @@ description: oma 项目编排命令图：会话拉起、状态、委派、自愈
 | 拉起或重连本项目多路 agent 会话（1-4 路；缺省已装交集） | `oma spawn [--agents a,b] [--stub]` |
 | 看各路 pid、进程名、终端态、hook 态 | `oma status` |
 | 向某路发任务（多行自动三段式粘贴） | `oma send <agent> "<文本>"` |
+| 带产物等待的任务委派：oma 阻塞等 DONE，产物在任务目录 output.md | `oma task <agent> "<文本>"` |
 | 状态门分派：闲路才发，忙路跳过不堵其它路 | `oma run "<文本>" [--assign a,b]` |
 | 自检测并自动确认信任/审查框 | `oma settle [--wait N]` |
 | 只杀本会话（不动 daemon 与其它会话） | `oma cleanup` |
@@ -22,5 +23,20 @@ description: oma 项目编排命令图：会话拉起、状态、委派、自愈
 | 作为 MCP server 跑 stdio（六操作加 trace 检索 tools） | `oma mcp` |
 | 只读诊断信任库、已装二进制与状态链 | `oma doctor` |
 | 安装缺失 agent（oma 自管根 ~/.ohmyagents） | `oma agents install [名]` |
+
+## 任务目录协议
+
+收到带「任务协议」尾注的委派时，按 `.ohmyagents/tasks/<id>/` 目录操作：
+
+1. 提示词全文在 `prompt.md`（可随时重读）；
+2. 产物写到 `output.md`（先写全内容）；
+3. **最后**创建空文件 `DONE` 表示完成——oma 只认 DONE 不认 output 存在，顺序不能反。
+
+等另一个 agent 的任务产物时用**收件人模式**（不前台死等）：
+
+```bash
+while [ ! -f ".ohmyagents/tasks/<id>/DONE" ]; do sleep 15; done
+cat ".ohmyagents/tasks/<id>/output.md"
+```
 
 裸 `oma` 进 REPL；六会话命令加 `--json` 出信封。细则见仓库 `docs\references\R002`。
