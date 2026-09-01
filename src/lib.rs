@@ -18,5 +18,6 @@ pub mod yolo;
 // P0011 传输适配层：HTTP 进 server feature，MCP 进 mcp feature；api 层无新依赖不设门。
 #[cfg(feature = "server")]
 pub mod server;
+pub mod servectl;
 #[cfg(feature = "mcp")]
 pub mod mcp;

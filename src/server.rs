@@ -31,23 +31,47 @@ use crate::api;
 use crate::orch;
 
 
+/// 优雅停机标志（rmux kill-server 同款协议化自杀，S023）：`DELETE /shutdown`
+/// 置位，`with_graceful_shutdown` 轮询到后排空在途请求退出。
+#[derive(Clone, Default)]
+pub struct ShutdownFlag(std::sync::Arc<std::sync::atomic::AtomicBool>);
+
+impl ShutdownFlag {
+    pub fn set(&self) {
+        self.0.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+    fn is_set(&self) -> bool {
+        self.0.load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
+
 pub struct ServeState {
     root: PathBuf,
+    /// 协议化停机（DELETE /shutdown 置位，主循环轮询后优雅排空）。
+    shutdown: ShutdownFlag,
     /// 会话写串行化：spawn/send/run/settle/cleanup 一次一命令。
     gate: Mutex<()>,
     /// kanban 资源释放目录（P0023：二进制自带 tar.gz，首启释放到
     /// oma 自管数据根 web/<指纹>/，serve 从这里托管）。
     kanban: PathBuf,
+    /// 看板主页的 session 镜像 token（与 serve 进程同生命周期）：刷新页面
+    /// 不清不重建 share——每次 GET / 清旧起新会让浏览器手里的 token 秒失效，
+    /// 前端重连被拒永远 waiting（实踩）。
+    share_token: tokio::sync::Mutex<Option<String>>,
 }
 
 /// 起编排面：绑定后打 banner，永不主动退出（Ctrl-C 结束进程，会话留存）。
 pub async fn serve(root: PathBuf, port: u16) -> Result<(), String> {
     let project = root.display().to_string();
     let kanban = crate::webassets::ensure_web_assets_at(&crate::install::oma_home()?)?;
+    let kanban_banner = kanban.display().to_string();
+    let shutdown = ShutdownFlag::default();
     let state = Arc::new(ServeState {
         root,
+        shutdown: shutdown.clone(),
         gate: Mutex::new(()),
         kanban,
+        share_token: tokio::sync::Mutex::new(None),
     });
     let app = router(state);
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
@@ -55,12 +79,19 @@ pub async fn serve(root: PathBuf, port: u16) -> Result<(), String> {
         .await
         .map_err(|e| format!("bind {addr}: {e}"))?;
     let local = listener.local_addr().map_err(|e| e.to_string())?;
-    let kanban = crate::webassets::ensure_web_assets_at(&crate::install::oma_home()?)?;
     println!("serve.addr=http://{local}");
-    println!("serve.kanban={}", kanban.display());
+    println!("serve.kanban={kanban_banner}");
     println!("serve.project={project}");
     println!("serve.ok=true");
+    // 协议化自杀（rmux kill-server 同款，S023）：flag 置位后 axum 排空在途请求退出。
+    let flag = shutdown.clone();
     axum::serve(listener, app)
+        .with_graceful_shutdown(async move {
+            while !flag.is_set() {
+                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            }
+            eprintln!("serve: shutdown requested; draining");
+        })
         .await
         .map_err(|e| format!("serve: {e}"))
 }
@@ -71,8 +102,10 @@ pub async fn serve_in_background(root: PathBuf, port: u16) -> Result<SocketAddr,
     let kanban = crate::webassets::ensure_web_assets_at(&crate::install::oma_home()?)?;
     let state = Arc::new(ServeState {
         root,
+        shutdown: ShutdownFlag::default(),
         gate: Mutex::new(()),
         kanban,
+        share_token: tokio::sync::Mutex::new(None),
     });
     let app = router(state);
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
@@ -105,6 +138,7 @@ fn router(state: Arc<ServeState>) -> axum::Router {
         .route("/run", post(run))
         .route("/settle", post(settle))
         .route("/session", delete(cleanup))
+        .route("/shutdown", delete(shutdown_endpoint))
         .route("/stream/{agent}", get(stream))
         .route("/screen/{agent}", get(screen))
         .route("/share", post(share_session))
@@ -295,44 +329,28 @@ fn kanban_reply(dir: &Path, rel: &str) -> Response {
 /// 载后前端按 hash 连接——302 方案会对 `/` 自旋）。
 async fn home(
     State(st): State<Arc<ServeState>>,
-    headers: axum::http::header::HeaderMap,
+    headers: axum::http::HeaderMap,
 ) -> Response {
-    let host = headers
-        .get(axum::http::header::HOST)
-        .and_then(|h| h.to_str().ok())
-        .unwrap_or("127.0.0.1:7900")
-        .to_string();
-    let fe = format!("http://{host}/");
-    // 清本项目全部旧 share（pane 形态 target 是 `<session>:%N`，前缀即会话名）。
-    if let Ok(list) = api::web_shares(&st.root).await {
-        if let Ok(name) = orch::session_name(&st.root) {
-            for row in list["shares"].as_array().cloned().unwrap_or_default() {
-                if row["target"]
-                    .as_str()
-                    .is_some_and(|t| t.starts_with(name.as_str()))
-                {
-                    if let Some(id) = row["id"].as_str() {
-                        let _ = api::web_share_stop(&st.root, id).await;
-                    }
-                }
+    // token 与 serve 同生命周期：页面刷新复用同一 share，不清不重建。
+    let mut cached = st.share_token.lock().await;
+    if cached.is_none() {
+        let host = headers
+            .get(axum::http::header::HOST)
+            .and_then(|h| h.to_str().ok())
+            .unwrap_or("127.0.0.1:7900")
+            .to_string();
+        let fe = format!("http://{host}/");
+        match api::web_share(&st.root, None, false, 43200, Some(&fe), true).await {
+            Ok(v) => {
+                *cached = v["url"].as_str().and_then(|u| u.split("#t=").nth(1)).map(String::from);
+            }
+            Err(e) => {
+                return err_reply("home", &st.root, StatusCode::OK, e);
             }
         }
     }
-    let mirror = api::web_share(&st.root, None, false, 43200, Some(&fe), true).await;
-    let token = mirror
-        .as_ref()
-        .ok()
-        .and_then(|v| {
-            v["url"]
-                .as_str()
-                .and_then(|u| u.split("#t=").nth(1))
-                .map(String::from)
-        });
-    let Some(token) = token else {
-        let msg = mirror
-            .err()
-            .unwrap_or_else(|| "mirror url missing token".to_string());
-        return err_reply("home", &st.root, StatusCode::OK, msg);
+    let Some(token) = cached.clone() else {
+        return err_reply("home", &st.root, StatusCode::OK, "mirror url missing token".into());
     };
     let kanban_dir = match crate::install::oma_home()
         .map_err(|e| e)
@@ -371,50 +389,6 @@ async fn kanban_astro_asset(State(st): State<Arc<ServeState>>, AxPath(path): AxP
     kanban_reply(&st.kanban, &format!("_astro/{path}"))
 }
 
-
-/// 起一路官方 web 镜像（rmux web-share，P0021）：operator 可操作真 attach，
-/// spectator 只看；URL 与 PIN 在 stderr，api 层已合并解析。
-async fn share_agent(
-    State(st): State<Arc<ServeState>>,
-    AxPath(agent): AxPath<String>,
-    headers: axum::http::HeaderMap,
-    body: String,
-) -> Response {
-    let command = "share";
-    #[derive(Deserialize)]
-    struct ShareReq {
-        spectator: Option<bool>,
-        ttl: Option<u64>,
-        /// 缺省本地托管形态免 PIN；显式 "on" 恢复带 PIN。
-        pin: Option<String>,
-    }
-    let req: ShareReq = if body.trim().is_empty() {
-        ShareReq { spectator: None, ttl: None, pin: None }
-    } else {
-        match parse_body(&body, command, &st.root) {
-            Ok(r) => r,
-            Err(r) => return r,
-        }
-    };
-    // serve 在跑就默认本地前端（P0021）：share.rmux.io 只是静态资产，能自托管。
-    let fe = headers
-        .get(axum::http::header::HOST)
-        .and_then(|h| h.to_str().ok())
-        .map(|host| format!("http://{host}/"));
-    // 前端本地托管即本机场景：免 PIN 直连（req 显式给 pin 才加回）。
-    let no_pin = match req.pin.as_deref() {
-        None => fe.is_some(),
-        Some("on") => false,
-        Some(_) => true,
-    };
-    finish(
-        command,
-        &st.root,
-        api::web_share(&st.root, Some(&agent), req.spectator.unwrap_or(false), req.ttl.unwrap_or(3600), fe.as_deref(), no_pin).await,
-    )
-}
-
-/// 整会话镜像（P0021 默认形态）：一个 URL 全窗格、operator 可编辑、带分屏控制。
 async fn share_session(
     State(st): State<Arc<ServeState>>,
     headers: axum::http::HeaderMap,
@@ -445,6 +419,46 @@ async fn share_session(
         &st.root,
         api::web_share(&st.root, None, req.spectator.unwrap_or(false), req.ttl.unwrap_or(3600), fe.as_deref(), no_pin).await,
     )
+}
+
+/// 单路 pane 镜像（给 agent 粒度的场景）。
+async fn share_agent(
+    State(st): State<Arc<ServeState>>,
+    AxPath(agent): AxPath<String>,
+    headers: axum::http::HeaderMap,
+    body: String,
+) -> Response {
+    let command = "share";
+    #[derive(Deserialize)]
+    struct ShareReq {
+        spectator: Option<bool>,
+        ttl: Option<u64>,
+        pin: Option<String>,
+    }
+    let req: ShareReq = if body.trim().is_empty() {
+        ShareReq { spectator: None, ttl: None, pin: None }
+    } else {
+        match parse_body(&body, command, &st.root) {
+            Ok(r) => r,
+            Err(r) => return r,
+        }
+    };
+    let fe = headers
+        .get(axum::http::header::HOST)
+        .and_then(|h| h.to_str().ok())
+        .map(|host| format!("http://{host}/"));
+    let no_pin = fe.is_some() && req.pin.as_deref() != Some("on");
+    finish(
+        command,
+        &st.root,
+        api::web_share(&st.root, Some(&agent), req.spectator.unwrap_or(false), req.ttl.unwrap_or(3600), fe.as_deref(), no_pin).await,
+    )
+}
+
+/// 协议化停机：置 flag，主循环 200ms 内排空退出（客户端只等连接关闭）。
+async fn shutdown_endpoint(State(st): State<Arc<ServeState>>) -> Response {
+    st.shutdown.set();
+    ok_reply("shutdown", &st.root, json!({ "draining": true }))
 }
 
 async fn share_list(State(st): State<Arc<ServeState>>) -> Response {

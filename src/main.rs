@@ -152,14 +152,25 @@ enum Commands {
         #[command(subcommand)]
         cmd: TraceCmd,
     },
-    /// 起 HTTP 编排面（六操作 RESTish 加 JSON 信封；只绑 127.0.0.1）
+    /// 起 HTTP 编排面（后台守护：start 即调即退，stop/status 管理）
     Serve {
-        /// 监听端口
+        #[command(subcommand)]
+        cmd: Option<ServeCmd>,
+        /// 监听端口（无子命令直启时用）
         #[arg(long, default_value_t = 7900)]
         port: u16,
         /// 项目根；默认当前目录
         #[arg(long)]
         project: Option<PathBuf>,
+    },
+    /// serve 守护进程本体（隐藏；由 `oma serve start` 孤儿化拉起）
+    ServeDaemon {
+        /// 监听端口
+        #[arg(long)]
+        port: u16,
+        /// 项目根
+        #[arg(long)]
+        project: PathBuf,
     },
     /// 作为 MCP server 跑在 stdio（六操作 tools 加 trace 检索 tools）
     Mcp {
@@ -199,6 +210,31 @@ enum Commands {
         /// 免 PIN 直连（本地场景；缺省保留 PIN 防外发）
         #[arg(long)]
         no_pin: bool,
+        /// 项目根；默认当前目录
+        #[arg(long)]
+        project: Option<PathBuf>,
+    },
+}
+
+#[derive(Subcommand)]
+enum ServeCmd {
+    /// 后台启动编排面（即调即退；已活直接返回地址）
+    Start {
+        /// 监听端口
+        #[arg(long, default_value_t = 7900)]
+        port: u16,
+        /// 项目根；默认当前目录
+        #[arg(long)]
+        project: Option<PathBuf>,
+    },
+    /// 停止后台编排面（按记录 pid 杀）
+    Stop {
+        /// 项目根；默认当前目录
+        #[arg(long)]
+        project: Option<PathBuf>,
+    },
+    /// 查看后台编排面状态
+    Status {
         /// 项目根；默认当前目录
         #[arg(long)]
         project: Option<PathBuf>,
@@ -359,7 +395,13 @@ fn run() -> Result<(), String> {
         } => tokio_block(cmd_run(text, assign, confirm, project, json)),
         Commands::Settle { wait, project, json } => tokio_block(cmd_settle(wait, project, json)),
         Commands::Trace { cmd } => cmd_trace(cmd),
-        Commands::Serve { port, project } => cmd_serve(port, project),
+        Commands::Serve { cmd, port, project } => match cmd {
+            None => cmd_serve(port, project),
+            Some(ServeCmd::Start { port, project }) => cmd_serve_start(port, project),
+            Some(ServeCmd::Stop { project }) => cmd_serve_stop(project),
+            Some(ServeCmd::Status { project }) => cmd_serve_status(project),
+        },
+        Commands::ServeDaemon { port, project } => cmd_serve(port, Some(project)),
         Commands::Mcp { project, print_config } => cmd_mcp(project, print_config),
         Commands::Completions { shell } => cmd_completions(shell),
         Commands::Respawn { agent, project, json } => {
@@ -450,6 +492,55 @@ fn tokio_block<F: std::future::Future<Output = Result<(), String>>>(
         .build()
         .map_err(|e| format!("tokio runtime: {e}"))?
         .block_on(fut)
+}
+
+/// `oma serve start`：即调即退——DETACHED 孤儿化拉起，端口就绪后返回。
+#[cfg(feature = "server")]
+fn cmd_serve_start(port: u16, project: Option<PathBuf>) -> Result<(), String> {
+    let root = project_root(project)?;
+    let addr = oma::servectl::serve_start(&root, port)?;
+    println!("serve.start.addr={addr}");
+    println!("serve.start.kanban={addr}/");
+    println!("serve.start.ok=true");
+    Ok(())
+}
+
+#[cfg(not(feature = "server"))]
+fn cmd_serve_start(_port: u16, _project: Option<PathBuf>) -> Result<(), String> {
+    Err("oma serve needs the `server` feature; rebuild with --features server".to_string())
+}
+
+/// `oma serve stop`：按记录 pid 杀后台编排面。
+fn cmd_serve_stop(project: Option<PathBuf>) -> Result<(), String> {
+    let root = project_root(project)?;
+    match oma::servectl::serve_stop(&root)? {
+        true => {
+            println!("serve.stop.killed=true");
+            println!("serve.stop.ok=true");
+        }
+        false => {
+            println!("serve.stop.killed=false");
+            println!("serve.stop.ok=true");
+        }
+    }
+    Ok(())
+}
+
+/// `oma serve status`：探活并打记录。
+fn cmd_serve_status(project: Option<PathBuf>) -> Result<(), String> {
+    let root = project_root(project)?;
+    let (live, rec) = oma::servectl::serve_status(&root);
+    match rec {
+        Some(r) => {
+            println!("serve.status.pid={}", r.pid);
+            println!("serve.status.port={}", r.port);
+            println!("serve.status.project={}", r.project);
+            println!("serve.status.live={live}");
+        }
+        None => println!("serve.status.live=false"),
+    }
+    println!("serve.status.ok=true");
+    Ok(())
 }
 
 /// serve 是常驻命令：feature 缺失时给出可行动的报错而不是静默装死。

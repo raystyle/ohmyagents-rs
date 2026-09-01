@@ -1215,8 +1215,8 @@ class ShareConnection {
 
 class ShareView {
   private readonly app: HTMLElement;
-  private readonly brandLogoDark: HTMLImageElement;
-  private readonly brandLogoLight: HTMLImageElement;
+  private readonly brandLogoDark: HTMLImageElement | null;
+  private readonly brandLogoLight: HTMLImageElement | null;
   private readonly endpointHost: HTMLElement;
   private readonly role: HTMLElement;
   private readonly status: HTMLElement;
@@ -1274,7 +1274,7 @@ class ShareView {
   private readonly terminalProvenance: HTMLButtonElement;
   private readonly provenance: ProvenanceDialog;
   private readonly confirmDialog: HTMLDialogElement;
-  private readonly confirmLogo: HTMLImageElement;
+  private readonly confirmLogo: HTMLImageElement | null;
   private readonly confirmTitle: HTMLElement;
   private readonly confirmDetail: HTMLElement;
   private readonly confirmConnect: HTMLButtonElement;
@@ -1354,8 +1354,8 @@ class ShareView {
       brandHome.href = shareBasePath();
       brandHome.addEventListener('click', () => clearActiveShareParams());
     }
-    this.brandLogoDark = query(root, '.share-brand-logo-dark');
-    this.brandLogoLight = query(root, '.share-brand-logo-light');
+    this.brandLogoDark = root.querySelector('.share-brand-logo-dark');
+    this.brandLogoLight = root.querySelector('.share-brand-logo-light');
     this.endpointHost = query(root, '[data-share-endpoint]');
     this.role = query(root, '[data-share-role]');
     this.status = query(root, '[data-share-status]');
@@ -1413,7 +1413,7 @@ class ShareView {
     this.terminalProvenance = query(root, '[data-share-terminal-provenance]');
     this.provenance = new ProvenanceDialog(root);
     this.confirmDialog = query(root, '[data-share-confirm]');
-    this.confirmLogo = query(root, '[data-share-confirm-logo]');
+    this.confirmLogo = root.querySelector('[data-share-confirm-logo]');
     this.confirmTitle = query(root, '[data-share-confirm-title]');
     this.confirmDetail = query(root, '[data-share-confirm-detail]');
     this.confirmConnect = query(root, '[data-share-confirm-connect]');
@@ -1794,9 +1794,10 @@ class ShareView {
   }
 
   setBrandCrab(color: string): void {
-    this.brandLogoDark.src = shareAssetUrl(`crabs/${color}-dark.svg`);
-    this.brandLogoLight.src = shareAssetUrl(`crabs/${color}-light.svg`);
-    this.confirmLogo.src = shareAssetUrl(`crabs/${color}-light.svg`);
+    // 品牌图标按本地化裁剪可为空（P0022 去 logo）：空则跳过，只换主题色。
+    this.brandLogoDark?.setAttribute('src', shareAssetUrl(`crabs/${color}-dark.svg`));
+    this.brandLogoLight?.setAttribute('src', shareAssetUrl(`crabs/${color}-light.svg`));
+    this.confirmLogo?.setAttribute('src', shareAssetUrl(`crabs/${color}-light.svg`));
   }
 
   setSessionActions(canLogout: boolean): void {
