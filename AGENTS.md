@@ -96,7 +96,7 @@
 - **hook 写状态**：`oma hook`（agent lifecycle hook 调用；stdin JSON 或参数；写 `OHMYAGENTS_STATE_FILE`；缺环境则静默。不连 rmux 管道）
 - **Windows 最小 pane POC**：`cargo run --example poc-endpoint|poc-session|poc-layout|poc-drive|poc-dialogs|poc-paste|poc-locate|poc-stream|poc-state|poc-init|poc-negatives`（专用 pipe、CreateOnly、2x2、send_text+Enter、hook blocked + sendkeys、load-buffer+paste-buffer -p 中文、pid 反查进程名错位 throw、output_stream Oldest 回放 Now 直播、terminal_state 分类 Quiet 不当 idle、hook/skill 项目级部署幂等不改家目录、C-c Codex 与 daemon-wide kill 负例守卫）。Windows 范围全表绿；Linux/mac 委托后续仓库
 - **部署项目级 hook/skill/yolo**：`oma init [--project PATH]` 全套（yolo 键加 hook/skill，S015 矩阵，幂等不改家目录）；`--yolo` 仅键；`--pretrust` 追加家目录信任库
-- **和解拉起**：`oma spawn [--agents a,b] [--stub] [--project PATH]`（P0024：会话不在新开，在则活路附加、死路重开；命令面只见 agent 实例，窗格复杂性绑在背后；不阻塞）；阻塞用 `doctor`/`status` 诊断，不在主命令里长时间 `wait_ready` 卡住委派
+- **和解拉起**：`oma spawn [--agents a,b] [--stub] [--project PATH]`（P0024：会话不在新开，在则活路附加、死路重开；命令面只见 agent 实例，窗格复杂性绑在背后；不阻塞；拉起后自动跑一轮信任框 settle——白名单只碰信任/升级屏，任务级确认永不自动按）；阻塞用 `doctor`/`status` 诊断，不在主命令里长时间 `wait_ready` 卡住委派
 - **开会话（REPL）**：`oma [--stub] [--agents a,b] [--no-web] [--open]`（P0016 已落地）：会话已在则重连不叠格；默认内嵌编排面（端口 7900 顺延 7909）打印 URL；`--open` 才开浏览器（失败只警告）。行命令 `all|<agent> <文本>|status|web|quit`，quit 只 detach
 - **委派**：`oma send <agent> "<文本>"`（单行两段式、多行三段式粘贴均实测可用；`--confirm MARKER` 等短头确认）；`oma run "<文本>" [--assign a,b]` 状态门分派多路（一路 blocked/busy 跳过不堵其它路，写层 3 任务文件）。Drive 遵守三段式铁律（发前扫框、`paste-buffer -p`、Enter 单独发**且与文本间隔**，细则见 `docs\research\S005-drive铁律与三段式粘贴.md`）：禁止文本和 Enter 同发、对 Codex 发 `C-c`、发送侧自包 `\x1b[200~`
 - **查轨迹**：`oma trace sessions|timeline|blocks|agent|file|search`（六视图，`--project` 挂叶子）：查询时联邦读四家原生会话库（grok 主源 updates.jsonl 权威日志，chat_history 兜底，S020）
