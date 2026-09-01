@@ -693,6 +693,15 @@ pub async fn reconcile(
     let mut m = read_manifest(root)?.ok_or_else(|| {
         "session exists but manifest is missing; run `oma cleanup` then `oma spawn`".to_string()
     })?;
+    // boot keeper 补杀（relay4 claude2：spawn 失败后重试走本分支，boot 会话
+    // 永不清理——残留破坏「label 单 session」前提（relayout 无 -t 的安全
+    // 假设）且让 cleanup 后 daemon 不退；wontfix 对产品会话的豁免不覆盖它）。
+    let boot = boot_session_name(root);
+    let _ = rmuxpoc::run_cli_checked(
+        &link.rmux_bin,
+        &["-L", link.label.as_str(), "kill-session", "-t", &boot],
+        "kill boot session",
+    );
 
     // 精确集合（用户定调 2026-09-01 二次，取代中8「补缺不移除」）：命令面
     // 要几路就几路——`--agents codex` 就是一路。**先补后收**（grok 三轮

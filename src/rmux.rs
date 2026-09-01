@@ -16,7 +16,7 @@ pub struct Layout {
     pub daemon: PathBuf,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Report {
     pub source: Source,
     pub layout: Layout,
@@ -275,15 +275,24 @@ pub fn detect(pin: &RmuxPin) -> Result<Report, CheckError> {
 }
 
 pub fn ensure(pin: &RmuxPin, install: bool) -> Result<Report, CheckError> {
-    match detect(pin) {
-        Ok(r) => Ok(r),
+    // 进程内缓存（relay4 claude1：detect 跑两个子进程加三次 sha，每条
+    // serve/mcp 命令内联付 100-400ms 且冻结单线程 runtime；rmux 布局在
+    // 进程生命周期内不变，成功结果缓存一次）。
+    static CACHE: std::sync::OnceLock<Report> = std::sync::OnceLock::new();
+    if let Some(r) = CACHE.get() {
+        return Ok(r.clone());
+    }
+    let report = match detect(pin) {
+        Ok(r) => r,
         Err(CheckError::Missing { reason }) if install => {
             eprintln!("oma: {reason}; installing pinned {}", pin.tag);
             install_pinned(pin)?;
-            detect(pin)
+            detect(pin)?
         }
-        Err(e) => Err(e),
-    }
+        Err(e) => return Err(e),
+    };
+    let _ = CACHE.set(report.clone());
+    Ok(report)
 }
 
 pub fn install_pinned(pin: &RmuxPin) -> Result<Layout, CheckError> {

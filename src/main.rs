@@ -915,11 +915,19 @@ async fn cmd_run(
 ) -> Result<(), String> {
     let root = project_root(project)?;
     if json {
-        return print_json(
-            "run",
-            &root,
-            oma::api::run(&root, &text, assign, confirm.as_deref()).await,
-        );
+        // 全路被门挡时与文本通道一致退出非 0（relay4 claude3）。
+        let out = oma::api::run(&root, &text, assign, confirm.as_deref()).await;
+        let gated = out
+            .as_ref()
+            .ok()
+            .and_then(|v| v.get("dispatched"))
+            .and_then(|d| d.as_bool())
+            .is_some_and(|d| !d);
+        print_json("run", &root, out)?;
+        if gated {
+            std::process::exit(1);
+        }
+        return Ok(());
     }
     let link = orch::connect(&root, false).await?;
     let outcome = orch::run(&link, &root, &text, assign, confirm.as_deref()).await?;
