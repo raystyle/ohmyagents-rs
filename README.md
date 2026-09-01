@@ -1,103 +1,168 @@
 # Oh My Agents
 
-一句话定位：**通用智能体多路复用任务编排器**。在 rmux 上把多路终端智能体编进一个项目会话，按目录自动部署 hook 与 skill，用 `oma` 下发任务、看状态、检轨迹。当前适配 Claude / Codex / Grok / Kimi 四家。显示名 Oh My Agents，仓库 `ohmyagents`，CLI `oma`。远端 <https://github.com/raystyle/OhMyAgents>。
+## 项目介绍
 
-编排操作三通道：CLI、HTTP API（`oma serve`，自带可视化网页）、MCP（`oma mcp` stdio）；一份编排核心三消费。
+**通用智能体多路复用任务编排器**：在 rmux 上把多路终端智能体（当前适配 Claude / Codex / Grok / Kimi 四家）编进一个项目会话，按目录自动部署 hook 与 skill，用 `oma` 下发任务、看状态、检轨迹。
 
-## 快速开始
+- 显示名 Oh My Agents；仓库 `ohmyagents`；CLI `oma`；远端 <https://github.com/raystyle/OhMyAgents>
+- **三通道编排**：CLI、HTTP API（`oma serve`，主页即可视化看板）、MCP（`oma mcp` stdio）——一份编排核心三消费
+- **agent 实例优先**：命令面只见 agent；服务、会话、窗口、窗格、PTY 作为复杂性绑在 agent 背后——初始检测互斥、操作绑定已开实例，绝不重复开已活原语（新开/附加/重开三态和解）
+- **可视化看板**：`oma serve` 主页即 web 镜像——打开就是四路窗格实时画面，可打字可分屏；资源包随二进制走，首启释放 oma 数据根
+- **联邦轨迹检索**：`oma trace` 查询时直读四家原生会话库，双意图（用户请求与 assistant 声明）加 operation_id 归组，可回溯 oma 出现之前的历史
+- **自适应安装**：`oma check` 装 rmux（pin + sha256 信任锚）；`oma agents install` 装缺的 agent（github 主 CDN 兜底）；`oma agents update` 取证升级并写回用户本地 pin
 
-先装 Rust 工具链，然后让 oma 自己装运行时与缺的 agent（rmux pin 在 `catalog/rmux.toml`，agent pin 在 `catalog/agents.toml`；oma 自管数据根 `~/.ohmyagents` 不动家目录注册）：
+## 如何安装部署
 
-```powershell
-cargo build --features server,mcp
-.\target\debug\oma.exe check           # 装/校验 rmux（现役 0.10.0）
-.\target\debug\oma.exe agents          # 检测四家已装情况
-.\target\debug\oma.exe agents install  # 缺的按 catalog 装（github 主 CDN 兜底）
-```
-
-进项目目录初始化并开会话（不要在本仓库根跑 `init`：会写 `.claude` / `.codex` / `.kimi-code`）：
+前置：Rust 工具链（rustc/cargo）。oma 自管数据根 `~/.ohmyagents`，不动家目录注册。
 
 ```powershell
-oma init --project D:\my\proj    # hook + skill + yolo 键，幂等，不动家目录
-oma spawn --project D:\my\proj   # 拉起多路 agent 会话（缺省已装交集）
-oma                              # 或裸 oma 进 REPL（内嵌网页，打印 URL）
+git clone https://github.com/raystyle/OhMyAgents
+cd OhMyAgents
+cargo build --features server,mcp      # release: cargo build --release --features server,mcp
 ```
 
-REPL 行命令：`all <文本>`（状态门分派）、`claude|codex|grok|kimi <文本>`（单路）、`status`、`web`、`quit`（只 detach）。
-
-三传输等价：
+装运行时与 agent（全部自适应：已装即跳过）：
 
 ```powershell
-oma serve --port 7900 --project D:\my\proj   # HTTP：GET / 网页、六操作 RESTish、SSE 画面、trace 端点
-oma mcp --project D:\my\proj                 # MCP stdio：九 tools
-oma mcp --print-config                       # 各客户端注册片段
+.\target\debug\oma.exe check           # 装/校验 rmux（pin 在 catalog/rmux.toml，现役 0.10.0）
+.\target\debug\oma.exe agents          # 检测四家已装情况（缺装行带 hint）
+.\target\debug\oma.exe agents install  # 缺的按 catalog 装（oma 自管根 ~/.ohmyagents/agents）
 ```
 
-六会话命令（spawn/status/send/run/settle/cleanup）都支持 `--json`（与 HTTP/MCP 同形信封）；`oma completions powershell` 出补全脚本。
+进目标项目初始化并开会话（注意：不要在本仓库根跑 `init`——会写 `.claude` / `.codex` / `.kimi-code` 进项目）：
 
-## 目录结构
+```powershell
+oma init --project D:\my\proj          # hook + skill + yolo 键（幂等，不动家目录）
+oma spawn --project D:\my\proj         # 和解式拉起：缺省已装交集，1-4 路
+oma serve --project D:\my\proj         # 起编排面；浏览器开 http://127.0.0.1:7900/ 即看板
+```
 
-核心布局（明细见 `INDEX.md`）：
+日常入口任选：
+
+```powershell
+oma                                    # REPL（和解起会话 + 内嵌编排面 + 行循环）
+oma serve                              # 常驻编排面（主页即看板）
+oma status                             # 纯 CLI
+```
+
+## 完整命令示例
+
+> 六会话命令与 respawn 均支持 `--json`（与 HTTP/MCP 同形信封 `{ok, data|error, meta}`）；`--project PATH` 缺省当前目录，下例省略。
+
+### 安装与诊断
+
+```powershell
+oma check                              # 核对 rmux pin（版本+sha256+布局）；缺则装
+oma check --no-install                 # 只诊断不下载（不符则退出非 0）
+oma doctor                             # 只读诊断：yolo/信任/二进制/state + CPU 指令集段
+oma agents                             # 列四家检测（source=path|env|oma|default + version）
+oma agents install                     # 自适应装缺（已装任何来源即跳过）
+oma agents install claude grok --force # 指定重装 oma 自管根
+oma agents update                      # 全部升到最新（取证 sha 后写回用户本地 pin）
+oma agents update kimi                 # 只升一家
+```
+
+### 项目初始化
+
+```powershell
+oma init                               # 全套：yolo 键 + 四家 hook/skill（SKILL.md 命令图生成）
+oma init --yolo                        # 仅无阻塞键
+oma init --yolo --pretrust             # 额外预写家目录信任库（四家）
+oma hook                               # agent hook 入口（读 stdin JSON 写 .ohmyagents/state）
+```
+
+### 编排
+
+> 和解式三态：会话不在新开、在则活路附加、死路重开。
+
+```powershell
+oma spawn                              # 新开：缺省已装交集，1-4 路
+oma spawn --agents claude,codex        # 指定路
+oma spawn --stub                       # shell 桩（验收与调试）
+oma spawn                              # 会话已在：活路附加、死路重开
+#   输出：spawn.attached=claude  spawn.respawned=codex  spawn.mode=reconcile
+
+oma respawn codex                      # 强制重开一路（kill-pane 单窗格，不动会话与其它路）
+oma status                             # 各路 pid/进程/终端态/hook 态（TTY 对齐表格；死路报 dead）
+oma status --json                      # JSON 信封（机器面）
+```
+
+### 发任务与分派
+
+```powershell
+oma send claude "修复 src/main.rs 的编译错误"          # 单路单行（等回显再 Enter）
+oma send claude "多行
+任务
+文本"                                                # 多行自动三段式粘贴
+oma send claude "跑测试" --confirm "test result: ok"   # 等画面出现确认短头
+oma run "给四家都总结一下当前架构"                     # 状态门分派：忙路跳过不堵其它路
+oma run "重构登录模块" --assign claude,codex           # 只分派指定路
+oma settle --wait 30                    # 自愈信任框（claude Enter / kimi 上移+Enter / codex 升级屏 Skip）
+oma cleanup                             # 只杀本项目会话（不动 daemon 与其它会话）
+```
+
+### 轨迹检索
+
+> 查询时联邦读四家原生会话库。
+
+```powershell
+oma trace sessions                      # 项目内各 agent 会话
+oma trace timeline --limit 20           # 编辑事件（operation_id、双意图、真实时间戳）
+oma trace timeline --agent grok --file "src/*.rs"
+oma trace blocks                        # 操作块视图（一次工具调用一块，可能多文件）
+oma trace agent claude                  # 某家 agent 的块时间线
+oma trace file src/orch.rs              # 单文件被谁何时基于什么意图改过
+oma trace search "登录|auth"            # 正则检索 patch/file/双意图四域
+```
+
+### 传输与镜像
+
+```powershell
+oma serve                               # HTTP 编排面（六操作 RESTish + trace 端点 + 信封）
+oma serve --port 8080 --project D:\my\proj
+#   浏览器开 http://127.0.0.1:7900/ 即看板（整会话镜像、免 PIN、可打字可分屏）
+#   RESTish：POST /spawn | GET /status | POST /send | POST /run | POST /settle | DELETE /session
+#            POST /share/{agent} | GET /share | DELETE /share/{id}/stop
+#            GET /trace/sessions|timeline|search    （全部 JSON 信封）
+
+oma mcp                                 # MCP server（stdio 九 tools：六操作 + trace 三件）
+oma mcp --project D:\my\proj
+oma mcp --print-config                  # 打印 Claude Code / codex / 通用 mcpServers 注册片段
+
+oma web                                 # 起 web 镜像链接（缺省整会话、官方域、PIN 防外发）
+oma web claude                          # 单路镜像
+oma web --spectator --ttl 600           # 只读旁观 10 分钟
+oma web --no-pin                        # 免 PIN 直连（本地场景）
+```
+
+### REPL 与其他
+
+```powershell
+oma                                     # REPL：和解起会话 + 内嵌编排面（7900 顺延 7909）
+oma --agents claude,codex --no-web      # 指定路、不起 HTTP
+oma --open                              # 打印 URL 后尝试开浏览器（失败只警告）
+oma completions powershell              # 补全脚本（bash/zsh/fish/powershell）
+```
+
+REPL 会话内：
 
 ```text
-ohmyagents/
-  INDEX.md           文档总索引（P/S/R/G/M 编号定位）
-  GOAL / PLAN / TODO 三原语
-  catalog\           rmux 与四家 agent 的版本 pin（信任锚是文件哈希）
-  src\               oma CLI（orch 编排核心 + api 传输无关层 + 三适配前端）
-  examples\          部件 POC（Windows 范围全绿）
-  docs\web\          可视化单页（无构建链，serve 直出）
-  docs\proven\       P 编号，已完成方案归档
-  docs\diary\        项目日记（一天一篇总结自省）
-  docs\research\     S 编号，研究原型过程（六态）
-  docs\guide\        G 编号，元规范
-  docs\references\   R 编号，开发测试参考
-  docs\mistakes\     M 编号，错误速查
+> all 给四家都跑一遍构建
+> claude 看看 src/orch.rs 的 spawn 逻辑
+> status
+> web
+> quit          （只 detach；拆会话用 oma cleanup）
 ```
 
-## 核心概念
+## 更多文档
 
-- **编排核心一份三消费**：`orch`（Link 加六函数）不感知传输；CLI 行式、HTTP 信封、MCP structured 信封都是薄适配（api 层共用）
-- **自动配置**：`init` 把 hook、skill（命令图生成）、yolo 键写进项目目录，幂等合并不动家目录
-- **状态门**：`run` 分派前查各路 hook 态与终端态，一路忙/阻塞跳过不堵其它路
-- **自愈信任**：`settle` 自检测并自动确认信任/审查框（密码类永不自动）
-- **联邦轨迹检索**：`oma trace` 查询时直读四家原生会话库（claude projects、codex rollout、grok updates 权威日志、kimi wire），双意图（用户请求与 assistant 声明）加 operation_id 归组，可回溯 oma 出现之前的历史
-- **六态标记**：研究与测试文档的事实性断言标实证 / 推断 / 经验 / 记忆 / 假设 / 直觉，标准见 `docs\guide\G002-研究标准细则-结构与六态标记.md`
-
-## 常用命令速查
-
-| 意图 | 命令 |
-| --- | --- |
-| 核对运行时 | `oma check` |
-| 检测/安装/升级 agent | `oma agents` / `agents install` / `agents update` |
-| 初始化项目 | `oma init` |
-| 无阻塞诊断 | `oma doctor`（含 CPU 指令集能力段） |
-| 拉会话/看状态/收尾 | `oma spawn` / `oma status` / `oma cleanup` |
-| 发任务/分派 | `oma send <agent> "<文本>"` / `oma run "<文本>"` |
-| 自愈信任 | `oma settle` |
-| 查轨迹 | `oma trace sessions\|timeline\|blocks\|agent\|file\|search` |
-| 网页/MCP | `oma serve` / `oma mcp` |
-| REPL | 裸 `oma` |
-
-文档检查：`rumdl check .`。命令设计见 `docs\references\R002-常用命令与管理流程-从项目init到会话cleanup.md`。
-
-## 文档导航
-
-- `AGENTS.md`：定位 / 操作规则 / 意图路由 / 资源索引
-- `INDEX.md`：全量索引
-- `docs\references\R001-项目定位-通用智能体多路复用任务编排器.md`：现役定位
-- `docs\references\R002-常用命令与管理流程-从项目init到会话cleanup.md`：命令手册
-- `docs\guide\G001-文档标准细则-命名写作规范与rumdl检查.md`：命名与写作
-- `docs\guide\G002-研究标准细则-结构与六态标记.md`：研究规范与六态标记
-- `docs\references\R004-测试标准细则-分层断言与门禁流程.md`：测试分层与门禁
+- `AGENTS.md`：协作规则（定位/操作规则/意图路由/资源索引）
+- `INDEX.md`：全量索引（P/S/R/G/M 编号定位）
+- `docs\references\R002-常用命令与管理流程-从项目init到会话cleanup.md`：命令手册细则
+- 命令设计、研究过程与经验见 `docs\` 各分册
 
 ## 环境前提
 
-本机 2026-08-31：
-
-- Windows 11，pwsh 7；rustc / cargo 1.97.1
-- claude 2.1.246、codex 0.149.1、grok 1.0.13、kimi 0.39.1
-- rmux 0.10.0（oma 自管根，`oma check` 安装）
-- CPU 能力（`oma doctor` 实测）：x86_64，avx=true avx2=true avx512f=false
+本机 2026-09-01：Windows 11 + pwsh 7；rustc/cargo 1.97.1；claude 2.1.246、codex 0.149.1、grok 1.0.13、kimi 0.39.1；rmux 0.10.0（oma 自管根）；CPU（`oma doctor` 实测）x86_64 avx=true avx2=true avx512f=false。
 
 yolo 启动旗标会关掉审批和沙箱，只在自己信任的项目目录用。Linux/mac 接管已排后（资产与代码路径就绪，预备检测见 `docs\research\S021`）。
