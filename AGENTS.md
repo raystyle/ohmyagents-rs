@@ -91,7 +91,7 @@
 - **核对照**：`oma check`（rmux 版本 + 哈希 + 完整布局；缺则按 `catalog/rmux.toml` 安装。`--no-install` 只诊断）
 - **无阻塞诊断**：`oma doctor`（进程存活 + hook 语义 + 任务指向 + yolo；不把 wait-pane Quiet 当 idle）
 - **检测已装 agent**：`oma agents`（PATH、`OMA_AGENT_PATH`、`OMA_*_BIN`、oma 自管根 `~/.ohmyagents\agents`、各家默认安装目录；Windows / Linux / macOS；缺装行带 hint）
-- **安装缺失 agent**：`oma agents install [名] [--force] [--root PATH]`（自适应：已装任何来源即跳过；catalog pin 加渠道序 github 主 CDN 兜底加 sha256 信任锚加 leaf 找二进制加装后探针；Windows 实测四家全绿，Linux / mac 资产与路径就绪待环境切换验收，P0012）
+- **安装缺失 agent**：`oma agents install [名] [--force] [--root PATH]`（自适应：已装任何来源即跳过；catalog pin 加渠道序 github 主 CDN 兜底加 sha256 信任锚加 leaf 找二进制加装后探针；Windows 与 mac 实测四家全绿——mac 侧 grok 双 CDN 补 macos-aarch64 pin；Linux 资产就绪待环境验收，P0012）
 - **升级与 pin 维护**：`oma agents update [名] [--force]`（最新版解析加 sha 取证加写回用户本地 pin 层 `~/.ohmyagents\catalog\agents.toml`；取证不全整体失败保旧 pin）
 - **配置状态栏**：`oma agents statusline [名]`（claude settings.json 幂等合并 statusLine 块、codex config.toml [tui] status_line 整段替换；pwsh 脚本释放 oma 数据根 statusline/）
 - **hook 写状态**：`oma hook`（agent lifecycle hook 调用；stdin JSON 或参数；写 `OHMYAGENTS_STATE_FILE`；缺环境则静默。不连 rmux 管道）

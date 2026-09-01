@@ -11,10 +11,10 @@
 
 | 目标 | 状态 | 说明 |
 | --- | --- | --- |
-| mac 环境搭建与构建 | 待做 | clone 后 `cargo test` 两口味基线 + `cargo build --features server,mcp`（Linux 第一棒同流程） |
-| rmux mac 资产验收 | 待做 | `oma check` 真机（catalog 已 pin darwin 资产 sha）；daemon 拉起走 `boot_new_session` Unix 分支（已平台化） |
-| 四家 agent mac 安装 | 待做 | `oma agents install` 真机：darwin 资产名/解包/安装目录/探针待验收 |
-| 真身四路 + settle 真机（mac） | 待做 | 信任屏 marker mac 差异；四家 TUI 画面过分类器 |
+| mac 环境搭建与构建 | 已完成 | 基线 79+10 / 82+10 全绿；build --features server,mcp 过（2026-09-01） |
+| rmux mac 资产验收 | 已完成 | `oma check` arm64 全绿；daemon 拉起 Unix 分支 stub 全链复验绿（2026-09-01） |
+| 四家 agent mac 安装 | 已完成 | 检测与 `--force` darwin 四家全链绿；grok 双 CDN 补 macos-aarch64 pin（47b1ddd）（2026-09-01） |
+| 真身四路 + settle 真机（mac） | 已完成 | 信任屏措辞漂移三路修复加 codex 数字菜单形态（7211d41）；settle 窗口四路全收、真任务闭环、doctor 全绿（2026-09-01） |
 
 ### 2. 挂起
 
@@ -29,12 +29,12 @@
 
 - 立项：新目标按 G003 五步（登记、研究、方案、实施、归档）走，先搜 `INDEX.md` 防重复造规则。
 - 命令面：已落地 17 命令 + REPL（清单见 AGENTS 意图路由与 README）；`oma serve start/stop/status` 守护化，看板默认 spectator 只读（可写镜像用 `oma web`）。
-- Linux 已验路径：daemon 拉起 `boot_new_session`、分类器 Unix 提示符、pid 守卫、serve 进程组隔离；stub 全链绿（2026-09-01）。
+- Unix 已验路径（WSL Linux 与 mac 双验）：daemon 拉起 `boot_new_session`、分类器 Unix 提示符、pid 守卫、serve 进程组隔离；stub 全链绿；mac 另验四家 darwin 安装与真身四路 + settle（2026-09-01）。
 - 门禁：`rumdl check .` + `md-ref-scan.py` + `md-heading-scan.py` 裸跑；提交前含 `cargo test`（隔离 target）；提交精确 add（M036）。
 
 ## 完成的定义
 
 > 本目标验收口径。
 
-- mac 真机：构建与测试基线全绿、rmux 资产验收、四家 agent 安装、真身四路 + settle 全链绿。
+- mac 真机：达成（2026-09-01）——构建与测试基线全绿、rmux 资产验收、四家 agent 安装、真身四路 + settle 全链绿（含真任务与 hook 流）。
 - WSL Linux 侧：第一棒已收口（构建/基线/daemon/分类器/stub 全链）；挂起两项待回 WSL 环境续做后并档。

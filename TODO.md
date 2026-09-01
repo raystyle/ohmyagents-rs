@@ -12,10 +12,10 @@ P0012 平台接管进入 mac 阶段（用户定调 2026-09-01：WSL Linux 第一
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
-| mac 环境搭建 | 待做 | clone、cargo test 两口味基线、build --features server,mcp | 待定 |
-| rmux mac 资产验收 | 待做 | oma check 真机（catalog 已 pin darwin 资产） | 待定 |
-| 四家 agent mac 安装 | 待做 | oma agents install 真机（darwin 资产/解包/安装目录/探针） | 待定 |
-| 真身四路 + settle 真机 | 待做 | 信任屏 marker mac 差异 | 待定 |
+| mac 环境搭建 | 已完成 | 基线 79+10 / 82+10 全绿（比 Linux 各多 1 例系 a4160d6 Unix 提示符单测）；build --features server,mcp 25.7s | 2026-09-01 |
+| rmux mac 资产验收 | 已完成 | `oma check` arm64 全绿：PATH 发现 rmux 0.10.0、darwin 资产 sha 对锚、dispatcher/helper/daemon 哈希齐、自管根布局 | 2026-09-01 |
+| 四家 agent mac 安装 | 已完成 | 检测四家全绿（PATH）；`--force` darwin 四家全链验收；抓到 grok 双 CDN 无 macos pin，实测推翻 S017 假设并自算 sha 补 pin（47b1ddd） | 2026-09-01 |
+| 真身四路 + settle 真机 | 已完成 | 抓到三路信任屏措辞漂移 + codex hooks 屏数字菜单新形态，补 marker 加黄金行回归（7211d41）；全新项目 settle 窗口四路全收零手工、`oma task` 真任务产物精确、hook 流通、doctor.blocked=false | 2026-09-01 |
 
 ## WSL Linux 阶段清单
 
@@ -61,6 +61,6 @@ P0012 平台接管进入 mac 阶段（用户定调 2026-09-01：WSL Linux 第一
 
 ## 队列目标
 
-（无——mac 已转正为 P0012 当前阶段；WSL Linux 剩余两项挂起待回环境续做。）
+（无现役——mac 阶段四项已收口；WSL Linux 剩余两项挂起待回环境续做；P0012 待用户定向回 WSL 补尾或收口归档。）
 
 （P0006 至 P0026 已完成；过程与经验在对应 proven 方案。）
