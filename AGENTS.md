@@ -98,7 +98,7 @@
 - **部署项目级 hook/skill/yolo**：`oma init [--project PATH]` 全套（yolo 键加 hook/skill，S015 矩阵，幂等不改家目录）；`--yolo` 仅键；`--pretrust` 追加家目录信任库
 - **和解拉起**：`oma spawn [--agents a,b] [--stub] [--project PATH]`（P0024：会话不在新开，在则活路附加、死路重开；命令面只见 agent 实例，窗格复杂性绑在背后；不阻塞；拉起后自动跑一轮信任框 settle——白名单只碰信任/升级屏，任务级确认永不自动按）；阻塞用 `doctor`/`status` 诊断，不在主命令里长时间 `wait_ready` 卡住委派
 - **开会话（REPL）**：`oma [--stub] [--agents a,b] [--no-web] [--open]`（P0016 已落地）：会话已在则重连不叠格；默认内嵌编排面（端口 7900 顺延 7909）打印 URL；`--open` 才开浏览器（失败只警告）。行命令 `all|<agent> <文本>|status|web|quit`，quit 只 detach
-- **委派**：`oma send <agent> "<文本>"`（单行两段式、多行三段式粘贴均实测可用；`--confirm MARKER` 等短头确认）；`oma run "<文本>" [--assign a,b]` 状态门分派多路（一路 blocked/busy 跳过不堵其它路，写层 3 任务文件）。Drive 遵守三段式铁律（发前扫框、`paste-buffer -p`、Enter 单独发**且与文本间隔**，细则见 `docs\research\S005-drive铁律与三段式粘贴.md`）：禁止文本和 Enter 同发、对 Codex 发 `C-c`、发送侧自包 `\x1b[200~`
+- **委派**：`oma send <agent> "<文本>"`（单行两段式、多行三段式粘贴均实测可用；`--confirm MARKER` 等短头确认）；`oma run "<文本>" [--assign a,b]` 状态门分派多路（一路 blocked/busy 跳过不堵其它路，写层 3 任务文件）；`oma key <agent> <KEY>` 发单键受守卫入口（codex 拒 `C-c`——一个 C-c 杀进程；打断 codex 用 Esc）。Drive 遵守三段式铁律（发前扫框、`paste-buffer -p`、Enter 单独发**且与文本间隔**，细则见 `docs\research\S005-drive铁律与三段式粘贴.md`）：禁止文本和 Enter 同发、对 Codex 发 `C-c`、发送侧自包 `\x1b[200~`
 - **查轨迹**：`oma trace sessions|timeline|blocks|agent|file|search`（六视图，`--project` 挂叶子）：查询时联邦读四家原生会话库（grok 主源 updates.jsonl 权威日志，chat_history 兜底，S020）
 - **自愈信任**：`oma settle [--wait N]`（自检测信任/审查框并自动确认默认应选项，各家自己持久化信任；密码类永不自动）。codex 的 hook 注册形态见 `src\deploy.rs`（绝对路径加 PowerShell 调用操作符 `&`）
 - **看状态**：`oma status`（层 0 pid + locate 进程名 + 1b 终端态 + 层 2 hook 态）
@@ -112,7 +112,7 @@
 - **JSON 信封**：六会话命令加 `--json`（spawn/status/send/run/settle/cleanup）出 `{ok, data|error, meta}` 信封，与 HTTP/MCP 同形（P0015 已落地）
 - **生成补全**：`oma completions <shell>`（clap_complete，bash/zsh/fish/powershell 等）
 
-已落地：`check`、`init`（全套）、`doctor`、`agents`、`agents install`、`agents update`、`hook`、`spawn`、`status`（TTY 表格）、`send`、`cleanup`、`run`、`settle`、`trace` 六视图、`serve`（HTTP 编排面加网页可视化）、`mcp`（stdio 九 tools）、REPL（裸 `oma`，内嵌编排面）、`respawn`（强制重开一路）、`web`（web 镜像，整会话缺省）、`completions`、六会话命令 `--json` 信封。设计命令全部落地；新想法走 G003 五步再立项，禁止把未验收口径写成已可跑。
+已落地：`check`、`init`（全套）、`doctor`、`agents`、`agents install`、`agents update`、`hook`、`spawn`、`status`（TTY 表格）、`send`、`key`（单键守卫入口）、`cleanup`、`run`、`settle`、`trace` 六视图、`serve`（HTTP 编排面加网页可视化）、`mcp`（stdio 九 tools）、REPL（裸 `oma`，内嵌编排面）、`respawn`（强制重开一路）、`web`（web 镜像，整会话缺省）、`completions`、六会话命令 `--json` 信封。设计命令全部落地；新想法走 G003 五步再立项，禁止把未验收口径写成已可跑。
 
 ## 四、资源索引
 

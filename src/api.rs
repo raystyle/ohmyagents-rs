@@ -95,6 +95,14 @@ pub async fn send(
     Ok(json!({ "agent": agent, "sent": true }))
 }
 
+/// 发单键（受守卫入口）：codex 拒 C-c（M001），键名直传 rmux（Enter/Esc/
+/// t/Up/...）。
+pub async fn key(root: &Path, agent: &str, key: &str) -> Result<Value, String> {
+    let link = orch::connect(root, false).await?;
+    orch::key(&link, root, agent, key).await?;
+    Ok(json!({ "agent": agent, "key": key, "sent": true }))
+}
+
 /// 状态门分派：sent 与 skipped（agent: reason）都进 data。
 pub async fn run(
     root: &Path,

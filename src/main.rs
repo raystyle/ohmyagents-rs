@@ -109,6 +109,16 @@ enum Commands {
         #[arg(long)]
         json: bool,
     },
+    /// 向某路 agent 发单个按键（受守卫：codex 拒 C-c——一个 C-c 杀进程，M001）
+    Key {
+        /// 目标 agent 名
+        agent: String,
+        /// 键名（Enter/Esc/t/Up/Down/...，直传 rmux send-keys 语义）
+        key: String,
+        /// 项目根；默认当前目录
+        #[arg(long)]
+        project: Option<PathBuf>,
+    },
     /// 只杀本项目的会话（不动 daemon 与其它会话）
     Cleanup {
         /// 项目根；默认当前目录
@@ -385,6 +395,7 @@ fn run() -> Result<(), String> {
             project,
             json,
         } => tokio_block(cmd_send(agent, text, confirm, project, json)),
+        Commands::Key { agent, key, project } => tokio_block(cmd_key(agent, key, project)),
         Commands::Cleanup { project, json } => tokio_block(cmd_cleanup(project, json)),
         Commands::Run {
             text,
@@ -694,6 +705,24 @@ async fn cmd_status(project: Option<PathBuf>, json: bool) -> Result<(), String> 
     }
     println!("status.ok=true");
     Ok(())
+}
+
+/// `oma key`：发单键的受守卫入口（裸 rmux CLI 绕守卫曾实杀一路 codex，
+/// 2026-09-01）。codex 的 C-c 被拒并给出替代建议。
+async fn cmd_key(agent: String, key: String, project: Option<PathBuf>) -> Result<(), String> {
+    let root = project_root(project)?;
+    match oma::api::key(&root, &agent, &key).await {
+        Ok(_) => {
+            println!("key.agent={agent}");
+            println!("key.sent={key}");
+            println!("key.ok=true");
+            Ok(())
+        }
+        Err(e) => {
+            eprintln!("oma: {e}");
+            std::process::exit(1);
+        }
+    }
 }
 
 async fn cmd_send(

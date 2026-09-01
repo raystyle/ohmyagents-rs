@@ -186,7 +186,7 @@ ohmyagents/
 
 | 编号 | 分类文件 | 覆盖关键词 | 行级编号段 |
 | --- | --- | --- | --- |
-| M101 | `M101-drive与paste错误.md` | send-keys、Enter、`C-c`、bracketed paste、marker 假阳性 | M001、M008、M027 |
+| M101 | `M101-drive与paste错误.md` | send-keys、Enter、`C-c`、bracketed paste、marker 假阳性 | M001、M008、M027、M038-M039 |
 | M102 | `M102-信任与hook配置错误.md` | 信任框、trust、pretrust、init、yolo | M002、M009-M011 |
 | M103 | `M103-文档与命名错误.md` | 命名、显示名、CLI 名、六态、diary、标题规范 | M003-M005、M013-M014、M030 |
 | M104 | `M104-rmux安装与CLI调用错误.md` | 安装、`-V`、`-S`、`-L`、`cmd()`、`-t` 前缀匹配 | M006-M007、M016、M020、M029 |

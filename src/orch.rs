@@ -743,6 +743,22 @@ fn respawn_argv(root: &Path, m: &Manifest, agent: &str) -> Result<Vec<String>, S
     Ok(vec![found.display().to_string()])
 }
 
+/// 发单个按键（受守卫入口，2026-09-01 用户定调：「对 Codex 发 C-c 是禁项」
+/// 应在代码层警告——裸 rmux CLI 绕过守卫曾实杀一路 codex）。守卫：
+/// `check_send_key`（codex 拒 C-c，M001 一个 C-c 杀进程）。
+pub async fn key(
+    link: &Link,
+    root: &Path,
+    agent: &str,
+    key: &str,
+) -> Result<(), String> {
+    let (_, pane) = pane_for_agent(link, root, agent).await?;
+    rmuxpoc::check_send_key(agent, key)?;
+    pane.send_key(key.to_string())
+        .await
+        .map_err(|e| format!("send_key {key}: {e}"))
+}
+
 /// Two send shapes share one guard chain (agent key policy, manifest
 /// locate, process locate):
 /// - single line: SDK `send_text` then `send_key("Enter")` (two dispatches)
@@ -990,7 +1006,32 @@ pub async fn settle(
                 tokio::time::sleep(Duration::from_millis(400)).await;
             }
             dismissed.push(format!("{marker}:{}", keys.join("+")));
-            tokio::time::sleep(Duration::from_millis(1500)).await;
+            // 按后确认（2026-09-01 实踩：升级屏关掉后快照仍是旧帧，立即
+            // 重按一轮会把「2」落进输入框提交成任务）——等 marker 从屏上
+            // 消失（最多 3s）；顽固不消失**不重按**（防重复提交），记
+            // stalled 事件退出该路，人工接手。
+            let marker_still = |lines: &Vec<String>| {
+                lines.iter().any(|l| {
+                    let t = l.trim();
+                    t.chars().count() <= 80 && t.to_lowercase().contains(&marker)
+                })
+            };
+            let confirm_deadline = std::time::Instant::now() + Duration::from_secs(3);
+            let mut confirmed = false;
+            while std::time::Instant::now() < confirm_deadline {
+                tokio::time::sleep(Duration::from_millis(400)).await;
+                match pane.snapshot().await {
+                    Ok(snap) if !marker_still(&snap.visible_lines()) => {
+                        confirmed = true;
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+            if !confirmed {
+                eprintln!("settle.{}.stalled={marker}: marker still on screen; NOT re-sending keys", agent.name);
+                break;
+            }
         }
         let outcome = if dismissed.is_empty() {
             "none".to_string()
