@@ -651,6 +651,7 @@ async fn cmd_spawn(
     println!("spawn.session={}", orch::session_name(&root)?.as_str());
     println!("spawn.attached={}", out.attached.join(","));
     println!("spawn.respawned={}", out.respawned.join(","));
+    println!("spawn.removed={}", out.removed.join(","));
     println!("spawn.mode={}", if out.attached.is_empty() { "new" } else { "reconcile" });
     println!("spawn.blocking=false");
     println!("spawn.ok=true");

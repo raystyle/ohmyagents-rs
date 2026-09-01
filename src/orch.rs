@@ -573,6 +573,8 @@ pub async fn status(link: &Link, root: &Path) -> Result<(Vec<PaneStatus>, Option
 pub struct ReconcileOutcome {
     pub attached: Vec<String>,
     pub respawned: Vec<String>,
+    /// 精确集合收掉的多余路（不在本次 plan 里的）。
+    pub removed: Vec<String>,
 }
 
 /// agent 实例活判据：pane 存在 + pid 活 + 进程名匹配（stub 记 pwsh，真 agent 记本名）。
@@ -611,6 +613,7 @@ pub async fn reconcile(
         return Ok(ReconcileOutcome {
             attached: Vec::new(),
             respawned: m.agents.iter().map(|a| a.name.clone()).collect(),
+            removed: Vec::new(),
         });
     }
     std::fs::create_dir_all(root.join(".ohmyagents").join("state"))
@@ -620,6 +623,28 @@ pub async fn reconcile(
         "session exists but manifest is missing; run `oma cleanup` then `oma spawn`".to_string()
     })?;
 
+    // 精确集合（用户定调 2026-09-01 二次，取代中8「补缺不移除」）：命令面
+    // 要几路就几路——`--agents codex` 就是一路。多余路收格并出 manifest；
+    // 收格失败容忍（格可能已死，幂等 kill 会放过）。
+    let wanted: Vec<&str> = plan.agents.iter().map(|(a, _)| a.as_str()).collect();
+    let surplus: Vec<String> = m
+        .agents
+        .iter()
+        .map(|a| a.name.clone())
+        .filter(|n| !wanted.contains(&n.as_str()))
+        .collect();
+    let mut removed = Vec::new();
+    for agent in &surplus {
+        if let Some(entry) = m.agents.iter().find(|a| &a.name == agent) {
+            let pane_id = entry.pane_id;
+            if pane_for(&session, pane_id).await.is_ok() {
+                let _ = kill_pane(link, &session, pane_id).await;
+            }
+        }
+        m.agents.retain(|a| &a.name != agent);
+        removed.push(agent.clone());
+        eprintln!("reconcile.{agent}=removed");
+    }
     let mut attached = Vec::new();
     let mut respawned = Vec::new();
     // 判活按本次计划的 stub 语义（P0026 中8）：旧会话是 stub、本次真身时，
@@ -672,24 +697,29 @@ pub async fn reconcile(
     // 的进程名判定（pwsh vs agent 本名）不再拿旧会话语义误判。
     m.stub = plan.stub;
     write_manifest(root, &m)?;
-    // 有重开动作才重排（纯附加的会话布局没被动过；tiled 幂等但省一次 CLI）。
-    if !respawned.is_empty() {
-        relayout_tiled(link);
+    // 有收放动作才重排（纯附加的会话布局没被动过；重排幂等但省一次 CLI）。
+    if !respawned.is_empty() || !removed.is_empty() {
+        relayout(link, m.agents.len());
     }
-    Ok(ReconcileOutcome { attached, respawned })
+    Ok(ReconcileOutcome { attached, respawned, removed })
 }
 
-/// 布局自愈（2026-09-01 用户定调「任务启动时预检测布局自愈」）：respawn/
-/// 死路重开的 kill+split 会留下不规则网格（实测 kimi 独占半屏、grok 横条）。
-/// `select-layout tiled` 一键重排均匀网格——幂等，活 pane 内容不动只动
-/// 边框；label 单 session 无 -t 歧义。失败只警告不阻塞主流程。
-fn relayout_tiled(link: &Link) {
+/// 布局自愈（2026-09-01 用户定调）：按**实际路数**选形态——1 路全屏、
+/// 2/3 路左右列分（even-horizontal，单格即全屏）、4 路 2x2（tiled）。
+/// respawn/死路重开的 kill+split 会留不规则网格（实测 kimi 独占半屏），
+/// 此处一键重排——幂等，活 pane 内容不动只动边框；label 单 session 无
+/// -t 歧义。失败只警告不阻塞主流程。
+fn relayout(link: &Link, lanes: usize) {
+    let layout = match lanes {
+        1 | 2 | 3 => "even-horizontal",
+        _ => "tiled",
+    };
     if let Err(e) = rmuxpoc::run_cli_checked(
         &link.rmux_bin,
-        &["-L", link.label.as_str(), "select-layout", "tiled"],
+        &["-L", link.label.as_str(), "select-layout", layout],
         "select-layout",
     ) {
-        eprintln!("relayout.tiled=failed ({e})");
+        eprintln!("relayout.{layout}=failed ({e})");
     }
 }
 
@@ -746,7 +776,7 @@ pub async fn respawn(link: &Link, root: &Path, agent: &str) -> Result<u64, Strin
         }),
     }
     write_manifest(root, &m)?;
-    relayout_tiled(link);
+    relayout(link, m.agents.len());
     Ok(pid_u32)
 }
 

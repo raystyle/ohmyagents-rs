@@ -45,6 +45,7 @@ pub async fn spawn(
         "stub": manifest.stub,
         "attached": out.attached,
         "respawned": out.respawned,
+        "removed": out.removed,
         "settled": settled,
         "agents": manifest.agents.iter().map(|a| a.name.clone()).collect::<Vec<_>>(),
         "panes": manifest.agents.iter().map(|a| a.pane_id).collect::<Vec<_>>(),
