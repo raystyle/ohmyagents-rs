@@ -1,5 +1,6 @@
 /target/
 /target-test/
+target-review*/
 .serve-fg.log
 .t1/
 /.ohmyagents/
