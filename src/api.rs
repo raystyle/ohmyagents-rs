@@ -55,7 +55,7 @@ pub async fn respawn(root: &Path, agent: &str) -> Result<Value, String> {
 /// 只读状态：各路 pid、进程名、终端态、hook 态。
 pub async fn status(root: &Path) -> Result<Value, String> {
     let link = orch::connect(root, false).await?;
-    let panes = orch::status(&link, root).await?;
+    let (panes, warning) = orch::status(&link, root).await?;
     let rows: Vec<Value> = panes
         .iter()
         .map(|p| {
@@ -72,6 +72,8 @@ pub async fn status(root: &Path) -> Result<Value, String> {
         "project": root.display().to_string(),
         "session": orch::session_name(root)?.as_str(),
         "panes": rows,
+        // 中10：进程名批查失败显式告警，不伪装成 process=null。
+        "warning": warning,
     }))
 }
 
@@ -194,25 +196,33 @@ pub async fn web_share(
     })
     .await
     .map_err(|e| format!("web-share join: {e}"))??;
+    // 中9：解析加行锚点——URL 只认角色行（spectator/operator）或行首
+    // http 的 token，stderr 噪声里的 URL 不再误收；pin/expires 同样行首
+    // 锚定，输出格式微调或警告混入时不再错位。
     let url = text
         .lines()
         .filter_map(|l| {
-            l.split_whitespace()
-                .find(|w| w.starts_with("https://") || w.starts_with("http://"))
+            let t = l.trim_start();
+            if t.starts_with("spectator") || t.starts_with("operator") || t.starts_with("http") {
+                l.split_whitespace()
+                    .find(|w| w.starts_with("http://") || w.starts_with("https://"))
+            } else {
+                None
+            }
         })
         .next()
         .ok_or_else(|| "web-share 输出里没有 URL".to_string())?
         .to_string();
     let pin = text
         .lines()
-        .find(|l| l.contains("pin"))
+        .find(|l| l.trim_start().to_ascii_lowercase().starts_with("pin"))
         .and_then(|l| l.split_whitespace().last())
         .unwrap_or("-")
         .to_string();
     let expires = text
         .lines()
-        .find(|l| l.contains("expires"))
-        .map(|l| l.trim().to_string())
+        .find(|l| l.trim_start().starts_with("share expires"))
+        .and_then(|l| l.split_whitespace().last())
         .unwrap_or_default();
     Ok(json!({ "agent": agent.unwrap_or("*session*"), "url": url, "pin": pin, "expires": expires }))
 }

@@ -648,8 +648,11 @@ async fn cmd_status(project: Option<PathBuf>, json: bool) -> Result<(), String> 
     // 双读者（S016）：TTY 走人读表格，管道与测试走 marker 行。
     if std::io::stdout().is_terminal() {
         let link = orch::connect(&root, false).await?;
-        let panes = orch::status(&link, &root).await?;
+        let (panes, warning) = orch::status(&link, &root).await?;
         println!("oma status: {} (session {})", root.display(), orch::session_name(&root)?.as_str());
+        if let Some(w) = warning {
+            println!("warning: {w}");
+        }
         println!();
         print!("{}", oma::repl::render_status_table(&panes));
         return Ok(());
@@ -660,7 +663,7 @@ async fn cmd_status(project: Option<PathBuf>, json: bool) -> Result<(), String> 
         orch::session_name(&root)?.as_str()
     );
     let link = orch::connect(&root, false).await?;
-    let panes = orch::status(&link, &root).await?;
+    let (panes, warning) = orch::status(&link, &root).await?;
     for p in &panes {
         println!(
             "status.pane.{}.pid={}",
@@ -680,6 +683,9 @@ async fn cmd_status(project: Option<PathBuf>, json: bool) -> Result<(), String> 
         );
     }
     println!("status.panes={}", panes.len());
+    if let Some(w) = warning {
+        println!("status.warning={w}");
+    }
     println!("status.ok=true");
     Ok(())
 }

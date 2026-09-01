@@ -4,7 +4,7 @@
 
 ## 当前目标
 
-code review 修复：并发安全与健壮性（对应 `GOAL.md`，方案 P0026，2026-09-01 用户定调「高+中全修」+「web 看板默认只读去操作权限」）。
+无现役切片。code review 修复（P0026，方案三切片）2026-09-01 当日闭环；待用户定向。
 
 ## 任务进度清单
 
@@ -12,7 +12,7 @@ code review 修复：并发安全与健壮性（对应 `GOAL.md`，方案 P0026�
 | --- | --- | --- | --- |
 | 切片 1 安全与僵局 | 已完成 | 看板默认 spectator 只读、Host 校验（高5）、connect label 兜底解 cleanup 僵局（高2）、死路杀旧 pane（高3）、manifest 原子写（高1a）；计划外修 serve daemon 零控制台卡死（CREATE_NO_WINDOW） | 2026-09-01 |
 | 切片 2 并发与语义 | 已完成 | alloc_task_id 原子占位（高1b）、三秒级同步段进 spawn_blocking（高4 分档）、reconcile 判活用 plan.stub 并回写（中8，语义=补缺不移除） | 2026-09-01 |
-| 切片 3 健壮性批 | 待做 | 中6/7/9/10/11/12 六条 | 2026-09-01 |
+| 切片 3 健壮性批 | 已完成 | send baseline（中6）、slug 词法归一 16hex（中7，实踩 canonicalize 时序双身份）、web_share 行锚点（中9）、status warning（中10）、SSE error event（中11）、settle 行级短行（中12） | 2026-09-01 |
 
 ## 前目标 0024 残表
 

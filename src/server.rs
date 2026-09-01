@@ -120,6 +120,25 @@ pub async fn serve_in_background(root: PathBuf, port: u16) -> Result<SocketAddr,
     Ok(local)
 }
 
+/// SSE 端点启动失败（中11）：以 `error` event 表达——对 SSE 客户端回 JSON
+/// 信封既非事件也非错误协议，会挂起或解析失败。
+fn sse_error_reply(command: &str, root: &Path, msg: String) -> Response {
+    let body = serde_json::to_string(&json!({
+        "ok": false,
+        "error": msg,
+        "meta": { "command": command, "project": root.display().to_string() },
+    }))
+    .unwrap_or_default();
+    (
+        [
+            (axum::http::header::CONTENT_TYPE, "text/event-stream; charset=utf-8"),
+            (axum::http::header::CACHE_CONTROL, "no-store"),
+        ],
+        format!("event: error\ndata: {body}\n\n"),
+    )
+        .into_response()
+}
+
 fn router(state: Arc<ServeState>) -> axum::Router {
     axum::Router::new()
         // 主页即 web 镜像页（用户定调：可视化页面当首页，编排走 CLI/API/MCP）。
@@ -160,34 +179,44 @@ async fn screen(
     let command = "screen";
     let link = match orch::connect(&st.root, false).await {
         Ok(l) => l,
-        Err(e) => return err_reply(command, &st.root, StatusCode::OK, e),
+        Err(e) => return sse_error_reply(command, &st.root, e),
     };
     let (pane_id, pane) = match orch::pane_for_agent(&link, &st.root, &agent).await {
         Ok(v) => v,
-        Err(e) => return err_reply(command, &st.root, StatusCode::OK, e),
+        Err(e) => return sse_error_reply(command, &st.root, e),
     };
     let mut render = match pane.render_stream().await {
         Ok(s) => s,
-        Err(e) => return err_reply(command, &st.root, StatusCode::OK, format!("open render stream: {e}")),
+        Err(e) => return sse_error_reply(command, &st.root, format!("open render stream: {e}")),
     };
     // render_stream 只在变化时推送（静屏连接后一直空白）：先补一帧当前快照。
-    let first = pane
-        .snapshot()
-        .await
-        .map(|s| s.visible_lines())
-        .unwrap_or_default();
+    // 中11：首帧拿不到不静默空屏——发 error event 说明后流继续。
+    let first = pane.snapshot().await.map(|s| s.visible_lines());
     let (tx, rx) = mpsc::channel::<Result<Event, Infallible>>(4);
     tokio::spawn(async move {
         let open = Event::default().event("open").data(pane_id.to_string());
         if tx.send(Ok(open)).await.is_err() {
             return;
         }
-        if tx
-            .send(Ok(Event::default().data(serde_json::to_string(&first).unwrap_or_default())))
-            .await
-            .is_err()
-        {
-            return;
+        match first {
+            Ok(lines) => {
+                if tx
+                    .send(Ok(Event::default().data(serde_json::to_string(&lines).unwrap_or_default())))
+                    .await
+                    .is_err()
+                {
+                    return;
+                }
+            }
+            Err(_) => {
+                if tx
+                    .send(Ok(Event::default().event("error").data("first snapshot unavailable")))
+                    .await
+                    .is_err()
+                {
+                    return;
+                }
+            }
         }
         loop {
             match render.next().await {
@@ -611,11 +640,11 @@ async fn stream(
     let command = "stream";
     let link = match orch::connect(&st.root, false).await {
         Ok(l) => l,
-        Err(e) => return err_reply(command, &st.root, StatusCode::OK, e),
+        Err(e) => return sse_error_reply(command, &st.root, e),
     };
     let (pane_id, pane) = match orch::pane_for_agent(&link, &st.root, &agent).await {
         Ok(v) => v,
-        Err(e) => return err_reply(command, &st.root, StatusCode::OK, e),
+        Err(e) => return sse_error_reply(command, &st.root, e),
     };
     let start = if q.from.as_deref() == Some("oldest") {
         rmux_sdk::PaneOutputStart::Oldest
@@ -624,7 +653,7 @@ async fn stream(
     };
     let mut out = match pane.line_stream_starting_at(start).await {
         Ok(s) => s,
-        Err(e) => return err_reply(command, &st.root, StatusCode::OK, format!("open stream: {e}")),
+        Err(e) => return sse_error_reply(command, &st.root, format!("open stream: {e}")),
     };
     let (tx, rx) = mpsc::channel::<Result<Event, Infallible>>(16);
     tokio::spawn(async move {

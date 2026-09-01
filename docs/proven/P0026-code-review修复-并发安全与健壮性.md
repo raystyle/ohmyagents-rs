@@ -1,6 +1,6 @@
 # code review 修复：并发安全与健壮性
 
-- 状态：进行中（2026-09-01 立项）
+- 状态：已完成（2026-09-01 三切片当日闭环）
 - 日期：2026-09-01
 - 关联：codex review 任务产出（2026-08-31 经 `oma send` 委派，trace 收取）；用户定调「高+中全修」
 - 输入：15 条发现（高 5 / 中 7 / 低 3），高严重度 5 条经本仓逐条核实（4 真 1 部分真）
@@ -63,3 +63,19 @@
 - **中8**：reconcile 判活改用本次 `plan.stub`（非 `m.stub`）、manifest 的 stub 随计划回写——stub 会话后跑真 spawn 不再把 stub pane 误判为活路。**语义明确**：reconcile 是「补缺不移除」，`--agents` 子集时已有路保留（设计行为，多余路用 cleanup 或 respawn 管理）。
 - 验收：75+10 / 78+10 全绿；daemon 冒烟 home=200、run 端点 200、stop 干净。[实证]
 - 小坑：闭包 move 后 `id` 再用于返回值触发 use-after-move——echo 副本先行 clone；target\debug\oma.exe 被残留 serve daemon 锁住构建报「拒绝访问」——杀进程即解（M036 关联：测试完的 daemon 要 stop）。
+
+### 切片 3 完成
+
+- **中6**：send 发送前 snap baseline；`await_new_text` 两路——baseline 不含目标走 rmux 原生静默等待，已含（上轮残留）改轮询快照等「内容变化后目标仍在」；echo 超时降级照发 Enter 留痕，confirm 残留同样不再误报。
+- **中7**：slug 16 hex + 平台化小写 + 归一。**实踩两坑**：① canonicalize best-effort 回退在「目录创建前后」算出不同 slug（rm 后 spawn：label 时不存在回退原样、session 时已建又归一，同进程两个身份）——改**纯词法归一**（相对挂 cwd、清 `.`/`..`，零 IO 确定）；② slug 加长使旧 8 位会话失联——已无活会话，一次性清理（kill 旧 label daemon + 删旧 manifest）。实测相对 `.t1` 与绝对 `D:\ohmyagents\.t1` 同 slug、label==session、真看板 home 含 astro。[实证]
+- **中9**：web_share 解析行锚点——URL 只认 spectator/operator 行或行首 http 的 token，pin/expires 行首锚定。
+- **中10**：status 返回 `(panes, warning)`，进程名批查失败进 `data.warning`/`status.warning=`/TTY 首行告警，不伪装 process=null。
+- **中11**：`/screen`、`/stream` 启动失败改 `sse_error_reply`（text/event-stream + error event）；screen 首帧拿不到发 `error` event 不静默空屏。
+- **中12**：settle 匹配收紧「行级短行」——marker 须命中单行且 trimmed ≤ 80 列（P0019 三态实测均为短行），正文长行同词不再误触按键。
+- 验收：75+10 / 78+10 全绿；GET /status 带 warning 字段（None=查询成功）。[实证]
+
+## 整案收口
+
+- codex review 高 5 + 中 7 共 12 条全部落地；低 3 条记档不做（低14 extractor 层、低15 YAGNI、低13 顺手并入切片 1）。
+- 计划外抓到三个真雷：serve daemon 零控制台卡死（DETACHED→CREATE_NO_WINDOW）、task id 撞号实修（原子占位）、canonicalize 时序双身份（改词法归一）——review 之外的收获大于 review 本身。
+- 经验：AI review 的发现要**逐条核实再修**（15 条里高 5 有 1 条部分真）；修的过程中实测冒烟比单测先抓出两个计划外缺陷。

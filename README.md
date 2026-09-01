@@ -7,7 +7,7 @@
 - 显示名 Oh My Agents；仓库 `ohmyagents`；CLI `oma`；远端 <https://github.com/raystyle/OhMyAgents>
 - **三通道编排**：CLI、HTTP API（`oma serve`，主页即可视化看板）、MCP（`oma mcp` stdio）——一份编排核心三消费
 - **agent 实例优先**：命令面只见 agent；服务、会话、窗口、窗格、PTY 作为复杂性绑在 agent 背后——初始检测互斥、操作绑定已开实例，绝不重复开已活原语（新开/附加/重开三态和解）
-- **可视化看板**：`oma serve` 主页即 web 镜像——打开就是四路窗格实时画面，可打字可分屏；资源包随二进制走，首启释放 oma 数据根
+- **可视化看板**：`oma serve` 主页即 web 镜像——打开就是四路窗格实时画面，默认只读（操作走 CLI/API/MCP，要可写镜像用 `oma web`）；资源包随二进制走，首启释放 oma 数据根
 - **联邦轨迹检索**：`oma trace` 查询时直读四家原生会话库，双意图（用户请求与 assistant 声明）加 operation_id 归组，可回溯 oma 出现之前的历史
 - **自适应安装**：`oma check` 装 rmux（pin + sha256 信任锚）；`oma agents install` 装缺的 agent（github 主 CDN 兜底）；`oma agents update` 取证升级并写回用户本地 pin
 
@@ -58,7 +58,7 @@ cd D:\my\proj                        # 进目标项目（不加 --project 即用
 oma init                              # 一次性：部署 hook/skill/yolo 键（幂等，重复跑安全）
 oma spawn                             # 开会话：缺省已装交集 1-4 路（如 claude,codex,grok,kimi）
 oma serve start                        # 后台起看板（即调即退），浏览器开 http://127.0.0.1:7900/
-#   看板里：四路窗格实时画面、直接打字对话、分屏布局
+#   看板里：四路窗格实时画面（默认只读观察；要可打字用 oma web 起可写镜像）
 
 oma run "给四家都总结一下当前架构"       # 日常委派：状态门分派，忙路自动跳过
 oma send claude "看看 src/main.rs"     # 单路直发

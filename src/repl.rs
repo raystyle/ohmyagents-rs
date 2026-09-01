@@ -195,7 +195,12 @@ async fn start_session(root: &std::path::Path, args: &ReplArgs) -> Result<(), St
 async fn print_status(root: &std::path::Path) {
     match orch::connect(root, false).await {
         Ok(link) => match orch::status(&link, root).await {
-            Ok(panes) => print!("{}", render_status_table(&panes)),
+            Ok((panes, warning)) => {
+                if let Some(w) = warning {
+                    eprintln!("oma: {w}");
+                }
+                print!("{}", render_status_table(&panes))
+            }
             Err(e) => eprintln!("oma: {e}"),
         },
         Err(e) => eprintln!("oma: {e}"),

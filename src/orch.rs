@@ -25,14 +25,38 @@ pub const AGENTS: [&str; 4] = ["claude", "codex", "grok", "kimi"];
 
 /// Stable session identity: same project path -> same slug, so repeated
 /// spawn/status/send/cleanup calls reconnect instead of piling sessions.
+/// 中7 加固：**纯词法归一**（相对挂 cwd、清 `.`/`..`、斜杠统一）——不用
+/// canonicalize：它的 best-effort 回退在「目录创建前后」算出不同 slug
+/// （实踩：rm 后 spawn，label 时目录不存在回退原样、session 时已建又归
+/// 一，同进程两个身份）。小写折叠仅 Windows（盘符等价），Unix 大小写敏
+/// 感保留；hash 取前 16 hex（8 位 32bit 碰撞不可忽略）。
 pub fn project_slug(root: &Path) -> String {
-    let norm = root
-        .to_string_lossy()
-        .replace('\\', "/")
-        .trim_end_matches('/')
-        .to_ascii_lowercase();
+    let abs = if root.is_relative() {
+        std::env::current_dir()
+            .unwrap_or_else(|_| PathBuf::from("."))
+            .join(root)
+    } else {
+        root.to_path_buf()
+    };
+    let mut clean = PathBuf::new();
+    for c in abs.components() {
+        match c {
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => {
+                clean.pop();
+            }
+            other => clean.push(other.as_os_str()),
+        }
+    }
+    let joined = clean.to_string_lossy().replace('\\', "/");
+    let norm: String = if cfg!(windows) {
+        joined.to_ascii_lowercase()
+    } else {
+        joined
+    };
+    let norm = norm.trim_end_matches('/');
     let hex = format!("{:x}", Sha256::digest(norm.as_bytes()));
-    hex[..8].to_string()
+    hex[..16].to_string()
 }
 
 pub fn session_name(root: &Path) -> Result<SessionName, String> {
@@ -469,7 +493,9 @@ fn hook_state(root: &Path, agent: &str) -> Option<String> {
 
 /// Read-only status: layer 0 (alive/pid) + locate (process name) + layer 1b
 /// (terminal semantics) + layer 2 (state file when present).
-pub async fn status(link: &Link, root: &Path) -> Result<Vec<PaneStatus>, String> {
+/// 状态 + 可选告警（中10：进程名批查失败不再伪装成 process=null 正常
+/// 态，进 warning 让上层透传给用户）。
+pub async fn status(link: &Link, root: &Path) -> Result<(Vec<PaneStatus>, Option<String>), String> {
     let manifest = read_manifest_req(root)?;
     let name = session_name(root)?;
     let session = rmuxpoc::reuse_only(&link.rmux, name).await?;
@@ -501,12 +527,20 @@ pub async fn status(link: &Link, root: &Path) -> Result<Vec<PaneStatus>, String>
 
     let pids: Vec<u32> = entries.iter().filter_map(|(_, _, p)| *p).collect();
     // pwsh+CIM 批查是秒级同步子进程：放 spawn_blocking，不占 tokio worker
-    //（P0026 高4）。
+    //（P0026 高4）；失败降级为空表但带 warning（中10）。
     let pids_for_blocking = pids.clone();
-    let names = tokio::task::spawn_blocking(move || process_names(&pids_for_blocking))
+    let names_result = tokio::task::spawn_blocking(move || process_names(&pids_for_blocking))
         .await
-        .map_err(|e| format!("process_names join: {e}"))?
-        .unwrap_or_default();
+        .map_err(|e| format!("process_names join: {e}"));
+    let warning = match &names_result {
+        Ok(Ok(_)) => None,
+        Ok(Err(e)) => Some(format!("process lookup failed: {e}")),
+        Err(e) => Some(e.clone()),
+    };
+    let names = match names_result {
+        Ok(Ok(n)) => n,
+        _ => Default::default(),
+    };
 
     let mut out = Vec::new();
     for (agent, pane, pid) in entries {
@@ -526,7 +560,7 @@ pub async fn status(link: &Link, root: &Path) -> Result<Vec<PaneStatus>, String>
             pid,
         });
     }
-    Ok(out)
+    Ok((out, warning))
 }
 
 
@@ -740,6 +774,13 @@ pub async fn send(
         .map_err(|e| format!("process_names join: {e}"))??;
     let actual = expect_process(&names, pid, expected)?;
 
+    // 发送前快照做 baseline（中6）：残留同文本会让 contains 立即满足。
+    let baseline: Option<String> = pane
+        .snapshot()
+        .await
+        .ok()
+        .map(|s| s.visible_lines().join("\n"));
+
     let multiline = text.contains('\n') || text.contains('\r');
     if multiline {
         paste_three_step(link, &pane, entry.pane_id, text)?;
@@ -751,17 +792,15 @@ pub async fn send(
     // S005 铁律「隔开发」：等载荷末行短头在画面可见再单独 Enter——rmux 原生
     // 静默等待，不盲 sleep（P0010 实证：紧连的 Enter 被 codex TUI 吞）。
     // 超时不致命：降级为旧形态照发 Enter 并留痕。
+    // 中6：发送前 baseline 已含同文本（上一轮残留）时不再误判——改等
+    // 「画面变化后仍在」，拿不到变化按超时降级。
     let last_line = text.lines().last().unwrap_or("");
     let head: String = last_line.trim().chars().take(24).collect();
     if !head.is_empty() {
-        match pane
-            .expect_visible_text()
-            .to_contain(&head)
-            .timeout(Duration::from_secs(5))
-            .await
-        {
-            Ok(_) => eprintln!("send.echo=visible"),
-            Err(e) => eprintln!("send.echo=timeout ({e}); Enter 照发"),
+        match await_new_text(&pane, &head, baseline.as_deref(), Duration::from_secs(5)).await {
+            Ok(true) => eprintln!("send.echo=visible"),
+            Ok(false) => eprintln!("send.echo=timeout; Enter 照发"),
+            Err(e) => eprintln!("send.echo=stale-wait ({e}); Enter 照发"),
         }
     }
     // Enter is always its own dispatch; the pasted payload carries none.
@@ -776,14 +815,50 @@ pub async fn send(
     );
 
     if let Some(marker) = confirm {
-        pane.expect_visible_text()
-            .to_contain(marker)
-            .timeout(Duration::from_secs(20))
+        // 中6：marker 若已在发送前画面（残留），等「变化后仍在」才认。
+        await_new_text(&pane, marker, baseline.as_deref(), Duration::from_secs(20))
             .await
-            .map_err(|e| format!("confirm marker {marker} not visible: {e}"))?;
+            .map_err(|e| format!("confirm marker {marker} not re-visible: {e}"))?
+            .then_some(())
+            .ok_or_else(|| format!("confirm marker {marker} not visible in 20s"))?;
         eprintln!("send.confirm={marker}");
     }
     Ok(())
+}
+
+/// 等目标文本「新出现」：baseline 不含时走 rmux 原生静默等待（最优路径）；
+/// baseline 已含（上轮残留）时轮询快照等「内容变化后目标仍在」（中6）。
+/// 返回 Ok(true)=等到，Ok(false)=超时（调用方自定降级），Err=轮询失败。
+async fn await_new_text(
+    pane: &Pane,
+    needle: &str,
+    baseline: Option<&str>,
+    timeout: Duration,
+) -> Result<bool, String> {
+    let stale = baseline.is_some_and(|b| b.contains(needle));
+    if !stale {
+        return pane
+            .expect_visible_text()
+            .to_contain(needle)
+            .timeout(timeout)
+            .await
+            .map(|_| true)
+            .map_err(|e| e.to_string());
+    }
+    let baseline = baseline.unwrap_or_default().to_string();
+    let deadline = std::time::Instant::now() + timeout;
+    while std::time::Instant::now() < deadline {
+        tokio::time::sleep(Duration::from_millis(400)).await;
+        let now = pane
+            .snapshot()
+            .await
+            .map_err(|e| format!("snapshot: {e}"))?;
+        let text = now.visible_lines().join("\n");
+        if text != baseline && text.contains(needle) {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 /// Three-step paste: payload file (UTF-8, no ESC, sender never wraps
@@ -890,12 +965,16 @@ pub async fn settle(
                 Ok(snap) => snap.visible_lines(),
                 Err(_) => Vec::new(),
             };
-            // 全屏匹配（P0019 实测：codex 升级屏在屏顶、kimi 信任菜单在屏中，
-            // 只扫屏底 12 行会漏）；marker 足够特异，正文误触发面可接受。
-            let tail: String = lines.join("\n").to_lowercase();
-            let hit = TRUST_DIALOGS
-                .iter()
-                .find(|(marker, _)| tail.contains(marker));
+            // 行级短行匹配（中12 收紧）：marker 须命中**单行**且该行是对话框
+            // 形态（trimmed ≤ 80 列）——P0019 三态实测（claude 问句行、kimi
+            // 菜单项、codex 屏顶标题）都是短行；正文段落里的同词多在长行，
+            // 全屏子串会把普通输出误当菜单自动按键。
+            let hit = TRUST_DIALOGS.iter().find(|(marker, _)| {
+                lines.iter().any(|l| {
+                    let t = l.trim();
+                    t.chars().count() <= 80 && t.to_lowercase().contains(marker)
+                })
+            });
             let Some((marker, keys)) = hit else { break };
             if std::time::Instant::now() > deadline {
                 break;
@@ -1044,7 +1123,7 @@ pub async fn run(
         return Err("no agents to dispatch to".into());
     }
 
-    let panes = status(link, root).await?;
+    let (panes, _) = status(link, root).await?;
     let by_agent: std::collections::HashMap<String, &PaneStatus> = panes
         .iter()
         .map(|p| (p.agent.clone(), p))
@@ -1112,7 +1191,8 @@ mod tests {
         let a2 = Path::new("D:/code/alpha/");
         assert_eq!(project_slug(a), project_slug(a2));
         assert_ne!(project_slug(a), project_slug(Path::new("D:\\code\\beta")));
-        assert_eq!(project_slug(a).len(), 8);
+        // 中7：hash 前 16 hex（64bit，碰撞可忽略）。
+        assert_eq!(project_slug(a).len(), 16);
         let name = session_name(a).unwrap();
         assert!(name.as_str().starts_with("oma-"));
     }

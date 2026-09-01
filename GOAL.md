@@ -73,7 +73,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：P0026 code review 修复（2026-09-01 立项）——codex review 15 条发现中高 5 + 中 7 全修（用户定调），三切片推进；切片 1 含用户追加定调「web 看板默认只读去操作权限」。queued：P0012 Linux/mac 接管（用户定调排后）。
+- 当前目标：无（P0026 code review 修复 2026-09-01 当日闭环：codex review 高 5 + 中 7 全修三切片，计划外抓三真雷）。queued：P0012 Linux/mac 接管（用户定调排后）。
 
 ## 历史
 
@@ -81,6 +81,7 @@
 
 | 日期 | 目标 | 结果 |
 | --- | --- | --- |
+| 2026-09-01 | code review 修复（P0026） | 达成：codex review 高 5 中 7 全修；计划外修 serve 零控制台卡死、task id 撞号、canonicalize 时序双身份；看板默认只读 |
 | 2026-09-01 | serve 守护化与协议化停机（P0025） | 达成：serve start 即调即退、stop 协议化优先（次轮补齐实测）；FFI 探活避 Job Object 管道死锁 |
 | 2026-09-01 | agent 实例和解式编排（P0024） | 达成：spawn 三态和解、oma respawn 单路强制重开；S023 进程原语实测三纠偏 |
 | 2026-08-31 | web 镜像本地化与主页化（P0022） | 达成：源码构建本地托管、session 免 PIN、主页即镜像、dashboard 下线；命名 web-mirror-server |

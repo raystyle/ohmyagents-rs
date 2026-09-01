@@ -111,7 +111,7 @@ ohmyagents/
 | P0023 | `P0023-看板资源包化.md` | 已完成（build.rs 打 tar.gz 嵌二进制、首启释放 oma 数据根、指纹一次一份） |
 | P0024 | `P0024-agent实例和解式编排.md` | 已完成（spawn 三态和解：新开/附加/死路重开；oma respawn 强制单路重开） |
 | P0025 | `P0025-serve守护化与协议化停机.md` | 已完成（serve start 即调即退、stop 协议化停机 DELETE /shutdown 优先；FFI 探活避 Job Object 管道死锁） |
-| P0026 | `P0026-code-review修复-并发安全与健壮性.md` | 进行中（codex review 高 5 中 7 全修；切片 1 安全与僵局、切片 2 并发与语义、切片 3 健壮性批） |
+| P0026 | `P0026-code-review修复-并发安全与健壮性.md` | 已完成（codex review 高 5 中 7 全修三切片；看板默认 spectator 只读、Host 校验、cleanup 僵局、陈旧 pane、task id 占位、slug 词法归一；计划外修 serve 零控制台卡死） |
 
 ## 四、项目日记
 
