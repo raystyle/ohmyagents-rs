@@ -450,6 +450,7 @@ const COMMAND_MAP: &[(&str, &str)] = &[
     ("oma spawn [--agents a,b] [--stub]", "拉起或重连本项目多路 agent 会话（1-4 路；缺省已装交集）"),
     ("oma status", "看各路 pid、进程名、终端态、hook 态"),
     ("oma send <agent> \"<文本>\"", "向某路发任务（多行自动三段式粘贴）"),
+    ("oma task <agent> \"<文本>\"", "带产物等待的任务委派：oma 阻塞等 DONE，产物在任务目录 output.md"),
     ("oma run \"<文本>\" [--assign a,b]", "状态门分派：闲路才发，忙路跳过不堵其它路"),
     ("oma settle [--wait N]", "自检测并自动确认信任/审查框"),
     ("oma cleanup", "只杀本会话（不动 daemon 与其它会话）"),
@@ -476,7 +477,7 @@ fn skill_md() -> String {
     for (cmd, intent) in COMMAND_MAP {
         s.push_str(&format!("| {intent} | `{cmd}` |\n"));
     }
-    s.push_str("\n裸 `oma` 进 REPL；六会话命令加 `--json` 出信封。细则见仓库 `docs\\references\\R002`。\n");
+    s.push_str("\n## 任务目录协议\n\n收到带「任务协议」尾注的委派时，按 `.ohmyagents/tasks/<id>/` 目录操作：\n\n1. 提示词全文在 `prompt.md`（可随时重读）；\n2. 产物写到 `output.md`（先写全内容）；\n3. **最后**创建空文件 `DONE` 表示完成——oma 只认 DONE 不认 output 存在，顺序不能反。\n\n裸 `oma` 进 REPL；六会话命令加 `--json` 出信封。细则见仓库 `docs\\references\\R002`。\n");
     s
 }
 

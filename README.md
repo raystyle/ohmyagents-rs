@@ -62,6 +62,8 @@ oma serve start                        # 后台起看板（即调即退），浏
 
 oma run "给四家都总结一下当前架构"       # 日常委派：状态门分派，忙路自动跳过
 oma send claude "看看 src/main.rs"     # 单路直发
+oma task codex "review 并把结论写产物"  # 带产物等待：阻塞到 agent 写 output.md 并建 DONE
+oma task list                         # 任务清单与完成态
 oma status                            # 看各路状态（pid/进程/终端态/hook 态）
 oma respawn codex                     # 某路死了或卡住：只重开这一路
 

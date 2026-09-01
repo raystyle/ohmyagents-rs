@@ -119,6 +119,22 @@ enum Commands {
         #[arg(long)]
         project: Option<PathBuf>,
     },
+    /// 带产物等待的任务委派：建任务目录（prompt.md）发 agent，阻塞等产物
+    ///（agent 写 output.md 后创建 DONE；oma task 等 DONE 出现打产物退出）
+    Task {
+        /// 目标 agent 名（claude/codex/grok/kimi）
+        agent: Option<String>,
+        /// 任务文本（全文落 prompt.md，send 带协议尾注）
+        text: Option<String>,
+        /// 等产物秒数；0 无限等（缺省 600）
+        #[arg(long, default_value_t = 600)]
+        timeout: u64,
+        /// 项目根；默认当前目录
+        #[arg(long)]
+        project: Option<PathBuf>,
+        #[command(subcommand)]
+        cmd: Option<TaskCmd>,
+    },
     /// 只杀本项目的会话（不动 daemon 与其它会话）
     Cleanup {
         /// 项目根；默认当前目录
@@ -245,6 +261,24 @@ enum ServeCmd {
     },
     /// 查看后台编排面状态
     Status {
+        /// 项目根；默认当前目录
+        #[arg(long)]
+        project: Option<PathBuf>,
+    },
+}
+
+#[derive(Subcommand)]
+enum TaskCmd {
+    /// 列任务目录与完成态（id / agent / DONE 有无）
+    List {
+        /// 项目根；默认当前目录
+        #[arg(long)]
+        project: Option<PathBuf>,
+    },
+    /// 看一个任务：元数据加产物（有则全量打印）
+    Show {
+        /// 任务 id（如 t001）
+        id: String,
         /// 项目根；默认当前目录
         #[arg(long)]
         project: Option<PathBuf>,
@@ -396,6 +430,13 @@ fn run() -> Result<(), String> {
             json,
         } => tokio_block(cmd_send(agent, text, confirm, project, json)),
         Commands::Key { agent, key, project } => tokio_block(cmd_key(agent, key, project)),
+        Commands::Task { agent, text, timeout, project, cmd } => {
+            match cmd {
+                Some(TaskCmd::List { project }) => cmd_task_list(project),
+                Some(TaskCmd::Show { id, project }) => cmd_task_show(id, project),
+                None => tokio_block(cmd_task(agent, text, timeout, project)),
+            }
+        }
         Commands::Cleanup { project, json } => tokio_block(cmd_cleanup(project, json)),
         Commands::Run {
             text,
@@ -712,6 +753,64 @@ async fn cmd_status(project: Option<PathBuf>, json: bool) -> Result<(), String> 
         println!("status.warning={w}");
     }
     println!("status.ok=true");
+    Ok(())
+}
+
+/// `oma task <agent> "<文本>"`：建任务目录、发任务、阻塞等产物（DONE
+/// 标记协议）。后台形态：shell 后台跑本命令（&），产物落盘后进程自退。
+async fn cmd_task(
+    agent: Option<String>,
+    text: Option<String>,
+    timeout: u64,
+    project: Option<PathBuf>,
+) -> Result<(), String> {
+    let root = project_root(project)?;
+    let (agent, text) = match (agent, text) {
+        (Some(a), Some(t)) => (a, t),
+        _ => return Err("usage: oma task <agent> \"<text>\" [--timeout N] | oma task list | oma task show <id>".into()),
+    };
+    let (id, dir) = oma::task::task_new(&root, &agent, &text).await?;
+    println!("task.id={id}");
+    println!("task.agent={agent}");
+    println!("task.dir={}", dir.display());
+    println!("task.waiting=done-marker timeout={timeout}s");
+    match oma::task::task_wait(&root, &id, timeout) {
+        Ok(output) => {
+            println!("task.done={id}");
+            println!("--- output.md ---");
+            print!("{output}");
+            Ok(())
+        }
+        Err(e) => {
+            eprintln!("oma: {e}");
+            std::process::exit(1);
+        }
+    }
+}
+
+fn cmd_task_list(project: Option<PathBuf>) -> Result<(), String> {
+    let root = project_root(project)?;
+    for (id, agent, done) in oma::task::task_list(&root)? {
+        println!("task.list.{id}.agent={agent}");
+        println!("task.list.{id}.done={done}");
+    }
+    Ok(())
+}
+
+fn cmd_task_show(id: String, project: Option<PathBuf>) -> Result<(), String> {
+    let root = project_root(project)?;
+    let meta = oma::task::task_show(&root, &id)?;
+    println!("task.show.{id}.agent={}", meta.agent);
+    println!("task.show.{id}.created={}", meta.created);
+    let dir = root.join(".ohmyagents").join("tasks").join(&id);
+    println!("task.show.{id}.done={}", dir.join("DONE").exists());
+    match std::fs::read_to_string(dir.join("output.md")) {
+        Ok(output) => {
+            println!("--- output.md ---");
+            print!("{output}");
+        }
+        Err(_) => println!("task.show.{id}.output=pending"),
+    }
     Ok(())
 }
 

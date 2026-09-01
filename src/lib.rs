@@ -10,6 +10,7 @@ pub mod orch;
 pub mod pathutil;
 pub mod repl;
 pub mod rmux;
+pub mod task;
 pub mod webassets;
 pub mod rmuxpoc;
 pub mod trace;
