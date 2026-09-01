@@ -710,6 +710,23 @@ pub async fn reconcile(
     // 的进程名判定（pwsh vs agent 本名）不再拿旧会话语义误判。
     m.stub = plan.stub;
     write_manifest(root, &m)?;
+    // 新拉路就绪确认（用户定调 2026-09-01：命令持续到任务正常开始才退出，
+    // 有阻塞就告警）：每路等 TUI 就绪（idle 稳定/working/画面变化任一）；
+    // 死路（进程秒退）由「无 pane 可查」覆盖。告警不阻塞 spawn 结果。
+    for agent in &respawned {
+        if let Some(entry) = m.agents.iter().find(|a| &a.name == agent) {
+            match pane_for(&session, entry.pane_id).await {
+                Ok(pane) => {
+                    for alert in
+                        await_task_start(&pane, agent, Duration::from_secs(20), true).await
+                    {
+                        eprintln!("spawn.alert={alert}");
+                    }
+                }
+                Err(_) => eprintln!("spawn.alert={agent}: pane gone right after respawn"),
+            }
+        }
+    }
     // 无条件按路数定型（grok 复核：纯附加时原布局可能是残留乱格；重排幂
     // 等且是毫秒级 CLI，「有动作才排」的省略不值得留缺口）。
     relayout(link, m.agents.len());
@@ -900,7 +917,70 @@ pub async fn send(
             .ok_or_else(|| format!("confirm marker {marker} not visible in 20s"))?;
         eprintln!("send.confirm={marker}");
     }
+    // 任务开始确认（用户定调 2026-09-01：命令持续到任务正常开始才退出，
+    // 有阻塞就告警）：Enter 后等该路真开始干活。告警不算发送失败——
+    // stderr `send.alert=` 留痕人工跟进。
+    for alert in await_task_start(&pane, agent, Duration::from_secs(15), false).await {
+        eprintln!("send.alert={alert}");
+    }
     Ok(())
+}
+
+/// 等一路「任务真开始」：双信号任一即认——①分类器 working；②画面内容
+/// 在变（grok 类 spinner 分类器不识别，但干活时画面必变）。命中
+/// blocked（确认/密码框）立即告警；超时（含停在 unknown/idle，如文本
+/// 被首屏吞、提交没触发）告警。`accept_idle`：spawn 场景 TUI 就绪（idle
+/// 稳定屏）即算过；send 场景 idle 超时说明任务没启动。
+async fn await_task_start(
+    pane: &Pane,
+    agent: &str,
+    timeout: Duration,
+    accept_idle: bool,
+) -> Vec<String> {
+    let deadline = std::time::Instant::now() + timeout;
+    let mut last: Option<u64> = None;
+    let mut idle_stable = 0;
+    loop {
+        let snap = match pane.snapshot().await {
+            Ok(s) => s,
+            Err(e) => {
+                return vec![format!("{agent}: snapshot failed while awaiting start ({e})")];
+            }
+        };
+        let state = classify_snapshot(&snap).oma_state();
+        let hash = {
+            use std::hash::{Hash, Hasher};
+            let mut h = std::collections::hash_map::DefaultHasher::new();
+            snap.visible_lines().hash(&mut h);
+            h.finish()
+        };
+        if state == "working" {
+            return Vec::new();
+        }
+        if let Some(prev) = last {
+            if prev != hash {
+                return Vec::new();
+            }
+        }
+        if state == "idle" && accept_idle {
+            // 就绪语义：idle 且画面已稳定（连续两帧同 hash）即认。
+            idle_stable += 1;
+            if idle_stable >= 2 {
+                return Vec::new();
+            }
+        }
+        if state == "blocked" {
+            return vec![format!("{agent}: blocked (confirm/password dialog) — task NOT started")];
+        }
+        if std::time::Instant::now() > deadline {
+            return vec![format!(
+                "{agent}: still '{state}' after {}s — task may not have started (text swallowed? not submitted?)",
+                timeout.as_secs()
+            )];
+        }
+        last = Some(hash);
+        tokio::time::sleep(Duration::from_millis(800)).await;
+    }
 }
 
 /// 等目标文本「新出现」：baseline 不含时走 rmux 原生静默等待（最优路径）；
