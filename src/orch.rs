@@ -585,7 +585,9 @@ pub async fn status(link: &Link, root: &Path) -> Result<(Vec<PaneStatus>, Option
         out.push(PaneStatus {
             process,
             terminal,
-            hook_state: hook_state(root, &agent),
+            // 死路不回填 hook（relay5 codex3：pane 已消失但 state 文件残留
+            // idle/working 时，同一条 status 自相矛盾；dead 与 silent 同义）。
+            hook_state: if terminal == "dead" { None } else { hook_state(root, &agent) },
             agent,
             pid,
         });

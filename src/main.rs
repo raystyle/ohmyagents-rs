@@ -915,19 +915,14 @@ async fn cmd_run(
 ) -> Result<(), String> {
     let root = project_root(project)?;
     if json {
-        // 全路被门挡时与文本通道一致退出非 0（relay4 claude3）。
-        let out = oma::api::run(&root, &text, assign, confirm.as_deref()).await;
-        let gated = out
-            .as_ref()
-            .ok()
-            .and_then(|v| v.get("dispatched"))
-            .and_then(|d| d.as_bool())
-            .is_some_and(|d| !d);
-        print_json("run", &root, out)?;
-        if gated {
-            std::process::exit(1);
-        }
-        return Ok(());
+        // 全路被门挡：信封 ok:true 与 HTTP/MCP 同形（relay5 codex1 订正批8
+        /// 的 exit 1——退出码与信封 ok 互相矛盾；判定以 data.dispatched 为
+        /// 准，口径进 SKILL）。
+        return print_json(
+            "run",
+            &root,
+            oma::api::run(&root, &text, assign, confirm.as_deref()).await,
+        );
     }
     let link = orch::connect(&root, false).await?;
     let outcome = orch::run(&link, &root, &text, assign, confirm.as_deref()).await?;
@@ -937,8 +932,9 @@ async fn cmd_run(
         println!("run.skipped={agent}:{reason}");
     }
     if outcome.sent.is_empty() {
+        // 与 json 通道一致：不非 0 退出（relay5 codex1），marker 已表达
+        // sent 为空。
         eprintln!("oma: every lane was gated ({} skipped); nothing dispatched", outcome.skipped.len());
-        std::process::exit(1);
     }
     // 锁外开始确认（同 cmd_send，Round2 补接）。
     for agent in &outcome.sent {
