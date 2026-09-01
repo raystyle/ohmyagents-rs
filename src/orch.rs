@@ -412,17 +412,20 @@ pub async fn spawn(link: &Link, root: &Path, plan: &SpawnPlan) -> Result<Manifes
         });
     }
     write_manifest(root, &m)?;
-    // 新开会话也按路数定型（grok 复核：split 序列是 Right/Right/Down，3 路
-    // 新开成上 2 下 1，不是用户要的三列）；幂等重排，失败只警告。
-    relayout(link, m.agents.len());
 
-    // The product session now keeps the daemon alive; drop the boot keeper.
+    // The product session now keeps the daemon alive; drop the boot keeper
+    // **before** relayout（kimi 四轮低项：relayout 时 boot 壳还在，label 下
+    // 两个 session，select-layout 无 -t 的目标解析靠「最近 session」隐含
+    // 假设，可能打到 boot 空壳上静默失效）。
     let boot = boot_session_name(root);
     let _ = rmuxpoc::run_cli_checked(
         &link.rmux_bin,
         &["-L", link.label.as_str(), "kill-session", "-t", &boot],
         "kill boot session",
     );
+    // 新开会话也按路数定型（grok 复核：split 序列是 Right/Right/Down，3 路
+    // 新开成上 2 下 1，不是用户要的三列）；幂等重排，失败只警告。
+    relayout(link, m.agents.len());
     Ok(m)
 }
 
@@ -582,6 +585,44 @@ pub struct ReconcileOutcome {
     pub removed: Vec<String>,
 }
 
+/// 新拉路的就绪确认（用户定调 2026-09-01：命令持续到任务正常开始才退出，
+/// 有阻塞就告警）。**由消费面在 reconcile 之后、会话锁外调用**（kimi 四轮
+/// 中3：放 reconcile 内会随 HTTP /spawn 进 gate，4 路全重开最坏 80s 堵
+/// send/run/cleanup；中2：新开会话分支同样要过这里——respawned 含全部
+/// 新拉路）。每路等 TUI 就绪（idle 稳定/working/画面变化任一，20s）；
+/// 死路（进程秒退）由「pane gone」覆盖。返回 alerts 供三通道出口。
+pub async fn await_lanes_ready(
+    link: &Link,
+    root: &Path,
+    agents: &[String],
+) -> Vec<String> {
+    let mut alerts = Vec::new();
+    let Ok(name) = session_name(root) else {
+        return alerts;
+    };
+    let Ok(session) = rmuxpoc::reuse_only(&link.rmux, name).await else {
+        return alerts;
+    };
+    let manifest = match read_manifest_req(root) {
+        Ok(m) => m,
+        Err(_) => return alerts,
+    };
+    for agent in agents {
+        let Some(entry) = manifest.agents.iter().find(|a| a.name == *agent) else {
+            continue;
+        };
+        match pane_for(&session, entry.pane_id).await {
+            Ok(pane) => {
+                alerts.extend(
+                    await_task_start(&pane, agent, Duration::from_secs(20), true).await,
+                );
+            }
+            Err(_) => alerts.push(format!("{agent}: pane gone right after respawn")),
+        }
+    }
+    alerts
+}
+
 /// agent 实例活判据：pane 存在 + pid 活 + 进程名匹配（stub 记 pwsh，真 agent 记本名）。
 async fn agent_alive(
     session: &Session,
@@ -655,13 +696,11 @@ pub async fn reconcile(
             eprintln!("reconcile.{agent}=attached");
             continue;
         }
-        // 死/缺：旧 pane 仍在（进程死/错位）先清掉再分新格——防多次重开
-        // 堆积陈旧 pane（P0026 高3）；pane 已不在则直接补。
-        if let Some(entry) = m.agents.iter().find(|a| &a.name == agent) {
-            if pane_for(&session, entry.pane_id).await.is_ok() {
-                kill_pane(link, &session, entry.pane_id).await?;
-            }
-        }
+        // 死/缺：**先分后杀**（kimi 四轮高项：先杀唯一 pane 会终结会话、
+        // daemon 随末 session 退——单路 respawn/stub 切换必踩，M040 同根因
+        // 的另一半）。先 split 新格、回写 pane_id，再清旧格（kill 失败容忍：
+        // 旧格多活几秒无副作用，防堆积由 kill 幂等兜底）。
+        let old_pane = m.agents.iter().find(|a| &a.name == agent).map(|e| e.pane_id);
         // 从主窗格右侧分回一路（窗格复杂性在此，命令面不感知）。
         let base = session.pane(0, 0);
         let pane = split_spawn(
@@ -687,6 +726,11 @@ pub async fn reconcile(
                 pane_id: pid_u32,
             }),
         }
+        if let Some(old) = old_pane {
+            if pane_for(&session, old).await.is_ok() {
+                let _ = kill_pane(link, &session, old).await;
+            }
+        }
         respawned.push(agent.clone());
     }
     // 计划路全部就位后才收多余路——任何时刻会话不空、daemon 不退。
@@ -710,23 +754,6 @@ pub async fn reconcile(
     // 的进程名判定（pwsh vs agent 本名）不再拿旧会话语义误判。
     m.stub = plan.stub;
     write_manifest(root, &m)?;
-    // 新拉路就绪确认（用户定调 2026-09-01：命令持续到任务正常开始才退出，
-    // 有阻塞就告警）：每路等 TUI 就绪（idle 稳定/working/画面变化任一）；
-    // 死路（进程秒退）由「无 pane 可查」覆盖。告警不阻塞 spawn 结果。
-    for agent in &respawned {
-        if let Some(entry) = m.agents.iter().find(|a| &a.name == agent) {
-            match pane_for(&session, entry.pane_id).await {
-                Ok(pane) => {
-                    for alert in
-                        await_task_start(&pane, agent, Duration::from_secs(20), true).await
-                    {
-                        eprintln!("spawn.alert={alert}");
-                    }
-                }
-                Err(_) => eprintln!("spawn.alert={agent}: pane gone right after respawn"),
-            }
-        }
-    }
     // 无条件按路数定型（grok 复核：纯附加时原布局可能是残留乱格；重排幂
     // 等且是毫秒级 CLI，「有动作才排」的省略不值得留缺口）。
     relayout(link, m.agents.len());
@@ -772,15 +799,15 @@ async fn kill_pane(link: &Link, session: &Session, pane_id: u64) -> Result<(), S
     Err(format!("kill-pane %{pane_id} failed and pane still present"))
 }
 
-/// 强制重新打开一路 agent 实例：关闭旧 pane（若在）再开新一路并回写。
+/// 强制重新打开一路 agent 实例：**先分后杀**（kimi 四轮高项：单路会话
+/// 先杀唯一 pane 会终结会话、daemon 随退，M040 同根因另一半）——split
+/// 新格、回写 pane_id，再清旧格（kill 失败容忍，旧格多活几秒无副作用）。
 pub async fn respawn(link: &Link, root: &Path, agent: &str) -> Result<u64, String> {
     let name = session_name(root)?;
     let session = rmuxpoc::reuse_only(&link.rmux, name).await?;
     let mut m = read_manifest_req(root)?;
     let argv = respawn_argv(root, &m, agent)?;
-    if let Some(entry) = m.agents.iter().find(|a| a.name == agent) {
-        kill_pane(link, &session, entry.pane_id).await?;
-    }
+    let old_pane = m.agents.iter().find(|a| a.name == agent).map(|e| e.pane_id);
     let base = session.pane(0, 0);
     let pane = split_spawn(
         &base,
@@ -797,6 +824,11 @@ pub async fn respawn(link: &Link, root: &Path, agent: &str) -> Result<u64, Strin
         .map_err(|e| format!("pane id: {e}"))?
         .ok_or_else(|| format!("respawn pane for {agent} has no live id"))?;
     let pid_u32 = id.as_u32() as u64;
+    if let Some(old) = old_pane {
+        if pane_for(&session, old).await.is_ok() {
+            let _ = kill_pane(link, &session, old).await;
+        }
+    }
     match m.agents.iter_mut().find(|a| a.name == agent) {
         Some(entry) => entry.pane_id = pid_u32,
         None => m.agents.push(ManifestAgent {
@@ -1168,11 +1200,11 @@ pub async fn settle(
                     .map_err(|e| format!("settle {}: {e}", agent.name))?;
                 tokio::time::sleep(Duration::from_millis(400)).await;
             }
-            entry.1.push(format!("{marker}:{}", keys.join("+")));
             // 按后确认（2026-09-01 实踩：升级屏关掉后快照仍是旧帧，立即
             // 重按一轮会把「2」落进输入框提交成任务）——等 marker 从屏上
             // 消失（最多 3s）；顽固不消失**不重按**（防重复提交），记
-            // stalled 事件，人工接手。
+            // stalled（kimi 四轮中4：stalled 必须进 outcome，否则三通道
+            // 把未自愈当已自愈），该路冷却人工接手。
             let marker_still = |lines: &Vec<String>| {
                 lines.iter().any(|l| {
                     let t = l.trim();
@@ -1191,8 +1223,11 @@ pub async fn settle(
                     _ => {}
                 }
             }
-            if !confirmed {
+            if confirmed {
+                entry.1.push(format!("{marker}:{}", keys.join("+")));
+            } else {
                 eprintln!("settle.{}.stalled={marker}: marker still on screen; NOT re-sending keys", agent.name);
+                entry.1.push(format!("stalled={marker}:{}", keys.join("+")));
                 stalled.insert(agent.name.clone());
             }
         }
@@ -1208,7 +1243,24 @@ pub async fn settle(
         let outcome = if dismissed.is_empty() {
             "none".to_string()
         } else {
-            format!("dismissed={}", dismissed.join(","))
+            let stalled_part: Vec<String> = dismissed
+                .iter()
+                .filter(|d| d.starts_with("stalled="))
+                .cloned()
+                .collect();
+            let ok_part: Vec<String> = dismissed
+                .iter()
+                .filter(|d| !d.starts_with("stalled="))
+                .cloned()
+                .collect();
+            let mut parts = Vec::new();
+            if !ok_part.is_empty() {
+                parts.push(format!("dismissed={}", ok_part.join(",")));
+            }
+            if !stalled_part.is_empty() {
+                parts.push(stalled_part.join(","));
+            }
+            parts.join(";")
         };
         eprintln!("settle.pane.{agent}={outcome}");
         result.push((agent, outcome));

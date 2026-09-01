@@ -114,8 +114,19 @@ impl OmaMcp {
         Parameters(SpawnParams { agents, stub }): Parameters<SpawnParams>,
     ) -> Result<CallToolResult, McpError> {
         let out = api::spawn(&self.root, agents, stub.unwrap_or(false)).await;
-        if out.is_ok() {
-            // 三通道同语义（grok 复核：MCP 路径此前漏自动 settle）。
+        let mut out = out;
+        if let Ok(v) = &mut out {
+            // 就绪确认与 settle 同在锁外（与 HTTP 通道同构）。
+            if let Ok(link) = crate::orch::connect(&self.root, false).await {
+                let respawned: Vec<String> = v["respawned"]
+                    .as_array()
+                    .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+                    .unwrap_or_default();
+                let alerts = crate::orch::await_lanes_ready(&link, &self.root, &respawned).await;
+                if !alerts.is_empty() {
+                    v["alerts"] = serde_json::json!(alerts);
+                }
+            }
             if let Err(e) = api::settle(&self.root, 10).await {
                 eprintln!("spawn.auto-settle: {e}");
             }

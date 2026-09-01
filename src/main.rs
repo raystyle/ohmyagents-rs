@@ -653,6 +653,10 @@ async fn cmd_spawn(
     println!("spawn.respawned={}", out.respawned.join(","));
     println!("spawn.removed={}", out.removed.join(","));
     println!("spawn.mode={}", if out.attached.is_empty() { "new" } else { "reconcile" });
+    // 新拉路就绪确认（锁外；新开分支同样覆盖——respawned 含全部新拉路）。
+    for alert in orch::await_lanes_ready(&link, &root, &out.respawned).await {
+        eprintln!("spawn.alert={alert}");
+    }
     // 拉起后自动过一轮信任框（与 api::spawn 家族同语义；codex 复核中2：
     // 此前 CLI 路径漏 settle）。失败不挡 spawn。
     let _ = orch::settle(&link, &root, 10).await;

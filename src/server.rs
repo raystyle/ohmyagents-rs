@@ -554,14 +554,24 @@ async fn spawn(State(st): State<Arc<ServeState>>, body: String) -> Response {
         Ok(r) => r,
         Err(r) => return r,
     };
-    let spawned = {
+    let mut spawned = {
         let _guard = st.gate.lock().await;
         api::spawn(&st.root, req.agents, req.stub.unwrap_or(false)).await
     };
-    if spawned.is_ok() {
-        // 自动 settle 放 gate 外（codex 复核中3）：settle 最长等一个窗口，
-        // 拿着会话锁等屏会把 send/run/settle/cleanup 全堵住。失败只进
-        // stderr 留痕，不动 spawn 的成功响应。
+    if let Ok(v) = &mut spawned {
+        // 就绪确认与自动 settle 都在 gate 外（codex 中3 / kimi 四轮中3）：
+        // 持锁等待会把 send/run/settle/cleanup 堵住。alerts 进信封 data，
+        // 远端编排面能看到「任务没起来」；失败只 stderr 留痕。
+        if let Ok(link) = orch::connect(&st.root, false).await {
+            let respawned: Vec<String> = v["respawned"]
+                .as_array()
+                .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+                .unwrap_or_default();
+            let alerts = orch::await_lanes_ready(&link, &st.root, &respawned).await;
+            if !alerts.is_empty() {
+                v["alerts"] = serde_json::json!(alerts);
+            }
+        }
         if let Err(e) = api::settle(&st.root, 10).await {
             eprintln!("spawn.auto-settle: {e}");
         }
