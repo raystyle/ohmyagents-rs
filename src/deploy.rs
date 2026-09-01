@@ -477,7 +477,7 @@ fn skill_md() -> String {
     for (cmd, intent) in COMMAND_MAP {
         s.push_str(&format!("| {intent} | `{cmd}` |\n"));
     }
-    s.push_str("\n## 任务目录协议\n\n收到带「任务协议」尾注的委派时，按 `.ohmyagents/tasks/<id>/` 目录操作：\n\n1. 提示词全文在 `prompt.md`（可随时重读）；\n2. 产物写到 `output.md`（先写全内容）；\n3. **最后**创建空文件 `DONE` 表示完成——oma 只认 DONE 不认 output 存在，顺序不能反。\n\n裸 `oma` 进 REPL；六会话命令加 `--json` 出信封。细则见仓库 `docs\\references\\R002`。\n");
+    s.push_str("\n## 任务目录协议\n\n收到带「任务协议」尾注的委派时，按 `.ohmyagents/tasks/<id>/` 目录操作：\n\n1. 提示词全文在 `prompt.md`（可随时重读）；\n2. 产物写到 `output.md`（先写全内容）；\n3. **最后**创建空文件 `DONE` 表示完成——oma 只认 DONE 不认 output 存在，顺序不能反。\n\n等另一个 agent 的任务产物时用**收件人模式**（不前台死等）：\n\n```bash\nwhile [ ! -f \".ohmyagents/tasks/<id>/DONE\" ]; do sleep 15; done\ncat \".ohmyagents/tasks/<id>/output.md\"\n```\n\n裸 `oma` 进 REPL；六会话命令加 `--json` 出信封。细则见仓库 `docs\\references\\R002`。\n");
     s
 }
 

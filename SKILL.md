@@ -44,6 +44,17 @@ oma cleanup                           只杀本会话
 
 oma 等 DONE 出现后打印 `output.md` 全文退出；超时（缺省 600s，0 无限）任务目录保留，产物晚到可用 `oma task show <id>` 收取。
 
+### 收件人模式：等另一个 agent 的任务产物
+
+不要前台死等（会占住会话）。挂后台 watcher，DONE 出现即收：
+
+```bash
+while [ ! -f ".ohmyagents/tasks/<id>/DONE" ]; do sleep 15; done
+cat ".ohmyagents/tasks/<id>/output.md"      # 产物到手，继续处理或报告
+```
+
+要点：只等 DONE 不等 output.md（半写不算完成）；间隔 10-15s 足够（产物不赶秒级）；中途随时 `oma task show <id>` 查进度。
+
 ## 输出契约
 
 - marker 行：`命令.键=值`（如 `spawn.attached=claude,codex`、`task.done=t001`），稳定可解析。
