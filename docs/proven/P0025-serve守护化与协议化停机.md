@@ -21,6 +21,11 @@
 - `DELETE /shutdown` → 日志见 `draining` → 端口关闭；`oma serve stop` 全链（HTTP 优先 + 兜底）；stop 后 live=false、端口 closed、记录清除。[实证]
 - 测试基线：75+10 / 78+10 全绿（隔离 target）。[实证]
 
+## 次轮纠偏补记
+
+- 首版 `serve_stop` 实际只有 taskkill 直杀，本节「HTTP 优先 + 兜底」当时属超写（`DELETE /shutdown` 端点已实现但 CLI 未接线）。次轮补齐：`serve_stop` 先发 `DELETE /shutdown`（ureq，本就是装机链非可选依赖，featureless 构建同样优雅）、轮询 pid 退出（5s）、超时才降级强杀。实测 stop 后日志尾 `serve: shutdown requested; draining`、live=false，协议化路径真走通。[实证]
+- 教训：验收节标 `[实证]` 前必须核对**命令面**真消费了该路径——端点存在不等于命令接线（G002「没验证写成已验证」的变体：部件验证过、链路没验证）。
+
 ## 实施过程与经验
 
 - **tasklist 死锁坑（本日最硬）**：DETACHED 子进程 spawn 后，等待循环里用 `tasklist /FI ... .output()` 探活——宿主在 Claude Code 的 Job Object 内，**子进程的 stdout 管道在 Job 内被塞住**，`.output()` 永远等不回来 → serve start 阻塞不动。换 FFI OpenProcess 直查（零子进程、零管道）即解。教训：**Job Object 环境下一切 `.output()` 式子进程等待都是雷**，探活类需求优先 FFI。

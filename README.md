@@ -34,14 +34,15 @@ cargo build --features server,mcp      # release: cargo build --release --featur
 ```powershell
 oma init --project D:\my\proj          # hook + skill + yolo 键（幂等，不动家目录）
 oma spawn --project D:\my\proj         # 和解式拉起：缺省已装交集，1-4 路
-oma serve --project D:\my\proj         # 起编排面；浏览器开 http://127.0.0.1:7900/ 即看板
+oma serve start --project D:\my\proj   # 后台起编排面（即调即退）；浏览器开 http://127.0.0.1:7900/ 即看板
 ```
 
 日常入口任选：
 
 ```powershell
 oma                                    # REPL（和解起会话 + 内嵌编排面 + 行循环）
-oma serve                              # 常驻编排面（主页即看板）
+oma serve start                        # 后台编排面（即调即退，主页即看板）
+oma serve stop                         # 停掉（协议化排空优雅退出）
 oma status                             # 纯 CLI
 ```
 
@@ -56,7 +57,7 @@ cd D:\my\proj                        # 进目标项目（不加 --project 即用
 
 oma init                              # 一次性：部署 hook/skill/yolo 键（幂等，重复跑安全）
 oma spawn                             # 开会话：缺省已装交集 1-4 路（如 claude,codex,grok,kimi）
-oma serve                             # 起看板，浏览器开 http://127.0.0.1:7900/
+oma serve start                        # 后台起看板（即调即退），浏览器开 http://127.0.0.1:7900/
 #   看板里：四路窗格实时画面、直接打字对话、分屏布局
 
 oma run "给四家都总结一下当前架构"       # 日常委派：状态门分派，忙路自动跳过
@@ -74,7 +75,7 @@ oma cleanup                           # 收工：只杀本项目会话
 cd D:\my\proj
 oma spawn                             # 和解：活路附加（不重开）、死路自动重开
 #   spawn.attached=claude,codex  spawn.respawned=grok  spawn.mode=reconcile
-oma serve                             # 看板照常
+oma serve start                        # 看板照常（已活直接返回地址，不重复开）
 ```
 
 只想要一个交互入口：
@@ -157,8 +158,11 @@ oma trace search "登录|auth"            # 正则检索 patch/file/双意图四
 ### 传输与镜像
 
 ```powershell
-oma serve                               # HTTP 编排面（六操作 RESTish + trace 端点 + 信封）
-oma serve --port 8080 --project D:\my\proj
+oma serve start                         # 后台守护化（即调即退；已活秒回地址）
+oma serve start --port 8080 --project D:\my\proj
+oma serve status                        # pid / 端口 / 是否活
+oma serve stop                          # 协议化停机（DELETE /shutdown 优雅排空，兜底强杀）
+oma serve                               # 裸形态保留前台跑（调试用）
 #   浏览器开 http://127.0.0.1:7900/ 即看板（整会话镜像、免 PIN、可打字可分屏）
 #   RESTish：POST /spawn | GET /status | POST /send | POST /run | POST /settle | DELETE /session
 #            POST /share/{agent} | GET /share | DELETE /share/{id}/stop

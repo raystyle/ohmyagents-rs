@@ -170,26 +170,50 @@ pub fn serve_start(root: &Path, port: u16) -> Result<String, String> {
     Err(format!("serve daemon port {port} not ready in 10s; log: {}", log.display()))
 }
 
-/// 停止：按记录 pid 杀（Windows taskkill /T 连子进程；Unix kill）。
+/// 停止：协议化优先（`DELETE /shutdown` 请 daemon 优雅排空自退，rmux
+/// kill-server 同构），等不到再降级强杀（Windows taskkill /T 连子进程；
+/// Unix kill）。ureq 本就是装机链的非可选依赖，featureless 构建同样走
+/// 优雅路。
 pub fn serve_stop(root: &Path) -> Result<bool, String> {
     let Some(rec) = read_record(root) else {
         return Ok(false);
     };
-    let killed = if cfg!(windows) {
-        std::process::Command::new("taskkill")
-            .args(["/PID", &rec.pid.to_string(), "/T", "/F"])
-            .output()
-            .map(|o| o.status.success())
-            .map_err(|e| format!("taskkill: {e}"))?
-    } else {
-        std::process::Command::new("kill")
-            .arg(rec.pid.to_string())
-            .output()
-            .map(|o| o.status.success())
-            .map_err(|e| format!("kill: {e}"))?
-    };
+    if pid_alive(rec.pid) {
+        // 1. 协议化：让 daemon 自己排空在途请求后退出。
+        let asked = ureq::delete(&format!("http://127.0.0.1:{}/shutdown", rec.port))
+            .timeout(Duration::from_secs(2))
+            .call()
+            .is_ok();
+        // 2. 等它死（最长 5s）。
+        if asked {
+            let deadline = std::time::Instant::now() + Duration::from_secs(5);
+            while std::time::Instant::now() < deadline {
+                if !pid_alive(rec.pid) {
+                    remove_record(root);
+                    return Ok(true);
+                }
+                std::thread::sleep(Duration::from_millis(200));
+            }
+        }
+        // 3. 兜底：协议路不通或超时未退，强杀。
+        let forced = if cfg!(windows) {
+            std::process::Command::new("taskkill")
+                .args(["/PID", &rec.pid.to_string(), "/T", "/F"])
+                .output()
+                .map(|o| o.status.success())
+                .map_err(|e| format!("taskkill: {e}"))?
+        } else {
+            std::process::Command::new("kill")
+                .arg(rec.pid.to_string())
+                .output()
+                .map(|o| o.status.success())
+                .map_err(|e| format!("kill: {e}"))?
+        };
+        remove_record(root);
+        return Ok(forced);
+    }
     remove_record(root);
-    Ok(killed)
+    Ok(true)
 }
 
 /// 状态：`(活?, 记录)`。
