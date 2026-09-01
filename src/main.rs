@@ -496,7 +496,7 @@ fn tokio_block<F: std::future::Future<Output = Result<(), String>>>(
         .block_on(fut)
 }
 
-/// `oma serve start`：即调即退——DETACHED 孤儿化拉起，端口就绪后返回。
+/// `oma serve start`：即调即退——后台拉起，端口就绪后返回。
 #[cfg(feature = "server")]
 fn cmd_serve_start(port: u16, project: Option<PathBuf>) -> Result<(), String> {
     let root = project_root(project)?;

@@ -359,10 +359,11 @@ fn host_is_local(host: &str) -> bool {
     matches!(name, "127.0.0.1" | "localhost" | "[::1]" | "::1" | "[::]")
 }
 
-/// 打开即四路窗格：起整会话 **spectator 只读**镜像（本地免 PIN；P0026 用户
-/// 定调 2026-09-01：看板默认只读去操作权限，操作走 CLI/API/MCP，要可写镜像
-/// 用 `oma web`），200 直出前端 HTML 并注入 hash-shim（无 hash 时 replace 到
-/// `/#t=`，一次自载后前端按 hash 连接——302 方案会对 `/` 自旋）。
+/// 打开即四路窗格：起整会话 **operator** 镜像（本地免 PIN 可打字可拖窗格；
+/// 用户定调 2026-09-01 二次收紧：本机回环已验证可信，不必只读——外域面
+/// 由 Host 校验挡住，公网中继线走 `oma web` 的 PIN 与警示），200 直出前端
+/// HTML 并注入 hash-shim（无 hash 时 replace 到 `/#t=`，一次自载后前端按
+/// hash 连接——302 方案会对 `/` 自旋）。
 async fn home(
     State(st): State<Arc<ServeState>>,
     headers: axum::http::HeaderMap,
@@ -378,7 +379,7 @@ async fn home(
     let mut cached = st.share_token.lock().await;
     if cached.is_none() {
         let fe = format!("http://{host}/");
-        match api::web_share(&st.root, None, true, 43200, Some(&fe), true).await {
+        match api::web_share(&st.root, None, false, 43200, Some(&fe), true).await {
             Ok(v) => {
                 *cached = v["url"].as_str().and_then(|u| u.split("#t=").nth(1)).map(String::from);
             }
@@ -452,11 +453,12 @@ async fn share_session(
         }
     }
     let no_pin = fe.is_some() && req.pin.as_deref() != Some("on");
-    // 缺省只读（P0026 安全缺省）：要 operator 显式传 spectator=false。
+    // 本机回环默认 operator（用户定调 2026-09-01：本机已验证不必只读）；
+    // 要只读显式传 spectator=true。
     finish(
         command,
         &st.root,
-        api::web_share(&st.root, None, req.spectator.unwrap_or(true), req.ttl.unwrap_or(3600), fe.as_deref(), no_pin).await,
+        api::web_share(&st.root, None, req.spectator.unwrap_or(false), req.ttl.unwrap_or(3600), fe.as_deref(), no_pin).await,
     )
 }
 
@@ -492,11 +494,11 @@ async fn share_agent(
         }
     }
     let no_pin = fe.is_some() && req.pin.as_deref() != Some("on");
-    // 缺省只读（P0026 安全缺省）：要 operator 显式传 spectator=false。
+    // 本机回环默认 operator（同上）。
     finish(
         command,
         &st.root,
-        api::web_share(&st.root, Some(&agent), req.spectator.unwrap_or(true), req.ttl.unwrap_or(3600), fe.as_deref(), no_pin).await,
+        api::web_share(&st.root, Some(&agent), req.spectator.unwrap_or(false), req.ttl.unwrap_or(3600), fe.as_deref(), no_pin).await,
     )
 }
 
@@ -522,7 +524,7 @@ async fn index(State(st): State<Arc<ServeState>>) -> Response {
         "tui": "/tui",
         "endpoints": [
             {"method": "GET", "path": "/api"},
-            {"method": "POST", "path": "/share/{agent}", "body": {"spectator": true, "ttl": 3600}},
+            {"method": "POST", "path": "/share/{agent}", "body": {"spectator": false, "ttl": 3600}},
             {"method": "GET", "path": "/share"},
             {"method": "DELETE", "path": "/share/{id}/stop"},
             {"method": "POST", "path": "/spawn", "body": {"agents": ["claude"], "stub": false}},
