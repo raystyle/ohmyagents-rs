@@ -187,6 +187,20 @@ pub async fn run_locked(
 ) -> Result<Value, String> {
     let link = orch::connect(root, false).await?;
     let outcome = orch::run(&link, root, text, assign, confirm).await?;
+    // 全拦 = 失败（relay6 grok1 裁决：R002 契约「全拦退出 1」为源头——
+    // sent 空时 Err，三通道同走失败，消除 dispatched 歧义）。
+    if outcome.sent.is_empty() {
+        let reasons: Vec<String> = outcome
+            .skipped
+            .iter()
+            .map(|(a, r)| format!("{a}:{r}"))
+            .collect();
+        return Err(format!(
+            "every lane gated ({} skipped); nothing dispatched: {}",
+            outcome.skipped.len(),
+            reasons.join(", ")
+        ));
+    }
     let skipped: Vec<Value> = outcome
         .skipped
         .iter()
@@ -196,7 +210,7 @@ pub async fn run_locked(
         "task": outcome.task_id,
         "sent": outcome.sent,
         "skipped": skipped,
-        "dispatched": !outcome.sent.is_empty(),
+        "dispatched": true,
     }))
 }
 

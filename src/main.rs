@@ -723,7 +723,7 @@ async fn cmd_spawn(
             eprintln!("spawn.alert={}", a.as_str().unwrap_or_default());
         }
     }
-    println!("spawn.blocking=false");
+    println!("spawn.waited=readiness+settle");
     println!("spawn.ok=true");
     Ok(())
 }
@@ -915,9 +915,8 @@ async fn cmd_run(
 ) -> Result<(), String> {
     let root = project_root(project)?;
     if json {
-        // 全路被门挡：信封 ok:true 与 HTTP/MCP 同形（relay5 codex1 订正批8
-        /// 的 exit 1——退出码与信封 ok 互相矛盾；判定以 data.dispatched 为
-        /// 准，口径进 SKILL）。
+        // 全路被门挡：api::run 直接 Err（relay6 grok1 裁决），信封
+        // ok:false、退出非 0，与文本通道、R002 契约一致。
         return print_json(
             "run",
             &root,
@@ -926,15 +925,17 @@ async fn cmd_run(
     }
     let link = orch::connect(&root, false).await?;
     let outcome = orch::run(&link, &root, &text, assign, confirm.as_deref()).await?;
+    if outcome.sent.is_empty() {
+        // 全拦即失败（R002 契约；relay6 grok1 裁决源头在 api 层统一）。
+        for (agent, reason) in &outcome.skipped {
+            eprintln!("run.skipped={agent}:{reason}");
+        }
+        return Err("every lane gated; nothing dispatched".into());
+    }
     println!("run.task.id={}", outcome.task_id);
     println!("run.sent={}", outcome.sent.join(","));
     for (agent, reason) in &outcome.skipped {
         println!("run.skipped={agent}:{reason}");
-    }
-    if outcome.sent.is_empty() {
-        // 与 json 通道一致：不非 0 退出（relay5 codex1），marker 已表达
-        // sent 为空。
-        eprintln!("oma: every lane was gated ({} skipped); nothing dispatched", outcome.skipped.len());
     }
     // 锁外开始确认（同 cmd_send，Round2 补接）。
     for agent in &outcome.sent {
