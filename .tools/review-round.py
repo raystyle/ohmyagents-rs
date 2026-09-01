@@ -1,20 +1,20 @@
 # /// script
 # requires-python = ">=3.10"
 # ///
-"""四 agent 轮询 review 工作流：单轮执行器。
+"""agent 轮换接力 review 工作流（用户定调 2026-09-01：**不并行**，每次一
+家、轮换接力——每家 review 的是上一家修复后的最新状态；某家 FINDINGS=0
+即「找不出问题」，工作流终止）。
 
-对 claude/codex/grok/kimi 并行委派 `oma task` review（产物走任务目录协议，
-DONE 收件），收齐后按产物第一行的 `FINDINGS=N` 契约判定：
-- 全家 N=0：本轮全绿，退出码 0（工作流可终止）
-- 有任何 N>0：退出码 1（修复后跑下一轮）
-- 有 agent 超时/失败：退出码 2
+判定契约：产物 output.md 第一行 `FINDINGS=N`；KNOWN-WONTFIX.md 内事项
+不计入、不复报。产物归档 `<project>/.ohmyagents/reviews/relay/<轮>-<agent>.md`。
 
-产物归档 `<project>/.ohmyagents/reviews/round<N>/<agent>.md` 供跨轮对照。
+用法：
+  uv run --script .tools/review-round.py relay <轮> <agent> [--project P] [--oma PATH] [--timeout 1800]
 
-用法：uv run --script .tools/review-round.py <round> [--project PATH] [--timeout 1800]
+退出码：0 = 本家全绿（工作流终止）；1 = 有发现（修复后接力下一家）；
+2 = 超时/失败。
 """
 import argparse
-import concurrent.futures
 import re
 import shutil
 import subprocess
@@ -28,77 +28,67 @@ REVIEW_PROMPT = (
     "范围：src/orch.rs、src/api.rs、src/server.rs、src/task.rs、src/main.rs、src/mcp.rs。"
     "收敛规则：.ohmyagents/reviews/KNOWN-WONTFIX.md 内是已拍板不修的取舍，"
     "不计入 FINDINGS、不要复报；对该决策有新的实质证据才可重新提出。"
+    "此前各轮已修项（git log 可见）不复报。"
     "产物契约：output.md 第一行必须是 FINDINGS=N（N=发现的问题条数，没发现问题写 0），"
     "之后按严重度列结论；确认没问题的方面也要列出。写完 output.md 最后创建空文件 DONE。"
 )
 
 
-def run_one(agent: str, oma: str, project: Path, timeout: int) -> tuple[str, str, str]:
-    """返回 (agent, status, detail)。status: ok | findings | timeout | error."""
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("mode", choices=["relay", "round"])
+    ap.add_argument("n", type=int, help="接力轮次（归档目录名用）")
+    ap.add_argument("agent", help="本轮接力的 agent 名")
+    ap.add_argument("--project", default=".")
+    ap.add_argument("--oma", default="oma", help="oma 可执行路径（不在 PATH 时传）")
+    ap.add_argument("--timeout", type=int, default=1800)
+    args = ap.parse_args()
+    project = Path(args.project).resolve()
+    agent = args.agent
+    if agent not in AGENTS:
+        print(f"relay.agent={agent} invalid; pick from {AGENTS}")
+        return 2
+
     cmd = [
-        oma, "task", agent, REVIEW_PROMPT,
-        "--timeout", str(timeout), "--project", str(project),
+        args.oma, "task", agent, REVIEW_PROMPT,
+        "--timeout", str(args.timeout), "--project", str(project),
     ]
+    print(f"relay.{args.n}={agent} timeout={args.timeout}s")
     try:
         r = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=timeout + 120,
+            cmd, capture_output=True, text=True, timeout=args.timeout + 120,
             encoding="utf-8", errors="replace",
         )
     except subprocess.TimeoutExpired:
-        return agent, "timeout", f"{agent}: oma task 超时"
+        print(f"relay.{args.n}.{agent}=timeout")
+        return 2
     except OSError as e:
-        return agent, "error", f"{agent}: 无法启动 oma（{e}；用 --oma 传路径）"
+        print(f"relay.{args.n}.{agent}=error 无法启动 oma（{e}；用 --oma 传路径）")
+        return 2
     if r.returncode != 0:
-        return agent, "error", (r.stderr or r.stdout or "").strip()[:400]
-    # 从 stdout 抓 task.dir= 行定位产物。
+        print(f"relay.{args.n}.{agent}=error {(r.stderr or r.stdout or '').strip()[:300]}")
+        return 2
     m = re.search(r"^task\.dir=(.+)$", r.stdout, re.M)
     if not m:
-        return agent, "error", f"{agent}: stdout 无 task.dir 行"
+        print(f"relay.{args.n}.{agent}=error stdout 无 task.dir 行")
+        return 2
     out_md = Path(m.group(1).strip()) / "output.md"
     text = out_md.read_text(encoding="utf-8", errors="replace") if out_md.exists() else ""
     fm = re.search(r"^FINDINGS=(\d+)\s*$", text, re.M)
     if not fm:
-        return agent, "error", f"{agent}: 产物缺 FINDINGS=N 契约行"
-    n = int(fm.group(1))
-    return agent, ("ok" if n == 0 else "findings"), f"FINDINGS={n} → {out_md}"
-
-
-def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("round", type=int)
-    ap.add_argument("--project", default=".")
-    ap.add_argument("--timeout", type=int, default=1800)
-    ap.add_argument("--oma", default="oma", help="oma 可执行路径（不在 PATH 时传）")
-    args = ap.parse_args()
-    project = Path(args.project).resolve()
-
-    print(f"review.round={args.round} agents={','.join(AGENTS)} timeout={args.timeout}s")
-    results = {}
-    with concurrent.futures.ThreadPoolExecutor(max_workers=len(AGENTS)) as ex:
-        futs = {ex.submit(run_one, a, args.oma, project, args.timeout): a for a in AGENTS}
-        for fut in concurrent.futures.as_completed(futs):
-            agent, status, detail = fut.result()
-            results[agent] = (status, detail)
-            print(f"review.round{args.round}.{agent}={status} {detail}")
-
-    # 归档产物。
-    arc_dir = project / ".ohmyagents" / "reviews" / f"round{args.round}"
-    arc_dir.mkdir(parents=True, exist_ok=True)
-    for agent, (_, detail) in results.items():
-        m = re.search(r"→ (.+)$", detail)
-        if m:
-            src = Path(m.group(1))
-            if src.exists():
-                shutil.copyfile(src, arc_dir / f"{agent}.md")
-
-    statuses = {s for s, _ in results.values()}
-    if statuses <= {"ok"}:
-        print(f"review.round{args.round}.verdict=all-clear")
-        return 0
-    if "error" in statuses or "timeout" in statuses:
-        print(f"review.round{args.round}.verdict=has-errors")
+        print(f"relay.{args.n}.{agent}=error 产物缺 FINDINGS=N 契约行 → {out_md}")
         return 2
-    print(f"review.round{args.round}.verdict=has-findings")
+    n = int(fm.group(1))
+
+    arc_dir = project / ".ohmyagents" / "reviews" / args.mode / f"{args.n}-{agent}"
+    arc_dir.mkdir(parents=True, exist_ok=True)
+    if out_md.exists():
+        shutil.copyfile(out_md, arc_dir / "output.md")
+
+    if n == 0:
+        print(f"relay.{args.n}.{agent}=all-clear → {arc_dir}")
+        return 0
+    print(f"relay.{args.n}.{agent}=findings FINDINGS={n} → {arc_dir}")
     return 1
 
 
