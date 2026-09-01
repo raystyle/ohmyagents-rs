@@ -47,6 +47,12 @@ const PANE_TAP_MOVE_THRESHOLD_PX = 6;
 // stays a comfortable reading size instead of becoming oversized. Panes wider
 // than ~1/1.8 of the screen still fill it; narrower ones top out here.
 const MOBILE_PANE_FILL_MAX_SCALE = 1.8;
+// Desktop fit-fill (oma P0026 追加): rmux 渲染固定会话网格（如 120x32），
+// 官方行为是只缩不放——宽屏上画面缩在左上角一小块。这里把字号按容器
+// 放大到铺满（原生渲染，清晰；不是 CSS 位图拉伸），封顶 32。剩余少量
+// 比例差仍走 transform 缩小路径。
+const FIT_FILL_BASE_FONT = 13;
+const FIT_FILL_MAX_FONT = 32;
 
 export interface TerminalChromePalette {
   accent: string;
@@ -1342,6 +1348,20 @@ class XtermShareTerminal implements ShareTerminal {
         : (panY > 0 ? `translate(0px, ${-panY}px)` : 'none');
       this.renderViewPanScrollbar(this.container.clientHeight, contentHeight, this.sessionPanY);
     } else {
+      // Desktop fit-fill: see FIT_FILL_BASE_FONT block. 字号差 >=1 才动并
+      // 延时重排一次收敛（screen 尺寸随字号线性变化，第二轮 fit 即稳定）。
+      const fill = Math.min(
+        this.container.clientWidth / width,
+        this.container.clientHeight / height,
+      );
+      const ideal = Math.max(
+        FIT_FILL_BASE_FONT,
+        Math.min(FIT_FILL_MAX_FONT, Math.floor(FIT_FILL_BASE_FONT * fill)),
+      );
+      if (ideal !== this.term.options.fontSize) {
+        this.term.options.fontSize = ideal;
+        window.setTimeout(() => this.fitSessionStage(), 120);
+      }
       const scale = Math.min(1, this.container.clientWidth / width, this.container.clientHeight / height);
       transform = scale < 0.999 ? `scale(${scale})` : 'none';
     }
