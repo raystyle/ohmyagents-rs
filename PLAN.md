@@ -3,9 +3,9 @@
 > 角色：**当前目标方案文档**——基于 `docs\research\`（为什么）与 `docs\references\`（怎么做）撰写的执行计划；每条挂依据来源，随目标变化更新，不存历史目标。
 > 分工：`TODO.md` = 做到哪；本文件 = 怎么做；通用工作流见 `docs\guide\G003-工作流标准细则-从登记到归档五步.md`。
 
-## 当前目标：P0012 平台接管 mac 阶段
+## 当前目标：P0012 平台接管收口
 
-> 用户定调 2026-09-01：先「准备去 wsl linux 下开发」→ 第一棒完成后「目前只到 wsl linux 就可以了」→「准备让 mac 接管开发」。WSL Linux 第一棒收口，剩余两项挂起待回 WSL 环境续做；mac 阶段启动。交接读本 `docs\references\R010-Windows到Linux交接清单.md`（三节欠账清单对 mac 同样适用，资产形态换 darwin）。
+> 三阶段当日齐（2026-09-01）：WSL Linux 第一棒（构建/基线/daemon/分类器）→ mac 接管收口（四项）→ 回 WSL 补尾（安装/真身四路）。三平台真机全链绿，无剩余切片；待用户定向归档（proven 回填后重写本文件）。
 
 ### 1. 剩余切片
 
@@ -18,12 +18,12 @@
 
 ### 2. 挂起
 
-> WSL Linux 剩余两项，待回环境续做。
+> 已清空：WSL Linux 补尾棒 2026-09-01 完成。
 
 | 目标 | 状态 | 说明 |
 | --- | --- | --- |
-| 四家 agent Linux 安装 | 挂起 | `oma agents install` 真机：Linux 资产名/解包/leaf 找二进制/mark_executable 待验收（catalog pin 已备，S017 渠道序已实证） |
-| 真身四路 + settle 真机（Linux） | 挂起 | 信任屏 marker Linux 差异；stub 全链已绿，真身待做 |
+| 四家 agent Linux 安装 | 已完成 | `--force` 真下载四家全链绿（claude 2.1.251 / codex 0.151.0 嵌套 bin / grok 1.0.13 CDN 裸二进制 / kimi 0.39.1 zip），探针全过 |
+| 真身四路 + settle 真机（Linux） | 已完成 | settle Linux 实拍命中（codex 数字菜单、kimi don't trust）；grok 家目录阻塞 `oma init --pretrust` 清零；`doctor.blocked=false`；`oma task` t026 产物精确；hook 流通；cleanup 零残留 |
 
 ### 3. 接续口径
 
@@ -37,4 +37,4 @@
 > 本目标验收口径。
 
 - mac 真机：达成（2026-09-01）——构建与测试基线全绿、rmux 资产验收、四家 agent 安装、真身四路 + settle 全链绿（含真任务与 hook 流）。
-- WSL Linux 侧：第一棒已收口（构建/基线/daemon/分类器/stub 全链）；挂起两项待回 WSL 环境续做后并档。
+- WSL Linux：达成（2026-09-01）——第一棒（构建/基线/daemon/分类器/stub 全链）加补尾棒（四家 `--force` 安装探针全绿、真身四路 + settle、`oma task` 真任务产物精确、doctor 零阻塞、cleanup 零残留）。

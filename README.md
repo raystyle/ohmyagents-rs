@@ -245,4 +245,4 @@ REPL 会话内：
 
 验收机 2026-09-01：Windows 11 + pwsh 7（rustc/cargo 1.97.1；claude 2.1.246、codex 0.149.1、grok 1.0.13、kimi 0.39.1；rmux 0.10.0；CPU 实测 x86_64 avx=true avx2=true avx512f=false）；macOS arm64（Darwin 25.5.0；rustc/cargo 1.97.0；四家 agent 与 rmux 0.10.0 同版；`oma check`/stub 全链/四家 darwin 安装/真身四路 + settle 全绿，P0012）。
 
-yolo 启动旗标会关掉审批和沙箱，只在自己信任的项目目录用。WSL Linux 侧第一棒已收口（构建/基线/daemon/分类器/stub 全链），四家安装与真身四路待回环境续做（资产就绪，预备检测见 `docs\research\S021`）。
+yolo 启动旗标会关掉审批和沙箱，只在自己信任的项目目录用。三平台真机全验：Windows 与 macOS 四家安装加真身四路全链绿；WSL Linux 同口径收口（2026-09-01，四家 `--force` 安装探针全绿、真身四路 + settle、`oma task` 真任务产物精确）。

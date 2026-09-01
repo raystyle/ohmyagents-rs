@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-01 | P0012 WSL 补尾收口：拉取 mac 侧变更后基线 80+10 / 83+10 全绿；四家 `--force` Linux 安装全链绿（codex 嵌套 bin 布局、grok CDN 裸二进制、探针全过、双源检测正常）；真身四路 + settle Linux 实拍命中（codex 数字菜单、kimi don't trust），grok 家目录阻塞以 `oma init --pretrust` 清零、`doctor.blocked=false`；`oma task` t026 真任务产物精确；cleanup 零残留。P0012 三平台（Windows / mac / WSL Linux）全链绿，待归档 |
 | 2026-09-01 | P0012 mac 阶段当日收口：测试基线 79+10 / 82+10 全绿；`oma check` arm64 全绿；stub 全链复验绿；四家 darwin 安装 `--force` 全链验收（抓到 grok 双 CDN 无 macos pin，实测推翻 S017「待出资产」假设，自算 sha 补双 CDN pin）；真身四路 + settle 全链绿（三路信任屏措辞漂移修复 + codex hooks 屏数字菜单新形态 + 黄金行回归测试）；`oma task` 真任务产物精确 + hook 流通；门禁全绿两提交（47b1ddd / 7211d41） |
 | 2026-09-01 | P0012 阶段切换：WSL Linux 第一棒收口（「目前只到 wsl linux 就可以了」），mac 接管开发启动（「准备让 mac 接管开发」）；变更推远程供 mac 侧拉取接续 |
 | 2026-09-01 | P0012 第一棒（WSL）：hook 路径报错修复（oma init 幂等改写）；测试基线 5 败清零（M041 记档 pid_alive 的 kill -0 双语义 + 4 处测试平台假设）；R010 六欠账清四（daemon 拉起、分类器、serve 进程组、pid 守卫）；stub 全链与 serve/doctor/HTTP 验收绿；基线 78+10、81+10 全绿零警告 |
@@ -77,7 +78,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：P0012 平台接管——mac 阶段四项 2026-09-01 当日收口（构建基线、rmux 资产验收、四家 darwin 安装、真身四路 + settle 加真任务，全绿）；WSL Linux 第一棒已收口，剩余两项（四家 agent Linux 安装、真身四路 settle）挂起待回环境续做。P0012 待用户定向：回 WSL 补尾或就此收口归档（交接读本 `docs\references\R010`）。
+- 当前目标：P0012 平台接管——三阶段 2026-09-01 当日齐（WSL Linux 第一棒 → mac 四项收口 → 回 WSL 补尾两项），Windows / mac / WSL Linux 三平台真机全链绿。无剩余切片，待用户定向归档（proven 回填）。
 
 ## 历史
 

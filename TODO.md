@@ -4,7 +4,7 @@
 
 ## 当前目标
 
-P0012 平台接管进入 mac 阶段（用户定调 2026-09-01：WSL Linux 第一棒后「目前只到 wsl linux 就可以了」，随即「准备让 mac 接管开发」）。交接读本 `docs\references\R010-Windows到Linux交接清单.md`（欠账清单对 mac 同样适用）；mac 侧开工顺序仿其第五节（clone → 测试基线 → build → check → spawn --stub → agents install → 真身四路）。
+P0012 平台接管三阶段当日齐（用户定调 2026-09-01：WSL Linux 第一棒 → mac 接管收口 → 回 WSL 补尾）：Windows / mac / WSL Linux 三平台真机全链绿。P0012 全部任务项完成，待用户定向归档（proven 方案回填）。
 
 ## 任务进度清单
 
@@ -19,15 +19,16 @@ P0012 平台接管进入 mac 阶段（用户定调 2026-09-01：WSL Linux 第一
 
 ## WSL Linux 阶段清单
 
-> 第一棒收口；剩余两项挂起。
+> 两棒收口：第一棒（构建/基线/daemon/分类器）加补尾棒（安装/真身四路），2026-09-01 当日齐。
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
 | WSL 环境搭建 | 已完成 | 全量构建 43s 过；测试基线首跑 5 败（1 真 bug M041 + 4 处测试 Windows 假设）全修复；78+10 与 81+10 全绿零警告；重跑 `oma init` 修复 hook 的 Windows 路径报错 | 2026-09-01 |
 | rmux Linux 资产验收 | 已完成 | `oma check` 全绿：PATH 发现 rmux 0.10.0，asset/dispatcher/helper/daemon 四层 sha256 对 pin 全过；unix socket 链路 stub 实测通 | 2026-09-01 |
 | daemon 启动路径 | 已完成 | `boot_new_session` Unix 分支（无 Job Object，裸 spawn + stdio 置空 + 独立进程组）；分类器 Unix 提示符判据与 serve `process_group(0)` 同批落地；stub 全链验收（spawn/status/send/respawn/cleanup/serve/doctor/HTTP 信封） | 2026-09-01 |
-| 四家 agent Linux 安装 | 挂起 | 用户定调切 mac；待回 WSL 环境续做（Linux 资产名/解包/leaf 找二进制待验收） | 待定 |
-| 真身四路 + settle 真机 | 挂起 | 同上（stub 的 send 开始确认对亚秒命令会建议性告警，属设计内） | 待定 |
+| 拉取后基线复验 | 已完成 | mac 侧 marker 与 catalog 改动拉回后 80+10 / 83+10 全绿（黄金行回归计入） | 2026-09-01 |
+| 四家 agent Linux 安装 | 已完成 | `--force` 真下载四家全链绿：claude 2.1.251 / codex 0.151.0（嵌套 bin 布局）/ grok 1.0.13（CDN 裸二进制）/ kimi 0.39.1（zip），自管根落位、探针全过、双源检测 `extra=` 行正常 | 2026-09-01 |
+| 真身四路 + settle 真机 | 已完成 | 四 pane 真身拉起；settle Linux 实拍命中（codex 数字菜单双 marker、kimi don't trust Up+Enter）；grok 家目录阻塞（yolo+信任）用 `oma init --pretrust` 清零、`doctor.blocked=false`；`oma task` t026 真任务产物精确（斐波那契前 10 项）；claude/codex hook 流在写状态；cleanup 零残留 | 2026-09-01 |
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
@@ -61,6 +62,6 @@ P0012 平台接管进入 mac 阶段（用户定调 2026-09-01：WSL Linux 第一
 
 ## 队列目标
 
-（无现役——mac 阶段四项已收口；WSL Linux 剩余两项挂起待回环境续做；P0012 待用户定向回 WSL 补尾或收口归档。）
+（无现役——P0012 三平台（Windows / mac / WSL Linux）全部完成，待归档后起新目标。）
 
 （P0006 至 P0026 已完成；过程与经验在对应 proven 方案。）
