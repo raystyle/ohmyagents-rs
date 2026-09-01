@@ -47,7 +47,46 @@ oma status                             # 纯 CLI
 
 ## 完整命令示例
 
-> 六会话命令与 respawn 均支持 `--json`（与 HTTP/MCP 同形信封 `{ok, data|error, meta}`）；`--project PATH` 缺省当前目录，下例省略。
+### 典型用法
+
+> `--project PATH` 缺省即当前目录：`cd` 进项目后全程不用带它。六会话命令与 respawn 均支持 `--json`（与 HTTP/MCP 同形信封 `{ok, data|error, meta}`）。
+
+```powershell
+cd D:\my\proj                        # 进目标项目（不加 --project 即用此目录）
+
+oma init                              # 一次性：部署 hook/skill/yolo 键（幂等，重复跑安全）
+oma spawn                             # 开会话：缺省已装交集 1-4 路（如 claude,codex,grok,kimi）
+oma serve                             # 起看板，浏览器开 http://127.0.0.1:7900/
+#   看板里：四路窗格实时画面、直接打字对话、分屏布局
+
+oma run "给四家都总结一下当前架构"       # 日常委派：状态门分派，忙路自动跳过
+oma send claude "看看 src/main.rs"     # 单路直发
+oma status                            # 看各路状态（pid/进程/终端态/hook 态）
+oma respawn codex                     # 某路死了或卡住：只重开这一路
+
+oma trace timeline --limit 10         # 查轨迹：谁改了什么、基于什么意图
+oma cleanup                           # 收工：只杀本项目会话
+```
+
+每天回来接着干（会话跨命令可重连）：
+
+```powershell
+cd D:\my\proj
+oma spawn                             # 和解：活路附加（不重开）、死路自动重开
+#   spawn.attached=claude,codex  spawn.respawned=grok  spawn.mode=reconcile
+oma serve                             # 看板照常
+```
+
+只想要一个交互入口：
+
+```powershell
+cd D:\my\proj
+oma                                   # REPL：和解起会话 + 内嵌看板 + 行循环
+> all 跑一遍构建
+> claude 修一下编译错误
+> status
+> quit                                 # 只 detach；明天回来会话还在
+```
 
 ### 安装与诊断
 
