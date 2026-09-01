@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-01 | P0012 阶段切换：WSL Linux 第一棒收口（「目前只到 wsl linux 就可以了」），mac 接管开发启动（「准备让 mac 接管开发」）；变更推远程供 mac 侧拉取接续 |
 | 2026-09-01 | P0012 第一棒（WSL）：hook 路径报错修复（oma init 幂等改写）；测试基线 5 败清零（M041 记档 pid_alive 的 kill -0 双语义 + 4 处测试平台假设）；R010 六欠账清四（daemon 拉起、分类器、serve 进程组、pid 守卫）；stub 全链与 serve/doctor/HTTP 验收绿；基线 78+10、81+10 全绿零警告 |
 | 2026-09-01 | Windows 侧总收口：四 agent 轮询 review 接力工作流（7 棒收敛至功能性缺陷清零，60+ 修复含 6 件修复自身回归）；oma task 带产物等待的任务目录协议（端到端双验）；任务开始确认与阻塞告警；精确集合与布局自适应；oma key 守卫；agents statusline（claude/codex 幂等）；R010 交接清单落档、P0012 Linux 接管启动 |
 | 2026-09-01 | P0026 切片 1 达成：codex review 结果 trace 收取（15 条，高 5 核实 4 真 1 部分真）后立项三切片；看板默认 spectator 只读（用户定调）＋Host 回环校验（高5）＋cleanup 僵局解除（高2）＋死路杀旧 pane 不堆积（高3）＋manifest 原子写（高1a）；计划外抓到并修 serve daemon DETACHED 零控制台下 rmux CLI 卡死（改 CREATE_NO_WINDOW） |
@@ -75,7 +76,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：P0012 Linux/mac 接管（2026-09-01 用户定调「准备去 wsl linux 下开发」启动）——交接读本 `docs\references\R010`；第一棒已完成（WSL 构建与测试基线全绿、daemon 拉起与分类器等四欠账清、stub 全链验收），剩四家 agent Linux 安装与真身四路 settle 真机。
+- 当前目标：P0012 平台接管 mac 阶段（2026-09-01 用户三连定调：「准备去 wsl linux 下开发」→ 第一棒后「目前只到 wsl linux 就可以了」→「准备让 mac 接管开发」）——WSL Linux 第一棒收口（构建/基线/daemon/分类器/stub 全链绿），剩余两项挂起待回环境续做；mac 侧从远程拉取接续（交接读本 `docs\references\R010`）。
 
 ## 历史
 

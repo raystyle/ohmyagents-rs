@@ -4,17 +4,30 @@
 
 ## 当前目标
 
-P0012 Linux/mac 接管启动（用户定调 2026-09-01：「准备去 wsl linux 下开发」）。交接读本 `docs\references\R010-Windows到Linux交接清单.md`；开工顺序见其第五节。
+P0012 平台接管进入 mac 阶段（用户定调 2026-09-01：WSL Linux 第一棒后「目前只到 wsl linux 就可以了」，随即「准备让 mac 接管开发」）。交接读本 `docs\references\R010-Windows到Linux交接清单.md`（欠账清单对 mac 同样适用）；mac 侧开工顺序仿其第五节（clone → 测试基线 → build → check → spawn --stub → agents install → 真身四路）。
 
 ## 任务进度清单
+
+> mac 阶段清单。
+
+| 任务项 | 进度 | 说明 | 日期 |
+| --- | --- | --- | --- |
+| mac 环境搭建 | 待做 | clone、cargo test 两口味基线、build --features server,mcp | 待定 |
+| rmux mac 资产验收 | 待做 | oma check 真机（catalog 已 pin darwin 资产） | 待定 |
+| 四家 agent mac 安装 | 待做 | oma agents install 真机（darwin 资产/解包/安装目录/探针） | 待定 |
+| 真身四路 + settle 真机 | 待做 | 信任屏 marker mac 差异 | 待定 |
+
+## WSL Linux 阶段清单
+
+> 第一棒收口；剩余两项挂起。
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
 | WSL 环境搭建 | 已完成 | 全量构建 43s 过；测试基线首跑 5 败（1 真 bug M041 + 4 处测试 Windows 假设）全修复；78+10 与 81+10 全绿零警告；重跑 `oma init` 修复 hook 的 Windows 路径报错 | 2026-09-01 |
 | rmux Linux 资产验收 | 已完成 | `oma check` 全绿：PATH 发现 rmux 0.10.0，asset/dispatcher/helper/daemon 四层 sha256 对 pin 全过；unix socket 链路 stub 实测通 | 2026-09-01 |
 | daemon 启动路径 | 已完成 | `boot_new_session` Unix 分支（无 Job Object，裸 spawn + stdio 置空 + 独立进程组）；分类器 Unix 提示符判据与 serve `process_group(0)` 同批落地；stub 全链验收（spawn/status/send/respawn/cleanup/serve/doctor/HTTP 信封） | 2026-09-01 |
-| 四家 agent Linux 安装 | 待做 | oma agents install 真机（Linux 资产名/解包/leaf 找二进制待验收） | 待定 |
-| 真身四路 + settle 真机 | 待做 | 信任屏 marker Linux 差异（stub 的 send 开始确认对亚秒命令会建议性告警，属设计内） | 待定 |
+| 四家 agent Linux 安装 | 挂起 | 用户定调切 mac；待回 WSL 环境续做（Linux 资产名/解包/leaf 找二进制待验收） | 待定 |
+| 真身四路 + settle 真机 | 挂起 | 同上（stub 的 send 开始确认对亚秒命令会建议性告警，属设计内） | 待定 |
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
@@ -48,6 +61,6 @@ P0012 Linux/mac 接管启动（用户定调 2026-09-01：「准备去 wsl linux 
 
 ## 队列目标
 
-（无——P0012 已转正为当前目标；mac 随后。）
+（无——mac 已转正为 P0012 当前阶段；WSL Linux 剩余两项挂起待回环境续做。）
 
 （P0006 至 P0026 已完成；过程与经验在对应 proven 方案。）
