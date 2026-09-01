@@ -145,6 +145,7 @@ ohmyagents/
 | S020 | `S020-grok权威日志updates与method分类学.md` | updates 信封两流分类学与四要素定位（P0014 依据） |
 | S021 | `S021-linux预备检测-指令集SIGILL问题类与检测阶梯.md` | AVX-512/AVX2 SIGILL 问题类、四级检测阶梯与 oma 探针落点（P0012 预备） |
 | S022 | `S022-rust程序自带资源包的三路线与释放裁决.md` | include_bytes 对 rust-embed 对嵌入归档加释放；指纹目录口径（P0023 依据） |
+| S023 | `S023-rmux在windows的进程树与原语实测.md` | 活体进程树加源码核实；三纠偏（internal-daemon 形态、conhost 兄弟、pane 无 shell 层）与原语表 |
 
 ## 六、开发测试参考
 
