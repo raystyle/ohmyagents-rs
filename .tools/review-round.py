@@ -26,15 +26,17 @@ AGENTS = ["claude", "codex", "grok", "kimi"]
 REVIEW_PROMPT = (
     "review 当前仓库 src/ 与最近提交：找正确性、并发、边界、契约问题。"
     "范围：src/orch.rs、src/api.rs、src/server.rs、src/task.rs、src/main.rs、src/mcp.rs。"
+    "收敛规则：.ohmyagents/reviews/KNOWN-WONTFIX.md 内是已拍板不修的取舍，"
+    "不计入 FINDINGS、不要复报；对该决策有新的实质证据才可重新提出。"
     "产物契约：output.md 第一行必须是 FINDINGS=N（N=发现的问题条数，没发现问题写 0），"
     "之后按严重度列结论；确认没问题的方面也要列出。写完 output.md 最后创建空文件 DONE。"
 )
 
 
-def run_one(agent: str, project: Path, timeout: int) -> tuple[str, str, str]:
+def run_one(agent: str, oma: str, project: Path, timeout: int) -> tuple[str, str, str]:
     """返回 (agent, status, detail)。status: ok | findings | timeout | error."""
     cmd = [
-        "oma", "task", agent, REVIEW_PROMPT,
+        oma, "task", agent, REVIEW_PROMPT,
         "--timeout", str(timeout), "--project", str(project),
     ]
     try:
@@ -44,6 +46,8 @@ def run_one(agent: str, project: Path, timeout: int) -> tuple[str, str, str]:
         )
     except subprocess.TimeoutExpired:
         return agent, "timeout", f"{agent}: oma task 超时"
+    except OSError as e:
+        return agent, "error", f"{agent}: 无法启动 oma（{e}；用 --oma 传路径）"
     if r.returncode != 0:
         return agent, "error", (r.stderr or r.stdout or "").strip()[:400]
     # 从 stdout 抓 task.dir= 行定位产物。
@@ -64,13 +68,14 @@ def main() -> int:
     ap.add_argument("round", type=int)
     ap.add_argument("--project", default=".")
     ap.add_argument("--timeout", type=int, default=1800)
+    ap.add_argument("--oma", default="oma", help="oma 可执行路径（不在 PATH 时传）")
     args = ap.parse_args()
     project = Path(args.project).resolve()
 
     print(f"review.round={args.round} agents={','.join(AGENTS)} timeout={args.timeout}s")
     results = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(AGENTS)) as ex:
-        futs = {ex.submit(run_one, a, project, args.timeout): a for a in AGENTS}
+        futs = {ex.submit(run_one, a, args.oma, project, args.timeout): a for a in AGENTS}
         for fut in concurrent.futures.as_completed(futs):
             agent, status, detail = fut.result()
             results[agent] = (status, detail)
