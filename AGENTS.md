@@ -98,7 +98,7 @@
 - **自愈信任**：`oma settle [--wait N]`（自检测信任/审查框并自动确认默认应选项，各家自己持久化信任；密码类永不自动）。codex 的 hook 注册形态见 `src\deploy.rs`（绝对路径加 PowerShell 调用操作符 `&`）
 - **看状态**：`oma status`（层 0 pid + locate 进程名 + 1b 终端态 + 层 2 hook 态）
 - **收尾**：`oma cleanup`（只杀本 session）
-- **起 HTTP 编排面**：`oma serve [--port N] [--project PATH]`（P0011 已落地，需 `--features server` 构建）：六操作 RESTish 加 JSON 信封加 SSE 画面；**主页即 web 镜像**（打开就是多路窗格，P0022；配置 dashboard 已删，编排走 CLI/API/MCP）；只绑 127.0.0.1；curl 全绿口径见 `docs\references\R002`
+- **起 HTTP 编排面**：`oma serve [--port N] [--project PATH]`（P0011 已落地，需 `--features server` 构建）：六操作 RESTish 加 JSON 信封加 SSE 画面；**主页即 web 镜像**（打开就是多路窗格，P0022；前端资源包嵌二进制首启释放 oma 数据根，P0023；配置 dashboard 已删，编排走 CLI/API/MCP）；只绑 127.0.0.1；curl 全绿口径见 `docs\references\R002`
 - **起 web 镜像**：`oma web [agent] [--spectator] [--ttl N] [--no-pin]`（P0021/P0022 已落地）：缺省整会话镜像（全窗格可编辑带分屏），给 agent 单 pane；`oma serve` 的 `GET /` 即 web-mirror-server 主页（自动起镜像免 PIN，打开即多路窗格）；HTTP `POST /share`（会话）/`POST /share/{agent}`（单路）/`GET /share`/`DELETE /share/{id}/stop`
 - **起 MCP server**：`oma mcp [--project PATH] [--print-config]`（P0011 已落地，需 `--features mcp` 构建）：stdio 九 tools（六操作加 trace 检索），信封与 HTTP 同形；`--print-config` 打印各客户端注册片段（任何构建可用）；三通道共测口径见 `docs\references\R002`
 - **查文档**：先搜 `INDEX.md` 定位编号，再读文件；rg / mq / ast-grep 全套搜索方法见四、资源索引

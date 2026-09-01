@@ -4,9 +4,9 @@
 //! （信封承载语义，传输层只管传输）。只绑 127.0.0.1（本机工具，无鉴权）；
 //! 写操作经会话锁串行化（一次一命令，P0011 风险节）。中断 serve 不清会话：
 //! 会话跨命令可重连是设计，收尾走 DELETE /session。
-//! web-mirror-server（用户定调命名）：`/share-fe` 托管源码构建的 rmux web-share
+//! web-mirror-server（用户定调命名）：`/kanban` 托管源码构建的 rmux web-share
 //! 前端，可视化后台 agent 任务；`oma web`/`POST /share` 起镜像链接。
-//! `GET /` 即 web 镜像页（share-fe 资产目录托管，原配置 dashboard 已删——
+//! `GET /` 即 web 镜像页（kanban 资产目录托管，原配置 dashboard 已删——
 //! 编排操作回归 CLI/API/MCP，网页只做可视化）。`GET /` 原 d `docs\web\index.html`（include_str 单文件，无构建链）；
 //! `GET /stream/{agent}?from=oldest|now` 把 pane 输出桥成 SSE（P0011 切片 2）。
 
@@ -30,23 +30,24 @@ use tokio_stream::wrappers::ReceiverStream;
 use crate::api;
 use crate::orch;
 
-/// rmux share 前端本地自托管（P0022：docs/web/share-src 源码构建，产物在
-/// docs/web/share-fe/，serve 运行时读盘——rebuild 前端不用重编 oma）。
-/// 目录锚编译期定（serve 可从任意 cwd 起）。
-const SHARE_FE_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/docs/web/share-fe");
 
 pub struct ServeState {
     root: PathBuf,
     /// 会话写串行化：spawn/send/run/settle/cleanup 一次一命令。
     gate: Mutex<()>,
+    /// kanban 资源释放目录（P0023：二进制自带 tar.gz，首启释放到
+    /// oma 自管数据根 web/<指纹>/，serve 从这里托管）。
+    kanban: PathBuf,
 }
 
 /// 起编排面：绑定后打 banner，永不主动退出（Ctrl-C 结束进程，会话留存）。
 pub async fn serve(root: PathBuf, port: u16) -> Result<(), String> {
     let project = root.display().to_string();
+    let kanban = crate::webassets::ensure_web_assets_at(&crate::install::oma_home()?)?;
     let state = Arc::new(ServeState {
         root,
         gate: Mutex::new(()),
+        kanban,
     });
     let app = router(state);
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
@@ -54,7 +55,9 @@ pub async fn serve(root: PathBuf, port: u16) -> Result<(), String> {
         .await
         .map_err(|e| format!("bind {addr}: {e}"))?;
     let local = listener.local_addr().map_err(|e| e.to_string())?;
+    let kanban = crate::webassets::ensure_web_assets_at(&crate::install::oma_home()?)?;
     println!("serve.addr=http://{local}");
+    println!("serve.kanban={}", kanban.display());
     println!("serve.project={project}");
     println!("serve.ok=true");
     axum::serve(listener, app)
@@ -65,9 +68,11 @@ pub async fn serve(root: PathBuf, port: u16) -> Result<(), String> {
 /// REPL 内嵌形态（P0016）：后台跑编排面，返回实际地址；
 /// 任务挂在当前 runtime，REPL 主循环的每个 await 都给它让路。
 pub async fn serve_in_background(root: PathBuf, port: u16) -> Result<SocketAddr, String> {
+    let kanban = crate::webassets::ensure_web_assets_at(&crate::install::oma_home()?)?;
     let state = Arc::new(ServeState {
         root,
         gate: Mutex::new(()),
+        kanban,
     });
     let app = router(state);
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
@@ -88,11 +93,11 @@ fn router(state: Arc<ServeState>) -> axum::Router {
         // 主页即 web 镜像页（用户定调：可视化页面当首页，编排走 CLI/API/MCP）。
         // GET / 自动起整会话镜像并 302 到 #t= ——打开就是多路窗格。
         .route("/", get(home))
-        .route("/share-fe", get(share_fe_root))
-        .route("/share-fe/", get(share_fe_root))
-        .route("/share-fe/{*path}", get(share_fe_asset))
+        .route("/kanban", get(kanban_root))
+        .route("/kanban/", get(kanban_root))
+        .route("/kanban/{*path}", get(kanban_asset))
         // 前端 JS 以绝对路径 /_astro/... 引 wasm（SRI 锁字节），根路径原位托管。
-        .route("/_astro/{*path}", get(share_fe_astro_asset))
+        .route("/_astro/{*path}", get(kanban_astro_asset))
         .route("/api", get(index))
         .route("/spawn", post(spawn))
         .route("/status", get(status))
@@ -244,9 +249,9 @@ struct SettleReq {
 
 /// 前端静态目录托管：读盘 + 扩展名 MIME + ACAO（crossorigin=anonymous 资源
 /// 的 CORS 校验）+ no-store（SRI 与资产演进同步）。路径规范化防穿越。
-fn share_fe_read(rel: &str) -> Option<( &'static str, Vec<u8>)> {
+fn kanban_read(dir: &Path, rel: &str) ->Option<(&'static str, Vec<u8>)> {
     use std::path::Component;
-    let base = std::path::Path::new(SHARE_FE_DIR);
+    let base = dir;
     let mut full = base.to_path_buf();
     for c in std::path::Path::new(rel).components() {
         match c {
@@ -270,8 +275,8 @@ fn share_fe_read(rel: &str) -> Option<( &'static str, Vec<u8>)> {
     Some((mime, data))
 }
 
-fn share_fe_reply(rel: &str) -> Response {
-    match share_fe_read(rel) {
+fn kanban_reply(dir: &Path, rel: &str) -> Response {
+    match kanban_read(dir, rel) {
         Some((mime, body)) => (
             [
                 (axum::http::header::CONTENT_TYPE, mime),
@@ -281,7 +286,7 @@ fn share_fe_reply(rel: &str) -> Response {
             body,
         )
             .into_response(),
-        None => err_reply("share-fe", Path::new(SHARE_FE_DIR), StatusCode::NOT_FOUND, format!("{rel} not found")),
+        None => err_reply("kanban", dir, StatusCode::NOT_FOUND, format!("{rel} not found")),
     }
 }
 
@@ -329,9 +334,16 @@ async fn home(
             .unwrap_or_else(|| "mirror url missing token".to_string());
         return err_reply("home", &st.root, StatusCode::OK, msg);
     };
-    let mut html = match share_fe_read("index.html") {
+    let kanban_dir = match crate::install::oma_home()
+        .map_err(|e| e)
+        .and_then(|h| crate::webassets::ensure_web_assets_at(&h))
+    {
+        Ok(d) => d,
+        Err(e) => return err_reply("home", &st.root, StatusCode::OK, e),
+    };
+    let mut html = match kanban_read(&kanban_dir, "index.html") {
         Some((_, b)) => String::from_utf8_lossy(&b).into_owned(),
-        None => return err_reply("home", &st.root, StatusCode::NOT_FOUND, "share-fe/index.html".into()),
+        None => return err_reply("home", &st.root, StatusCode::NOT_FOUND, format!("{}: index.html", kanban_dir.display())),
     };
     let shim = format!(
         "<script>if(!location.hash)location.replace('/#t={token}');</script></body>"
@@ -347,16 +359,16 @@ async fn home(
         .into_response()
 }
 
-async fn share_fe_root() -> Response {
-    share_fe_reply("index.html")
+async fn kanban_root(State(st): State<Arc<ServeState>>) -> Response {
+    kanban_reply(&st.kanban, "index.html")
 }
 
-async fn share_fe_asset(AxPath(path): AxPath<String>) -> Response {
-    share_fe_reply(&path)
+async fn kanban_asset(State(st): State<Arc<ServeState>>, AxPath(path): AxPath<String>) -> Response {
+    kanban_reply(&st.kanban, &path)
 }
 
-async fn share_fe_astro_asset(AxPath(path): AxPath<String>) -> Response {
-    share_fe_reply(&format!("_astro/{path}"))
+async fn kanban_astro_asset(State(st): State<Arc<ServeState>>, AxPath(path): AxPath<String>) -> Response {
+    kanban_reply(&st.kanban, &format!("_astro/{path}"))
 }
 
 

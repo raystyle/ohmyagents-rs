@@ -7,7 +7,7 @@ export function shareViewTemplate(): string {
     <main class="share-app" data-chrome="visible" data-navbar="visible" data-connected="false" data-operator="free" data-role="spectator" data-terminal-mode="dark" data-terminal-theme="user">
       <header class="share-topbar">
         <div class="share-brand">
-          <a class="share-brand-home" href="https://rmux.io/" aria-label="Oh My Agents 工作看板">
+          <a class="share-brand-home" href="#" aria-label="Oh My Agents 工作看板">
             <span class="share-brand-title">Oh My Agents 工作看板</span>
           </a>
           <button class="share-mobile-actions-button" data-share-mobile-actions type="button" aria-haspopup="menu" aria-label="Controls" title="Controls">
@@ -16,7 +16,7 @@ export function shareViewTemplate(): string {
             </svg>
           </button>
           <span class="share-brand-divider" aria-hidden="true"></span>
-          <a class="share-brand-context" data-share-home-link href="${shareBasePath()}">SHARE</a>
+          <a class="share-brand-context" data-share-home-link href="${shareBasePath()}"></a>
         </div>
         <nav class="share-topbar-actions" data-share-session-controls hidden aria-label="Session controls">
           <button class="share-icon-button" data-share-split-horizontal type="button" aria-label="Split right" title="Split right">

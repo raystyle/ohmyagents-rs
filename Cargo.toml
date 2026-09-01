@@ -37,6 +37,12 @@ axum = { version = "0.8", optional = true }
 tokio-stream = { version = "0.1", optional = true }
 rmcp = { version = "3.1", optional = true, features = ["transport-io", "schemars"] }
 
+[build-dependencies]
+# build.rs 打包 kanban 资源包（tar.gz + sha256 指纹）用；与运行时依赖同版本。
+tar = "0.4"
+flate2 = "1"
+sha2 = "0.10"
+
 [dev-dependencies]
 # assert_cmd 与 predicates 为 clap 官方生态标准 CLI 测试件（R005 选型：
 # crates.io 稳定主流、持续维护），只进测试构建。

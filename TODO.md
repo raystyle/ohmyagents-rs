@@ -4,17 +4,16 @@
 
 ## 当前目标
 
-web 镜像本地化与主页化（对应 `GOAL.md`，方案 P0022，2026-08-31 用户连发定调：本地化、找源码仓、不要 wrangler、命名 web-mirror-server、主页即可视化、dashboard 删除）。当日完成并经用户验收。
+看板资源包化（对应 `GOAL.md`，方案 P0023，2026-09-01 用户定调「web\share-src 应该在源码里，安装释放到用户应用数据目录」）。当日完成，S022 三路线裁决（嵌入归档加首启释放，零新依赖）。
 
 ## 任务进度清单
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
-| 本地化攻坚 | 已完成 | 四连挫四根因（尾斜杠、e 参数误判、缺 WASM、缺 ACAO）；本地前端全通 | 2026-08-31 |
-| 源码仓与构建 | 已完成 | rmux-web-share 源码 clone 进仓；autocrlf 坑；npm build 全绿（SRI 自动重打） | 2026-08-31 |
-| serve 目录托管 | 已完成 | /share-fe/* 与 /_astro/* 读盘 + 防穿越 + MIME + ACAO；rebuild 免重编 | 2026-08-31 |
-| session 镜像与免 PIN | 已完成 | agent 参数 Option 化（None=整会话）；本地自动 --no-pin | 2026-08-31 |
-| 主页即镜像 | 已完成 | GET / 自动起会话镜像注入 token（shim 方案）；dashboard 删除；编排回归 CLI/API/MCP | 2026-08-31 |
+| 研究 S022 | 已完成 | include_bytes 对 rust-embed 对嵌入归档释放；指纹目录口径 | 2026-09-01 |
+| build.rs 打包 | 已完成 | kanban 目录 tar.gz 加 sha256 指纹进 OUT_DIR；rerun-if-changed | 2026-09-01 |
+| 首启释放 | 已完成 | webassets.rs 嵌入与释放 `~/.ohmyagents/web/<指纹>/`，一次一份 | 2026-09-01 |
+| serve 接线 | 已完成 | ServeState 带释放目录；banner 打 serve.kanban；全链活体验收 | 2026-09-01 |
 
 ## 前目标 0017 与 0018 残表
 

@@ -16,7 +16,7 @@ export function provenanceDialogTemplate(): string {
           </button>
         </div>
         <p>
-          <span data-share-provenance-statement>This static page runs in your browser. It connects directly to your rmux daemon through loopback or your tunnel, with terminal traffic encrypted end-to-end. The share token stays in the URL fragment and is never sent to share.rmux.io.</span>
+          <span data-share-provenance-statement>This static page runs in your browser. It connects directly to your rmux daemon through loopback or your tunnel, with terminal traffic encrypted end-to-end. The share token stays in the URL fragment and never leaves this machine.</span>
           <a data-share-provenance-docs href="${WEB_SHARE_DOCS_URL}" target="_blank" rel="noopener noreferrer">See the docs</a>.
         </p>
         <dl class="share-provenance-list">

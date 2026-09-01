@@ -3,8 +3,8 @@
   "project": "rmux-web-share",
   "public_origin": "https://share.rmux.io",
   "repository": "https://github.com/Helvesec/rmux-web-share",
-  "commit_sha1": "312c1d552dcdce671c2384eab8320d1d47a70816",
-  "commit_url": "https://github.com/Helvesec/rmux-web-share/commit/312c1d552dcdce671c2384eab8320d1d47a70816",
+  "commit_sha1": "3a2cadd020a7a56454251bd5ecd33e411a9d4466",
+  "commit_url": "https://github.com/Helvesec/rmux-web-share/commit/3a2cadd020a7a56454251bd5ecd33e411a9d4466",
   "ref": "main",
   "github_actions": {
     "run_id": null,
@@ -18,27 +18,27 @@
   },
   "build": {
     "command": "npm ci && npm run build",
-    "generated_at": "2026-09-01T00:46:12.808Z",
+    "generated_at": "2026-09-01T00:52:53.025Z",
     "asset_hash": "sha256"
   },
   "security_statement": "This static page runs in your browser. It connects directly to your rmux daemon through loopback or your tunnel, with terminal traffic encrypted end-to-end. The share token stays in the URL fragment and is never sent to share.rmux.io.",
   "verification": {
     "note": "Independently auditable. Rebuild from source at the commit below and compare against checksums.txt to verify build integrity.",
-    "source_checkout": "git clone https://github.com/Helvesec/rmux-web-share.git && cd rmux-web-share && git checkout 312c1d552dcdce671c2384eab8320d1d47a70816",
+    "source_checkout": "git clone https://github.com/Helvesec/rmux-web-share.git && cd rmux-web-share && git checkout 3a2cadd020a7a56454251bd5ecd33e411a9d4466",
     "reproduce": "npm ci && npm run build"
   },
   "assets": [
     {
       "path": "/",
       "bytes": 1198,
-      "sha256": "a8f052e180fa0ceff6544c2694c1d7d0fe35c8a6cf84bf6b61ef1e748f529844",
-      "integrity": "sha256-qPBS4YD6DO/2VEwmlMHX0P41yKbPhL9rYe8edI9SmEQ="
+      "sha256": "53e425ea22672e11e399a8c40778e5e52382177b7f9db3e63fc640fe0c56cbe2",
+      "integrity": "sha256-U+Ql6iJnLhHjmajEB3jl5SOCF3t/nbPmP8ZA/gxWy+I="
     },
     {
-      "path": "/_astro/index.astro_astro_type_script_index_0_lang.qp6gTghs.js",
-      "bytes": 529356,
-      "sha256": "ee326a4354fe552fdcd1c6b1a21212d8f825761032552fe1d32ddcdfdcf540e2",
-      "integrity": "sha256-7jJqQ1T+VS/c0caxohIS2PgldhAyVS/h0y3c39z1QOI="
+      "path": "/_astro/index.astro_astro_type_script_index_0_lang.CcN6HB77.js",
+      "bytes": 529239,
+      "sha256": "1182b9596d19e6e39e97ad610f2e06fb3fc95fdd1315eef93e8d4cd8eb1f5bfa",
+      "integrity": "sha256-EYK5WW0Z5uOel61hDy4G+z/JX90TFe75Po1M2OsfW/o="
     },
     {
       "path": "/_astro/index.D2bSaP4U.css",
@@ -199,8 +199,8 @@
     {
       "path": "/index.html",
       "bytes": 1198,
-      "sha256": "a8f052e180fa0ceff6544c2694c1d7d0fe35c8a6cf84bf6b61ef1e748f529844",
-      "integrity": "sha256-qPBS4YD6DO/2VEwmlMHX0P41yKbPhL9rYe8edI9SmEQ="
+      "sha256": "53e425ea22672e11e399a8c40778e5e52382177b7f9db3e63fc640fe0c56cbe2",
+      "integrity": "sha256-U+Ql6iJnLhHjmajEB3jl5SOCF3t/nbPmP8ZA/gxWy+I="
     },
     {
       "path": "/rmux-logo-dark.svg",

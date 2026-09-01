@@ -402,11 +402,11 @@ function homeTemplate(): string {
   return `
     <main class="home-shell">
       <header class="home-topbar">
-        <a class="home-brand" href="https://rmux.io/" aria-label="Oh My Agents 工作看板">
+        <a class="home-brand" href="#" aria-label="Oh My Agents 工作看板">
           <strong>Oh My Agents 工作看板</strong>
         </a>
         <span class="home-divider" aria-hidden="true"></span>
-        <a class="home-section" href="https://share.rmux.io/">SHARE</a>
+        <a class="home-section" href="#"></a>
         <nav class="home-actions" aria-label="Page actions">
           <a class="home-action" data-home-docs href="${WEB_SHARE_DOCS_URL}">Docs</a>
           <button class="home-icon-action" data-home-theme type="button" aria-label="Switch to dark theme" title="Switch to dark theme">${moonIcon()}</button>
@@ -421,7 +421,7 @@ function homeTemplate(): string {
           <form class="home-connect-form" data-home-connect-form>
             <label class="home-input-wrap">
               ${linkIcon()}
-              <input data-home-share-input type="text" autocomplete="off" spellcheck="false" placeholder="https://share.rmux.io/#t=..." />
+              <input data-home-share-input type="text" autocomplete="off" spellcheck="false" placeholder="/#t=..." />
             </label>
             <button class="home-connect-button" type="submit">Connect ${arrowRightIcon()}</button>
           </form>

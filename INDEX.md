@@ -43,7 +43,9 @@
 | `src\server.rs` | HTTP 适配层（feature `server`，P0011/P0019）：axum 六操作 RESTish + JSON 信封 + 会话写串行化 + 网页直出 + 行日志 SSE + 终端镜像 SSE（render_stream 加首帧）+ trace 三端点；`serve_in_background` 供 REPL 内嵌 |
 | `src\repl.rs` | REPL 交互层（P0016）：裸 `oma` 进；stdin 线程喂 mpsc、行命令分派、编排面内嵌、状态表格渲染（CLI 共用） |
 | `docs\web\share-src\` | rmux-web-share 前端源码（Astro，`npm run build` 出产物；node_modules 与 dist 不进仓） |
-| `docs\web\share-fe\` | web-mirror-server 前端构建产物（serve 目录托管：`/`、`/share-fe/*`、`/_astro/*`，防穿越） |
+| `docs\web\kanban\` | web-mirror-server 前端构建产物（资源包构建输入；build.rs 打 tar.gz 嵌二进制） |
+| `build.rs` | kanban 资源包打包（tar.gz 加 sha256 指纹进 OUT_DIR；rerun-if-changed 挂资产目录） |
+| `src\webassets.rs` | 资源包嵌入与首启释放（`~/.ohmyagents/web/<指纹>/`，一次一份，P0023） |
 | `tests\cli.rs` | CLI 集成冒烟（assert_cmd；check/agents/hook/doctor/send 快败） |
 | `src\caps.rs` | CPU 指令集能力与探针退出形态分类（S021/P0018：is_x86_feature_detected 加 0xC000001D 识别） |
 | `src\pathutil.rs` | 路径工具 |
@@ -106,6 +108,7 @@ ohmyagents/
 | P0019 | `P0019-产品完备收口与四家真路验收.md` | 已完成（SSE 终端镜像、门面文档对齐、四家真路全链验收；修 status 降级、CHILD_SESSION、settle 三态） |
 | P0021 | `P0021-官方web镜像集成.md` | 已完成（oma web 三面集成 rmux web-share；自建 xterm 桥下线） |
 | P0022 | `P0022-web镜像本地化与主页化.md` | 已完成（前端源码构建本地托管、session 镜像免 PIN、主页即镜像、dashboard 下线；命名 web-mirror-server） |
+| P0023 | `P0023-看板资源包化.md` | 已完成（build.rs 打 tar.gz 嵌二进制、首启释放 oma 数据根、指纹一次一份） |
 
 ## 四、项目日记
 
@@ -141,6 +144,7 @@ ohmyagents/
 | S019 | `S019-四家会话日志格式与联邦检索取证.md` | 四家会话库四要素钉死与三仓源码纠偏（P0013 依据） |
 | S020 | `S020-grok权威日志updates与method分类学.md` | updates 信封两流分类学与四要素定位（P0014 依据） |
 | S021 | `S021-linux预备检测-指令集SIGILL问题类与检测阶梯.md` | AVX-512/AVX2 SIGILL 问题类、四级检测阶梯与 oma 探针落点（P0012 预备） |
+| S022 | `S022-rust程序自带资源包的三路线与释放裁决.md` | include_bytes 对 rust-embed 对嵌入归档加释放；指纹目录口径（P0023 依据） |
 
 ## 六、开发测试参考
 

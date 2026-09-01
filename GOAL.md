@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-01 | P0023 达成：看板资源包化——build.rs 打 tar.gz 嵌二进制、首启释放 `~/.ohmyagents/web/<指纹>/`（一次一份），serve 从释放位托管；单 exe 自带看板 JS 资源，产品化收口 |
 | 2026-08-31 | P0022 达成：web 镜像本地化与主页化——前端源码仓发现（rmux-web-share/rmux-typescript）并 npm 构建本地托管（四挫四根因：尾斜杠、e 参数、WASM、ACAO）；session 镜像缺省加免 PIN；`oma serve` 主页即 web-mirror-server（打开即四路窗格），dashboard 删除、编排回归 CLI/API/MCP |
 | 2026-08-31 | P0021 达成：官方 web 镜像集成——`oma web` 三面接管 rmux web-share（operator 真 attach、PIN、TTL、断开管理）；自建 xterm 桥下线（用户两次纠偏：要 TUI 镜像、用平台原生 webshare） |
 | 2026-08-31 | P0019 达成：产品完备收口——SSE 终端镜像（render_stream 加首帧）、README/CHANGELOG/ROADMAP 对齐、**四家真 agent 全链验收全绿**（claude hook 流加编辑 trace、codex settle Skip、grok 干净项目直通、kimi Up+Enter 信任）；揪修四缺陷：status 逐路降级、spawn 清 CHILD_SESSION、settle 全屏三态、镜像首帧 |
