@@ -72,6 +72,14 @@ pub fn pid_alive(pid: u32) -> bool {
     }
     #[cfg(not(windows))]
     {
+        // Unix kill 语义里 0 指「本进程组」，kill -0 0 会成功；超过
+        // i32::MAX 的 pid 经 kill CLI 的 int 解析会回绕成负数（u32::MAX
+        // 即 -1，kill -0 -1 广播成功）。两者都不是真实进程，按不活处理，
+        // 与 Windows OpenProcess 对非法 pid 失败的语义对齐。合法 Linux
+        // pid 上限 4194304（2^22），远小于 i32::MAX，不受影响。
+        if pid == 0 || pid > i32::MAX as u32 {
+            return false;
+        }
         std::process::Command::new("kill")
             .args(["-0", &pid.to_string()])
             .output()
@@ -142,6 +150,13 @@ pub fn serve_start(root: &Path, port: u16) -> Result<String, String> {
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
         cmd.creation_flags(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP);
+    }
+    #[cfg(unix)]
+    {
+        // Windows CREATE_NEW_PROCESS_GROUP 的等价物：daemon 进独立进程组，
+        // 终端关闭的 SIGHUP 打不到它（无 Job Object，不需要逃逸，只防挂断）。
+        use std::os::unix::process::CommandExt;
+        cmd.process_group(0);
     }
     let child = cmd
         .spawn()

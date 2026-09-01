@@ -481,6 +481,15 @@ pub fn detect_terminal_state(
     if tail.starts_with("PS ") && tail.ends_with('>') && cursor_row == tail_row as u16 {
         return TermState::Ready;
     }
+    // Unix shell prompt（sh/bash/zsh）：PS1 缺省以 "$ " 收尾（root 为
+    // "# "、zsh 为 "% "），trim 后提示符落在行尾；已输入命令的行（如
+    // "$ sleep 30"）不以提示符收尾，天然不误判。裸 "%" 才算 zsh 提示符，
+    // 后缀匹配会吃掉 "42%" 进度行。
+    if (tail.ends_with('$') || tail.ends_with('#') || tail == "%")
+        && cursor_row == tail_row as u16
+    {
+        return TermState::Ready;
+    }
     TermState::Unknown
 }
 
@@ -575,6 +584,32 @@ pub fn wmi_new_session(rmux_bin: &Path, argv: &[String]) -> Result<(), String> {
     Ok(())
 }
 
+/// Boot a labeled daemon outside the caller's lifetime.
+/// Windows: WMI escapes the Job Object (kill-on-close would reap the daemon
+/// with the parent). Unix: no job object exists and the tmux-shaped server
+/// daemonizes itself, so a plain detached spawn suffices—null stdio plus a
+/// fresh process group so a terminal SIGHUP cannot take the daemon down.
+pub fn boot_new_session(rmux_bin: &Path, argv: &[String]) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        wmi_new_session(rmux_bin, argv)
+    }
+    #[cfg(not(windows))]
+    {
+        use std::os::unix::process::CommandExt;
+        use std::process::Stdio;
+        Command::new(rmux_bin)
+            .args(argv)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .process_group(0)
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| format!("spawn new-session: {e}"))
+    }
+}
+
 /// Boot (or reuse) a labeled daemon and return its real pipe name plus pid.
 /// Boot keeper session must not collide with the product session name.
 pub fn ensure_label_daemon(
@@ -596,7 +631,7 @@ pub fn ensure_label_daemon(
             "32".into(),
         ];
         argv.extend(interactive_shell_argv());
-        wmi_new_session(rmux_bin, &argv)?;
+        boot_new_session(rmux_bin, &argv)?;
         let mut last = "never probed".to_string();
         for _ in 0..40 {
             if label_alive(rmux_bin, label) {
@@ -712,6 +747,28 @@ mod tests {
         // Typed command on the prompt line (mid-command): never Ready.
         let mid = lines(&["PS D:\\ohmyagents> Start-Sleep -Seconds 8"]);
         assert_eq!(detect_terminal_state(&mid, 0, true), TermState::Unknown);
+    }
+
+    #[test]
+    fn classifier_ready_accepts_unix_shell_prompts() {
+        // Linux stub 实测画面：裸 "$" 提示符整屏堆叠（resize 重印）。
+        let bare = lines(&["$"]);
+        assert_eq!(detect_terminal_state(&bare, 0, true), TermState::Ready);
+        // 常见 PS1 形态：user@host:path$ 与 root 的 #。
+        let bash = lines(&["ray@ai-lab:~/proj$"]);
+        assert_eq!(detect_terminal_state(&bash, 0, true), TermState::Ready);
+        let root = lines(&["root@ai-lab:~#"]);
+        assert_eq!(detect_terminal_state(&root, 0, true), TermState::Ready);
+        // 裸 "%" 是 zsh 提示符；后缀 "%" 会吃掉进度行，所以只认裸形态。
+        let zsh = lines(&["%"]);
+        assert_eq!(detect_terminal_state(&zsh, 0, true), TermState::Ready);
+        let progress = lines(&["downloading 42%"]);
+        assert_eq!(detect_terminal_state(&progress, 0, true), TermState::Unknown);
+        // 已输入命令（"$ sleep 30"）不以提示符收尾：不 Ready。
+        let mid = lines(&["$ sleep 30"]);
+        assert_eq!(detect_terminal_state(&mid, 0, true), TermState::Unknown);
+        // 光标不在提示符行：不 Ready。
+        assert_eq!(detect_terminal_state(&bare, 5, true), TermState::Unknown);
     }
 
     #[test]
