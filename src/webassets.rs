@@ -2,7 +2,6 @@
 //! 二进制，首次（或指纹变更）运行时释放到 oma 自管数据根 `~/.ohmyagents/web/
 //! <指纹>/`，serve 从那里托管。单 exe 自带资源，克隆仓不克隆仓都能跑。
 
-use std::io::Read;
 use std::path::{Path, PathBuf};
 
 static KANBAN_TGZ: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/kanban-web.tar.gz"));

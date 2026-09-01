@@ -439,16 +439,12 @@ async fn cmd_web(
     let root = project_root(project)?;
     let manifest = orch::read_manifest_for(&root)
         .ok_or_else(|| "no session manifest; run `oma spawn` first".to_string())?;
-    let targets: Vec<String> = match &agent {
-        Some(a) => {
-            if manifest.agents.iter().any(|m| &m.name == a) {
-                vec![a.clone()]
-            } else {
-                return Err(format!("agent {a} not in this session"));
-            }
+    // 校验：指定 agent 必须在本会话（api 层只认 agent 名，不重复收集）。
+    if let Some(a) = &agent {
+        if !manifest.agents.iter().any(|m| &m.name == a) {
+            return Err(format!("agent {a} not in this session"));
         }
-        None => manifest.agents.iter().map(|m| m.name.clone()).collect(),
-    };
+    }
     match agent.as_deref() {
         Some(a) => {
             let v = oma::api::web_share(&root, Some(a), spectator, ttl, None, no_pin).await?;
