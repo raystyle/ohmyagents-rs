@@ -223,7 +223,9 @@ pub fn task_list(root: &Path) -> Result<Vec<(String, String, bool)>, String> {
             .unwrap_or_else(|| "-".into());
         out.push((id.to_string(), agent, p.join("DONE").exists()));
     }
-    out.sort();
+    out.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+    // 数值序（relay7 kimi13：字典序在 t1000 后乱序）。
+    out.sort_by_key(|(id, _, _)| id.trim_start_matches('t').parse::<u32>().unwrap_or(0));
     Ok(out)
 }
 

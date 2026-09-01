@@ -189,7 +189,8 @@ enum Commands {
         #[arg(long)]
         project: Option<PathBuf>,
     },
-    /// serve 守护进程本体（隐藏；由 `oma serve start` 孤儿化拉起）
+    /// serve 守护进程本体（由 `oma serve start` 孤儿化拉起）
+    #[command(hide = true)]
     ServeDaemon {
         /// 监听端口
         #[arg(long)]

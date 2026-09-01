@@ -664,13 +664,13 @@ async fn agent_alive(
     // pwsh 会让 Unix 上 stub 路每次判死反复重开）。
     let stub_proc = if cfg!(windows) { "pwsh" } else { "sh" };
     let expected = if stub { stub_proc } else { agent };
-    // 同步 pwsh 批查放 blocking 池（P0026 高4）。
-    tokio::task::spawn_blocking(move || process_names(&[pid]))
-        .await
-        .ok()
-        .and_then(|r| r.ok())
-        .and_then(|names| expect_process(&names, pid, expected).ok())
-        .is_some()
+    // 同步 pwsh 批查放 blocking 池（P0026 高4）；**查询失败按活路保守**
+    //（relay7 kimi1：折叠成死路会让 reconcile 误杀健康 lane 重开——
+    // 查询基础设施故障不等于进程死了）。
+    match tokio::task::spawn_blocking(move || process_names(&[pid])).await {
+        Ok(Ok(names)) => expect_process(&names, pid, expected).is_ok(),
+        _ => true,
+    }
 }
 
 /// 和解：会话不在整体新开；在则逐路判活（附加）或重开（split 回一路并回写 manifest）。
@@ -1182,6 +1182,14 @@ fn paste_three_step(link: &Link, _pane: &Pane, pane_id: u64, text: &str) -> Resu
 /// away with the session.
 pub async fn cleanup(link: &Link, root: &Path) -> Result<bool, String> {
     let name = session_name(root)?;
+    // 补杀 boot keeper（relay7 kimi7：reconcile 路径已补杀，cleanup 漏——
+    // 残留 boot 会让 daemon 随它存活到下一次 spawn 才被收）。
+    let boot = boot_session_name(root);
+    let _ = rmuxpoc::run_cli_checked(
+        &link.rmux_bin,
+        &["-L", link.label.as_str(), "kill-session", "-t", &boot],
+        "kill boot session",
+    );
     let existed = match rmuxpoc::reuse_only(&link.rmux, name).await {
         Ok(session) => match session.kill().await {
             Ok(existed) => existed,
