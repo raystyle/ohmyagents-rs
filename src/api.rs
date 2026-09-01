@@ -78,8 +78,20 @@ pub async fn status(root: &Path) -> Result<Value, String> {
     }))
 }
 
-/// 单路发送：守卫链与粘贴细节全在 orch::send。
+/// 单路发送（无锁形态，CLI 直用）：锁内段 + 锁外开始确认。
 pub async fn send(
+    root: &Path,
+    agent: &str,
+    text: &str,
+    confirm: Option<&str>,
+) -> Result<Value, String> {
+    let mut v = send_locked(root, agent, text, confirm).await?;
+    send_finalize(root, agent, &mut v).await;
+    Ok(v)
+}
+
+/// 发送的锁内段（HTTP/MCP 持 gate 调）：粘贴/Enter/短头确认，无开始等待。
+pub async fn send_locked(
     root: &Path,
     agent: &str,
     text: &str,
@@ -88,6 +100,36 @@ pub async fn send(
     let link = orch::connect(root, false).await?;
     orch::send(&link, root, agent, text, confirm).await?;
     Ok(json!({ "agent": agent, "sent": true }))
+}
+
+/// 发送的锁外收尾：任务开始确认（15s），alerts 写入信封 data。
+pub async fn send_finalize(root: &Path, agent: &str, v: &mut Value) {
+    let Ok(link) = orch::connect(root, false).await else {
+        return;
+    };
+    let alerts = orch::send_start_alerts(&link, root, agent).await;
+    if !alerts.is_empty() {
+        v["alerts"] = json!(alerts);
+    }
+}
+
+/// spawn 的锁外收尾单点：就绪确认 + auto-settle（HTTP/MCP 在 gate 外调；
+/// CLI 直接调）。mutates `v` 写入 alerts。
+pub async fn spawn_finalize(root: &Path, v: &mut Value) {
+    let Ok(link) = orch::connect(root, false).await else {
+        return;
+    };
+    let respawned: Vec<String> = v["respawned"]
+        .as_array()
+        .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+        .unwrap_or_default();
+    let mut alerts = orch::await_lanes_ready(&link, root, &respawned).await;
+    if let Err(e) = settle(root, 10).await {
+        eprintln!("spawn.auto-settle: {e}");
+    }
+    if !alerts.is_empty() {
+        v["alerts"] = json!(alerts);
+    }
 }
 
 /// 发单键（受守卫入口）：codex 拒 C-c（M001），键名直传 rmux（Enter/Esc/
@@ -100,6 +142,30 @@ pub async fn key(root: &Path, agent: &str, key: &str) -> Result<Value, String> {
 
 /// 状态门分派：sent 与 skipped（agent: reason）都进 data。
 pub async fn run(
+    root: &Path,
+    text: &str,
+    assign: Option<Vec<String>>,
+    confirm: Option<&str>,
+) -> Result<Value, String> {
+    let mut v = run_locked(root, text, assign, confirm).await?;
+    let sent: Vec<String> = v["sent"]
+        .as_array()
+        .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+        .unwrap_or_default();
+    let mut alerts = Vec::new();
+    for agent in &sent {
+        if let Ok(link) = orch::connect(root, false).await {
+            alerts.extend(orch::send_start_alerts(&link, root, agent).await);
+        }
+    }
+    if !alerts.is_empty() {
+        v["alerts"] = json!(alerts);
+    }
+    Ok(v)
+}
+
+/// run 的锁内段（HTTP/MCP 持 gate 调）：状态门分派与粘贴，无开始等待。
+pub async fn run_locked(
     root: &Path,
     text: &str,
     assign: Option<Vec<String>>,
@@ -122,6 +188,9 @@ pub async fn run(
 
 /// 自愈信任：各路结果（agent: outcome）。
 pub async fn settle(root: &Path, wait_secs: u64) -> Result<Value, String> {
+    // clamp（Round1 kimi5：u64 直下 `Instant + Duration` 溢出即 panic，可
+    // 打崩 server/mcp 进程；0..=600 覆盖一切合理窗口）。
+    let wait_secs = wait_secs.min(600);
     let link = orch::connect(root, false).await?;
     let outcomes = orch::settle(&link, root, wait_secs).await?;
     let rows: Vec<Value> = outcomes

@@ -34,8 +34,10 @@ pub struct TaskMeta {
     pub created: u64,
 }
 
-/// 分配任务目录 id：scan 取 max + 1，目录 create 占位原子防撞（同
-/// alloc_task_id 思路，目录形态；平文件 tNNN.json 在同一 scan 里兼容）。
+/// 分配任务目录 id：scan 取 max + 1，**平文件 tNNN.json 占位**（与 run 的
+/// alloc_task_id 同一占位物——Round1 grok4：目录与平文件是不同路径，两
+/// 进程并发可同时占下同号；统一占位物后 create_new 原子互斥）再建同名
+/// 目录。
 fn alloc_task_dir(root: &Path) -> Result<String, String> {
     let dir = tasks_dir(root);
     std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
@@ -56,15 +58,31 @@ fn alloc_task_dir(root: &Path) -> Result<String, String> {
     let mut n = max + 1;
     loop {
         let id = format!("t{n:03}");
-        match std::fs::create_dir(task_dir(root, &id)) {
-            Ok(()) => return Ok(id),
+        let claim = dir.join(format!("{id}.json"));
+        match std::fs::OpenOptions::new().write(true).create_new(true).open(&claim) {
+            Ok(_) => {}
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
                 n += 1;
                 continue;
             }
-            Err(e) => return Err(format!("task dir: {e}")),
+            Err(e) => return Err(format!("task claim: {e}")),
         }
+        // 占位 json 兼作该任务的平文件记录（run 的 TaskRecord 同位面）。
+        std::fs::write(&claim, "{\"claimed_by\":\"oma task\"}\n")
+            .map_err(|e| format!("{}: {e}", claim.display()))?;
+        std::fs::create_dir(task_dir(root, &id))
+            .map_err(|e| format!("task dir: {e}"))?;
+        return Ok(id);
     }
+}
+
+/// id 形态校验（Round1 kimi14：`task show ../../foo` 可路径遍历读任务
+/// 目录外文件；server/mcp 复用本模块时成真攻击面）。
+fn valid_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 8
+        && id.starts_with('t')
+        && id[1..].chars().all(|c| c.is_ascii_digit())
 }
 
 /// 建任务并发给 agent。返回 (id, task_dir)。send 文本 = 用户文本 + 协议
@@ -76,8 +94,25 @@ pub async fn task_new(
 ) -> Result<(String, PathBuf), String> {
     let id = alloc_task_dir(root)?;
     let dir = task_dir(root, &id);
+    // 全路径回滚（Round1 codex4/claude2/kimi13：此前只包 send 失败——
+    // connect 失败/写盘失败同样残留孤儿目录，被 task list 永久挂清单）。
+    if let Err(e) = task_new_inner(root, agent, text, &id, &dir).await {
+        let _ = std::fs::remove_dir_all(&dir);
+        let _ = std::fs::remove_file(tasks_dir(root).join(format!("{id}.json")));
+        return Err(e);
+    }
+    Ok((id, dir))
+}
+
+async fn task_new_inner(
+    root: &Path,
+    agent: &str,
+    text: &str,
+    id: &str,
+    dir: &Path,
+) -> Result<(), String> {
     let meta = TaskMeta {
-        id: id.clone(),
+        id: id.to_string(),
         agent: agent.to_string(),
         text: text.to_string(),
         created: std::time::SystemTime::now()
@@ -95,18 +130,15 @@ pub async fn task_new(
         "{text}\n\n（任务协议：提示词全文在 .ohmyagents/{id}/prompt.md；产物写到 .ohmyagents/{id}/output.md；写完最后创建空文件 .ohmyagents/{id}/DONE 表示完成）",
         id = format!("tasks/{id}"),
     );
-    if let Err(e) = orch::send(&link, root, agent, &note, None).await {
-        // send 失败回滚任务目录（codex 五轮低6：残留目录会被 task list 当
-        // 未完成挂在清单里）。
-        let _ = std::fs::remove_dir_all(&dir);
-        return Err(e);
-    }
-    Ok((id, dir))
+    orch::send(&link, root, agent, &note, None).await
 }
 
 /// 阻塞等 DONE 出现，然后读产物。timeout_secs 为 0 表示无限等。
 /// 返回产物文本；超时返回 Err（task 目录保留，产物晚到仍可 `task show` 收）。
 pub fn task_wait(root: &Path, id: &str, timeout_secs: u64) -> Result<String, String> {
+    if !valid_id(id) {
+        return Err(format!("invalid task id: {id}"));
+    }
     let dir = task_dir(root, id);
     let done = dir.join("DONE");
     let output = dir.join("output.md");
@@ -117,16 +149,21 @@ pub fn task_wait(root: &Path, id: &str, timeout_secs: u64) -> Result<String, Str
     };
     loop {
         if done.exists() {
-            // DONE 在但 output.md 缺失/空（违规 agent 先建 DONE 或还在追加，
-            // codex 五轮低5）：给 3s 宽限再读，仍缺则报错不返回半截。
-            if !output.exists() || output.metadata().map(|m| m.len() == 0).unwrap_or(true) {
-                let grace = std::time::Instant::now() + std::time::Duration::from_secs(3);
-                while std::time::Instant::now() < grace {
-                    if output.exists() && output.metadata().map(|m| m.len() > 0).unwrap_or(false) {
-                        break;
-                    }
-                    std::thread::sleep(std::time::Duration::from_millis(500));
+            // DONE 在但 output.md 缺失/空（违规 agent 先建 DONE 或还在追加；
+            // Round1 四家全中）：3s 宽限，**仍缺失或空则报错**——空产物静默
+            // 当成功会让调用方无从判断（FINDINGS 契约也无处校验）。
+            let grace = std::time::Instant::now() + std::time::Duration::from_secs(3);
+            while std::time::Instant::now() < grace {
+                if output.exists() && output.metadata().map(|m| m.len() > 0).unwrap_or(false) {
+                    break;
                 }
+                std::thread::sleep(std::time::Duration::from_millis(500));
+            }
+            if !output.exists() {
+                return Err(format!("task {id}: DONE present but output.md missing"));
+            }
+            if output.metadata().map(|m| m.len() == 0).unwrap_or(true) {
+                return Err(format!("task {id}: DONE present but output.md empty (protocol violation)"));
             }
             return std::fs::read_to_string(&output)
                 .map_err(|e| format!("DONE present but output.md unreadable: {e}"));
@@ -171,6 +208,9 @@ pub fn task_list(root: &Path) -> Result<Vec<(String, String, bool)>, String> {
 
 /// 看一个任务：meta + 产物（有则全量返回）。
 pub fn task_show(root: &Path, id: &str) -> Result<TaskMeta, String> {
+    if !valid_id(id) {
+        return Err(format!("invalid task id: {id}"));
+    }
     let dir = task_dir(root, id);
     let text = std::fs::read_to_string(dir.join("task.json"))
         .map_err(|e| format!("task {id}: {e}"))?;

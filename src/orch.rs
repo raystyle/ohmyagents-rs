@@ -242,6 +242,20 @@ pub struct SpawnPlan {
 /// Resolve which agents to launch: explicit list wins, otherwise the
 /// installed intersection; `--stub` replaces every agent with a shell stub.
 pub fn plan_agents(wanted: Option<Vec<String>>, stub: bool) -> Result<SpawnPlan, String> {
+    // 重复名入口拒绝（Round1 kimi7/codex9：`--agents claude,claude` 过校验
+    // 后 manifest 两条同名记录，find 永远只命中第一条成黑洞）。stub 分支
+    // 同样过这道闸（顺带挡非法字符进 state 文件路径，Round1 kimi10）。
+    if let Some(list) = &wanted {
+        let mut seen = std::collections::BTreeSet::new();
+        for n in list {
+            if !n.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
+                return Err(format!("invalid agent name: {n}"));
+            }
+            if !seen.insert(n.clone()) {
+                return Err(format!("duplicate agent in --agents: {n}"));
+            }
+        }
+    }
     if stub {
         let names = wanted.unwrap_or_else(|| AGENTS.iter().map(|s| s.to_string()).collect());
         let agents = names
@@ -636,7 +650,10 @@ async fn agent_alive(
     let Ok(pid) = rmuxpoc::running_pid(&pane).await else {
         return false;
     };
-    let expected = if stub { "pwsh" } else { agent };
+    // stub 进程名平台化（Round1 claude9：非 Windows 的桩是 sh，硬编码
+    // pwsh 会让 Unix 上 stub 路每次判死反复重开）。
+    let stub_proc = if cfg!(windows) { "pwsh" } else { "sh" };
+    let expected = if stub { stub_proc } else { agent };
     // 同步 pwsh 批查放 blocking 池（P0026 高4）。
     tokio::task::spawn_blocking(move || process_names(&[pid]))
         .await
@@ -810,6 +827,13 @@ pub async fn respawn(link: &Link, root: &Path, agent: &str) -> Result<u64, Strin
     let name = session_name(root)?;
     let session = rmuxpoc::reuse_only(&link.rmux, name).await?;
     let mut m = read_manifest_req(root)?;
+    // 成员校验（Round1 codex3/claude7：respawn 此前绕过校验，不在会话的
+    // 名字被静默加路、4 路可加到第 5 路——破坏精确集合语义）。
+    if !m.agents.iter().any(|a| a.name == agent) {
+        return Err(format!(
+            "agent {agent} not in this session; use `oma spawn --agents ...` to change the lane set"
+        ));
+    }
     let argv = respawn_argv(root, &m, agent)?;
     let old_pane = m.agents.iter().find(|a| a.name == agent).map(|e| e.pane_id);
     let base = session.pane(0, 0);
@@ -900,7 +924,8 @@ pub async fn send(
     let pane = pane_for(&session, entry.pane_id).await?;
 
     let pid = rmuxpoc::running_pid(&pane).await?;
-    let expected = if manifest.stub { "pwsh" } else { agent };
+    let stub_proc = if cfg!(windows) { "pwsh" } else { "sh" };
+    let expected = if manifest.stub { stub_proc } else { agent };
     // 同步 pwsh 批查放 blocking 池（P0026 高4）。
     let names = tokio::task::spawn_blocking(move || process_names(&[pid]))
         .await
@@ -957,12 +982,26 @@ pub async fn send(
         eprintln!("send.confirm={marker}");
     }
     // 任务开始确认（用户定调 2026-09-01：命令持续到任务正常开始才退出，
-    // 有阻塞就告警）：Enter 后等该路真开始干活。告警不算发送失败——
-    // stderr `send.alert=` 留痕人工跟进。
-    for alert in await_task_start(&pane, agent, Duration::from_secs(15), false).await {
-        eprintln!("send.alert={alert}");
-    }
+    // 有阻塞就告警）——**拆成锁外收尾**（Round1 grok3/kimi4：HTTP /send
+    // 持 gate 跨 15s 等待把写操作全堵死，与 spawn 移出锁外自相矛盾）：
+    // 本函数只做锁内的粘贴/Enter/短头确认；开始确认由调用方在锁外跑
+    // `send_start_alerts`，alerts 进 CLI stderr 与三通道信封 data（grok2）。
     Ok(())
+}
+
+/// send 的锁外收尾：任务开始确认（15s），返回 alerts。CLI 打 stderr、
+/// api 层进信封——由各通道在**会话锁外**调用。
+pub async fn send_start_alerts(link: &Link, root: &Path, agent: &str) -> Vec<String> {
+    let mut alerts = Vec::new();
+    let Ok((_, pane)) = pane_for_agent(link, root, agent).await else {
+        alerts.push(format!("{agent}: pane gone right after send"));
+        return alerts;
+    };
+    let found = await_task_start(&pane, agent, Duration::from_secs(15), false).await;
+    for a in &found {
+        eprintln!("send.alert={a}");
+    }
+    alerts
 }
 
 /// 等一路「任务真开始」：双信号任一即认——①分类器 working；②画面内容

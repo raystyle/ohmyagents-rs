@@ -526,9 +526,10 @@ async fn index(State(st): State<Arc<ServeState>>) -> Response {
     let data = json!({
         "name": "oma",
         "page": "/",
-        "tui": "/tui",
+        "kanban": "/kanban",
         "endpoints": [
             {"method": "GET", "path": "/api"},
+            {"method": "POST", "path": "/share", "body": {"spectator": false, "ttl": 3600}},
             {"method": "POST", "path": "/share/{agent}", "body": {"spectator": false, "ttl": 3600}},
             {"method": "GET", "path": "/share"},
             {"method": "DELETE", "path": "/share/{id}/stop"},
@@ -538,6 +539,8 @@ async fn index(State(st): State<Arc<ServeState>>) -> Response {
             {"method": "POST", "path": "/run", "body": {"text": "...", "assign": ["claude"]}},
             {"method": "POST", "path": "/settle", "body": {"wait": 30}},
             {"method": "DELETE", "path": "/session"},
+            {"method": "DELETE", "path": "/shutdown"},
+            {"method": "GET", "path": "/kanban"},
             {"method": "GET", "path": "/stream/{agent}?from=oldest|now"},
             {"method": "GET", "path": "/screen/{agent}"},
             {"method": "GET", "path": "/trace/sessions"},
@@ -559,22 +562,8 @@ async fn spawn(State(st): State<Arc<ServeState>>, body: String) -> Response {
         api::spawn(&st.root, req.agents, req.stub.unwrap_or(false)).await
     };
     if let Ok(v) = &mut spawned {
-        // 就绪确认与自动 settle 都在 gate 外（codex 中3 / kimi 四轮中3）：
-        // 持锁等待会把 send/run/settle/cleanup 堵住。alerts 进信封 data，
-        // 远端编排面能看到「任务没起来」；失败只 stderr 留痕。
-        if let Ok(link) = orch::connect(&st.root, false).await {
-            let respawned: Vec<String> = v["respawned"]
-                .as_array()
-                .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
-                .unwrap_or_default();
-            let alerts = orch::await_lanes_ready(&link, &st.root, &respawned).await;
-            if !alerts.is_empty() {
-                v["alerts"] = serde_json::json!(alerts);
-            }
-        }
-        if let Err(e) = api::settle(&st.root, 10).await {
-            eprintln!("spawn.auto-settle: {e}");
-        }
+        // 收尾单点（api::spawn_finalize：就绪确认 + auto-settle，锁外）。
+        api::spawn_finalize(&st.root, v).await;
     }
     finish(command, &st.root, spawned)
 }
@@ -590,12 +579,16 @@ async fn send(State(st): State<Arc<ServeState>>, body: String) -> Response {
         Ok(r) => r,
         Err(r) => return r,
     };
-    let _guard = st.gate.lock().await;
-    finish(
-        command,
-        &st.root,
-        api::send(&st.root, &req.agent, &req.text, req.confirm.as_deref()).await,
-    )
+    // 锁内只做粘贴/Enter；开始确认（15s）锁外（Round1 grok3/kimi4：持
+    /// gate 跨确认会把 spawn/cleanup/settle 全堵死）。
+    let mut out = {
+        let _guard = st.gate.lock().await;
+        api::send_locked(&st.root, &req.agent, &req.text, req.confirm.as_deref()).await
+    };
+    if out.is_ok() {
+        api::send_finalize(&st.root, &req.agent, out.as_mut().unwrap()).await;
+    }
+    finish(command, &st.root, out)
 }
 
 async fn run(State(st): State<Arc<ServeState>>, body: String) -> Response {
@@ -604,12 +597,27 @@ async fn run(State(st): State<Arc<ServeState>>, body: String) -> Response {
         Ok(r) => r,
         Err(r) => return r,
     };
-    let _guard = st.gate.lock().await;
-    finish(
-        command,
-        &st.root,
-        api::run(&st.root, &req.text, req.assign, req.confirm.as_deref()).await,
-    )
+    let mut out = {
+        let _guard = st.gate.lock().await;
+        api::run_locked(&st.root, &req.text, req.assign, req.confirm.as_deref()).await
+    };
+    if let Ok(v) = &mut out {
+        // 开始确认统一锁外（Round1 kimi6：派发后的确认不该持锁）。
+        let sent: Vec<String> = v["sent"]
+            .as_array()
+            .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+            .unwrap_or_default();
+        let mut alerts = Vec::new();
+        for agent in &sent {
+            if let Ok(link) = orch::connect(&st.root, false).await {
+                alerts.extend(orch::send_start_alerts(&link, &st.root, agent).await);
+            }
+        }
+        if !alerts.is_empty() {
+            v["alerts"] = serde_json::json!(alerts);
+        }
+    }
+    finish(command, &st.root, out)
 }
 
 async fn settle(State(st): State<Arc<ServeState>>, body: String) -> Response {

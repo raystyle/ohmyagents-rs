@@ -20,6 +20,11 @@ use crate::api;
 #[derive(Clone)]
 pub struct OmaMcp {
     root: PathBuf,
+    /// 会话写串行化（Round1 四家全中：rmcp 对每个 JSON-RPC 请求 spawn
+    /// 独立任务并发执行，两个并发 oma_send 的三段式粘贴会交错——buffer
+    /// 名同 pid 互撞、cleanup 与 spawn 构成 manifest TOCTOU）。与 HTTP
+    /// gate 同语义；就绪确认/settle 在锁外（spawn_finalize 内）。
+    gate: std::sync::Arc<tokio::sync::Mutex<()>>,
 }
 
 /// stdio 起服务：stdin/stdout 走 MCP 协议，进度只进 stderr。
@@ -39,7 +44,7 @@ pub async fn run(root: PathBuf) -> Result<(), String> {
 
 impl OmaMcp {
     pub fn new(root: PathBuf) -> Self {
-        Self { root }
+        Self { root, gate: std::sync::Arc::new(tokio::sync::Mutex::new(())) }
     }
 }
 
@@ -113,23 +118,13 @@ impl OmaMcp {
         &self,
         Parameters(SpawnParams { agents, stub }): Parameters<SpawnParams>,
     ) -> Result<CallToolResult, McpError> {
-        let out = api::spawn(&self.root, agents, stub.unwrap_or(false)).await;
+        let out = {
+            let _guard = self.gate.lock().await;
+            api::spawn(&self.root, agents, stub.unwrap_or(false)).await
+        };
         let mut out = out;
         if let Ok(v) = &mut out {
-            // 就绪确认与 settle 同在锁外（与 HTTP 通道同构）。
-            if let Ok(link) = crate::orch::connect(&self.root, false).await {
-                let respawned: Vec<String> = v["respawned"]
-                    .as_array()
-                    .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
-                    .unwrap_or_default();
-                let alerts = crate::orch::await_lanes_ready(&link, &self.root, &respawned).await;
-                if !alerts.is_empty() {
-                    v["alerts"] = serde_json::json!(alerts);
-                }
-            }
-            if let Err(e) = api::settle(&self.root, 10).await {
-                eprintln!("spawn.auto-settle: {e}");
-            }
+            api::spawn_finalize(&self.root, v).await;
         }
         envelope("spawn", &self.root, out)
     }
@@ -139,16 +134,20 @@ impl OmaMcp {
         envelope("status", &self.root, api::status(&self.root).await)
     }
 
-    #[tool(description = "向会话内某路 agent 发任务文本（多行自动走三段式粘贴）；confirm 为期望可见的确认短头")]
+    #[tool(description = "向会话内某路 agent 发任务文本（多行自动走三段式粘贴）；confirm 为期望可见的确认短头；开始确认与告警同 CLI/HTTP")]
     async fn oma_send(
         &self,
         Parameters(SendParams { agent, text, confirm }): Parameters<SendParams>,
     ) -> Result<CallToolResult, McpError> {
-        envelope(
-            "send",
-            &self.root,
-            api::send(&self.root, &agent, &text, confirm.as_deref()).await,
-        )
+        // 锁内粘贴、锁外确认（同 HTTP 形态）。
+        let mut out = {
+            let _guard = self.gate.lock().await;
+            api::send_locked(&self.root, &agent, &text, confirm.as_deref()).await
+        };
+        if out.is_ok() {
+            api::send_finalize(&self.root, &agent, out.as_mut().unwrap()).await;
+        }
+        envelope("send", &self.root, out)
     }
 
     #[tool(description = "状态门分派任务到多路 agent：一路 blocked/busy 跳过不堵其它路；assign 指定分派路，缺省全会话")]
@@ -156,18 +155,35 @@ impl OmaMcp {
         &self,
         Parameters(RunParams { text, assign, confirm }): Parameters<RunParams>,
     ) -> Result<CallToolResult, McpError> {
-        envelope(
-            "run",
-            &self.root,
-            api::run(&self.root, &text, assign, confirm.as_deref()).await,
-        )
+        let out = {
+            let _guard = self.gate.lock().await;
+            api::run_locked(&self.root, &text, assign, confirm.as_deref()).await
+        };
+        let mut out = out;
+        if let Ok(v) = &mut out {
+            let sent: Vec<String> = v["sent"]
+                .as_array()
+                .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+                .unwrap_or_default();
+            let mut alerts = Vec::new();
+            for agent in &sent {
+                if let Ok(link) = crate::orch::connect(&self.root, false).await {
+                    alerts.extend(crate::orch::send_start_alerts(&link, &self.root, agent).await);
+                }
+            }
+            if !alerts.is_empty() {
+                v["alerts"] = serde_json::json!(alerts);
+            }
+        }
+        envelope("run", &self.root, out)
     }
 
-    #[tool(description = "自检测并自动确认信任/审查框（各家自己持久化信任；密码类永不自动）；wait 为全局扫描窗口秒数（显式 settle 缺省 30，spawn 后自动 10）")]
+    #[tool(description = "自检测并自动确认信任/审查框（各家自己持久化信任；密码类永不自动）；wait 为全局扫描窗口秒数（显式 settle 缺省 30，上限 600）")]
     async fn oma_settle(
         &self,
         Parameters(SettleParams { wait }): Parameters<SettleParams>,
     ) -> Result<CallToolResult, McpError> {
+        let _guard = self.gate.lock().await;
         envelope(
             "settle",
             &self.root,
@@ -177,6 +193,7 @@ impl OmaMcp {
 
     #[tool(description = "只杀本项目会话并清 manifest；不动 daemon 与其它会话")]
     async fn oma_cleanup(&self) -> Result<CallToolResult, McpError> {
+        let _guard = self.gate.lock().await;
         envelope("cleanup", &self.root, api::cleanup(&self.root).await)
     }
 
