@@ -190,6 +190,18 @@ pub async fn web_share(
     if no_pin {
         argv.push("--no-pin".into());
     }
+    // 公网中继 + 免 PIN 的叠加面（用户定调警示，P0026 后续）：链接经
+    // share.rmux.io 中继且无第二道门——任何拿到 URL 者在 TTL 内可按角色
+    // 接入（operator 即可打字）。三面共用此警告（json 字段 + stderr）。
+    let public_relay_no_pin = frontend_url.is_none() && no_pin;
+    let warning = if public_relay_no_pin {
+        let scope = if spectator { "只读" } else { "可操作" };
+        Some(format!(
+            "PUBLIC-RELAY-NO-PIN 此链接经公网中继 share.rmux.io 且免 PIN（{scope}）；任何拿到 URL 者可在 TTL 内接入，建议带 PIN 或仅本地使用"
+        ))
+    } else {
+        None
+    };
     // web-share 子进程可秒级：放 blocking 池，不占 tokio worker（P0026 高4）。
     let text = tokio::task::spawn_blocking(move || {
         web_share_cli(link.rmux_bin.clone(), link.label.clone(), argv)
@@ -221,7 +233,7 @@ pub async fn web_share(
         .find(|l| l.trim_start().starts_with("share expires"))
         .and_then(|l| l.split_whitespace().last())
         .unwrap_or_default();
-    Ok(json!({ "agent": agent.unwrap_or("*session*"), "url": url, "pin": pin, "expires": expires }))
+    Ok(json!({ "agent": agent.unwrap_or("*session*"), "url": url, "pin": pin, "expires": expires, "warning": warning }))
 }
 
 /// 列活动 share（web-share list：`<id> <session>:<pane> ...`）。

@@ -445,12 +445,13 @@ async fn cmd_web(
             return Err(format!("agent {a} not in this session"));
         }
     }
-    match agent.as_deref() {
+    let v = match agent.as_deref() {
         Some(a) => {
             let v = oma::api::web_share(&root, Some(a), spectator, ttl, None, no_pin).await?;
             println!("web.{a}.url={}", v["url"].as_str().unwrap_or("-"));
             println!("web.{a}.pin={}", v["pin"].as_str().unwrap_or("-"));
             println!("web.{a}.expires={}", v["expires"].as_str().unwrap_or("-"));
+            v
         }
         None => {
             // 整会话镜像：一个 URL 全窗格、operator 可编辑、带分屏控制。
@@ -458,7 +459,12 @@ async fn cmd_web(
             println!("web.session.url={}", v["url"].as_str().unwrap_or("-"));
             println!("web.session.pin={}", v["pin"].as_str().unwrap_or("-"));
             println!("web.session.expires={}", v["expires"].as_str().unwrap_or("-"));
+            v
         }
+    };
+    // 公网中继 + 免 PIN 的显著警示（用户定调，P0026 后续）。
+    if let Some(w) = v["warning"].as_str() {
+        println!("web.warning={w}");
     }
     println!("web.mode={}", if spectator { "spectator" } else { "operator" });
     println!("web.ok=true");

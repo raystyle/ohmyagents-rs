@@ -105,7 +105,7 @@
 - **重开一路**：`oma respawn <agent>`（强制关闭再打开该 agent 实例；kill-pane 单窗格，不动会话与其它路）
 - **收尾**：`oma cleanup`（只杀本 session）
 - **起 HTTP 编排面**：`oma serve start [--port N] [--project PATH]`（P0025 已落地，需 `--features server` 构建）：即调即退后台守护（CREATE_NO_WINDOW，已活秒回地址）；`serve stop` 协议化停机（`DELETE /shutdown` 优雅排空，超时才降级强杀）、`serve status` 探活；裸 `oma serve` 保留前台调试。六操作 RESTish 加 JSON 信封加 SSE 画面；**主页即 web 镜像且默认 spectator 只读**（P0026：看板是观察面，操作走 CLI/API/MCP，可写镜像用 `oma web`；前端资源包嵌二进制首启释放 oma 数据根，P0023）；只绑 127.0.0.1 且 Host 校验回环（P0026）；curl 全绿口径见 `docs\references\R002`
-- **起 web 镜像**：`oma web [agent] [--spectator] [--ttl N] [--no-pin]`（P0021/P0022 已落地）：缺省整会话镜像（全窗格可编辑带分屏），给 agent 单 pane；`oma serve` 的 `GET /` 即 web-mirror-server 主页（自动起镜像免 PIN，打开即多路窗格）；HTTP `POST /share`（会话）/`POST /share/{agent}`（单路）/`GET /share`/`DELETE /share/{id}/stop`
+- **起 web 镜像**：`oma web [agent] [--spectator] [--ttl N] [--no-pin]`（P0021/P0022 已落地）：缺省整会话镜像（全窗格带分屏），给 agent 单 pane；官方域中继走公网（E2EE 加密、缺省 PIN 防外发），**官方域 + `--no-pin` 组合会打 PUBLIC-RELAY-NO-PIN 显著警示**（任何拿到 URL 者可在 TTL 内接入，operator 即可打字）；`oma serve` 的 `GET /` 即 web-mirror-server 主页（本地前端、自动免 PIN、spectator 只读，打开即多路窗格）；HTTP `POST /share`（会话）/`POST /share/{agent}`（单路）/`GET /share`/`DELETE /share/{id}/stop`
 - **起 MCP server**：`oma mcp [--project PATH] [--print-config]`（P0011 已落地，需 `--features mcp` 构建）：stdio 九 tools（六操作加 trace 检索），信封与 HTTP 同形；`--print-config` 打印各客户端注册片段（任何构建可用）；三通道共测口径见 `docs\references\R002`
 - **查文档**：先搜 `INDEX.md` 定位编号，再读文件；rg / mq / ast-grep 全套搜索方法见四、资源索引
 - **项目工具**：`.tools\`（自定义脚本归档；Python 用 `uv run --script .tools\<名>.py`，清单见 `.tools\README.md`；py 选库细则 `docs\references\R008`）；文档验证三件套：断链回归 `md-ref-scan.py`、标题括号 `md-heading-scan.py`、`rumdl check .`
