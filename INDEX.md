@@ -159,6 +159,7 @@ ohmyagents/
 | S026 | `S026-grok与kimi的OAuth登录流.md` | 两家设备码流取证（URL+code 落 stderr 可转发）、凭据落盘与登录态纯文件检测 |
 | S027 | `S027-提供商别名注入矩阵.md` | zhipu/deepseek x claude/codex 四格官方端点与注入形态；sops 托管密钥 |
 | S028 | `S028-oma自更新机制.md` | releases/latest 查询、oma-<triple> 资产约定、Windows rename 舞步自替换、封版前 --git 主路径 |
+| S029 | `S029-bypassPermissions会话层失效与命令面注入.md` | 模式取值顺序与 2.1.257 项目层忽略；oma 命令面 argv 注入与 respawn 口径 |
 
 ## 六、开发测试参考
 

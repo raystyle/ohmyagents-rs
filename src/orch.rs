@@ -335,6 +335,13 @@ pub fn plan_agents(wanted: Option<Vec<String>>, stub: bool) -> Result<SpawnPlan,
         .map(|name| {
             let hit = agents::find(&name).expect("validated above");
             let mut argv = vec![hit.path.to_string_lossy().into_owned()];
+            // claude 路固定 bypass flag（S029 实证）：settings 层
+            // defaultMode=bypassPermissions 在 ANTHROPIC_BASE_URL（网关）下
+            // 被忽略，oma 裸起的 pane 会话退回逐条审批；CLI flag 是命令面
+            // 强制通道，实测网关下依然生效。
+            if name == "claude" {
+                argv.push("--dangerously-skip-permissions".into());
+            }
             if let Some(launch) = launches.get(&name) {
                 argv.extend(launch.argv.iter().cloned());
             }
@@ -1805,8 +1812,10 @@ mod tests {
         );
         let (name, argv) = &plan.agents[0];
         assert_eq!(name, "claude");
-        // argv = [假 claude 二进制路径]（OMA_CLAUDE_BIN 注入）。
-        assert_eq!(argv.len(), 1);
+        // argv = [假 claude 二进制路径]（OMA_CLAUDE_BIN 注入）+ bypass flag
+        //（S029：settings 层在项目层被忽略，命令面 flag 是强制通道）。
+        assert_eq!(argv.len(), 2);
+        assert_eq!(argv[1], "--dangerously-skip-permissions");
         let env = env_entries(Path::new("D:\\proj"), "claude", "zhipu");
         assert!(env
             .iter()
@@ -1880,6 +1889,33 @@ mod tests {
         );
         assert!(five.is_err());
         assert!(plan_agents(Some(vec![]), true).is_err());
+    }
+
+    #[test]
+    fn claude_argv_carries_bypass_flag_others_do_not() {
+        // S029：settings 层 defaultMode 在项目层会被忽略（2.1.257+ changelog），
+        // 命令面 flag 是文档钦点的强制通道——oma 裸起的 claude 路必须带。
+        let exe = std::env::current_exe().unwrap();
+        std::env::set_var("OMA_CLAUDE_BIN", &exe);
+        std::env::set_var("OMA_KIMI_BIN", &exe);
+        let plan = plan_agents(Some(vec!["claude".into(), "kimi".into()]), false);
+        std::env::remove_var("OMA_CLAUDE_BIN");
+        std::env::remove_var("OMA_KIMI_BIN");
+        let plan = plan.expect("plan");
+        let claude = plan.agents.iter().find(|(n, _)| n == "claude").unwrap();
+        assert!(claude
+            .1
+            .contains(&"--dangerously-skip-permissions".to_string()));
+        // 其它家不沾这个 flag（各家 yolo 走自己的配置面）。
+        let kimi = plan.agents.iter().find(|(n, _)| n == "kimi").unwrap();
+        assert!(!kimi
+            .1
+            .contains(&"--dangerously-skip-permissions".to_string()));
+        // stub 路不走 agent argv，不受影响。
+        let stub = plan_agents(Some(vec!["claude".into()]), true).unwrap();
+        assert!(!stub.agents[0]
+            .1
+            .contains(&"--dangerously-skip-permissions".to_string()));
     }
 
     #[test]
