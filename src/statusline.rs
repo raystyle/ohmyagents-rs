@@ -136,7 +136,7 @@ $stateColor = switch ($state) {
     'blocked' { '38;5;203' }
     default { '38;5;245' }
 }
-$parts.Add((Seg " ${agent}:$state" $stateColor))
+$parts.Add((Seg "󰚩  ${agent}:$state" $stateColor))
 
 # ── 模型（display_name 优先，回退 id）──
 $model = $null
@@ -363,8 +363,8 @@ mod tests {
         let out = STATUSLINE_PS1.find("Write-Output").unwrap();
         assert!(enc < out);
         assert!(
-            STATUSLINE_PS1.contains("\u{ee0d}"),
-            "oma segment robot glyph (fa-robot, narrow)"
+            STATUSLINE_PS1.contains("\u{f06a9}"),
+            "oma segment robot glyph (md-robot, wide: two spaces survive one)"
         );
     }
 
