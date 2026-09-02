@@ -9,9 +9,16 @@ use serde_json::{json, Value as Json};
 
 use crate::yolo::{ensure_parent, read_json, read_toml, toml_write, write_json, write_text};
 
+#[derive(Default)]
 pub struct DeployReport {
     pub wrote: Vec<String>,
     pub skipped: Vec<String>,
+    /// Hook command form chosen this run: "bare" (PATH-resolved per OS) or
+    /// "absolute". Set by deploy_claude; codex is per-OS fields either way.
+    pub form: Option<&'static str>,
+    /// Advisory warnings (non-fatal), e.g. sticky bare form with PATH probe
+    /// missing on this environment.
+    pub warns: Vec<String>,
 }
 
 /// oma-owned handler marker: the current exe, or a stale oma binary whose
@@ -38,28 +45,65 @@ fn is_ours(command: &str) -> bool {
     stem == "oma" || stem.starts_with("oma-")
 }
 
+/// Hook command form. `Bare` is the name `oma` resolved through PATH by
+/// whichever OS consumes the registration — one entry serves every
+/// environment sharing a project dir (Windows / WSL / Linux / mac, P0027).
+/// `Absolute` pins the running exe and works only on the deploying OS;
+/// kept for single-environment projects without oma on PATH.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum HookCmdForm {
+    Bare,
+    Absolute,
+}
+
+/// True when any oma-owned command in these settings is the bare name (no
+/// path separator). Bare is sticky: once written it must not be downgraded
+/// by an environment whose PATH probe misses, or the two environments
+/// see-saw the registration again.
+fn settings_has_bare_oma(settings: &Json) -> bool {
+    let Some(events) = settings.get("hooks").and_then(|h| h.as_object()) else {
+        return false;
+    };
+    events
+        .values()
+        .filter_map(|g| g.as_array())
+        .flatten()
+        .any(|group| {
+            group
+                .get("hooks")
+                .and_then(|h| h.as_array())
+                .is_some_and(|hooks| {
+                    hooks.iter().any(|h| {
+                        h.get("command")
+                            .and_then(|c| c.as_str())
+                            .is_some_and(|c| is_ours(c) && !c.contains('/') && !c.contains('\\'))
+                    })
+                })
+        })
+}
+
+fn choose_form(probe_hit: bool, settings: &Json) -> HookCmdForm {
+    if settings_has_bare_oma(settings) || probe_hit {
+        HookCmdForm::Bare
+    } else {
+        HookCmdForm::Absolute
+    }
+}
+
 /// JSON arrays of handler groups under settings["hooks"][event], append-only:
 /// drop stale oma entries, keep foreign ones, add ours exactly once.
-fn merge_hook_event(
-    settings: &mut Json,
-    event: &str,
-    our_handler: Json,
-) -> Result<bool, String> {
+fn merge_hook_event(settings: &mut Json, event: &str, our_handler: Json) -> Result<bool, String> {
     let Some(obj) = settings.as_object_mut() else {
         return Err("settings root is not an object".into());
     };
-    let groups = obj
-        .entry("hooks".to_string())
-        .or_insert_with(|| json!({}));
+    let groups = obj.entry("hooks".to_string()).or_insert_with(|| json!({}));
     if !groups.is_object() {
         *groups = json!({});
     }
     let groups = groups
         .as_object_mut()
         .ok_or_else(|| "hooks is not an object".to_string())?;
-    let entry = groups
-        .entry(event.to_string())
-        .or_insert_with(|| json!([]));
+    let entry = groups.entry(event.to_string()).or_insert_with(|| json!([]));
     if !entry.is_array() {
         *entry = json!([]);
     }
@@ -93,7 +137,13 @@ fn merge_hook_event(
             }
         }
     }
-    arr.retain(|g| !g.as_object().is_some_and(|g| g.get("hooks").and_then(|h| h.as_array()).is_some_and(|a| a.is_empty())));
+    arr.retain(|g| {
+        !g.as_object().is_some_and(|g| {
+            g.get("hooks")
+                .and_then(|h| h.as_array())
+                .is_some_and(|a| a.is_empty())
+        })
+    });
     // Update an existing oma handler in place (registration shape evolves:
     // bare name -> absolute path), or append when absent.
     let mut replaced = false;
@@ -127,43 +177,160 @@ fn merge_hook_event(
     Ok(changed)
 }
 
-fn claude_handler() -> Json {
+fn claude_handler(form: HookCmdForm) -> Json {
     // Exec form: command must be a real executable; args carry "hook".
+    // Bare "oma" is resolved through PATH by each OS consuming the file, so
+    // one registration serves every environment sharing the project dir.
+    let command = match form {
+        HookCmdForm::Bare => "oma".to_string(),
+        HookCmdForm::Absolute => oma_exe().display().to_string(),
+    };
     json!({
         "type": "command",
-        "command": oma_exe().display().to_string(),
-        "args": ["hook"],
+        "command": command,
+        "args": ["hook", "--agent", "claude"],
         "timeout": 10,
     })
 }
 
-fn codex_handler(session_end: bool) -> Json {
-    // codex's command is a full command line. On Windows codex 0.149 runs it
-    // through PowerShell, where `"exe" hook` is a parse error: the call
-    // operator `&` is required. The plain command stays sh-shaped for other
-    // platforms; the hook exec environment never inherits our PATH, so the
-    // exe is absolute either way.
-    let exe = oma_exe().display().to_string();
-    json!({
-        "type": "command",
-        "command": format!("\"{exe}\" hook"),
-        "commandWindows": format!("& \"{exe}\" hook"),
-        "timeout": if session_end { 3 } else { 10 },
-    })
+/// Which OS consumes a codex registration field: `command` on Unix,
+/// `commandWindows` on Windows (S015). Injected so tests exercise both
+/// sides from one host.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum OsSide {
+    Windows,
+    Unix,
 }
 
-fn grok_handler() -> Json {
+pub fn host_side() -> OsSide {
+    if cfg!(windows) {
+        OsSide::Windows
+    } else {
+        OsSide::Unix
+    }
+}
+
+/// Build the field-ownership form of a codex handler: the deploying side's
+/// field is rewritten from `exe`; the foreign side's field survives from
+/// `base` byte-verbatim (absent stays absent). Keys keep a fixed order so
+/// reruns converge byte-identically on both sides.
+fn codex_handler_value(base: &Json, exe: &str, session_end: bool, side: OsSide) -> Json {
+    // codex's command is a full command line. On Windows codex 0.149 runs it
+    // through PowerShell, where `"exe" hook` is a parse error: the call
+    // operator `&` is required. The plain command stays sh-shaped for Unix;
+    // the hook exec environment never inherits our PATH, so the exe is
+    // absolute either way. `--agent codex` lets user-launched sessions fall
+    // back to the project state file (no env).
+    let foreign = |key: &str| base.get(key).filter(|v| v.is_string()).cloned();
+    let mut obj = serde_json::Map::new();
+    obj.insert("type".into(), json!("command"));
+    if side == OsSide::Unix {
+        obj.insert(
+            "command".into(),
+            json!(format!("\"{exe}\" hook --agent codex")),
+        );
+    } else if let Some(v) = foreign("command") {
+        obj.insert("command".into(), v);
+    }
+    if side == OsSide::Unix {
+        if let Some(v) = foreign("commandWindows") {
+            obj.insert("commandWindows".into(), v);
+        }
+    } else {
+        obj.insert(
+            "commandWindows".into(),
+            json!(format!("& \"{exe}\" hook --agent codex")),
+        );
+    }
+    obj.insert("timeout".into(), json!(if session_end { 3 } else { 10 }));
+    Json::Object(obj)
+}
+
+/// codex merge with per-OS field ownership. Never stale-drops oma entries:
+/// the foreign OS's absolute path inside the foreign field is live on that
+/// OS, and a shared project dir must carry both sides at once (P0027).
+/// Trust seeding is unaffected: deploy_codex re-reads the final file and
+/// codex derives its state key from the config.toml path per OS, so the
+/// two sides' entries coexist instead of overwriting each other.
+fn merge_codex_hook_event(
+    settings: &mut Json,
+    event: &str,
+    session_end: bool,
+    side: OsSide,
+) -> Result<bool, String> {
+    let Some(obj) = settings.as_object_mut() else {
+        return Err("settings root is not an object".into());
+    };
+    let groups = obj.entry("hooks".to_string()).or_insert_with(|| json!({}));
+    if !groups.is_object() {
+        *groups = json!({});
+    }
+    let groups = groups
+        .as_object_mut()
+        .ok_or_else(|| "hooks is not an object".to_string())?;
+    let entry = groups.entry(event.to_string()).or_insert_with(|| json!([]));
+    if !entry.is_array() {
+        *entry = json!([]);
+    }
+    let arr = entry
+        .as_array_mut()
+        .ok_or_else(|| "event groups is not an array".to_string())?;
+    let exe = oma_exe().display().to_string();
+    let ours_of = |h: &Json| -> bool {
+        ["command", "commandWindows"]
+            .iter()
+            .any(|k| h.get(*k).and_then(|c| c.as_str()).is_some_and(is_ours))
+    };
+    let mut changed = false;
+    let mut replaced = false;
+    for group in arr.iter_mut() {
+        let Some(hooks) = group
+            .as_object_mut()
+            .and_then(|g| g.get_mut("hooks"))
+            .and_then(|h| h.as_array_mut())
+        else {
+            continue;
+        };
+        for handler in hooks.iter_mut() {
+            if !ours_of(handler) {
+                continue;
+            }
+            let next = codex_handler_value(handler, &exe, session_end, side);
+            if handler != &next {
+                *handler = next;
+                changed = true;
+            }
+            replaced = true;
+        }
+    }
+    if !replaced {
+        arr.push(json!({
+            "matcher": "*",
+            "hooks": [codex_handler_value(&Json::Null, &exe, session_end, side)]
+        }));
+        changed = true;
+    }
+    Ok(changed)
+}
+
+fn grok_handler(form: HookCmdForm) -> Json {
     // Grok has a single command string (no args array); the runner has an
-    // sh -c branch. Quote the exe path.
+    // sh -c branch. Absolute stays quoted; the bare name needs no quotes.
+    let command = match form {
+        HookCmdForm::Bare => "oma hook --agent grok".to_string(),
+        HookCmdForm::Absolute => {
+            format!("\"{}\" hook --agent grok", oma_exe().display())
+        }
+    };
     json!({
         "type": "command",
-        "command": format!("\"{}\" hook", oma_exe().display()),
+        "command": command,
         "timeout": 10,
     })
 }
 
 /// Claude: `.claude/settings.json`, events per S015 (incl. PermissionRequest).
-fn deploy_claude(root: &Path, report: &mut DeployReport) -> Result<(), String> {
+fn deploy_claude(root: &Path, report: &mut DeployReport, probe_hit: bool) -> Result<(), String> {
     let events = [
         "SessionStart",
         "UserPromptSubmit",
@@ -179,9 +346,21 @@ fn deploy_claude(root: &Path, report: &mut DeployReport) -> Result<(), String> {
     if !settings.is_object() {
         settings = json!({});
     }
+    let form = choose_form(probe_hit, &settings);
+    report.form = Some(match form {
+        HookCmdForm::Bare => "bare",
+        HookCmdForm::Absolute => "absolute",
+    });
+    if form == HookCmdForm::Bare && !probe_hit {
+        report.warns.push(
+            "bare hook registration kept (sticky) but oma is not on PATH here; \
+             hooks will not fire until oma is resolvable (e.g. cargo install)"
+                .into(),
+        );
+    }
     let mut changed = false;
     for event in events {
-        changed |= merge_hook_event(&mut settings, event, claude_handler())?;
+        changed |= merge_hook_event(&mut settings, event, claude_handler(form))?;
     }
     if changed {
         write_json(&path, &settings)?;
@@ -201,7 +380,7 @@ fn deploy_claude(root: &Path, report: &mut DeployReport) -> Result<(), String> {
 /// over the normalized handler identity (canonical key-sorted JSON, sha256).
 /// Seeding the hash means the TUI never needs to prompt; the settle fallback
 /// (auto-confirm dialogs) covers any drift between our replica and codex.
-fn deploy_codex(root: &Path, report: &mut DeployReport) -> Result<(), String> {
+fn deploy_codex(root: &Path, report: &mut DeployReport, side: OsSide) -> Result<(), String> {
     let events = [
         ("SessionStart", false),
         ("UserPromptSubmit", false),
@@ -218,7 +397,7 @@ fn deploy_codex(root: &Path, report: &mut DeployReport) -> Result<(), String> {
     }
     let mut changed = false;
     for (event, session_end) in events {
-        changed |= merge_hook_event(&mut settings, event, codex_handler(session_end))?;
+        changed |= merge_codex_hook_event(&mut settings, event, session_end, side)?;
     }
     if changed {
         write_json(&path, &settings)?;
@@ -250,13 +429,14 @@ fn deploy_codex(root: &Path, report: &mut DeployReport) -> Result<(), String> {
     // the final hooks.json (real indices, not assumption zero).
     let final_hooks = read_json(&path)?;
     let entries = codex_trust_entries(&final_hooks, &cfg)?;
-    let states = table
-        .entry("hooks".to_string())
-        .or_insert_with(|| {
-            let mut hooks_tbl = toml::map::Map::new();
-            hooks_tbl.insert("state".to_string(), toml::Value::Table(toml::map::Map::new()));
-            toml::Value::Table(hooks_tbl)
-        });
+    let states = table.entry("hooks".to_string()).or_insert_with(|| {
+        let mut hooks_tbl = toml::map::Map::new();
+        hooks_tbl.insert(
+            "state".to_string(),
+            toml::Value::Table(toml::map::Map::new()),
+        );
+        toml::Value::Table(hooks_tbl)
+    });
     let state_table = match states {
         toml::Value::Table(t) => t
             .entry("state".to_string())
@@ -298,8 +478,15 @@ fn plain_absolute(path: &Path) -> String {
 }
 
 fn event_label(event: &str) -> String {
-    event.chars()
-        .flat_map(|c| if c.is_ascii_uppercase() { vec!['_', c.to_ascii_lowercase()] } else { vec![c] })
+    event
+        .chars()
+        .flat_map(|c| {
+            if c.is_ascii_uppercase() {
+                vec!['_', c.to_ascii_lowercase()]
+            } else {
+                vec![c]
+            }
+        })
         .collect::<String>()
         .trim_start_matches('_')
         .to_string()
@@ -339,13 +526,20 @@ fn codex_hook_hash(event: &str, matcher: Option<&str>, handler: &Json) -> Result
         .and_then(|c| c.as_str())
         .ok_or("handler missing command")?;
     let windows_cmd = handler.get("commandWindows").and_then(|c| c.as_str());
-    let effective = if cfg!(windows) { windows_cmd.unwrap_or(command) } else { command };
+    let effective = if cfg!(windows) {
+        windows_cmd.unwrap_or(command)
+    } else {
+        command
+    };
     let timeout = handler.get("timeout").and_then(|t| t.as_u64());
     let timeout = match event {
         "SessionEnd" | "Interrupt" => timeout.unwrap_or(1).clamp(1, 3),
         _ => timeout.unwrap_or(600).max(1),
     };
-    let r#async = handler.get("async").and_then(|a| a.as_bool()).unwrap_or(false);
+    let r#async = handler
+        .get("async")
+        .and_then(|a| a.as_bool())
+        .unwrap_or(false);
     let mut entry = serde_json::Map::new();
     entry.insert("type".into(), json!("command"));
     entry.insert("command".into(), json!(effective));
@@ -354,7 +548,10 @@ fn codex_hook_hash(event: &str, matcher: Option<&str>, handler: &Json) -> Result
     if let Some(sm) = handler.get("statusMessage").and_then(|s| s.as_str()) {
         entry.insert("statusMessage".into(), json!(sm));
     }
-    if let Some(limit) = handler.get("additionalContextLimit").and_then(|s| s.as_u64()) {
+    if let Some(limit) = handler
+        .get("additionalContextLimit")
+        .and_then(|s| s.as_u64())
+    {
         entry.insert("additionalContextLimit".into(), json!(limit));
     }
 
@@ -374,30 +571,34 @@ fn codex_hook_hash(event: &str, matcher: Option<&str>, handler: &Json) -> Result
 
 /// Walk the final hooks.json and produce (key, trusted_hash) pairs for every
 /// oma-owned handler at its real group/handler indices.
-fn codex_trust_entries(hooks_json: &Json, config_toml: &Path) -> Result<Vec<(String, String)>, String> {
+fn codex_trust_entries(
+    hooks_json: &Json,
+    config_toml: &Path,
+) -> Result<Vec<(String, String)>, String> {
     let mut out = Vec::new();
     let Some(events) = hooks_json.get("hooks").and_then(|h| h.as_object()) else {
         return Ok(out);
     };
     let key_source = plain_absolute(config_toml);
     for (event, groups) in events {
-        let Some(groups) = groups.as_array() else { continue };
+        let Some(groups) = groups.as_array() else {
+            continue;
+        };
         for (gi, group) in groups.iter().enumerate() {
             let matcher = group.get("matcher").and_then(|m| m.as_str());
-            let Some(handlers) = group.get("hooks").and_then(|h| h.as_array()) else { continue };
+            let Some(handlers) = group.get("hooks").and_then(|h| h.as_array()) else {
+                continue;
+            };
             for (hi, handler) in handlers.iter().enumerate() {
-                let command = handler.get("command").and_then(|c| c.as_str()).unwrap_or("");
+                let command = handler
+                    .get("command")
+                    .and_then(|c| c.as_str())
+                    .unwrap_or("");
                 if !is_ours(command) {
                     continue;
                 }
                 let hash = codex_hook_hash(event, matcher, handler)?;
-                let key = format!(
-                    "{}:{}:{}:{}",
-                    key_source,
-                    event_label(event),
-                    gi,
-                    hi
-                );
+                let key = format!("{}:{}:{}:{}", key_source, event_label(event), gi, hi);
                 out.push((key, hash));
             }
         }
@@ -407,7 +608,7 @@ fn codex_trust_entries(hooks_json: &Json, config_toml: &Path) -> Result<Vec<(Str
 
 /// Grok: `.grok/hooks/ohmyagents-state.json`, Claude-isomorphic JSON.
 /// No PermissionRequest event exists (S015).
-fn deploy_grok(root: &Path, report: &mut DeployReport) -> Result<(), String> {
+fn deploy_grok(root: &Path, report: &mut DeployReport, probe_hit: bool) -> Result<(), String> {
     let events = [
         "SessionStart",
         "UserPromptSubmit",
@@ -417,14 +618,18 @@ fn deploy_grok(root: &Path, report: &mut DeployReport) -> Result<(), String> {
         "Stop",
         "SessionEnd",
     ];
-    let path = root.join(".grok").join("hooks").join("ohmyagents-state.json");
+    let path = root
+        .join(".grok")
+        .join("hooks")
+        .join("ohmyagents-state.json");
     let mut settings = read_json(&path)?;
     if !settings.is_object() {
         settings = json!({});
     }
+    let form = choose_form(probe_hit, &settings);
     let mut changed = false;
     for event in events {
-        changed |= merge_hook_event(&mut settings, event, grok_handler())?;
+        changed |= merge_hook_event(&mut settings, event, grok_handler(form))?;
     }
     if changed {
         write_json(&path, &settings)?;
@@ -447,18 +652,42 @@ fn deploy_kimi(root: &Path, report: &mut DeployReport) -> Result<(), String> {
 /// 命令图（S016「命令即 skill」）：意图到命令的映射，SKILL.md 由它生成。
 /// 新增子命令在此补一行，`oma init` 重跑即同步（带生成标记才覆写）。
 const COMMAND_MAP: &[(&str, &str)] = &[
-    ("oma spawn [--agents a,b] [--stub]", "拉起或重连本项目多路 agent 会话（1-4 路；缺省已装交集）"),
+    (
+        "oma spawn [--agents a,b] [--stub]",
+        "拉起或重连本项目多路 agent 会话（1-4 路；缺省已装交集）",
+    ),
     ("oma status", "看各路 pid、进程名、终端态、hook 态"),
-    ("oma send <agent> \"<文本>\"", "向某路发任务（多行自动三段式粘贴）"),
-    ("oma task <agent> \"<文本>\"", "带产物等待的任务委派：oma 阻塞等 DONE，产物在任务目录 output.md"),
-    ("oma run \"<文本>\" [--assign a,b]", "状态门分派：闲路才发，忙路跳过不堵其它路"),
+    (
+        "oma send <agent> \"<文本>\"",
+        "向某路发任务（多行自动三段式粘贴）",
+    ),
+    (
+        "oma task <agent> \"<文本>\"",
+        "带产物等待的任务委派：oma 阻塞等 DONE，产物在任务目录 output.md",
+    ),
+    (
+        "oma run \"<文本>\" [--assign a,b]",
+        "状态门分派：闲路才发，忙路跳过不堵其它路",
+    ),
     ("oma settle [--wait N]", "自检测并自动确认信任/审查框"),
     ("oma cleanup", "只杀本会话（不动 daemon 与其它会话）"),
-    ("oma trace sessions|timeline|blocks|agent|file|search", "检索本项目各 agent 的意图操作块与编辑轨迹（四家原生会话库联邦读）"),
-    ("oma serve [--port N]", "起 HTTP 编排面（GET / 直出可视化网页）"),
-    ("oma mcp", "作为 MCP server 跑 stdio（六操作加 trace 检索 tools）"),
+    (
+        "oma trace sessions|timeline|blocks|agent|file|search",
+        "检索本项目各 agent 的意图操作块与编辑轨迹（四家原生会话库联邦读）",
+    ),
+    (
+        "oma serve [--port N]",
+        "起 HTTP 编排面（GET / 直出可视化网页）",
+    ),
+    (
+        "oma mcp",
+        "作为 MCP server 跑 stdio（六操作加 trace 检索 tools）",
+    ),
     ("oma doctor", "只读诊断信任库、已装二进制与状态链"),
-    ("oma agents install [名]", "安装缺失 agent（oma 自管根 ~/.ohmyagents）"),
+    (
+        "oma agents install [名]",
+        "安装缺失 agent（oma 自管根 ~/.ohmyagents）",
+    ),
 ];
 
 /// 生成标记：只有带它的 SKILL.md 才允许 oma 覆写（用户手改过的跳过）。
@@ -492,7 +721,9 @@ fn write_skill(path: &Path, report: &mut DeployReport) -> Result<(), String> {
                 write_text(path, &generated)?;
                 report.wrote.push(format!("{} (regen)", path.display()));
             } else {
-                report.skipped.push(format!("{} (user-owned)", path.display()));
+                report
+                    .skipped
+                    .push(format!("{} (user-owned)", path.display()));
             }
         }
         Err(_) => {
@@ -512,7 +743,11 @@ fn deploy_skills(root: &Path, report: &mut DeployReport) -> Result<(), String> {
     let skill = source.join("SKILL.md");
     write_skill(&skill, report)?;
     for target in [".claude", ".grok", ".kimi-code"] {
-        let copy = root.join(target).join("skills").join("ohmyagents").join("SKILL.md");
+        let copy = root
+            .join(target)
+            .join("skills")
+            .join("ohmyagents")
+            .join("SKILL.md");
         write_skill(&copy, report)?;
     }
     Ok(())
@@ -541,17 +776,25 @@ fn deploy_instructions(root: &Path, report: &mut DeployReport) -> Result<(), Str
 /// Deploy the full project tree. Merge-only for hooks, idempotent, and it
 /// never touches the user home.
 pub fn apply_project_hooks(root: &Path) -> Result<DeployReport, String> {
-    let root = root
-        .canonicalize()
-        .unwrap_or_else(|_| root.to_path_buf());
+    // One probe for the whole run: bare form is only honest when this
+    // environment can actually resolve `oma` through PATH.
+    let probe_hit = crate::pathutil::find_on_path("oma").is_some();
+    apply_project_hooks_with(root, probe_hit, host_side())
+}
+
+/// Test seam: probe result and codex field side are injected so unit tests
+/// are independent of the developer's PATH and host OS.
+pub fn apply_project_hooks_with(
+    root: &Path,
+    probe_hit: bool,
+    side: OsSide,
+) -> Result<DeployReport, String> {
+    let root = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
     fs::create_dir_all(&root).map_err(|e| format!("{}: {e}", root.display()))?;
-    let mut report = DeployReport {
-        wrote: Vec::new(),
-        skipped: Vec::new(),
-    };
-    deploy_claude(&root, &mut report)?;
-    deploy_codex(&root, &mut report)?;
-    deploy_grok(&root, &mut report)?;
+    let mut report = DeployReport::default();
+    deploy_claude(&root, &mut report, probe_hit)?;
+    deploy_codex(&root, &mut report, side)?;
+    deploy_grok(&root, &mut report, probe_hit)?;
     deploy_kimi(&root, &mut report)?;
     deploy_skills(&root, &mut report)?;
     deploy_instructions(&root, &mut report)?;
@@ -594,7 +837,7 @@ mod tests {
         .unwrap();
         write_text(&root.join("AGENTS.md"), "# 用户自己的说明\n").unwrap();
 
-        let first = apply_project_hooks(&root).unwrap();
+        let first = apply_project_hooks_with(&root, false, host_side()).unwrap();
         assert!(first.wrote.iter().any(|p| p.ends_with("settings.json")));
         assert!(first.wrote.iter().any(|p| p.ends_with("hooks.json")));
         assert!(first
@@ -618,47 +861,89 @@ mod tests {
             .iter()
             .find(|g| g["hooks"][0]["command"].as_str().unwrap().contains("oma"))
             .unwrap();
-        assert_eq!(ours["hooks"][0]["args"], json!(["hook"]));
+        assert_eq!(
+            ours["hooks"][0]["args"],
+            json!(["hook", "--agent", "claude"])
+        );
         assert!(v["hooks"]["PermissionRequest"].is_array());
 
-        let codex: Json =
-            serde_json::from_str(&fs::read_to_string(root.join(".codex").join("hooks.json")).unwrap())
-                .unwrap();
-        assert!(codex["hooks"]["SessionEnd"][0]["hooks"][0]["commandWindows"]
-            .as_str()
-            .unwrap()
-            .contains("oma"));
-        assert_eq!(codex["hooks"]["SessionEnd"][0]["hooks"][0]["timeout"], 3);
+        let codex: Json = serde_json::from_str(
+            &fs::read_to_string(root.join(".codex").join("hooks.json")).unwrap(),
+        )
+        .unwrap();
+        // Field ownership: a fresh deploy writes only the host side's field.
+        let handler = &codex["hooks"]["SessionEnd"][0]["hooks"][0];
+        let (owned, foreign) = if cfg!(windows) {
+            ("commandWindows", "command")
+        } else {
+            ("command", "commandWindows")
+        };
+        assert!(handler[owned].as_str().unwrap().contains("oma"));
+        assert!(
+            handler.get(foreign).is_none(),
+            "fresh deploy must not invent the foreign-OS field"
+        );
+        assert_eq!(handler["timeout"], 3);
         assert!(codex["hooks"].get("Notification").is_none());
-        let codex_toml =
-            fs::read_to_string(root.join(".codex").join("config.toml")).unwrap();
+        let codex_toml = fs::read_to_string(root.join(".codex").join("config.toml")).unwrap();
         assert!(codex_toml.contains("hooks = true"));
 
         let grok: Json = serde_json::from_str(
-            &fs::read_to_string(root.join(".grok").join("hooks").join("ohmyagents-state.json"))
-                .unwrap(),
+            &fs::read_to_string(
+                root.join(".grok")
+                    .join("hooks")
+                    .join("ohmyagents-state.json"),
+            )
+            .unwrap(),
         )
         .unwrap();
         assert!(grok["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
             .as_str()
             .unwrap()
-            .ends_with(" hook"));
+            .ends_with("hook --agent grok"));
         assert!(grok["hooks"].get("PermissionRequest").is_none());
 
         // Kimi: skill dir only, no hook registration anywhere in the project.
-        assert!(root.join(".kimi-code").join("skills").join("ohmyagents").join("SKILL.md").exists());
+        assert!(root
+            .join(".kimi-code")
+            .join("skills")
+            .join("ohmyagents")
+            .join("SKILL.md")
+            .exists());
         assert!(!root.join(".kimi-code").join("config.toml").exists());
 
         // Skills copied to every family dir; CLAUDE.md include created.
-        assert!(root.join(".agents").join("skills").join("ohmyagents").join("SKILL.md").exists());
-        assert!(root.join(".grok").join("skills").join("ohmyagents").join("SKILL.md").exists());
-        assert!(root.join(".claude").join("skills").join("ohmyagents").join("SKILL.md").exists());
-        assert_eq!(fs::read_to_string(root.join("CLAUDE.md")).unwrap(), "@AGENTS.md\n");
+        assert!(root
+            .join(".agents")
+            .join("skills")
+            .join("ohmyagents")
+            .join("SKILL.md")
+            .exists());
+        assert!(root
+            .join(".grok")
+            .join("skills")
+            .join("ohmyagents")
+            .join("SKILL.md")
+            .exists());
+        assert!(root
+            .join(".claude")
+            .join("skills")
+            .join("ohmyagents")
+            .join("SKILL.md")
+            .exists());
+        assert_eq!(
+            fs::read_to_string(root.join("CLAUDE.md")).unwrap(),
+            "@AGENTS.md\n"
+        );
 
         // Second deploy: nothing changes on disk.
         let before = fs::read_to_string(&settings).unwrap();
-        let second = apply_project_hooks(&root).unwrap();
-        assert!(second.wrote.is_empty(), "redeploy must write nothing: {:?}", second.wrote);
+        let second = apply_project_hooks_with(&root, false, host_side()).unwrap();
+        assert!(
+            second.wrote.is_empty(),
+            "redeploy must write nothing: {:?}",
+            second.wrote
+        );
         assert_eq!(fs::read_to_string(&settings).unwrap(), before);
 
         let _ = fs::remove_dir_all(&root);
@@ -753,7 +1038,7 @@ mod tests {
                 {"type": "command", "command": "D:\\old\\oma.exe", "args": ["hook"]}]}]}}"#,
         )
         .unwrap();
-        apply_project_hooks(&root).unwrap();
+        apply_project_hooks_with(&root, false, host_side()).unwrap();
         let v: Json = serde_json::from_str(&fs::read_to_string(&settings).unwrap()).unwrap();
         let commands: Vec<&str> = v["hooks"]["Stop"]
             .as_array()
@@ -762,8 +1047,160 @@ mod tests {
             .flat_map(|g| g["hooks"].as_array().unwrap().iter())
             .filter_map(|h| h["command"].as_str())
             .collect();
-        assert_eq!(commands.len(), 1, "stale entry must be replaced, got {commands:?}");
-        assert!(!commands[0].contains("D:\\old"), "stale path must not survive");
+        assert_eq!(
+            commands.len(),
+            1,
+            "stale entry must be replaced, got {commands:?}"
+        );
+        assert!(
+            !commands[0].contains("D:\\old"),
+            "stale path must not survive"
+        );
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn bare_form_used_when_probe_hits_and_sticky_when_probe_lost() {
+        let root = fresh_dir("bare");
+        // Foreign-OS absolute seed: exactly the shared-dir state after the
+        // other environment's init.
+        let settings = root.join(".claude").join("settings.json");
+        ensure_parent(&settings).unwrap();
+        write_text(
+            &settings,
+            r#"{"hooks": {"Stop": [{"matcher": "*", "hooks": [
+                {"type": "command", "command": "/mnt/d/old/oma", "args": ["hook"]}]}]}}"#,
+        )
+        .unwrap();
+        let grok = root
+            .join(".grok")
+            .join("hooks")
+            .join("ohmyagents-state.json");
+        ensure_parent(&grok).unwrap();
+        write_text(
+            &grok,
+            r#"{"hooks": {"Stop": [{"matcher": "*", "hooks": [
+                {"type": "command", "command": "\"/mnt/d/old/oma\" hook"}]}]}}"#,
+        )
+        .unwrap();
+
+        let first = apply_project_hooks_with(&root, true, host_side()).unwrap();
+        assert_eq!(first.form, Some("bare"));
+        let v: Json = serde_json::from_str(&fs::read_to_string(&settings).unwrap()).unwrap();
+        assert_eq!(
+            v["hooks"]["Stop"][0]["hooks"][0]["command"].as_str(),
+            Some("oma")
+        );
+        let g: Json = serde_json::from_str(&fs::read_to_string(&grok).unwrap()).unwrap();
+        assert_eq!(
+            g["hooks"]["Stop"][0]["hooks"][0]["command"].as_str(),
+            Some("oma hook --agent grok")
+        );
+
+        // Probe lost later: sticky — bare must not downgrade (see-saw guard).
+        let second = apply_project_hooks_with(&root, false, host_side()).unwrap();
+        assert!(
+            second.wrote.is_empty(),
+            "no downgrade rewrite: {:?}",
+            second.wrote
+        );
+        assert!(second.warns.iter().any(|w| w.contains("not on PATH")));
+        let v2: Json = serde_json::from_str(&fs::read_to_string(&settings).unwrap()).unwrap();
+        assert_eq!(
+            v2["hooks"]["Stop"][0]["hooks"][0]["command"].as_str(),
+            Some("oma")
+        );
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn foreign_os_absolute_entry_is_healed_to_bare() {
+        // The migration path for this very repo: WSL-written /mnt/d paths
+        // consumed by a Windows session.
+        let root = fresh_dir("heal");
+        let settings = root.join(".claude").join("settings.json");
+        ensure_parent(&settings).unwrap();
+        write_text(
+            &settings,
+            r#"{"hooks": {"UserPromptSubmit": [{"matcher": "*", "hooks": [
+                {"type": "command", "command": "/mnt/d/ohmyagents/target/debug/oma", "args": ["hook"]}]}]}}"#,
+        )
+        .unwrap();
+        apply_project_hooks_with(&root, true, host_side()).unwrap();
+        let v: Json = serde_json::from_str(&fs::read_to_string(&settings).unwrap()).unwrap();
+        let commands: Vec<&str> = v["hooks"]["UserPromptSubmit"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .flat_map(|g| g["hooks"].as_array().unwrap().iter())
+            .filter_map(|h| h["command"].as_str())
+            .collect();
+        assert_eq!(commands.len(), 1, "healed to a single entry: {commands:?}");
+        assert_eq!(commands[0], "oma");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn bare_entries_are_never_stale_dropped() {
+        let root = fresh_dir("barekeep");
+        let settings = root.join(".claude").join("settings.json");
+        ensure_parent(&settings).unwrap();
+        write_text(
+            &settings,
+            r#"{"hooks": {"Stop": [{"matcher": "*", "hooks": [
+                {"type": "command", "command": "oma", "args": ["hook"], "timeout": 5}]}]}}"#,
+        )
+        .unwrap();
+        // Probe false would pick Absolute; the bare entry must survive it.
+        apply_project_hooks_with(&root, false, host_side()).unwrap();
+        let v: Json = serde_json::from_str(&fs::read_to_string(&settings).unwrap()).unwrap();
+        let commands: Vec<&str> = v["hooks"]["Stop"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .flat_map(|g| g["hooks"].as_array().unwrap().iter())
+            .filter_map(|h| h["command"].as_str())
+            .collect();
+        assert_eq!(commands.len(), 1, "bare must stay single: {commands:?}");
+        assert_eq!(commands[0], "oma");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn codex_preserves_foreign_os_field_and_is_idempotent() {
+        let root = fresh_dir("codexside");
+        let path = root.join(".codex").join("hooks.json");
+        ensure_parent(&path).unwrap();
+        // Unix side ran first: its command plus a Windows-shaped twin field.
+        write_text(
+            &path,
+            r#"{"hooks": {"Stop": [{"matcher": "*", "hooks": [
+                {"type": "command", "command": "\"/mnt/d/oma\" hook",
+                 "commandWindows": "& \"D:\\old\\oma.exe\" hook", "timeout": 10}]}]}}"#,
+        )
+        .unwrap();
+
+        // Windows run: owns commandWindows, must preserve command verbatim.
+        apply_project_hooks_with(&root, false, OsSide::Windows).unwrap();
+        let after_win: Json = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        let h = &after_win["hooks"]["Stop"][0]["hooks"][0];
+        assert_eq!(h["command"].as_str(), Some("\"/mnt/d/oma\" hook"));
+        let win_cmd = h["commandWindows"].as_str().unwrap().to_string();
+        assert!(win_cmd.starts_with("& \""), "{win_cmd}");
+        assert!(!win_cmd.contains("old"), "owned field rewritten: {win_cmd}");
+
+        // Same side again: byte-identical, nothing rewritten.
+        let before = fs::read_to_string(&path).unwrap();
+        let second = apply_project_hooks_with(&root, false, OsSide::Windows).unwrap();
+        assert!(second.wrote.is_empty(), "idempotent: {:?}", second.wrote);
+        assert_eq!(fs::read_to_string(&path).unwrap(), before);
+
+        // Unix run: owns command, must preserve commandWindows verbatim.
+        apply_project_hooks_with(&root, false, OsSide::Unix).unwrap();
+        let after_unix: Json = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        let h = &after_unix["hooks"]["Stop"][0]["hooks"][0];
+        assert_eq!(h["commandWindows"].as_str(), Some(win_cmd.as_str()));
+        assert_ne!(h["command"].as_str(), Some("\"/mnt/d/oma\" hook"));
         let _ = fs::remove_dir_all(&root);
     }
 }
@@ -799,23 +1236,25 @@ mod skill_tests {
         // 1) 缺文件：写入生成版。
         let d = tmp("fresh");
         let p = d.join("SKILL.md");
-        let mut r = DeployReport { wrote: Vec::new(), skipped: Vec::new() };
+        let mut r = DeployReport::default();
         write_skill(&p, &mut r).unwrap();
         assert!(std::fs::read_to_string(&p).unwrap().contains(SKILL_MARKER));
         // 2) 幂等：再跑 skipped。
-        let mut r2 = DeployReport { wrote: Vec::new(), skipped: Vec::new() };
+        let mut r2 = DeployReport::default();
         write_skill(&p, &mut r2).unwrap();
         assert!(r2.wrote.is_empty() && r2.skipped.len() == 1);
         // 3) 旧静态版：识别升级。
         let legacy = d.join("legacy.md");
         std::fs::write(&legacy, LEGACY_SKILL_MD).unwrap();
-        let mut r3 = DeployReport { wrote: Vec::new(), skipped: Vec::new() };
+        let mut r3 = DeployReport::default();
         write_skill(&legacy, &mut r3).unwrap();
-        assert!(std::fs::read_to_string(&legacy).unwrap().contains(SKILL_MARKER));
+        assert!(std::fs::read_to_string(&legacy)
+            .unwrap()
+            .contains(SKILL_MARKER));
         // 4) 用户内容：无标记不动。
         let user = d.join("user.md");
         std::fs::write(&user, "我的私货 skill").unwrap();
-        let mut r4 = DeployReport { wrote: Vec::new(), skipped: Vec::new() };
+        let mut r4 = DeployReport::default();
         write_skill(&user, &mut r4).unwrap();
         assert_eq!(std::fs::read_to_string(&user).unwrap(), "我的私货 skill");
         let _ = std::fs::remove_dir_all(&d);

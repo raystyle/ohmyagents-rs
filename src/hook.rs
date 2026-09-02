@@ -118,19 +118,62 @@ fn read_stdin_json() -> Option<Json> {
     serde_json::from_str(trimmed).ok()
 }
 
-/// Hook entry: always exit-path friendly. Missing env means "not our session".
-pub fn run(event_arg: Option<&str>) -> Result<Option<PathBuf>, String> {
-    let Some(state_file) = env_nonempty("OHMYAGENTS_STATE_FILE") else {
-        return Ok(None);
-    };
+/// Hook entry: always exit-path friendly. oma-spawned sessions carry
+/// OHMYAGENTS_STATE_FILE; user-launched sessions fall back to the project
+/// state file derived from the payload cwd (agent name from --agent, both
+/// baked into the registration) so the statusline state channel works for
+/// every session, not just ours.
+pub fn run(event_arg: Option<&str>, agent_arg: Option<&str>) -> Result<Option<PathBuf>, String> {
     let payload = if event_arg.is_some() {
         None
     } else {
         read_stdin_json()
     };
+    run_with_payload(event_arg, agent_arg, payload)
+}
+
+/// Test seam: payload injected instead of read from stdin.
+pub(crate) fn run_with_payload(
+    event_arg: Option<&str>,
+    agent_arg: Option<&str>,
+    payload: Option<Json>,
+) -> Result<Option<PathBuf>, String> {
     if !project_allows(payload.as_ref()) {
         return Ok(None);
     }
+    let agent = env_nonempty("OHMYAGENTS_AGENT")
+        .or_else(|| agent_arg.map(str::to_string))
+        .unwrap_or_default();
+    let state_file: Option<PathBuf> = env_nonempty("OHMYAGENTS_STATE_FILE")
+        .map(PathBuf::from)
+        .or_else(|| {
+            // Fallback: <project root>/.ohmyagents/state/<agent>.json where the
+            // root is the nearest .git ancestor of the payload cwd.
+            let cwd = payload
+                .as_ref()
+                .and_then(|v| v.get("cwd"))
+                .and_then(|x| x.as_str())
+                .map(PathBuf::from)?;
+            if agent.is_empty() {
+                return None;
+            }
+            let mut base = Some(cwd);
+            for _ in 0..8 {
+                let dir = base?;
+                if dir.join(".git").exists() {
+                    return Some(
+                        dir.join(".ohmyagents")
+                            .join("state")
+                            .join(format!("{agent}.json")),
+                    );
+                }
+                base = dir.parent().map(Path::to_path_buf);
+            }
+            None
+        });
+    let Some(state_file) = state_file else {
+        return Ok(None);
+    };
     let event = if let Some(arg) = event_arg {
         normalize(arg)
     } else if let Some(ref v) = payload {
@@ -142,11 +185,19 @@ pub fn run(event_arg: Option<&str>) -> Result<Option<PathBuf>, String> {
         return Ok(None);
     }
     let state = state_for_payload(&event, payload.as_ref());
-    let agent = env_nonempty("OHMYAGENTS_AGENT").unwrap_or_default();
+    let session = payload
+        .as_ref()
+        .and_then(|v| {
+            v.get("session_id")
+                .or_else(|| v.get("sessionId"))
+                .and_then(|x| x.as_str())
+        })
+        .unwrap_or("");
     let record = json!({
         "state": state,
         "event": event,
         "agent": agent,
+        "session": session,
         "ts": unix_secs(),
     });
     let path = PathBuf::from(state_file);
@@ -197,10 +248,14 @@ mod tests {
     }
 
     #[test]
-    fn run_is_silent_without_env() {
+    fn run_is_silent_without_env_or_fallback() {
         let _g = ENV_LOCK.lock().unwrap();
         env::remove_var("OHMYAGENTS_STATE_FILE");
-        assert_eq!(run(Some("blocked")).unwrap(), None);
+        env::remove_var("OHMYAGENTS_AGENT");
+        // No payload cwd either (event arg short-circuits stdin): nothing to
+        // derive a project state file from.
+        assert_eq!(run(Some("blocked"), None).unwrap(), None);
+        assert_eq!(run(Some("blocked"), Some("claude")).unwrap(), None);
     }
 
     #[test]
@@ -211,7 +266,7 @@ mod tests {
         let file = dir.join("claude.json");
         env::set_var("OHMYAGENTS_STATE_FILE", &file);
         env::set_var("OHMYAGENTS_AGENT", "claude");
-        let wrote = run(Some("PermissionRequest")).unwrap();
+        let wrote = run(Some("PermissionRequest"), None).unwrap();
         env::remove_var("OHMYAGENTS_STATE_FILE");
         env::remove_var("OHMYAGENTS_AGENT");
         assert_eq!(wrote.as_deref(), Some(file.as_path()));
@@ -219,5 +274,35 @@ mod tests {
         assert_eq!(v["state"], "blocked");
         assert_eq!(v["event"], "permissionrequest");
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn run_falls_back_to_project_state_file_without_env() {
+        // User-launched session: no env, agent name from --agent, project
+        // root derived from the payload cwd (.git ancestor walk).
+        let _g = ENV_LOCK.lock().unwrap();
+        env::remove_var("OHMYAGENTS_STATE_FILE");
+        env::remove_var("OHMYAGENTS_AGENT");
+        let root = std::env::temp_dir().join(format!(
+            "oma-hook-fb-{}-{}",
+            std::process::id(),
+            unix_secs()
+        ));
+        let sub = root.join("src").join("deep");
+        fs::create_dir_all(&sub).unwrap();
+        fs::create_dir(root.join(".git")).unwrap();
+        let payload = json!({
+            "hook_event_name": "PreToolUse",
+            "cwd": sub.display().to_string(),
+            "session_id": "sess-42",
+        });
+        let wrote = run_with_payload(None, Some("claude"), Some(payload)).unwrap();
+        let expect = root.join(".ohmyagents").join("state").join("claude.json");
+        assert_eq!(wrote.as_deref(), Some(expect.as_path()));
+        let v: Json = serde_json::from_str(&fs::read_to_string(&expect).unwrap()).unwrap();
+        assert_eq!(v["state"], "working");
+        assert_eq!(v["session"], "sess-42");
+        assert_eq!(v["agent"], "claude");
+        let _ = fs::remove_dir_all(&root);
     }
 }

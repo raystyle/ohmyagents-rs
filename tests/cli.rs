@@ -16,7 +16,8 @@ fn oma() -> Command {
 
 #[test]
 fn check_reports_layout_and_pin() {
-    oma().args(["check", "--no-install"])
+    oma()
+        .args(["check", "--no-install"])
         .assert()
         .success()
         .stdout(contains("rmux.ok=true"))
@@ -26,7 +27,8 @@ fn check_reports_layout_and_pin() {
 
 #[test]
 fn agents_lists_detection_lines() {
-    oma().args(["agents"])
+    oma()
+        .args(["agents"])
         .assert()
         .success()
         .stdout(contains("agent=claude"))
@@ -39,7 +41,8 @@ fn agents_lists_detection_lines() {
 fn hook_is_silent_without_state_env() {
     // Outside an oma session there is no OHMYAGENTS_STATE_FILE: the hook
     // entry must stay silent and exit 0 (never fail the agent session).
-    oma().args(["hook", "blocked"])
+    oma()
+        .args(["hook", "blocked"])
         .env_remove("OHMYAGENTS_STATE_FILE")
         .assert()
         .success();
@@ -54,12 +57,13 @@ fn doctor_blocks_on_a_fresh_project_and_says_so() {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_millis(),
-    NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     ));
     std::fs::create_dir_all(&tmp).unwrap();
     // A fresh project has no yolo keys: doctor exits 1 by contract.
     // CPU 能力段恒在（S021）：agent=cpu check=caps。
-    oma().args(["doctor", "--project"])
+    oma()
+        .args(["doctor", "--project"])
         .arg(&tmp)
         .assert()
         .failure()
@@ -78,14 +82,44 @@ fn init_full_deploys_hooks_skills_and_yolo() {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_millis(),
-    NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     ));
     std::fs::create_dir_all(&tmp).unwrap();
-    oma().args(["init", "--project"]).arg(&tmp)
+    oma()
+        .args(["init", "--project"])
+        .arg(&tmp)
         .assert()
         .success()
         .stdout(contains("init.scope=full"))
-        .stdout(contains("init.hooks.wrote.count="));
+        .stdout(contains("init.hooks.wrote.count="))
+        .stdout(contains("init.hooks.form="));
+    // claude registration shape: exactly one oma handler per event, argv
+    // form intact, and the command is bare or host-absolute — never a
+    // POSIX path left by another OS's writer (P0027 shared-dir guard).
+    let settings: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(tmp.join(".claude").join("settings.json")).unwrap(),
+    )
+    .unwrap();
+    for (_event, groups) in settings["hooks"].as_object().unwrap() {
+        let ours: Vec<&serde_json::Value> = groups
+            .as_array()
+            .unwrap()
+            .iter()
+            .flat_map(|g| g["hooks"].as_array().unwrap().iter())
+            .filter(|h| h["command"].as_str().is_some_and(|c| c.contains("oma")))
+            .collect();
+        assert_eq!(ours.len(), 1, "one oma handler per event");
+        assert_eq!(
+            ours[0]["args"],
+            serde_json::json!(["hook", "--agent", "claude"])
+        );
+        assert_eq!(ours[0]["timeout"], 10);
+        let cmd = ours[0]["command"].as_str().unwrap();
+        assert!(
+            !cmd.contains("/mnt/"),
+            "foreign-OS path must not survive: {cmd}"
+        );
+    }
     // The S015 matrix lands in the project, not the user home.
     // 相对路径用正斜杠：Windows 文件 API 同样接受，两平台通用。
     for rel in [
@@ -101,9 +135,12 @@ fn init_full_deploys_hooks_skills_and_yolo() {
     }
     // Kimi has no project-level hook registration (S015): the config.toml
     // the yolo pass writes must carry no hooks table.
-    let kimi_cfg = std::fs::read_to_string(tmp.join(".kimi-code").join("config.toml"))
-        .unwrap_or_default();
-    assert!(!kimi_cfg.contains("[[hooks]]"), "kimi config must stay hook-free");
+    let kimi_cfg =
+        std::fs::read_to_string(tmp.join(".kimi-code").join("config.toml")).unwrap_or_default();
+    assert!(
+        !kimi_cfg.contains("[[hooks]]"),
+        "kimi config must stay hook-free"
+    );
     // --yolo narrows to keys only: no hook files.
     let tmp2 = std::env::temp_dir().join(format!(
         "oma-cli-init-yolo-{}-{}-{}",
@@ -112,10 +149,12 @@ fn init_full_deploys_hooks_skills_and_yolo() {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_millis(),
-    NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     ));
     std::fs::create_dir_all(&tmp2).unwrap();
-    oma().args(["init", "--yolo", "--project"]).arg(&tmp2)
+    oma()
+        .args(["init", "--yolo", "--project"])
+        .arg(&tmp2)
         .assert()
         .success()
         .stdout(contains("init.scope=yolo"))
@@ -124,6 +163,55 @@ fn init_full_deploys_hooks_skills_and_yolo() {
     assert!(!tmp2.join(".codex").join("hooks.json").exists());
     let _ = std::fs::remove_dir_all(&tmp);
     let _ = std::fs::remove_dir_all(&tmp2);
+}
+
+#[test]
+fn init_rerun_is_byte_idempotent() {
+    let tmp = std::env::temp_dir().join(format!(
+        "oma-cli-init-idem-{}-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis(),
+        NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    std::fs::create_dir_all(&tmp).unwrap();
+    let rels = [
+        ".claude/settings.json",
+        ".codex/hooks.json",
+        ".grok/hooks/ohmyagents-state.json",
+    ];
+    let read_all = |tmp: &std::path::Path| -> Vec<String> {
+        rels.iter()
+            .map(|r| std::fs::read_to_string(tmp.join(r)).unwrap())
+            .collect()
+    };
+    oma()
+        .args(["init", "--project"])
+        .arg(&tmp)
+        .assert()
+        .success();
+    let after_first = read_all(&tmp);
+    // Second run rewrites nothing: the hook registrations converge.
+    oma()
+        .args(["init", "--project"])
+        .arg(&tmp)
+        .assert()
+        .success()
+        .stdout(contains("init.hooks.wrote.count=0"));
+    assert_eq!(read_all(&tmp), after_first, "rerun must be byte-identical");
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn dies_statusline_unknown_agent() {
+    // Unknown names fail before any home config is touched.
+    oma()
+        .args(["agents", "statusline", "grok"])
+        .assert()
+        .failure()
+        .stderr(contains("claude/codex"));
 }
 
 #[test]
@@ -137,14 +225,18 @@ fn trace_sessions_on_empty_project_is_zero() {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_millis(),
-    NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     ));
     std::fs::create_dir_all(&tmp).unwrap();
-    oma().args(["trace", "sessions", "--project"]).arg(&tmp)
+    oma()
+        .args(["trace", "sessions", "--project"])
+        .arg(&tmp)
         .assert()
         .success()
         .stdout(contains("trace.sessions.count=0"));
-    oma().args(["trace", "timeline", "--project"]).arg(&tmp)
+    oma()
+        .args(["trace", "timeline", "--project"])
+        .arg(&tmp)
         .assert()
         .success()
         .stdout(contains("trace.edits.count=0"));
@@ -162,10 +254,12 @@ fn agents_install_unknown_name_fails_fast() {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_millis(),
-    NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     ));
     std::fs::create_dir_all(&tmp).unwrap();
-    oma().args(["agents", "install", "nope", "--root"]).arg(&tmp)
+    oma()
+        .args(["agents", "install", "nope", "--root"])
+        .arg(&tmp)
         .assert()
         .failure()
         .stdout(contains("install.nope.status=failed"))
@@ -185,20 +279,16 @@ fn dies_send_without_a_session_fails_fast() {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_millis(),
-    NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     ));
     std::fs::create_dir_all(&tmp).unwrap();
-    oma().args([
-        "send",
-        "claude",
-        "hello",
-        "--project",
-    ])
-    .arg(&tmp)
-    .assert()
-    .failure()
-    // P0026 高2：connect 不再被 manifest 缺失挡死，无会话报 daemon gone。
-    .stderr(contains("run `oma spawn`"));
+    oma()
+        .args(["send", "claude", "hello", "--project"])
+        .arg(&tmp)
+        .assert()
+        .failure()
+        // P0026 高2：connect 不再被 manifest 缺失挡死，无会话报 daemon gone。
+        .stderr(contains("run `oma spawn`"));
     let _ = std::fs::remove_dir_all(&tmp);
 }
 
@@ -237,7 +327,10 @@ fn completions_emit_shell_scripts() {
             .stdout
             .clone();
         let s = String::from_utf8_lossy(&out);
-        assert!(!s.is_empty() && s.contains("oma"), "{shell} script mentions oma");
+        assert!(
+            !s.is_empty() && s.contains("oma"),
+            "{shell} script mentions oma"
+        );
     }
     let out = oma()
         .args(["completions", "bash"])

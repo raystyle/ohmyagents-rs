@@ -10,8 +10,8 @@ use oma::doctor;
 use oma::hook;
 use oma::install;
 use oma::orch;
-use oma::trace;
 use oma::rmux::{self, bin_dir, ensure, managed_root, prepend_path, CheckError, Source};
+use oma::trace;
 use oma::yolo;
 
 #[derive(Parser)]
@@ -64,10 +64,13 @@ enum Commands {
         #[command(subcommand)]
         cmd: Option<AgentsCmd>,
     },
-    /// Agent hook 入口：读事件写 `.ohmyagents/state`。缺 OHMYAGENTS_STATE_FILE 则静默退出
+    /// Agent hook 入口：读事件写 `.ohmyagents/state`。oma 会话走 env；用户手拉会话按 payload cwd 回退写项目状态文件
     Hook {
         /// 事件名或四态（idle/working/blocked/unknown）；省略则读 stdin JSON
         event: Option<String>,
+        /// agent 名（注册参数注入；回退写项目状态文件用）
+        #[arg(long)]
+        agent: Option<String>,
     },
     /// 在项目专属会话里拉起多路 agent（1-4 路；默认已装交集）
     Spawn {
@@ -418,11 +421,13 @@ fn run() -> Result<(), String> {
                 agents::print_reports(&agents::detect());
                 Ok(())
             }
-            Some(AgentsCmd::Install { names, force, root }) => cmd_agents_install(names, force, root),
+            Some(AgentsCmd::Install { names, force, root }) => {
+                cmd_agents_install(names, force, root)
+            }
             Some(AgentsCmd::Update { names, force, root }) => cmd_agents_update(names, force, root),
             Some(AgentsCmd::Statusline { names }) => cmd_agents_statusline(names),
         },
-        Commands::Hook { event } => cmd_hook(event),
+        Commands::Hook { event, agent } => cmd_hook(event, agent),
         Commands::Spawn {
             agents,
             stub,
@@ -437,14 +442,22 @@ fn run() -> Result<(), String> {
             project,
             json,
         } => tokio_block(cmd_send(agent, text, confirm, project, json)),
-        Commands::Key { agent, key, project } => tokio_block(cmd_key(agent, key, project)),
-        Commands::Task { agent, text, timeout, project, cmd } => {
-            match cmd {
-                Some(TaskCmd::List { project: inner }) => cmd_task_list(inner.or(project)),
-                Some(TaskCmd::Show { id, project: inner }) => cmd_task_show(id, inner.or(project)),
-                None => tokio_block(cmd_task(agent, text, timeout, project)),
-            }
-        }
+        Commands::Key {
+            agent,
+            key,
+            project,
+        } => tokio_block(cmd_key(agent, key, project)),
+        Commands::Task {
+            agent,
+            text,
+            timeout,
+            project,
+            cmd,
+        } => match cmd {
+            Some(TaskCmd::List { project: inner }) => cmd_task_list(inner.or(project)),
+            Some(TaskCmd::Show { id, project: inner }) => cmd_task_show(id, inner.or(project)),
+            None => tokio_block(cmd_task(agent, text, timeout, project)),
+        },
         Commands::Cleanup { project, json } => tokio_block(cmd_cleanup(project, json)),
         Commands::Run {
             text,
@@ -453,7 +466,11 @@ fn run() -> Result<(), String> {
             project,
             json,
         } => tokio_block(cmd_run(text, assign, confirm, project, json)),
-        Commands::Settle { wait, project, json } => tokio_block(cmd_settle(wait, project, json)),
+        Commands::Settle {
+            wait,
+            project,
+            json,
+        } => tokio_block(cmd_settle(wait, project, json)),
         Commands::Trace { cmd } => cmd_trace(cmd),
         Commands::Serve { cmd, port, project } => match cmd {
             None => cmd_serve(port, project),
@@ -462,14 +479,23 @@ fn run() -> Result<(), String> {
             Some(ServeCmd::Status { project }) => cmd_serve_status(project),
         },
         Commands::ServeDaemon { port, project } => cmd_serve(port, Some(project)),
-        Commands::Mcp { project, print_config } => cmd_mcp(project, print_config),
+        Commands::Mcp {
+            project,
+            print_config,
+        } => cmd_mcp(project, print_config),
         Commands::Completions { shell } => cmd_completions(shell),
-        Commands::Respawn { agent, project, json } => {
-            tokio_block(cmd_respawn(agent, project, json))
-        }
-        Commands::Web { agent, spectator, ttl, no_pin, project } => {
-            tokio_block(cmd_web(agent, spectator, ttl, no_pin, project))
-        }
+        Commands::Respawn {
+            agent,
+            project,
+            json,
+        } => tokio_block(cmd_respawn(agent, project, json)),
+        Commands::Web {
+            agent,
+            spectator,
+            ttl,
+            no_pin,
+            project,
+        } => tokio_block(cmd_web(agent, spectator, ttl, no_pin, project)),
     }
 }
 
@@ -518,7 +544,10 @@ async fn cmd_web(
             let v = oma::api::web_share(&root, None, spectator, ttl, None, no_pin).await?;
             println!("web.session.url={}", v["url"].as_str().unwrap_or("-"));
             println!("web.session.pin={}", v["pin"].as_str().unwrap_or("-"));
-            println!("web.session.expires={}", v["expires"].as_str().unwrap_or("-"));
+            println!(
+                "web.session.expires={}",
+                v["expires"].as_str().unwrap_or("-")
+            );
             v
         }
     };
@@ -526,7 +555,10 @@ async fn cmd_web(
     if let Some(w) = v["warning"].as_str() {
         println!("web.warning={w}");
     }
-    println!("web.mode={}", if spectator { "spectator" } else { "operator" });
+    println!(
+        "web.mode={}",
+        if spectator { "spectator" } else { "operator" }
+    );
     println!("web.ok=true");
     Ok(())
 }
@@ -546,9 +578,7 @@ fn cmd_repl(
     }))
 }
 
-fn tokio_block<F: std::future::Future<Output = Result<(), String>>>(
-    fut: F,
-) -> Result<(), String> {
+fn tokio_block<F: std::future::Future<Output = Result<(), String>>>(fut: F) -> Result<(), String> {
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -722,7 +752,14 @@ async fn cmd_spawn(
     println!("spawn.attached={}", out.attached.join(","));
     println!("spawn.respawned={}", out.respawned.join(","));
     println!("spawn.removed={}", out.removed.join(","));
-    println!("spawn.mode={}", if out.attached.is_empty() { "new" } else { "reconcile" });
+    println!(
+        "spawn.mode={}",
+        if out.attached.is_empty() {
+            "new"
+        } else {
+            "reconcile"
+        }
+    );
     // 收尾单点（readiness → auto-settle；Round3 grok1：与三通道同序）。
     let mut v = serde_json::json!({ "respawned": out.respawned });
     oma::api::spawn_finalize(&root, &mut v).await;
@@ -745,7 +782,11 @@ async fn cmd_status(project: Option<PathBuf>, json: bool) -> Result<(), String> 
     if std::io::stdout().is_terminal() {
         let link = orch::connect(&root, false).await?;
         let (panes, warning) = orch::status(&link, &root).await?;
-        println!("oma status: {} (session {})", root.display(), orch::session_name(&root)?.as_str());
+        println!(
+            "oma status: {} (session {})",
+            root.display(),
+            orch::session_name(&root)?.as_str()
+        );
         if let Some(w) = warning {
             println!("warning: {w}");
         }
@@ -754,10 +795,7 @@ async fn cmd_status(project: Option<PathBuf>, json: bool) -> Result<(), String> 
         return Ok(());
     }
     println!("status.project={}", root.display());
-    println!(
-        "status.session={}",
-        orch::session_name(&root)?.as_str()
-    );
+    println!("status.session={}", orch::session_name(&root)?.as_str());
     let link = orch::connect(&root, false).await?;
     let (panes, warning) = orch::status(&link, &root).await?;
     for p in &panes {
@@ -797,13 +835,19 @@ async fn cmd_task(
     let root = project_root(project)?;
     let (agent, text) = match (agent, text) {
         (Some(a), Some(t)) => (a, t),
-        _ => return Err("usage: oma task <agent> \"<text>\" [--timeout N] | oma task list | oma task show <id>".into()),
+        _ => return Err(
+            "usage: oma task <agent> \"<text>\" [--timeout N] | oma task list | oma task show <id>"
+                .into(),
+        ),
     };
     let (id, dir) = oma::task::task_new(&root, &agent, &text).await?;
     println!("task.id={id}");
     println!("task.agent={agent}");
     println!("task.dir={}", dir.display());
-    println!("task.waiting=done-marker timeout={}s", if timeout == 0 { 0 } else { timeout.min(86_400) });
+    println!(
+        "task.waiting=done-marker timeout={}s",
+        if timeout == 0 { 0 } else { timeout.min(86_400) }
+    );
     match oma::task::task_wait(&root, &id, timeout) {
         Ok(output) => {
             println!("task.done={id}");
@@ -858,7 +902,10 @@ fn cmd_agents_statusline(names: Vec<String>) -> Result<(), String> {
         .cloned()
         .collect();
     if !unknown.is_empty() {
-        return Err(format!("statusline supports claude/codex only: {}", unknown.join(",")));
+        return Err(format!(
+            "statusline supports claude/codex only: {}",
+            unknown.join(",")
+        ));
     }
     if do_claude {
         let p = oma::statusline::merge_claude(&home)?;
@@ -867,6 +914,14 @@ fn cmd_agents_statusline(names: Vec<String>) -> Result<(), String> {
     if do_codex {
         let p = oma::statusline::merge_codex(&home)?;
         println!("statusline.codex={p}");
+    }
+    // The bar renders through pwsh on every platform; without it the merged
+    // config is inert. Advisory, never fatal (P0027).
+    if oma::statusline::pwsh_on_path() {
+        println!("statusline.pwsh=found");
+    } else {
+        println!("statusline.pwsh=missing");
+        println!("statusline.warn=pwsh-not-on-path-statusline-will-not-run");
     }
     println!("statusline.ok=true");
     Ok(())
@@ -988,7 +1043,11 @@ fn cmd_agents_install(
     let mut failed = 0u32;
     for (name, result) in install::install_missing(&catalog, &names, &home, force) {
         match result {
-            Ok(install::InstallOutcome::Installed { version, probed, path }) => {
+            Ok(install::InstallOutcome::Installed {
+                version,
+                probed,
+                path,
+            }) => {
                 println!("install.{name}.status=installed version={version}");
                 match &probed {
                     Some(v) => println!("install.{name}.probe={v}"),
@@ -1078,7 +1137,12 @@ fn cmd_trace(cmd: TraceCmd) -> Result<(), String> {
             println!("trace.sessions.count={}", sessions.len());
             Ok(())
         }
-        TraceCmd::Timeline { agent, file, limit, project } => {
+        TraceCmd::Timeline {
+            agent,
+            file,
+            limit,
+            project,
+        } => {
             let project = resolve(project);
             let filter = trace::TraceFilter {
                 agent: agent.as_deref(),
@@ -1103,7 +1167,12 @@ fn cmd_trace(cmd: TraceCmd) -> Result<(), String> {
             println!("trace.edits.count={}", events.len());
             Ok(())
         }
-        TraceCmd::Search { query, agent, limit, project } => {
+        TraceCmd::Search {
+            query,
+            agent,
+            limit,
+            project,
+        } => {
             let project = resolve(project);
             // 先全量匹配再截断：limit 若在匹配前生效会把候选池截没。
             let filter = trace::TraceFilter {
@@ -1133,7 +1202,12 @@ fn cmd_trace(cmd: TraceCmd) -> Result<(), String> {
             println!("trace.blocks.count={block_count}");
             Ok(())
         }
-        TraceCmd::File { file, agent, limit, project } => {
+        TraceCmd::File {
+            file,
+            agent,
+            limit,
+            project,
+        } => {
             let project = resolve(project);
             // 文件维度轨迹：按传入路径或 glob 过滤，时间正序展示该文件的完整修改史。
             let filter = trace::TraceFilter {
@@ -1158,12 +1232,20 @@ fn cmd_trace(cmd: TraceCmd) -> Result<(), String> {
             println!("trace.file.edits={}", events.len());
             Ok(())
         }
-        TraceCmd::Blocks { agent, limit, project } => {
+        TraceCmd::Blocks {
+            agent,
+            limit,
+            project,
+        } => {
             let project = resolve(project);
             print_block_timeline(&project, agent.as_deref(), limit);
             Ok(())
         }
-        TraceCmd::Agent { name, limit, project } => {
+        TraceCmd::Agent {
+            name,
+            limit,
+            project,
+        } => {
             let project = resolve(project);
             let known = ["claude", "codex", "grok", "kimi"];
             if !known.contains(&name.as_str()) {
@@ -1208,8 +1290,8 @@ fn print_block_timeline(project: &std::path::Path, agent: Option<&str>, limit: u
     println!("trace.blocks.count={}", blocks.len());
 }
 
-fn cmd_hook(event: Option<String>) -> Result<(), String> {
-    match hook::run(event.as_deref()) {
+fn cmd_hook(event: Option<String>, agent: Option<String>) -> Result<(), String> {
+    match hook::run(event.as_deref(), agent.as_deref()) {
         Ok(Some(path)) => {
             if std::env::var_os("OMA_HOOK_VERBOSE").is_some() {
                 eprintln!("oma.hook.wrote={}", path.display());
@@ -1258,10 +1340,15 @@ fn cmd_init(yolo: bool, pretrust: bool, project: Option<PathBuf>) -> Result<(), 
             println!("init.hooks.wrote={p}");
         }
         println!("init.hooks.wrote.count={}", deployed.wrote.len());
-        println!(
-            "init.hooks.skipped.count={}",
-            deployed.skipped.len()
-        );
+        println!("init.hooks.skipped.count={}", deployed.skipped.len());
+        // Cross-environment marker (P0027): bare hooks resolve `oma` through
+        // each OS's own PATH and survive shared project dirs.
+        if let Some(form) = deployed.form {
+            println!("init.hooks.form={form}");
+        }
+        for w in &deployed.warns {
+            println!("init.hooks.warn={w}");
+        }
     } else {
         println!("init.hooks=skipped");
     }

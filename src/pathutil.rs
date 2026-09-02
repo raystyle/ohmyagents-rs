@@ -41,9 +41,29 @@ pub fn keys_match(a: &str, b: &str) -> bool {
     norm_key(a) == norm_key(b)
 }
 
+/// Resolve an executable name through PATH (`which` handles PATHEXT on
+/// Windows, so "oma" finds oma.exe). None when absent — callers decide the
+/// fallback. No oma-specific policy here.
+pub fn find_on_path(name: &str) -> Option<PathBuf> {
+    which::which(name).ok().map(|p| abs_display(&p))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn find_on_path_missing_name_is_none() {
+        assert!(find_on_path("oma-cargo-test-no-such-bin").is_none());
+    }
+
+    #[test]
+    fn find_on_path_platform_shell_is_some() {
+        // Expectation from the platform contract (cmd on Windows, sh
+        // elsewhere), not from the implementation under test.
+        let shell = if cfg!(windows) { "cmd" } else { "sh" };
+        assert!(find_on_path(shell).is_some());
+    }
 
     #[test]
     fn keys_match_slash_and_case() {

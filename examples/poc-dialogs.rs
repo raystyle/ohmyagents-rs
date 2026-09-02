@@ -67,7 +67,7 @@ async fn dialogs_inner(pane: &rmux_sdk::Pane, root: &std::path::Path) -> Result<
     std::env::set_var("OHMYAGENTS_STATE_FILE", &state_file);
     std::env::set_var("OHMYAGENTS_AGENT", "claude");
     std::env::set_var("OHMYAGENTS_PROJECT", root);
-    let wrote = hook::run(Some("PermissionRequest"))?
+    let wrote = hook::run(Some("PermissionRequest"), None)?
         .ok_or_else(|| "oma hook wrote nothing".to_string())?;
     std::env::remove_var("OHMYAGENTS_STATE_FILE");
     std::env::remove_var("OHMYAGENTS_AGENT");
@@ -99,7 +99,7 @@ async fn dialogs_inner(pane: &rmux_sdk::Pane, root: &std::path::Path) -> Result<
 
     std::env::set_var("OHMYAGENTS_STATE_FILE", &state_file);
     std::env::set_var("OHMYAGENTS_AGENT", "claude");
-    let _ = hook::run(Some("Stop"))?;
+    let _ = hook::run(Some("Stop"), None)?;
     std::env::remove_var("OHMYAGENTS_STATE_FILE");
     std::env::remove_var("OHMYAGENTS_AGENT");
     let after = std::fs::read_to_string(&state_file)
