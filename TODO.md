@@ -94,6 +94,7 @@
 | rmux 编排扫屏消费 agent:state | 已完成 | `oma status` 三面（marker 行/TTY 表/api JSON）加 screen 扫屏列与 check 交叉核对（match/mismatch/-）；同一次快照出终端态与扫屏态零额外开销；stub 实机验收（画标记→screen=working、无标记→-、hook 缺侧 check=-） |
 | 密钥一钥两密文存储 | 已完成 | S031 落地：oma agents secrets 五命令（init/set/env/inject/status）；app.key 加 identity.enc AES-256-GCM 包裹加 secrets.yaml SOPS 制；四 profile 懒注入幂等块；ohmypwsh 密文平移两键加 BASE_URL；pwsh/bash 实机端到端全通；oma 自管根不碰 .omcf |
 | G005 存量字符清理 | 排队 | 3671 处四类禁字（DASH 2142、ARROW 255、EMOJI 892、FULLWIDTH 382，2026-09-02 量化）：FULLWIDTH 可机械替换，DASH/ARROW 按语义改写；清零后 mdcharlint.py 进验证链 |
+| 状态栏工具链段扩展 zig/golang/cpp | 排队 | 用户定调 2026-09-02「以后」：projKind 探测加 build.zig / go.mod / CMakeLists（或 meson），图标先 cmap 实证；现役 rust/node+ts/python 三态 |
 | 会话层 bypassPermissions 未生效排查 | 已完成 | S029 落档加 argv 修法（04b5c74）：spawn claude 路固定 --dangerously-skip-permissions（flag > settings 各层；2.1.257 项目层 bypass 被忽略）；已活会话 respawn 重开即生效 |
 | 仓库与目录更名 ohmyagents-rs | 已完成 | 五步收口：GitHub 更名（用户）、remote set-url、目录 D:\ohmyagents-rs、双环境重跑 init 加 --pretrust（双侧 doctor.blocked=false）；残留清扫 Cargo.toml/README/main.rs 帮助文案/S028（diary 存档不改） |
 
