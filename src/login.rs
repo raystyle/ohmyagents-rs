@@ -110,19 +110,15 @@ fn is_failure_line(agent: &str, line: &str) -> bool {
     }
 }
 
-/// 排空一个子进程流防背压；`passthrough` 时逐行转发到 oma 的 stderr（用户
-/// 要看进度），同时送回主循环解析。
-fn spawn_reader<R: std::io::Read + Send + 'static>(
-    stream: R,
-    passthrough: bool,
-) -> Receiver<String> {
+/// 排空一个子进程流防背压，逐行送回主循环解析。**不向用户转发**原始
+/// stderr：设备码流的价值在跨机操作（URL 加 code 拿到任何机器完成），
+/// 子进程自己的输出（含 grok 试开浏览器的噪音）只做解析素材，失败时才
+/// 取尾部做诊断。
+fn spawn_reader<R: std::io::Read + Send + 'static>(stream: R) -> Receiver<String> {
     let (tx, rx): (Sender<String>, Receiver<String>) = mpsc::channel();
     thread::spawn(move || {
         let reader = BufReader::new(stream);
         for line in reader.lines().map_while(Result::ok) {
-            if passthrough {
-                eprintln!("{line}");
-            }
             if tx.send(line).is_err() {
                 break;
             }
@@ -156,8 +152,8 @@ pub fn run(agent: &str, timeout_secs: u64) -> Result<LoginOutcome, String> {
         .spawn()
         .map_err(|e| format!("spawn {}: {e}", hit.path.display()))?;
 
-    let rx_err = spawn_reader(child.stderr.take().expect("stderr piped"), true);
-    let rx_out = spawn_reader(child.stdout.take().expect("stdout piped"), false);
+    let rx_err = spawn_reader(child.stderr.take().expect("stderr piped"));
+    let rx_out = spawn_reader(child.stdout.take().expect("stdout piped"));
 
     let deadline = if timeout_secs == 0 {
         None
@@ -168,6 +164,7 @@ pub fn run(agent: &str, timeout_secs: u64) -> Result<LoginOutcome, String> {
     let mut prompt_sent = false;
     let mut success_seen = false;
     let mut failure_line: Option<String> = None;
+    let mut tail: Vec<String> = Vec::new();
     let timed_out = loop {
         let recv = |rx: &Receiver<String>| -> Result<String, RecvTimeoutError> {
             match deadline {
@@ -192,12 +189,20 @@ pub fn run(agent: &str, timeout_secs: u64) -> Result<LoginOutcome, String> {
         if failure_line.is_none() && is_failure_line(agent, &line) {
             failure_line = Some(line.clone());
         }
+        if !line.trim().is_empty() {
+            // 诊断尾部：留最后三行非空（失败时转述，平时丢弃）。
+            if tail.len() == 3 {
+                tail.remove(0);
+            }
+            tail.push(line.clone());
+        }
         if !prompt_sent {
             seen.push(line);
             if let Some(p) = extract_prompt(agent, &seen) {
                 println!("login.url={}", p.url);
                 println!("login.code={}", p.code);
                 println!("login.waiting=browser-completion");
+                println!("login.hint=open the URL on any machine and confirm the code");
                 prompt_sent = true;
             }
         }
@@ -238,8 +243,9 @@ pub fn run(agent: &str, timeout_secs: u64) -> Result<LoginOutcome, String> {
     if success_seen {
         detail.push_str(" (success marker seen but credentials not verified)");
     }
-    if let Some(f) = failure_line {
-        detail.push_str(&format!(" last={f}"));
+    let diag = failure_line.unwrap_or_else(|| tail.join(" / "));
+    if !diag.is_empty() {
+        detail.push_str(&format!(" last={diag}"));
     }
     Ok(LoginOutcome { ok: false, detail })
 }
