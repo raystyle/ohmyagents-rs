@@ -256,7 +256,7 @@ enum Commands {
 enum SelfSub {
     /// oma 自更新：dev 滚动源或 latest 正式版自替换；封版前用 --git 源码安装
     Update {
-        /// 仓库（owner/name）；缺省 raystyle/OhMyAgents
+        /// 仓库（owner/name）；缺省 raystyle/ohmyagents-rs
         #[arg(long)]
         repo: Option<String>,
         /// 走正式稳定通道（releases/latest，封版 tag 触发）；缺省 dev 滚动源

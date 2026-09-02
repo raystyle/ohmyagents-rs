@@ -4,7 +4,7 @@
 
 **通用智能体多路复用任务编排器**：在 rmux 上把多路终端智能体（当前适配 Claude / Codex / Grok / Kimi 四家）编进一个项目会话，按目录自动部署 hook 与 skill，用 `oma` 下发任务、看状态、检轨迹。
 
-- 显示名 Oh My Agents；仓库 `ohmyagents`；CLI `oma`；远端 <https://github.com/raystyle/OhMyAgents>
+- 显示名 Oh My Agents；仓库 `ohmyagents-rs`（更名自 OhMyAgents，2026-09-02）；CLI `oma`；远端 <https://github.com/raystyle/ohmyagents-rs>
 - **三通道编排**：CLI、HTTP API（`oma serve`，主页即可视化看板）、MCP（`oma mcp` stdio）——一份编排核心三消费
 - **agent 实例优先**：命令面只见 agent；服务、会话、窗口、窗格、PTY 作为复杂性绑在 agent 背后——初始检测互斥、操作绑定已开实例，绝不重复开已活原语（新开/附加/重开三态和解）；**精确集合**：`--agents` 给几路就几路，多余路自动收掉；**布局按路数自适应**：1 路全屏、2/3 路左右列分、4 路 2x2，收放后自动重排
 - **带产物等待的任务**：`oma task` 建任务目录（`prompt.md` 提示词全文）、send 带协议尾注、阻塞等 `DONE` 标记（agent 写 `output.md` 后最后创建）——委派即产物、后台收件人模式即闭环
@@ -21,8 +21,8 @@
 前置：Rust 工具链（rustc/cargo）。oma 自管数据根 `~/.ohmyagents`，不动家目录注册。
 
 ```powershell
-git clone https://github.com/raystyle/OhMyAgents
-cd OhMyAgents
+git clone https://github.com/raystyle/ohmyagents-rs
+cd ohmyagents-rs
 cargo build --features server,mcp      # release: cargo build --release --features server,mcp
 ```
 

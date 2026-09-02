@@ -15,7 +15,7 @@
 - **资产约定**：**资产名即编译目标** `oma-<target-triple>.zip`（Windows）/ `.tar.gz`（Unix），按本机 OS 关键词（windows-msvc / apple-darwin / linux-gnu）加架构（x86_64 / aarch64）匹配；无平台匹配兜底任一 oma 资产（打日志供人工核对）。版本判据：dev 走资产 sha256，stable 走 release tag。
 - **自替换**：新二进制先 copy 到旁路暂存；Windows 走 rename 舞步（运行中 exe 不能覆盖但可改名——当前改名 `.old` → 新就位 → 删 `.old`；失败回滚旧件保持可启动），Unix 直接 rename 覆盖（原子）。
 - **`--git`**：`cargo install --git https://github.com/<repo>.git --force`（PATH 探针找 cargo）——封版前主路径。
-- **`--repo owner/name`**：私有 fork / 改仓时覆盖（缺省 `raystyle/OhMyAgents`）。
+- **`--repo owner/name`**：私有 fork / 改仓时覆盖（缺省 `raystyle/ohmyagents-rs`，更名自 OhMyAgents 2026-09-02，GitHub 旧名 URL 自动重定向）。
 
 ### 2. CI 滚动 dev release 与部署位
 

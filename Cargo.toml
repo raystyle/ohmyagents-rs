@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "Oh My Agents：通用智能体多路复用任务编排器"
 license = "MIT"
-repository = "https://github.com/raystyle/OhMyAgents"
+repository = "https://github.com/raystyle/ohmyagents-rs"
 
 [[bin]]
 name = "oma"
