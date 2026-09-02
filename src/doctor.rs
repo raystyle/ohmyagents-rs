@@ -1,7 +1,10 @@
 use std::fs;
 use std::path::Path;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::Value as Json;
+use time::format_description::well_known::Rfc3339;
+use time::OffsetDateTime;
 use toml::Value as Toml;
 
 use crate::agents;
@@ -11,6 +14,10 @@ use crate::yolo::kimi_workspace_key;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Status {
     Ok,
+    /// Deploy-diagnosis gap that does not block an interactive run (login
+    /// missing, statusline off, stale session): surfaced for `oma doctor`,
+    /// never counted by `blocked()`.
+    Warn,
     Block,
 }
 
@@ -18,6 +25,7 @@ impl Status {
     fn as_str(self) -> &'static str {
         match self {
             Status::Ok => "ok",
+            Status::Warn => "warn",
             Status::Block => "block",
         }
     }
@@ -103,10 +111,22 @@ fn push(
     path: &Path,
     detail: impl Into<String>,
 ) {
+    let status = if ok { Status::Ok } else { Status::Block };
+    push_status(out, agent, check, status, path, detail);
+}
+
+fn push_status(
+    out: &mut Vec<Finding>,
+    agent: &str,
+    check: &'static str,
+    status: Status,
+    path: &Path,
+    detail: impl Into<String>,
+) {
     out.push(Finding {
         agent: agent.to_string(),
         check,
-        status: if ok { Status::Ok } else { Status::Block },
+        status,
         path: path.display().to_string(),
         detail: detail.into(),
     });
@@ -233,11 +253,335 @@ fn kimi_trust_ok(home: &Path, root: &Path) -> bool {
     keys_match(stored, &native_slash(root)) || keys_match(stored, &forward_slash(root))
 }
 
+// ===== 登录态（S026 判据）与部署诊断扩展 =====
+
+/// grok 登录态：`~/.grok/auth.json` 是 scope → 凭据 map。判据来自 S026
+/// 源码取证加本机文件结构实证：条目有 `key` 或 `refresh_token` 即有凭据；
+/// 过期看 `expires_at`（RFC3339），缺省按 `create_time + 30 天`兜底，提前
+/// 300s 视过期；过期但 refresh_token 在则 agent 下次运行自动刷新。
+fn grok_login_state(v: Option<&Json>, now: OffsetDateTime) -> (Status, String) {
+    let Some(map) = v.and_then(|v| v.as_object()) else {
+        return (
+            Status::Warn,
+            "auth.json missing; grok login --device-code".into(),
+        );
+    };
+    for (scope, cred) in map {
+        let has_key = cred
+            .get("key")
+            .and_then(|x| x.as_str())
+            .is_some_and(|s| !s.is_empty());
+        let has_refresh = cred
+            .get("refresh_token")
+            .and_then(|x| x.as_str())
+            .is_some_and(|s| !s.is_empty());
+        if !has_key && !has_refresh {
+            continue;
+        }
+        let raw_exp = cred.get("expires_at").and_then(|x| x.as_str());
+        let expires = raw_exp
+            .and_then(|s| OffsetDateTime::parse(s, &Rfc3339).ok())
+            .or_else(|| {
+                let created = cred.get("create_time").and_then(|x| x.as_str())?;
+                OffsetDateTime::parse(created, &Rfc3339)
+                    .ok()
+                    .map(|t| t + time::Duration::days(30))
+            });
+        return match expires {
+            Some(e) if e > now + time::Duration::seconds(300) => (
+                Status::Ok,
+                raw_exp
+                    .map(|s| format!("scope={scope} expires_at={s}"))
+                    .unwrap_or_else(|| format!("scope={scope}")),
+            ),
+            Some(_) if has_refresh => (
+                Status::Warn,
+                format!("scope={scope} expired; refresh_token present (auto-refresh on next run)"),
+            ),
+            Some(_) => (
+                Status::Warn,
+                format!("scope={scope} expired, no refresh_token; grok login --device-code"),
+            ),
+            None => (
+                Status::Ok,
+                format!("scope={scope} no expiry timestamps (treated live)"),
+            ),
+        };
+    }
+    (
+        Status::Warn,
+        "no credential entries; grok login --device-code".into(),
+    )
+}
+
+/// kimi 登录态：`~/.kimi-code/credentials/kimi-code.json`。判据来自 S026
+/// 源码取证：`hasToken()` 只看 access_token 非空（不看过期，刷新按动态
+/// 阈值自动做）；空串是 401/403 墓碑（吊销态，需重登）；expires_at 是
+/// Unix 秒。
+fn kimi_login_state(v: Option<&Json>, now_secs: i64) -> (Status, String) {
+    let Some(v) = v else {
+        return (Status::Warn, "credentials file missing; kimi login".into());
+    };
+    match v.get("access_token").and_then(|x| x.as_str()) {
+        Some(t) if !t.is_empty() => {
+            let detail = match v.get("expires_at").and_then(|x| x.as_i64()) {
+                Some(e) if e > now_secs => {
+                    format!("access_token present, expires in {}s", e - now_secs)
+                }
+                Some(e) => format!(
+                    "access_token present, expired {}s ago (auto-refresh threshold)",
+                    now_secs - e
+                ),
+                None => "access_token present, no expires_at".to_string(),
+            };
+            (Status::Ok, detail)
+        }
+        Some(_) => (
+            Status::Warn,
+            "access_token empty-string tombstone (revoked); kimi login again".into(),
+        ),
+        None => (Status::Warn, "no access_token field; kimi login".into()),
+    }
+}
+
+// ===== 状态栏形态（S025 落位） =====
+
+const STATUSLINE_MARKER: &str = "oma-statusline";
+
+fn claude_statusline_on(home: &Path) -> bool {
+    json_file(&home.join(".claude").join("settings.json"))
+        .as_ref()
+        .and_then(|v| v.get("statusLine"))
+        .and_then(|s| s.get("command"))
+        .and_then(|c| c.as_str())
+        .is_some_and(|c| c.contains(STATUSLINE_MARKER))
+}
+
+fn codex_statusline_on(home: &Path) -> bool {
+    toml_file(&home.join(".codex").join("config.toml"))
+        .as_ref()
+        .and_then(|t| t.get("tui"))
+        .and_then(|tui| tui.get("status_line"))
+        .and_then(|sl| sl.as_array())
+        .is_some_and(|parts| {
+            parts
+                .iter()
+                .any(|p| p.as_str().is_some_and(|s| s.contains(STATUSLINE_MARKER)))
+        })
+}
+
+fn kimi_statusline_on(home: &Path) -> bool {
+    toml_file(&home.join(".kimi-code").join("tui.toml"))
+        .as_ref()
+        .and_then(|t| t.get("status_line"))
+        .and_then(|sl| sl.get("command"))
+        .and_then(|c| c.as_str())
+        .is_some_and(|c| c.contains(STATUSLINE_MARKER))
+}
+
+fn grok_statusline_on(home: &Path) -> bool {
+    toml_file(&home.join(".grok").join("config.toml"))
+        .as_ref()
+        .and_then(|t| t.get("ui"))
+        .and_then(|ui| ui.get("status_line"))
+        .and_then(|sl| sl.get("command"))
+        .and_then(|c| c.as_str())
+        .is_some_and(|c| c.contains(STATUSLINE_MARKER))
+}
+
+fn push_statusline(
+    out: &mut Vec<Finding>,
+    agent: &str,
+    on: bool,
+    cfg: &Path,
+    script_ok: bool,
+    pwsh_missing: bool,
+) {
+    let (status, mut detail) = if !on {
+        (
+            Status::Warn,
+            format!("not configured; oma agents statusline {agent}"),
+        )
+    } else if !script_ok {
+        (
+            Status::Warn,
+            "configured but oma-statusline.ps1 missing; rerun oma agents statusline".into(),
+        )
+    } else {
+        (Status::Ok, "oma bar configured".into())
+    };
+    if pwsh_missing {
+        detail.push_str("; pwsh not on PATH (bar will not render)");
+    }
+    push_status(out, agent, "statusline", status, cfg, detail);
+}
+
+// ===== hook 注册形态（P0027 口径） =====
+
+/// JSON 形 hook 注册（claude settings、grok ohmyagents-state.json）的 oma
+/// 形态：bare（PATH 解析，跨环境共享）/ absolute（单环境）/ none。
+fn json_hooks_form(v: Option<&Json>) -> &'static str {
+    let Some(events) = v.and_then(|v| v.get("hooks")).and_then(|h| h.as_object()) else {
+        return "none";
+    };
+    let mut ours = false;
+    let mut bare = false;
+    for group in events.values().filter_map(|g| g.as_array()).flatten() {
+        let Some(hooks) = group.get("hooks").and_then(|h| h.as_array()) else {
+            continue;
+        };
+        for h in hooks {
+            let Some(c) = h.get("command").and_then(|c| c.as_str()) else {
+                continue;
+            };
+            if crate::deploy::is_ours(c) {
+                ours = true;
+                if !c.contains('/') && !c.contains('\\') {
+                    bare = true;
+                }
+            }
+        }
+    }
+    if bare {
+        "bare"
+    } else if ours {
+        "absolute"
+    } else {
+        "none"
+    }
+}
+
+/// codex `.codex/hooks.json` 里 ours 处理器占据的 per-OS 字段：
+/// command（Unix 侧）/ commandWindows（Windows 侧）。绝对路径是设计态
+/// （hook exec 环境不继承 PATH，P0027）。
+fn codex_hooks_sides(v: Option<&Json>) -> (bool, bool) {
+    let Some(events) = v.and_then(|v| v.get("hooks")).and_then(|h| h.as_object()) else {
+        return (false, false);
+    };
+    let mut unix_side = false;
+    let mut win_side = false;
+    for group in events.values().filter_map(|g| g.as_array()).flatten() {
+        let Some(hooks) = group.get("hooks").and_then(|h| h.as_array()) else {
+            continue;
+        };
+        for h in hooks {
+            if h.get("command")
+                .and_then(|c| c.as_str())
+                .is_some_and(crate::deploy::is_ours)
+            {
+                unix_side = true;
+            }
+            if h.get("commandWindows")
+                .and_then(|c| c.as_str())
+                .is_some_and(crate::deploy::is_ours)
+            {
+                win_side = true;
+            }
+        }
+    }
+    (unix_side, win_side)
+}
+
+fn push_hooks_form(out: &mut Vec<Finding>, agent: &str, form: &str, path: &Path) {
+    match form {
+        "bare" => push_status(
+            out,
+            agent,
+            "hooks.form",
+            Status::Ok,
+            path,
+            "form=bare (PATH-resolved; one registration serves every environment)",
+        ),
+        "absolute" => push_status(
+            out,
+            agent,
+            "hooks.form",
+            Status::Ok,
+            path,
+            "form=absolute (single-environment; bare once oma is on PATH)",
+        ),
+        _ => push_status(
+            out,
+            agent,
+            "hooks.form",
+            Status::Warn,
+            path,
+            "no oma hooks; oma init deploys",
+        ),
+    }
+}
+
+// ===== 会话健康 =====
+
+/// 会话清单态：无 manifest 是合法部署前态（不误报）；有则列路数，活性由
+/// 调用方探测注入（None = 未探，测试注入口）。
+fn session_finding(root: &Path, alive: Option<bool>) -> Finding {
+    let path = root.join(".ohmyagents").join("session.json");
+    match crate::orch::read_manifest_for(root) {
+        None => Finding {
+            agent: "oma".into(),
+            check: "session",
+            status: Status::Ok,
+            path: path.display().to_string(),
+            detail: "no session manifest; oma spawn creates one".into(),
+        },
+        Some(m) => {
+            let routes: Vec<&str> = m.agents.iter().map(|a| a.name.as_str()).collect();
+            let (status, detail) = match alive {
+                Some(true) => (
+                    Status::Ok,
+                    format!("daemon answering; routes={}", routes.join(",")),
+                ),
+                Some(false) => (
+                    Status::Warn,
+                    "daemon not answering (stale manifest); oma spawn reconciles".into(),
+                ),
+                None => (
+                    Status::Ok,
+                    format!("manifest present; routes={}", routes.join(",")),
+                ),
+            };
+            Finding {
+                agent: "oma".into(),
+                check: "session",
+                status,
+                path: path.display().to_string(),
+                detail,
+            }
+        }
+    }
+}
+
+/// rmux 只读探活：manifest 在时才调（`list-sessions` 不 attach）；rmux 未
+/// 检出返回 None（部署诊断不替 `oma check` 装运行时）。
+fn daemon_alive(root: &Path) -> Option<bool> {
+    let pin = crate::catalog::RmuxPin::load().ok()?;
+    let report = crate::rmux::detect(&pin).ok()?;
+    Some(crate::rmuxpoc::label_alive(
+        &report.layout.dispatcher,
+        &crate::orch::label(root),
+    ))
+}
+
 /// Read-only. Does not attach, send-keys, or wait on TUI.
 pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
     let root = abs_display(root);
     let home = dirs::home_dir().ok_or_else(|| "cannot resolve home dir".to_string())?;
     let mut findings = Vec::new();
+
+    // 部署诊断共享事实：状态栏脚本与 pwsh 探测一次（S025），登录态用统一
+    // 时间基准（S026）。
+    let oma_root = crate::install::oma_home().ok();
+    let sl_script_ok = oma_root
+        .as_deref()
+        .map(crate::statusline::script_path)
+        .is_some_and(|p| p.is_file());
+    let sl_pwsh_missing = !crate::statusline::pwsh_on_path();
+    let now = OffsetDateTime::now_utc();
+    let now_secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
 
     // CPU 能力段（S021）：Bun 系要 AVX/AVX2、Rust 原生常要 AVX-512，缺了
     // 表现为 agent 启动即崩——先摆出事实面，探针异常退出另有分类。
@@ -419,6 +763,23 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         },
     );
     push_binary(&mut findings, "claude");
+    let claude_hooks_form = {
+        let form = json_hooks_form(json_file(&claude_shared).as_ref());
+        if form != "none" {
+            form
+        } else {
+            json_hooks_form(json_file(&claude_local).as_ref())
+        }
+    };
+    push_hooks_form(&mut findings, "claude", claude_hooks_form, &claude_shared);
+    push_statusline(
+        &mut findings,
+        "claude",
+        claude_statusline_on(&home),
+        &home.join(".claude").join("settings.json"),
+        sl_script_ok,
+        sl_pwsh_missing,
+    );
 
     let codex_proj = root.join(".codex").join("config.toml");
     let codex_user = home.join(".codex").join("config.toml");
@@ -527,6 +888,43 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         },
     );
     push_binary(&mut findings, "codex");
+    let (codex_unix, codex_win) =
+        codex_hooks_sides(json_file(&root.join(".codex").join("hooks.json")).as_ref());
+    if codex_unix || codex_win {
+        let mut sides = Vec::new();
+        if codex_unix {
+            sides.push("command(unix)");
+        }
+        if codex_win {
+            sides.push("commandWindows(windows)");
+        }
+        push_status(
+            &mut findings,
+            "codex",
+            "hooks.form",
+            Status::Ok,
+            &root.join(".codex").join("hooks.json"),
+            format!(
+                "per-OS fields ours: {} (absolute by design)",
+                sides.join(", ")
+            ),
+        );
+    } else {
+        push_hooks_form(
+            &mut findings,
+            "codex",
+            "none",
+            &root.join(".codex").join("hooks.json"),
+        );
+    }
+    push_statusline(
+        &mut findings,
+        "codex",
+        codex_statusline_on(&home),
+        &home.join(".codex").join("config.toml"),
+        sl_script_ok,
+        sl_pwsh_missing,
+    );
 
     let kimi_proj = root.join(".kimi-code").join("config.toml");
     let kimi_user = home.join(".kimi-code").join("config.toml");
@@ -601,6 +999,36 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         },
     );
     push_binary(&mut findings, "kimi");
+    let kimi_cred = home
+        .join(".kimi-code")
+        .join("credentials")
+        .join("kimi-code.json");
+    let (kimi_login_st, kimi_login_detail) =
+        kimi_login_state(json_file(&kimi_cred).as_ref(), now_secs);
+    push_status(
+        &mut findings,
+        "kimi",
+        "login",
+        kimi_login_st,
+        &kimi_cred,
+        kimi_login_detail,
+    );
+    push_status(
+        &mut findings,
+        "kimi",
+        "hooks.form",
+        Status::Ok,
+        &kimi_proj,
+        "n/a no project-level hook registration (S015)",
+    );
+    push_statusline(
+        &mut findings,
+        "kimi",
+        kimi_statusline_on(&home),
+        &home.join(".kimi-code").join("tui.toml"),
+        sl_script_ok,
+        sl_pwsh_missing,
+    );
 
     let grok_cfg = home.join(".grok").join("config.toml");
     let grok_tf = home.join(".grok").join("trusted_folders.toml");
@@ -700,6 +1128,34 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         },
     );
     push_binary(&mut findings, "grok");
+    let grok_auth = home.join(".grok").join("auth.json");
+    let (grok_login_st, grok_login_detail) = grok_login_state(json_file(&grok_auth).as_ref(), now);
+    push_status(
+        &mut findings,
+        "grok",
+        "login",
+        grok_login_st,
+        &grok_auth,
+        grok_login_detail,
+    );
+    let grok_state_json = root
+        .join(".grok")
+        .join("hooks")
+        .join("ohmyagents-state.json");
+    push_hooks_form(
+        &mut findings,
+        "grok",
+        json_hooks_form(json_file(&grok_state_json).as_ref()),
+        &grok_state_json,
+    );
+    push_statusline(
+        &mut findings,
+        "grok",
+        grok_statusline_on(&home),
+        &grok_cfg,
+        sl_script_ok,
+        sl_pwsh_missing,
+    );
 
     let state_dir = root.join(".ohmyagents").join("state");
     if state_dir.is_dir() {
@@ -730,6 +1186,14 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         }
     }
 
+    let manifest_present = crate::orch::read_manifest_for(&root).is_some();
+    let alive = if manifest_present {
+        daemon_alive(&root)
+    } else {
+        None
+    };
+    findings.push(session_finding(&root, alive));
+
     Ok(Diagnosis { findings })
 }
 
@@ -750,6 +1214,7 @@ pub fn print_diagnosis(d: &Diagnosis) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
     use std::fs;
 
     #[test]
@@ -898,5 +1363,142 @@ mod tests {
             assert_eq!(d.status("claude", "trust.mcp"), Some(Status::Block));
         }
         let _ = fs::remove_dir_all(&root);
+    }
+
+    // ===== 部署诊断扩展（S025/S026 判据） =====
+
+    fn temp_root(tag: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!(
+            "oma-doctor-{tag}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ))
+    }
+
+    #[test]
+    fn grok_login_covers_s026_rules() {
+        let now = OffsetDateTime::parse("2026-09-02T12:00:00Z", &Rfc3339).unwrap();
+        let live =
+            json!({"https://auth.x.ai::u": {"key": "k", "expires_at": "2026-09-02T13:00:00Z"}});
+        assert_eq!(grok_login_state(Some(&live), now).0, Status::Ok);
+        let refreshable =
+            json!({"s": {"key": "k", "refresh_token": "r", "expires_at": "2026-09-02T11:00:00Z"}});
+        let (st, detail) = grok_login_state(Some(&refreshable), now);
+        assert_eq!(st, Status::Warn);
+        assert!(detail.contains("refresh_token"));
+        // 提前 300s 视过期：now+299s 落过期分支，now+301s 存活
+        let edge_in = json!({"s": {"key": "k", "expires_at": "2026-09-02T12:04:59Z"}});
+        assert_eq!(grok_login_state(Some(&edge_in), now).0, Status::Warn);
+        let edge_out = json!({"s": {"key": "k", "expires_at": "2026-09-02T12:05:01Z"}});
+        assert_eq!(grok_login_state(Some(&edge_out), now).0, Status::Ok);
+        // 无 expires_at 按 create_time + 30 天兜底（2026-08-05 加 30 天 = 09-04）
+        let created_live = json!({"s": {"key": "k", "create_time": "2026-08-05T00:00:00Z"}});
+        assert_eq!(grok_login_state(Some(&created_live), now).0, Status::Ok);
+        let created_stale = json!({"s": {"key": "k", "create_time": "2026-07-01T00:00:00Z"}});
+        let (st, detail) = grok_login_state(Some(&created_stale), now);
+        assert_eq!(st, Status::Warn);
+        assert!(detail.contains("grok login"));
+        assert_eq!(grok_login_state(None, now).0, Status::Warn);
+        let no_creds = json!({"s": {"email": "x@y"}});
+        assert_eq!(grok_login_state(Some(&no_creds), now).0, Status::Warn);
+    }
+
+    #[test]
+    fn kimi_login_tombstone_is_distinct_from_missing() {
+        let now = 1_800_000_000i64;
+        let live = json!({"access_token": "t", "refresh_token": "r", "expires_at": now + 3600});
+        assert_eq!(kimi_login_state(Some(&live), now).0, Status::Ok);
+        // hasToken 不看过期（S026）：过期仍有 token 仍是登录态，刷新自动做
+        let expired = json!({"access_token": "t", "expires_at": now - 10});
+        assert_eq!(kimi_login_state(Some(&expired), now).0, Status::Ok);
+        let tombstone = json!({"access_token": "", "expires_at": now});
+        let (st, detail) = kimi_login_state(Some(&tombstone), now);
+        assert_eq!(st, Status::Warn);
+        assert!(detail.contains("revoked"));
+        assert_eq!(kimi_login_state(None, now).0, Status::Warn);
+        let no_field = json!({"refresh_token": "r"});
+        assert_eq!(kimi_login_state(Some(&no_field), now).0, Status::Warn);
+    }
+
+    #[test]
+    fn hooks_form_classifies_bare_absolute_none() {
+        let bare = json!({"hooks": {"SessionStart": [{"hooks": [{"command": "oma hook --agent claude"}]}]}});
+        assert_eq!(json_hooks_form(Some(&bare)), "bare");
+        let absolute =
+            json!({"hooks": {"SessionStart": [{"hooks": [{"command": "D:\\x\\oma.exe hook"}]}]}});
+        assert_eq!(json_hooks_form(Some(&absolute)), "absolute");
+        let foreign = json!({"hooks": {"SessionStart": [{"hooks": [{"command": "echo hi"}]}]}});
+        assert_eq!(json_hooks_form(Some(&foreign)), "none");
+        assert_eq!(json_hooks_form(None), "none");
+    }
+
+    #[test]
+    fn codex_hooks_sides_read_per_os_fields() {
+        let both = json!({"hooks": {"PreToolUse": [{"hooks": [
+            {"type": "command",
+             "command": "\"/home/ray/.cargo/bin/oma\" hook --agent codex",
+             "commandWindows": "& \"D:\\cargo\\oma.exe\" hook --agent codex",
+             "timeout": 10}
+        ]}]}});
+        assert_eq!(codex_hooks_sides(Some(&both)), (true, true));
+        let unix_only = json!({"hooks": {"PreToolUse": [{"hooks": [
+            {"type": "command", "command": "\"/home/ray/.cargo/bin/oma\" hook --agent codex"}
+        ]}]}});
+        assert_eq!(codex_hooks_sides(Some(&unix_only)), (true, false));
+        let foreign = json!({"hooks": {"PreToolUse": [{"hooks": [
+            {"type": "command", "command": "echo hi"}
+        ]}]}});
+        assert_eq!(codex_hooks_sides(Some(&foreign)), (false, false));
+        assert_eq!(codex_hooks_sides(None), (false, false));
+    }
+
+    #[test]
+    fn session_finding_without_manifest_is_info_not_block() {
+        let root = temp_root("session");
+        fs::create_dir_all(&root).unwrap();
+        let f = session_finding(&root, None);
+        assert_eq!(
+            (f.agent.as_str(), f.check, f.status),
+            ("oma", "session", Status::Ok)
+        );
+        fs::create_dir_all(root.join(".ohmyagents")).unwrap();
+        fs::write(
+            root.join(".ohmyagents").join("session.json"),
+            r#"{"stub":true,"agents":[{"name":"claude","pane_id":3}]}"#,
+        )
+        .unwrap();
+        let dead = session_finding(&root, Some(false));
+        assert_eq!(dead.status, Status::Warn);
+        assert!(dead.detail.contains("stale"));
+        let live = session_finding(&root, Some(true));
+        assert_eq!(live.status, Status::Ok);
+        assert!(live.detail.contains("claude"));
+        let unprobed = session_finding(&root, None);
+        assert_eq!(unprobed.status, Status::Ok);
+        assert!(unprobed.detail.contains("claude"));
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn deploy_diagnosis_rows_never_block() {
+        // 契约：登录态/状态栏/hook 形态/会话行是部署诊断面，只 ok|warn，
+        // 不得混入 block——blocked() 语义仍只对交互阻塞负责。
+        let root = temp_root("warn");
+        fs::create_dir_all(&root).unwrap();
+        let d = diagnose(&root).expect("diagnose");
+        for f in &d.findings {
+            if matches!(f.check, "login" | "statusline" | "hooks.form" | "session") {
+                assert_ne!(
+                    f.status,
+                    Status::Block,
+                    "{} {} must not block",
+                    f.agent,
+                    f.check
+                );
+            }
+        }
     }
 }

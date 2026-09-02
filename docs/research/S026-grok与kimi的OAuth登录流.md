@@ -37,8 +37,8 @@
 
 ## 待办
 
-- `oma agents login [名]`：pane 内起登录命令、扫屏转发 URL+code、确认成功——归 agent doctor 同批或独立切片
-- doctor 登录态检查行（grok auth.json / kimi credentials json）
+- doctor 登录态检查行（grok auth.json / kimi credentials json）：已落地（`oma doctor` 出 `check=login` 行，warn 不进 blocked 汇总，2026-09-02）
+- `oma agents login [名]`：pane 内起登录命令、扫屏转发 URL+code、确认成功——独立切片待立项
 
 ## 事实源
 

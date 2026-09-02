@@ -27,6 +27,9 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
 tar = "0.4"
+# RFC3339 解析（grok auth.json 的 expires_at/create_time；R005 选型：主流
+# 稳定、只需 parsing feature，不自写日期解析）。
+time = { version = "0.3", features = ["parsing"] }
 toml = "0.8"
 ureq = { version = "2", features = ["tls"] }
 which = "6"

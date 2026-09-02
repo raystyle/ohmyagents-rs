@@ -268,7 +268,7 @@ Write-Output ($parts -join ' | ')
 exit 0
 "#;
 
-fn script_path(home: &Path) -> PathBuf {
+pub(crate) fn script_path(home: &Path) -> PathBuf {
     home.join("statusline").join("oma-statusline.ps1")
 }
 

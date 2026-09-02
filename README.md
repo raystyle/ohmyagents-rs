@@ -109,7 +109,7 @@ oma                                   # REPL：和解起会话 + 内嵌看板 + 
 ```powershell
 oma check                              # 核对 rmux pin（版本+sha256+布局）；缺则装
 oma check --no-install                 # 只诊断不下载（不符则退出非 0）
-oma doctor                             # 只读诊断：yolo/信任/二进制/state + CPU 指令集段
+oma doctor                             # 只读诊断：yolo/信任/二进制/hook 形态/状态栏/登录态/会话健康 + CPU 指令集段
 oma agents                             # 列四家检测（source=path|env|oma|default + version）
 oma agents install                     # 自适应装缺（已装任何来源即跳过）
 oma agents install claude grok --force # 指定重装 oma 自管根

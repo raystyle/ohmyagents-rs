@@ -90,7 +90,7 @@
 > 显示名 Oh My Agents；仓库 `ohmyagents-rs`（更名自 OhMyAgents，2026-09-02 定调）；CLI 二进制 `oma`。数据目录仍是 `.ohmyagents`。
 
 - **核对照**：`oma check`（rmux 版本 + 哈希 + 完整布局；缺则按 `catalog/rmux.toml` 安装。`--no-install` 只诊断）
-- **无阻塞诊断**：`oma doctor`（进程存活 + hook 语义 + 任务指向 + yolo；不把 wait-pane Quiet 当 idle）
+- **无阻塞诊断加部署面**：`oma doctor`（yolo、信任、二进制、hook 形态、状态栏、登录态（grok/kimi，S026 判据）、会话健康——manifest 在才探 daemon 活性；warn 只诊断不进 blocked 汇总，block 才退出 1）
 - **检测已装 agent**：`oma agents`（PATH、`OMA_AGENT_PATH`、`OMA_*_BIN`、oma 自管根 `~/.ohmyagents\agents`、各家默认安装目录；Windows / Linux / macOS；缺装行带 hint）
 - **安装缺失 agent**：`oma agents install [名] [--force] [--root PATH]`（自适应：已装任何来源即跳过；catalog pin 加渠道序 github 主 CDN 兜底加 sha256 信任锚加 leaf 找二进制加装后探针；Windows / mac / WSL Linux 三平台实测四家全绿——mac 侧 grok 双 CDN 补 macos-aarch64 pin，Linux 侧 codex 嵌套 bin 布局与 mark_executable 真机过）
 - **提供商别名注入**：`oma agents providers [--example]`（别名簿 `~/.ohmyagents/providers.toml`，标准 sops 托管可加密；`oma spawn --agents claude@zhipu,codex@deepseek` 按 `agent@alias` 注入该路 env/argv——claude 走 `ANTHROPIC_*` env、codex 走 `-c` 运行时覆写；别名沿 manifest 进 respawn/和解；官方四格矩阵见 S027）

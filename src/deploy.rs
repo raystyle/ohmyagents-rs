@@ -691,7 +691,10 @@ const COMMAND_MAP: &[(&str, &str)] = &[
         "oma mcp",
         "作为 MCP server 跑 stdio（六操作加 trace 检索 tools）",
     ),
-    ("oma doctor", "只读诊断信任库、已装二进制与状态链"),
+    (
+        "oma doctor",
+        "只读诊断信任库、二进制、登录态、hook 形态、状态栏与会话健康",
+    ),
     (
         "oma agents install [名]",
         "安装缺失 agent（oma 自管根 ~/.ohmyagents）",

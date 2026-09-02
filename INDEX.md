@@ -32,7 +32,7 @@
 | `src\rmuxpoc.rs` | POC 共用层：专用端点、闸门、Job Object WMI 退路、桩 argv |
 | `src\hook.rs` | `oma hook`：事件到四态映射与 state 落盘 |
 | `src\agents.rs` | `oma agents`：PATH / 环境变量 / 默认目录探测 |
-| `src\doctor.rs` | `oma doctor`：只读诊断（yolo / 信任 / 二进制 / state） |
+| `src\doctor.rs` | `oma doctor`：只读诊断（yolo / 信任 / 二进制 / state / 登录态 / hook 形态 / 状态栏 / 会话健康） |
 | `src\yolo.rs` | `oma init --yolo`：四家配置落盘与 pretrust |
 | `src\deploy.rs` | `oma init` hook/skill 部署层：按 S015 矩阵落项目文件，幂等合并；SKILL.md 由 COMMAND_MAP 命令图生成（标记覆写三态） |
 | `src\orch.rs` | 产品编排层：项目 slug 会话、spawn/status/send/cleanup、pane 清单 |
