@@ -113,6 +113,9 @@ pub struct Manifest {
 pub struct ManifestAgent {
     pub name: String,
     pub pane_id: u64,
+    /// 提供商别名（`agent@alias` spawn 时记录；respawn/和解沿用以保持注入）。
+    #[serde(default)]
+    pub profile: String,
 }
 
 /// 读清单：区分「文件不在」（None）与「在但解析失败」（Some(Err)）——
@@ -235,14 +238,39 @@ pub async fn connect(root: &Path, boot: bool) -> Result<Link, String> {
     })
 }
 
+#[derive(Debug)]
 pub struct SpawnPlan {
     pub agents: Vec<(String, Vec<String>)>,
+    /// agent -> 提供商别名（`--agents claude@zhipu` 解析结果）。
+    pub profiles: std::collections::BTreeMap<String, String>,
     pub stub: bool,
 }
 
 /// Resolve which agents to launch: explicit list wins, otherwise the
 /// installed intersection; `--stub` replaces every agent with a shell stub.
 pub fn plan_agents(wanted: Option<Vec<String>>, stub: bool) -> Result<SpawnPlan, String> {
+    // `agent@alias` 提供商别名（providers.toml）：env/argv 注入该路。先拆
+    // 再做名字校验（@ 不进 agent 名）。
+    let mut launches: std::collections::BTreeMap<String, crate::providers::AgentLaunch> =
+        Default::default();
+    let mut profiles: std::collections::BTreeMap<String, String> = Default::default();
+    let wanted = match wanted {
+        Some(specs) => {
+            let mut names = Vec::with_capacity(specs.len());
+            for spec in specs {
+                let (agent, alias) = crate::providers::split_agent_profile(&spec)?;
+                if let Some(alias) = alias {
+                    let book = crate::providers::load()?;
+                    let launch = crate::providers::resolve(&book, &alias, &agent)?;
+                    profiles.insert(agent.clone(), alias);
+                    launches.insert(agent.clone(), launch);
+                }
+                names.push(agent);
+            }
+            Some(names)
+        }
+        None => None,
+    };
     // 重复名入口拒绝（Round1 kimi7/codex9：`--agents claude,claude` 过校验
     // 后 manifest 两条同名记录，find 永远只命中第一条成黑洞）。stub 分支
     // 同样过这道闸（顺带挡非法字符进 state 文件路径，Round1 kimi10）。
@@ -266,7 +294,11 @@ pub fn plan_agents(wanted: Option<Vec<String>>, stub: bool) -> Result<SpawnPlan,
             .into_iter()
             .map(|n| (n, rmuxpoc::interactive_shell_argv()))
             .collect();
-        return validate_count(SpawnPlan { agents, stub });
+        return validate_count(SpawnPlan {
+            agents,
+            stub,
+            profiles: Default::default(),
+        });
     }
     let names = match wanted {
         Some(list) => {
@@ -302,10 +334,18 @@ pub fn plan_agents(wanted: Option<Vec<String>>, stub: bool) -> Result<SpawnPlan,
         .into_iter()
         .map(|name| {
             let hit = agents::find(&name).expect("validated above");
-            (name, vec![hit.path.to_string_lossy().into_owned()])
+            let mut argv = vec![hit.path.to_string_lossy().into_owned()];
+            if let Some(launch) = launches.get(&name) {
+                argv.extend(launch.argv.iter().cloned());
+            }
+            (name, argv)
         })
         .collect();
-    validate_count(SpawnPlan { agents, stub })
+    validate_count(SpawnPlan {
+        agents,
+        stub,
+        profiles,
+    })
 }
 
 fn validate_count(plan: SpawnPlan) -> Result<SpawnPlan, String> {
@@ -316,7 +356,7 @@ fn validate_count(plan: SpawnPlan) -> Result<SpawnPlan, String> {
     Ok(plan)
 }
 
-fn env_entries(root: &Path, agent: &str) -> Vec<String> {
+fn env_entries(root: &Path, agent: &str, profile: &str) -> Vec<String> {
     let mut env = vec![
         format!("OHMYAGENTS_PROJECT={}", root.display()),
         format!("OHMYAGENTS_AGENT={agent}"),
@@ -331,6 +371,16 @@ fn env_entries(root: &Path, agent: &str) -> Vec<String> {
     if agent == "claude" {
         env.push("CLAUDE_CODE_CHILD_SESSION=".into());
         env.push("CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1".into());
+    }
+    // 提供商别名 env（providers.toml）：BTreeMap 确定性顺序。
+    if !profile.is_empty() {
+        if let Ok(book) = crate::providers::load() {
+            if let Ok(launch) = crate::providers::resolve(&book, profile, agent) {
+                for (k, v) in &launch.env {
+                    env.push(format!("{k}={v}"));
+                }
+            }
+        }
     }
     env
 }
@@ -365,7 +415,10 @@ pub async fn spawn(link: &Link, root: &Path, plan: &SpawnPlan) -> Result<Manifes
                 .detached(true)
                 .size(TerminalSizeSpec::new(120, 32))
                 .working_directory(root.display().to_string())
-                .process(root_spec(&first.1, env_entries(root, &first.0))),
+                .process(root_spec(
+                    &first.1,
+                    env_entries(root, &first.0, profile_of(&plan.profiles, &first.0)),
+                )),
         )
         .await
         .map_err(|e| format!("ensure_session: {e}"))?;
@@ -377,7 +430,7 @@ pub async fn spawn(link: &Link, root: &Path, plan: &SpawnPlan) -> Result<Manifes
             &handles[0],
             SplitDirection::Right,
             &second.1,
-            env_entries(root, &second.0),
+            env_entries(root, &second.0, profile_of(&plan.profiles, &second.0)),
             &second.0,
             root,
         )
@@ -390,7 +443,7 @@ pub async fn spawn(link: &Link, root: &Path, plan: &SpawnPlan) -> Result<Manifes
             &handles[0],
             SplitDirection::Down,
             &third.1,
-            env_entries(root, &third.0),
+            env_entries(root, &third.0, profile_of(&plan.profiles, &third.0)),
             &third.0,
             root,
         )
@@ -403,7 +456,7 @@ pub async fn spawn(link: &Link, root: &Path, plan: &SpawnPlan) -> Result<Manifes
             &handles[1],
             SplitDirection::Down,
             &fourth.1,
-            env_entries(root, &fourth.0),
+            env_entries(root, &fourth.0, profile_of(&plan.profiles, &fourth.0)),
             &fourth.0,
             root,
         )
@@ -427,6 +480,7 @@ pub async fn spawn(link: &Link, root: &Path, plan: &SpawnPlan) -> Result<Manifes
         m.agents.push(ManifestAgent {
             name: agent.clone(),
             pane_id: id.as_u32() as u64,
+            profile: profile_of(&plan.profiles, agent).to_string(),
         });
     }
     write_manifest(root, &m)?;
@@ -737,7 +791,7 @@ pub async fn reconcile(
             &base,
             SplitDirection::Right,
             argv,
-            env_entries(root, agent),
+            env_entries(root, agent, profile_of(&plan.profiles, agent)),
             agent,
             root,
         )
@@ -749,11 +803,16 @@ pub async fn reconcile(
             .ok_or_else(|| format!("respawned pane for {agent} has no live id"))?;
         let pid_u32 = id.as_u32() as u64;
         eprintln!("reconcile.{agent}=respawned pane={pid_u32}");
+        let profile = profile_of(&plan.profiles, agent).to_string();
         match m.agents.iter_mut().find(|a| &a.name == agent) {
-            Some(entry) => entry.pane_id = pid_u32,
+            Some(entry) => {
+                entry.pane_id = pid_u32;
+                entry.profile = profile;
+            }
             None => m.agents.push(ManifestAgent {
                 name: agent.clone(),
                 pane_id: pid_u32,
+                profile,
             }),
         }
         // 每路即落盘（Round2 grok3/kimi3：循环外统一写时，下一路 split 失
@@ -856,6 +915,12 @@ pub async fn respawn(link: &Link, root: &Path, agent: &str) -> Result<u64, Strin
             "agent {agent} not in this session; use `oma spawn --agents ...` to change the lane set"
         ));
     }
+    let profile = m
+        .agents
+        .iter()
+        .find(|a| a.name == agent)
+        .map(|a| a.profile.clone())
+        .unwrap_or_default();
     let argv = respawn_argv(root, &m, agent)?;
     let old_pane = m.agents.iter().find(|a| a.name == agent).map(|e| e.pane_id);
     let base = session.pane(0, 0);
@@ -863,7 +928,7 @@ pub async fn respawn(link: &Link, root: &Path, agent: &str) -> Result<u64, Strin
         &base,
         SplitDirection::Right,
         &argv,
-        env_entries(root, agent),
+        env_entries(root, agent, &profile),
         agent,
         root,
     )
@@ -886,6 +951,7 @@ pub async fn respawn(link: &Link, root: &Path, agent: &str) -> Result<u64, Strin
         None => m.agents.push(ManifestAgent {
             name: agent.to_string(),
             pane_id: pid_u32,
+            profile,
         }),
     }
     write_manifest(root, &m)?;
@@ -910,7 +976,27 @@ fn respawn_argv(root: &Path, m: &Manifest, agent: &str) -> Result<Vec<String>, S
     let found = agents::find(agent)
         .map(|p| p.path)
         .ok_or_else(|| format!("agent {agent} not found; see `oma agents`"))?;
-    Ok(vec![found.display().to_string()])
+    let mut argv = vec![found.display().to_string()];
+    // 提供商别名 argv 沿 manifest 保持（spawn 时注入的参数重开也在）。
+    let profile = m
+        .agents
+        .iter()
+        .find(|a| a.name == agent)
+        .map(|a| a.profile.as_str())
+        .unwrap_or("");
+    if !profile.is_empty() {
+        let book = crate::providers::load()?;
+        argv.extend(crate::providers::resolve(&book, profile, agent)?.argv);
+    }
+    Ok(argv)
+}
+
+/// 会话计划里的该路提供商别名（无则空串）。
+fn profile_of<'a>(
+    profiles: &'a std::collections::BTreeMap<String, String>,
+    agent: &str,
+) -> &'a str {
+    profiles.get(agent).map(String::as_str).unwrap_or("")
 }
 
 /// 发单个按键（受守卫入口，2026-09-01 用户定调：「对 Codex 发 C-c 是禁项」
@@ -1670,7 +1756,7 @@ mod tests {
     #[test]
     fn env_entries_point_at_project_state_file() {
         let root = Path::new("D:\\code\\alpha");
-        let env = env_entries(root, "codex");
+        let env = env_entries(root, "codex", "");
         assert_eq!(env[0], format!("OHMYAGENTS_PROJECT={}", root.display()));
         assert_eq!(env[1], "OHMYAGENTS_AGENT=codex");
         // 状态文件路径的分隔符随平台（Path::join 语义），断言不能写死反斜杠。
@@ -1680,6 +1766,60 @@ mod tests {
             ".ohmyagents/state/codex.json".to_string()
         };
         assert!(env[2].ends_with(&state_file));
+    }
+
+    #[test]
+    fn profile_alias_injects_env_and_argv() {
+        // OMA_HOME 重定向到临时根，写一本别名簿：期望值来自 providers 模块
+        // 的注入契约（env 逐键、argv 依序追加），不镜像实现。
+        static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        let _g = LOCK.lock().unwrap();
+        let home = std::env::temp_dir().join(format!(
+            "oma-providers-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ));
+        std::fs::create_dir_all(&home).unwrap();
+        std::fs::write(
+            home.join("providers.toml"),
+            "[providers.zhipu.agents.claude.env]\nANTHROPIC_BASE_URL = \"https://zhipu.example\"\n\
+             [providers.deepseek.agents.codex]\nargv = [\"-c\", \"model_provider=deepseek\"]\n",
+        )
+        .unwrap();
+        std::env::set_var("OMA_HOME", &home);
+
+        let plan = plan_agents(Some(vec!["claude@zhipu".into()]), false).unwrap();
+        assert_eq!(
+            plan.profiles.get("claude").map(String::as_str),
+            Some("zhipu")
+        );
+        let (name, argv) = &plan.agents[0];
+        assert_eq!(name, "claude");
+        // argv = [claude.exe 路径]（本机装了 claude 才有此测试意义）。
+        assert_eq!(argv.len(), 1);
+        let env = env_entries(Path::new("D:\\proj"), "claude", "zhipu");
+        assert!(env
+            .iter()
+            .any(|e| e == "ANTHROPIC_BASE_URL=https://zhipu.example"));
+
+        // codex@deepseek：argv 追加 -c 覆写。
+        let plan2 = plan_agents(Some(vec!["codex@deepseek".into()]), false).unwrap();
+        let argv2 = &plan2.agents[0].1;
+        assert_eq!(argv2.len(), 3);
+        assert_eq!(argv2[1], "-c");
+        assert_eq!(argv2[2], "model_provider=deepseek");
+
+        // 未知别名给出可用清单；不存在的组合点名 agent。
+        let err = plan_agents(Some(vec!["claude@nope".into()]), false).unwrap_err();
+        assert!(err.contains("unknown provider alias"), "{err}");
+        let err = plan_agents(Some(vec!["codex@zhipu".into()]), false).unwrap_err();
+        assert!(err.contains("no launch for agent 'codex'"), "{err}");
+
+        std::env::remove_var("OMA_HOME");
+        let _ = std::fs::remove_dir_all(&home);
     }
 
     #[test]
@@ -1700,6 +1840,7 @@ mod tests {
             pipe: r"\\.\pipe\rmux-oma-abcd1234".into(),
             agents: vec![ManifestAgent {
                 name: "claude".into(),
+                profile: String::new(),
                 pane_id: 7,
             }],
         };

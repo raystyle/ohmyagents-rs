@@ -154,6 +154,8 @@ ohmyagents/
 | S023 | `S023-rmux在windows的进程树与原语实测.md` | 活体进程树加源码核实；三纠偏（internal-daemon 形态、conhost 兄弟、pane 无 shell 层）与原语表 |
 | S024 | `S024-四环境部署自适应矩阵.md` | PATH bare 形态与 codex 字段所有权（P0027 依据）；状态栏 UTF-8、信任键双族共存 |
 | S025 | `S025-四家状态栏配置矩阵与机读标记.md` | 四家状态栏命令驱动矩阵（kimi tui.toml、grok ui.status_line）；oma 机读标记 agent:state 与会话闸 |
+| S026 | `S026-grok与kimi的OAuth登录流.md` | 两家设备码流取证（URL+code 落 stderr 可转发）、凭据落盘与登录态纯文件检测 |
+| S027 | `S027-提供商别名注入矩阵.md` | zhipu/deepseek x claude/codex 四格官方端点与注入形态；sops 托管密钥 |
 
 ## 六、开发测试参考
 

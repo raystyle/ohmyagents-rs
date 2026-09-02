@@ -366,11 +366,16 @@ enum TraceCmd {
 
 #[derive(Subcommand)]
 enum AgentsCmd {
-    /// 配置 claude/codex 的状态栏（幂等：claude 合并 settings.json 的
-    /// statusLine 块，codex 替换 config.toml 的 [tui] 段；脚本随 oma 释放）
+    /// 配置四家状态栏（幂等：claude/codex/kimi/grok 各自配置面，脚本随 oma 释放）
     Statusline {
-        /// 指定 agent（claude/codex）；缺省两家都配
+        /// 指定 agent（claude/codex/kimi/grok）；缺省四家都配
         names: Vec<String>,
+    },
+    /// 提供商别名簿（~/.ohmyagents/providers.toml，标准 sops 托管）
+    Providers {
+        /// 打印示例模板（含 sops 托管说明）后退出
+        #[arg(long)]
+        example: bool,
     },
     /// 安装缺失的 agent（oma 自管根 ~/.ohmyagents；已装任何来源即跳过；github 主 CDN 兜底）
     Install {
@@ -426,6 +431,7 @@ fn run() -> Result<(), String> {
             }
             Some(AgentsCmd::Update { names, force, root }) => cmd_agents_update(names, force, root),
             Some(AgentsCmd::Statusline { names }) => cmd_agents_statusline(names),
+            Some(AgentsCmd::Providers { example }) => cmd_agents_providers(example),
         },
         Commands::Hook { event, agent } => cmd_hook(event, agent),
         Commands::Spawn {
@@ -932,6 +938,37 @@ fn cmd_agents_statusline(names: Vec<String>) -> Result<(), String> {
         println!("statusline.warn=pwsh-not-on-path-statusline-will-not-run");
     }
     println!("statusline.ok=true");
+    Ok(())
+}
+
+/// `oma agents providers [--example]`：提供商别名簿（列出 + 模板）。
+fn cmd_agents_providers(example: bool) -> Result<(), String> {
+    if example {
+        println!("{}", oma::providers::EXAMPLE_TOML.trim_end());
+        return Ok(());
+    }
+    let path = oma::providers::store_path()?;
+    println!("providers.store={}", path.display());
+    let book = oma::providers::load()?;
+    let aliases = oma::providers::aliases(&book);
+    if aliases.is_empty() {
+        println!("providers.defined=0");
+        println!("providers.hint=oma agents providers --example 查看模板；spawn 用 --agents claude@zhipu 注入");
+        return Ok(());
+    }
+    for alias in aliases {
+        let provider = book.providers.get(&alias).unwrap();
+        for (agent, launch) in &provider.agents {
+            // 只列键名不列值——密钥值即使误配明文也不回显。
+            println!(
+                "providers.entry={alias}.{agent} env_keys={} argv={} env_keys_list={}",
+                launch.env.len(),
+                launch.argv.len(),
+                launch.env.keys().cloned().collect::<Vec<_>>().join(",")
+            );
+        }
+    }
+    println!("providers.hint=spawn --agents claude@zhipu,codex@deepseek 按别名注入 env/argv");
     Ok(())
 }
 
