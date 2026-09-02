@@ -46,20 +46,19 @@ jobs:
       - name: Package
         shell: bash
         run: |
-          ver=$(cargo metadata --no-deps --format-version 1 | sed -E 's/.*"version":"([^"]+)".*/\1/' | head -c 32)
           triple="${{ matrix.target }}"
           src="target/${triple}/release/oma"
           [ "${{ matrix.os }}" = "windows-latest" ] && src="${src}.exe"
-          dir="oma-${ver}-${triple}"
-          mkdir -p "dist/${dir}"
-          cp "$src" "dist/${dir}/"
+          # 资产名即编译目标：oma-<triple>.zip / .tar.gz（selfupdate 按三元组映射）
+          mkdir -p "dist/oma-${triple}"
+          cp "$src" "dist/oma-${triple}/"
           cd dist
           if [ "${{ matrix.archive }}" = "zip" ]; then
-            7z a "${dir}.zip" "${dir}" || zip -r "${dir}.zip" "${dir}"
+            7z a "oma-${triple}.zip" "oma-${triple}" || zip -r "oma-${triple}.zip" "oma-${triple}"
           else
-            tar czf "${dir}.tar.gz" "${dir}"
+            tar czf "oma-${triple}.tar.gz" "oma-${triple}"
           fi
-          sha256sum "${dir}.${{ matrix.archive }}" > "${dir}.${{ matrix.archive }}.sha256"
+          sha256sum "oma-${triple}.${{ matrix.archive }}" > "oma-${triple}.${{ matrix.archive }}.sha256"
       - uses: actions/upload-artifact@v4
         with:
           name: oma-${{ matrix.target }}
