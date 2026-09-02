@@ -19,10 +19,10 @@
 
 ### 2. CI 滚动 dev release 与部署位
 
-- 工作流 `.github/workflows/dev-release.yml`：main 每推 → 三平台构建（Windows x86_64-msvc、Linux x86_64-gnu、macOS **仅 arm64 不要 Intel**，用户定调）→ 覆盖发布 prerelease tag `dev`（delete + recreate，资产带 `.sha256` 附带文件）。
-- **正式版靠版本触发**（用户定调）：`v*` tag 推送 → 同一矩阵出正式 release（`--latest`），`oma self update --channel latest` 消费。
+- 工作流 `.github/workflows/dev-release.yml`：main 每推 → 三平台**构建加测试**（Windows x86_64-msvc、Linux x86_64-gnu、macOS **仅 arm64 不要 Intel**，用户定调）→ 覆盖发布 prerelease tag `dev`（delete + recreate，资产带 `.sha256` 附带文件）。
+- **正式版靠版本触发**（用户定调）：`v*` tag 推送 → 同一矩阵出正式 release（`--latest`），`oma self update --stable` 消费。
 - **部署位切换**：`oma self update` 缺省通道 = **dev 滚动源**（`releases/tags/dev`）；dev 通道判新用**资产 sha256 对当前 exe 哈希**（滚动版版本号不变，sha256 才是判据；资产 digest 缺失时保守更新）；latest 通道按资产名版本比较。
-- 资产名约定升级为 `oma-<version>-<target-triple>.zip|.tar.gz`（版本进资产名，latest 通道可抽）。
+- 资产名即编译目标：`oma-<target-triple>.zip|.tar.gz`（用户定稿；版本判据走 release tag，dev 走 sha256）。
 
 ### 3. 实测
 
@@ -34,7 +34,6 @@
 ## 待办
 
 - 工作流推上 GitHub 后首跑验证（gh release delete/create 路由、资产 digest 字段是否随 API 返回）
-
 - 封版时：release workflow 产 `oma-<triple>.(zip|tar.gz)` 资产 + sha256 附带文件（download 后校验，install.rs sha256_file 复用位已留）。
 - `oma agents update`（agent 层）与 `oma self update`（自身）语义对照进 R002。
 

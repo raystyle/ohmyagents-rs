@@ -1,6 +1,6 @@
-# 滚动 dev release（用户定调 2026-09-02）：main 每推一次三平台构建，
-# 覆盖发布到 prerelease tag `dev`。`oma self update` 默认从该滚动源更新
-# （S028：dev 通道按资产 sha256 判新）。封版后加 latest 通道正式版。
+# - push main：构建测试后资产滚动挂 pre-release tag `dev`（本地测试期的滚动升级源，`oma self update`）；
+# - push v* tag：构建测试后资产挂正式 release（封版触发，`oma self update --stable`）。
+# 资产名即编译目标（selfupdate 按目标三元组映射）；mac 只要 arm64 不要 intel（用户裁决）
 name: dev-release
 
 on:
@@ -39,6 +39,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
+      - name: Test
+        run: cargo test --locked
       - name: Build
         run: cargo build --release --locked --features server,mcp --target ${{ matrix.target }}
       - name: Package

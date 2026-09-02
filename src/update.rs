@@ -112,29 +112,6 @@ pub fn pick_asset(assets: &[Asset]) -> Option<&Asset> {
         })
 }
 
-/// 资产名 `oma-<version>-<triple>.(zip|tar.gz)` 抽版本；抽不出 None。
-pub fn version_from_asset_name(name: &str) -> Option<String> {
-    let stem = name
-        .strip_prefix("oma-")?
-        .split('.')
-        .next_back()
-        .map(|ext| name.len() - ext.len() - 1)
-        .map(|cut| &name[..cut])?;
-    let rest = stem.strip_prefix("oma-")?;
-    let arch = if cfg!(target_arch = "aarch64") {
-        "aarch64"
-    } else {
-        "x86_64"
-    };
-    let idx = rest.find(arch)?;
-    let ver = rest[..idx].trim_end_matches('-');
-    if ver.chars().next().is_some_and(|c| c.is_ascii_digit()) {
-        Some(ver.to_string())
-    } else {
-        None
-    }
-}
-
 /// Dotted-numeric compare: is `tag` (v-prefix tolerated) strictly newer than
 /// `current` (CARGO_PKG_VERSION)?
 pub fn version_newer(tag: &str, current: &str) -> bool {
@@ -249,12 +226,8 @@ pub fn run(repo: &str, channel: Channel, git_mode: bool, force: bool) -> Result<
     if !force {
         let up_to_date = match channel {
             Channel::Dev => dev_is_current(&release),
-            Channel::Latest => release
-                .assets
-                .iter()
-                .find_map(|a| version_from_asset_name(&a.name))
-                .map(|v| !version_newer(&v, env!("CARGO_PKG_VERSION")))
-                .unwrap_or_else(|| !version_newer(&release.tag_name, env!("CARGO_PKG_VERSION"))),
+            // 资产名即编译目标（无版本段），版本判据走 release tag。
+            Channel::Latest => !version_newer(&release.tag_name, env!("CARGO_PKG_VERSION")),
         };
         if up_to_date {
             println!("update.ok=already-latest");
@@ -347,37 +320,25 @@ mod tests {
                 })
                 .collect()
         };
-        // 期望来自命名约定（S028）：本机平台与架构的 oma 包优先。
+        // 期望来自命名约定（S028）：资产名即编译目标 oma-<triple>，
+        // 本机平台与架构的 oma 包优先。
         let assets = mk(&[
-            "oma-0.2.0-x86_64-unknown-linux-gnu.tar.gz",
-            "oma-0.2.0-aarch64-apple-darwin.tar.gz",
-            "oma-0.2.0-x86_64-pc-windows-msvc.zip",
+            "oma-x86_64-unknown-linux-gnu.tar.gz",
+            "oma-aarch64-apple-darwin.tar.gz",
+            "oma-x86_64-pc-windows-msvc.zip",
             "notes.txt",
         ]);
         let picked = pick_asset(&assets).unwrap();
         if cfg!(windows) {
-            assert_eq!(picked.name, "oma-0.2.0-x86_64-pc-windows-msvc.zip");
+            assert_eq!(picked.name, "oma-x86_64-pc-windows-msvc.zip");
         } else if cfg!(target_os = "macos") {
-            assert_eq!(picked.name, "oma-0.2.0-aarch64-apple-darwin.tar.gz");
+            assert_eq!(picked.name, "oma-aarch64-apple-darwin.tar.gz");
         } else {
-            assert_eq!(picked.name, "oma-0.2.0-x86_64-unknown-linux-gnu.tar.gz");
+            assert_eq!(picked.name, "oma-x86_64-unknown-linux-gnu.tar.gz");
         }
         // 兜底：无平台匹配时拿任一 oma 资产（提示用户核对）。
         let fb_assets = mk(&["oma-any.bin", "x.txt"]);
         let fallback = pick_asset(&fb_assets).unwrap();
         assert_eq!(fallback.name, "oma-any.bin");
-    }
-
-    #[test]
-    fn version_from_asset_name_parses_convention() {
-        let arch = if cfg!(target_arch = "aarch64") {
-            "aarch64"
-        } else {
-            "x86_64"
-        };
-        let name = format!("oma-0.2.7-{arch}-pc-windows-msvc.zip");
-        assert_eq!(version_from_asset_name(&name).as_deref(), Some("0.2.7"));
-        assert_eq!(version_from_asset_name("oma-dev-x86_64.tar.gz"), None);
-        assert_eq!(version_from_asset_name("notes.txt"), None);
     }
 }

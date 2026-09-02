@@ -259,9 +259,9 @@ enum SelfSub {
         /// 仓库（owner/name）；缺省 raystyle/OhMyAgents
         #[arg(long)]
         repo: Option<String>,
-        /// 更新通道：dev=滚动预发布（缺省）；latest=正式封版
-        #[arg(long, default_value = "dev")]
-        channel: String,
+        /// 走正式稳定通道（releases/latest，封版 tag 触发）；缺省 dev 滚动源
+        #[arg(long)]
+        stable: bool,
         /// 走 cargo install --git 源码安装（封版前主路径）
         #[arg(long)]
         git: bool,
@@ -517,22 +517,19 @@ fn run() -> Result<(), String> {
         Commands::SelfGroup { cmd } => match cmd {
             SelfSub::Update {
                 repo,
-                channel,
+                stable,
                 git,
                 force,
-            } => {
-                let ch = match channel.as_str() {
-                    "latest" => oma::update::Channel::Latest,
-                    "dev" => oma::update::Channel::Dev,
-                    other => return Err(format!("unknown channel '{other}' (dev|latest)")),
-                };
-                oma::update::run(
-                    &repo.unwrap_or_else(|| oma::update::DEFAULT_REPO.into()),
-                    ch,
-                    git,
-                    force,
-                )
-            }
+            } => oma::update::run(
+                &repo.unwrap_or_else(|| oma::update::DEFAULT_REPO.into()),
+                if stable {
+                    oma::update::Channel::Latest
+                } else {
+                    oma::update::Channel::Dev
+                },
+                git,
+                force,
+            ),
         },
         Commands::Completions { shell } => cmd_completions(shell),
         Commands::Respawn {
