@@ -13,6 +13,7 @@ pub mod providers;
 pub mod repl;
 pub mod rmux;
 pub mod rmuxpoc;
+pub mod secretguard;
 pub mod statusline;
 pub mod task;
 pub mod trace;

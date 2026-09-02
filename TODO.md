@@ -16,7 +16,7 @@
 | 本机会话层取证 | 已完成 | user+project 双层 bypass 却 pane 弹审批；无头 -p 双通道探针真执行（$RANDOM 判真伪）；119 条 Allow 为历史堆积（mtime 13:46 后不涨） | 2026-09-02 |
 | 结论与修法 | 已完成 | S029 落档；修法落地（04b5c74）：plan_agents claude 路固定 `--dangerously-skip-permissions`，respawn 同 plan 自动吃到；已活会话重开该路即生效；111+12 全绿 | 2026-09-02 |
 | 密钥 hook 安全拦截接管研究 | 已完成 | S030 落档：ohmypwsh secret-guard 语义逐行读（四 CLI 信封、exit 2 阻断、fail-open、双层正则加 bare password 降级教训）；gh 取证 kingfisher 1220★（规则数据驱动）/ foxguard / rtk-ai（hook 生命周期层最近域）；oma 落点 = 零新依赖、`oma hook` 同入口第二职责、ohmypwsh 14 例黄金语料移植 | 2026-09-02 |
-| secretguard 实现切片 | 排队 | `src/secretguard.rs` + hook.rs 分流接线 + 14 例黄金测试 | |
+| secretguard 实现切片 | 已完成 | `src/secretguard.rs` 落地：模式表 27 条带四元属性、实值通道（env + providers.toml 明文，sops 密文跳过不起子进程）、命名组圈值部（URI 语法组坑测试当场抓）、hook.rs 双职责分流（guard 独立于 state 写）、codex 事件形状推断顺手补齐；12 新例 + CLI exit 2 集成例，126+13 全绿，实机冒烟 exit 2 掩码原因精确 | 2026-09-02 |
 
 ## 前目标 P0027 清单
 

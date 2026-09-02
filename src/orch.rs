@@ -1694,6 +1694,9 @@ mod tests {
     /// share (and mutually delete) a temp dir.
     static NEXT_TEST_DIR: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
+    /// OMA_*_BIN 环境变量的进程内互斥（改 env 的测试共享，防并发互踩）。
+    static BIN_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     fn slug_is_stable_and_path_sensitive() {
         let a = Path::new("D:\\code\\alpha");
@@ -1779,8 +1782,7 @@ mod tests {
     fn profile_alias_injects_env_and_argv() {
         // OMA_HOME 重定向到临时根，写一本别名簿：期望值来自 providers 模块
         // 的注入契约（env 逐键、argv 依序追加），不镜像实现。
-        static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-        let _g = LOCK.lock().unwrap();
+        let _g = BIN_ENV_LOCK.lock().unwrap();
         let home = std::env::temp_dir().join(format!(
             "oma-providers-test-{}-{}",
             std::process::id(),
@@ -1895,6 +1897,7 @@ mod tests {
     fn claude_argv_carries_bypass_flag_others_do_not() {
         // S029：settings 层 defaultMode 在项目层会被忽略（2.1.257+ changelog），
         // 命令面 flag 是文档钦点的强制通道——oma 裸起的 claude 路必须带。
+        let _g = BIN_ENV_LOCK.lock().unwrap();
         let exe = std::env::current_exe().unwrap();
         std::env::set_var("OMA_CLAUDE_BIN", &exe);
         std::env::set_var("OMA_KIMI_BIN", &exe);

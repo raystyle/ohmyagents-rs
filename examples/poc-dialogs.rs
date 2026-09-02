@@ -68,6 +68,7 @@ async fn dialogs_inner(pane: &rmux_sdk::Pane, root: &std::path::Path) -> Result<
     std::env::set_var("OHMYAGENTS_AGENT", "claude");
     std::env::set_var("OHMYAGENTS_PROJECT", root);
     let wrote = hook::run(Some("PermissionRequest"), None)?
+        .state_file
         .ok_or_else(|| "oma hook wrote nothing".to_string())?;
     std::env::remove_var("OHMYAGENTS_STATE_FILE");
     std::env::remove_var("OHMYAGENTS_AGENT");

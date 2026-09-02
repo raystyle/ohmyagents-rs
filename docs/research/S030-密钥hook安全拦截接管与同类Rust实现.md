@@ -54,5 +54,5 @@
 
 ## 待办
 
-- `src/secretguard.rs` 实现 + hook.rs 分流接线 + 14 例黄金测试（独立切片）。
-- 规则活性验证（kingfisher 式 blast radius）不进首期。
+- ~~`src/secretguard.rs` 实现 + hook.rs 分流接线 + 14 例黄金测试~~：已落地（2026-09-02 同日）。实现差异两点记档：① 值部用**命名组 `(?P<v>…)`** 圈住（首版 1 号组被 URI 类的语法组 `(ql)?` 占位，熵值门对着 "ql" 误杀——测试当场抓住）；② 实值通道 providers.toml **只读明文形态**（sops 密文要起子进程，hook 每 tool 调用都跑，不起；密文拦截留给 spawn 注入面）。顺带 hook 事件推断补齐 codex 无事件名字段的形状推断（对齐 ohmypwsh `_detect_event`）。测试 126+13 全绿（12 新例含黄金语料与误报分层专测）加 CLI exit 2 集成例；实机冒烟 exit 2 掩码原因精确。guard 经已装 oma 生效（旧装 oma 无此职责，重装/自更新后激活，本仓开发自身 dogfood）。
+- 行内豁免标记（noqa 风格）与规则活性验证（kingfisher 式 blast radius）不进首期。

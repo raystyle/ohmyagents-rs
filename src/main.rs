@@ -1406,12 +1406,23 @@ fn print_block_timeline(project: &std::path::Path, agent: Option<&str>, limit: u
 
 fn cmd_hook(event: Option<String>, agent: Option<String>) -> Result<(), String> {
     match hook::run(event.as_deref(), agent.as_deref()) {
-        Ok(Some(path)) => {
-            if std::env::var_os("OMA_HOOK_VERBOSE").is_some() {
-                eprintln!("oma.hook.wrote={}", path.display());
+        Ok(outcome) => {
+            if let Some(path) = outcome.state_file {
+                if std::env::var_os("OMA_HOOK_VERBOSE").is_some() {
+                    eprintln!("oma.hook.wrote={}", path.display());
+                }
+            }
+            if let Some(g) = outcome.guard {
+                if g.block {
+                    // exit 2 = agent 侧拒工具调用，stderr 原因回给模型（S030）。
+                    eprintln!("oma secretguard: {}", g.reasons.join("; "));
+                    std::process::exit(2);
+                }
+                if std::env::var_os("OMA_HOOK_VERBOSE").is_some() && !g.findings.is_empty() {
+                    eprintln!("oma.secretguard.findings={}", g.findings.len());
+                }
             }
         }
-        Ok(None) => {}
         Err(e) => {
             // Never fail the agent session over a state-file write.
             if std::env::var_os("OMA_HOOK_VERBOSE").is_some() {
