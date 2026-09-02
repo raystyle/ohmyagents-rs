@@ -4,20 +4,23 @@
 
 ## 当前目标
 
-P0027 四环境部署自适应（用户定调 2026-09-02：hook 注册与状态栏在 Windows / WSL 共享目录 / Linux / macOS 自适应）。当日闭环，待归档后起 S025 后续切片（kimi/grok 状态栏写入面与 rmux 扫屏消费）。
+agent doctor 部署诊断（队列顺位接续，用户核心轴「agent 部署、管理、验收与诊断」）：一次性核查四家安装态、yolo、信任、hook 形态、状态栏、登录态（S026 落地）、会话健康。方案见 PLAN。
 
 ## 任务进度清单
 
-> P0027 清单。
+> agent doctor 切片。
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
-| 取证与立项 | 已完成 | S015/官方文档/盘上破坏面（codex 双字段皆 /mnt/d）/Node spawn 补 .exe 实测；S024 落档 | 2026-09-02 |
-| hook 注册自适应 | 已完成 | PATH 探针 bare 形态（claude/grok，粘性不降级）+ codex 字段所有权（OsSide 各写本侧、异侧逐字节保留）；`--agent` 参数进注册 | 2026-09-02 |
-| hook 状态通道全覆盖 | 已完成 | 无 env 回退写项目状态文件（payload cwd 沿 .git 上溯）；记录带 session 字段 | 2026-09-02 |
-| 状态栏重铸 | 已完成 | UTF-8 强制（CP936 根修）、starship 风格段、Catppuccin 配色、oma 段 agent:state 机读标记 + 会话闸、shell 段（三平台探测）、图标 cmap 实证 | 2026-09-02 |
-| 双环境实机收敛 | 已完成 | Windows/WSL cargo install + init，第二轮起三注册文件字节不变；doctor 双侧全绿（Windows 补 --pretrust 清 kimi 残留） | 2026-09-02 |
-| 测试与门禁 | 已完成 | 88+12 全绿（8 新例）；全仓 rustfmt 漂移清零进门禁；rumdl + md 扫描过 | 2026-09-02 |
+| 方案与骨架 | 进行中 | 聚合现有 doctor 检查项加登录态检测（S026 纯文件判据）加状态栏形态，产出一次性诊断视图 | 2026-09-02 |
+
+## 前目标 P0027 清单
+
+> 已归档；方案与过程在 `docs\proven\P0027-四环境部署自适应-hook形态与状态栏.md`，当日闭环。
+
+| 任务项 | 进度 | 说明 | 日期 |
+| --- | --- | --- | --- |
+| 全链 | 已完成 | 取证（S024）、hook 自适应、状态通道、状态栏重铸（S025）、双环境收敛、测试门禁——详表见 proven | 2026-09-02 |
 
 ## 前目标 P0012 清单
 
@@ -80,12 +83,12 @@ P0027 四环境部署自适应（用户定调 2026-09-02：hook 注册与状态�
 | 目标 | 状态 | 说明 |
 | --- | --- | --- |
 | statusline 覆盖 kimi 与 grok | 已完成 | merge_kimi/merge_grok 幂等合并落位（2026-09-02 当日） |
-| S026 grok/kimi OAuth 登录研究 | 进行中 | 登录 URL 与 auth code 交互呈现、登录态检测；源码取证子代理进行中 |
+| S026 grok/kimi OAuth 登录研究 | 已完成 | 双流取证落档（grok loopback+设备码双流、kimi 仅设备码；凭据落盘与纯文件登录态判据）；`oma agents login` 与 doctor 登录态行归 agent doctor 切片落地 |
 | agent doctor 部署诊断 | 排队 | 一次性核查四家安装态/yolo/信任/hook 形态/状态栏/登录态/会话健康 |
 | agent 密钥管理 age 加 sops | 排队 | 参考 remotex_rs（age 身份自管副本 + sops 加密 + 注入 agent 配置） |
 | 提供商与模型变量注入 | 排队 | claude/codex 用变量配 provider url/key/model（参考 D:\sourcecode\core model_lns 模式），spawn env 指派 |
 | rmux 编排扫屏消费 agent:state | 排队 | status/doctor 交叉核对 hook 态与扫屏态 |
 | 会话层 bypassPermissions 未生效排查 | 排队 | 用户实测本会话 /permissions 非 bypass（Allow 规则堆积即审批实锤）；配置层 doctor 全绿；2.1.24x 模式优先级与网关限制研究结论待收（claude-code-guide 代理）；oma 侧候选修法：spawn 的 claude 路固定 `--dangerously-skip-permissions` argv |
-| 仓库与目录更名 ohmyagents-rs | 进行中 | DEFAULT_REPO 与 AGENTS 已切新名；余项清单见 PLAN 接续口径（GitHub 更名 / remote set-url / 本地目录改名 / 双环境重跑 init） |
+| 仓库与目录更名 ohmyagents-rs | 已完成 | 五步收口：GitHub 更名（用户）、remote set-url、目录 D:\ohmyagents-rs、双环境重跑 init 加 --pretrust（双侧 doctor.blocked=false）；残留清扫 Cargo.toml/README/main.rs 帮助文案/S028（diary 存档不改） |
 
 （P0006 至 P0026 已完成；过程与经验在对应 proven 方案。）
