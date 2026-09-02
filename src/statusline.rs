@@ -249,6 +249,15 @@ for ($i = 0; $i -lt 4 -and $probe; $i++) {
         $projKind = 'node'
         break
     }
+    if ((Test-Path (Join-Path $probe 'pyproject.toml')) -or
+        (Test-Path (Join-Path $probe 'uv.lock')) -or
+        (Test-Path (Join-Path $probe 'requirements.txt'))) {
+        foreach ($ln in Get-Content (Join-Path $probe 'pyproject.toml') -ErrorAction SilentlyContinue) {
+            if ($ln -match '^\s*version\s*=\s*"([^"]+)"') { $pkgTxt = "󰏗 v$($Matches[1])"; break }
+        }
+        $projKind = 'python'
+        break
+    }
     $parent = Split-Path -Parent $probe
     if ($parent -eq $probe) { break }
     $probe = $parent
@@ -256,6 +265,15 @@ for ($i = 0; $i -lt 4 -and $probe; $i++) {
 if ($pkgTxt) {
     $pk = Seg $pkgTxt '38;5;208'
     if ($pk) { $parts.Add($pk) }
+}
+
+# ── Python 工具链 󰌍 vN.N.N（pyproject/uv.lock/requirements 项目）──
+if ($projKind -eq 'python') {
+    $pv = (& python --version 2>$null | Out-String).Trim()
+    if ($pv -match 'Python\s+([\d.]+)') {
+        $py = Seg "󰌍 v$($Matches[1])" '38;5;143'
+        if ($py) { $parts.Add($py) }
+    }
 }
 
 # ── Rust 工具链 󱘗 vN.N.N（Cargo.toml 项目才探测——projKind 判，不再
