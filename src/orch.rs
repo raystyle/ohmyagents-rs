@@ -379,12 +379,23 @@ fn env_entries(root: &Path, agent: &str, profile: &str) -> Vec<String> {
         env.push("CLAUDE_CODE_CHILD_SESSION=".into());
         env.push("CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1".into());
     }
-    // 提供商别名 env（providers.toml）：BTreeMap 确定性顺序。
+    // 提供商别名 env（providers.toml）：BTreeMap 确定性顺序。`vault:KEY`
+    // 前缀走 secrets vault 间接层（S031：明文过渡形态退役路径）；未解析
+    // （缺 sops / vault / 键）warn 跳过该键，不挡 spawn。
     if !profile.is_empty() {
         if let Ok(book) = crate::providers::load() {
             if let Ok(launch) = crate::providers::resolve(&book, profile, agent) {
+                let oma_root = crate::install::oma_home().ok();
                 for (k, v) in &launch.env {
-                    env.push(format!("{k}={v}"));
+                    let resolved = oma_root
+                        .as_deref()
+                        .and_then(|r| crate::secrets::resolve_env_value(v, r));
+                    match resolved {
+                        Some(value) => env.push(format!("{k}={value}")),
+                        None => eprintln!(
+                            "oma: providers env {k} 引用 {v} 未解析（vault 缺 sops/键或 vault 未建），已跳过"
+                        ),
+                    }
                 }
             }
         }
@@ -1818,8 +1829,9 @@ mod tests {
     #[test]
     fn profile_alias_injects_env_and_argv() {
         // OMA_HOME 重定向到临时根，写一本别名簿：期望值来自 providers 模块
-        // 的注入契约（env 逐键、argv 依序追加），不镜像实现。
-        let _g = BIN_ENV_LOCK.lock().unwrap();
+        // 的注入契约（env 逐键、argv 依序追加），不镜像实现。走共享 env 锁
+        //（secrets 端到端测试也动 OMA_HOME，跨模块互斥）。
+        let _g = crate::testenv::ENV_LOCK.lock().unwrap();
         let home = std::env::temp_dir().join(format!(
             "oma-providers-test-{}-{}",
             std::process::id(),

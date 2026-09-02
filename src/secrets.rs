@@ -27,10 +27,6 @@ pub const MARKER: &str = "oma:v1:";
 /// app.key 字节长度（32B = AES-256）。
 const APP_KEY_LEN: usize = 32;
 
-fn secrets_root() -> Result<PathBuf, String> {
-    crate::install::oma_home()
-}
-
 fn app_key_path(root: &Path) -> PathBuf {
     root.join("app.key")
 }
@@ -306,6 +302,24 @@ fn run_sops_decrypt(sops: &Path, vault: &Path, identity: &str) -> Result<String,
     String::from_utf8(out.stdout).map_err(|_| "vault 明文非UTF-8".to_string())
 }
 
+/// 单键查找（spawn 的 providers vault 间接层用）：vault 不在或键不在返回
+/// None；sops 缺失等错误同样 None（调用方 warn，不挡 spawn）。
+pub fn lookup(root: &Path, key: &str) -> Option<String> {
+    let sops = sops_bin().ok()?;
+    let values = read_all_inner(root, &sops).ok()?;
+    values.into_iter().find(|(k, _)| k == key).map(|(_, v)| v)
+}
+
+/// providers env 值解析：`vault:KEY` 前缀走 vault 间接层（明文过渡形态
+/// 退役路径，S031 待办），其余原样。返回 None = vault 引用未解析（缺
+/// sops / vault / 键）。
+pub fn resolve_env_value(value: &str, oma_root: &Path) -> Option<String> {
+    match value.strip_prefix("vault:") {
+        Some(key) => lookup(oma_root, key),
+        None => Some(value.to_string()),
+    }
+}
+
 /// 全量读（明文 (key, value) 列表）；vault 不在返回空表。
 fn read_all_inner(root: &Path, sops: &Path) -> Result<Vec<(String, String)>, String> {
     let vault = vault_path(root);
@@ -535,10 +549,45 @@ mod tests {
     }
 
     #[test]
+    fn vault_indirection_resolves_through_real_chain() {
+        // 端到端：age 身份生成 → init（包裹）→ set（sops 制密文）→
+        // vault:KEY 间接层解析。sops 缺席的机器跳过（R004 闸门同型）。
+        if find_on_path("sops").is_none() {
+            eprintln!("skip: sops not on PATH");
+            return;
+        }
+        let _g = crate::testenv::ENV_LOCK.lock().unwrap();
+        let home = tmp_root("vault");
+        let idfile = home.join("keys.txt");
+        let identity = {
+            use age::secrecy::ExposeSecret;
+            age::x25519::Identity::generate()
+                .to_string()
+                .expose_secret()
+                .to_string()
+        };
+        std::fs::write(&idfile, format!("# test\n{identity}\n")).unwrap();
+        std::env::set_var("SOPS_AGE_KEY_FILE", &idfile);
+        std::env::set_var("OMA_HOME", &home);
+        init(&home).unwrap();
+        set(&home, "DEEPSEEK_API_KEY", "test-value-9k2").unwrap();
+        // 字面值原样。
+        assert_eq!(resolve_env_value("plain", &home), Some("plain".into()));
+        // vault 引用解析出明文（app.key → identity.enc → sops 全链）。
+        assert_eq!(
+            resolve_env_value("vault:DEEPSEEK_API_KEY", &home),
+            Some("test-value-9k2".into())
+        );
+        // 缺键 → None。
+        assert_eq!(resolve_env_value("vault:NOPE", &home), None);
+        std::env::remove_var("SOPS_AGE_KEY_FILE");
+        std::env::remove_var("OMA_HOME");
+        let _ = std::fs::remove_dir_all(&home);
+    }
+
+    #[test]
     fn inject_block_is_idempotent_and_replaces_stale() {
-        let home = tmp_root("inject");
-        std::env::set_var("HOME", &home); // dirs::home_dir 在测试进程内取 env
-                                          // 直接测 block/替换纯逻辑：模拟已有旧块。
+        // 直接测 block/替换纯逻辑：模拟已有旧块。
         let old = format!("header\n{BLOCK_BEGIN}\nSTALE CONTENT\n{BLOCK_END}\ntail\n");
         let block = block_for("bash");
         let (a, b) = (
@@ -550,8 +599,6 @@ mod tests {
         assert!(!updated.contains("STALE CONTENT"));
         assert!(updated.starts_with("header\n"));
         assert!(updated.ends_with("\ntail\n"));
-        std::env::remove_var("HOME");
-        let _ = home;
     }
 
     #[test]

@@ -509,6 +509,7 @@ mod tests {
 
     #[test]
     fn real_env_value_channel_is_zero_false_positive() {
+        let _g = crate::testenv::ENV_LOCK.lock().unwrap();
         let val = "zq9wKxP2mNvB7tRy";
         std::env::set_var("SECRET_KEY", val);
         let f = scan(&format!("echo {val}"));
@@ -526,8 +527,7 @@ mod tests {
 
     #[test]
     fn providers_plaintext_channel_hits_and_sops_is_skipped() {
-        static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-        let _g = LOCK.lock().unwrap();
+        let _g = crate::testenv::ENV_LOCK.lock().unwrap();
         let home = std::env::temp_dir().join(format!(
             "oma-guard-prov-{}-{}",
             std::process::id(),
