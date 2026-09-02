@@ -192,6 +192,7 @@ ohmyagents/
 | G001 | `G001-文档标准细则-命名写作规范与rumdl检查.md` | 命名与编号、写作、rumdl |
 | G002 | `G002-研究标准细则-结构与六态标记.md` | 研究结构与六态 |
 | G004 | `G004-经验沉淀细则-成功与错误经验分治.md` | proven=成功 plan 沉淀；references=实证做法与多次错误后升格的正确工作流；mistakes=纠偏（当场记、二犯升格） |
+| G005 | `G005-中英文技术文档字符与标点硬禁令.md` | 四类禁用字符、豁免区、空格混排、标点结构、mdcharlint 校验（分期：存量清零前进门禁不强制） |
 | G003 | `G003-工作流标准细则-从登记到归档五步.md` | 五步工作流与优先级 |
 | — | `template.md` | 方案模板（不编号） |
 
@@ -220,3 +221,4 @@ ohmyagents/
 
 - 代码文件位置见第二节表；`catalog\rmux.toml` 是 `oma check` 的信任锚
 - `examples` 十二个部件 POC 对应方案 P0005 的部件表（yolo-doctor / endpoint / session / layout / drive / dialogs / paste / locate / stream / state / init / negatives），Windows 范围全表绿（2026-08-31）；`poc-label-bridge` 是 P0007 的 label 端点融合实证
+| `mdcharlint.py` | 四类禁用字符检查（G005：破折号、箭头、emoji、非法全角；掩豁免区后逐字符扫） | `uv run --script .tools/mdcharlint.py 文件.md ...`；退出码 0/1 |
