@@ -1790,6 +1790,13 @@ mod tests {
         )
         .unwrap();
         std::env::set_var("OMA_HOME", &home);
+        // 宿主无关（R004）：CI 无已装 agent，用 OMA_*_BIN 旁路指假二进制。
+        let fake_claude = home.join("claude-fake.bin");
+        let fake_codex = home.join("codex-fake.bin");
+        std::fs::write(&fake_claude, b"#!/bin/sh\n").unwrap();
+        std::fs::write(&fake_codex, b"#!/bin/sh\n").unwrap();
+        std::env::set_var("OMA_CLAUDE_BIN", &fake_claude);
+        std::env::set_var("OMA_CODEX_BIN", &fake_codex);
 
         let plan = plan_agents(Some(vec!["claude@zhipu".into()]), false).unwrap();
         assert_eq!(
@@ -1798,7 +1805,7 @@ mod tests {
         );
         let (name, argv) = &plan.agents[0];
         assert_eq!(name, "claude");
-        // argv = [claude.exe 路径]（本机装了 claude 才有此测试意义）。
+        // argv = [假 claude 二进制路径]（OMA_CLAUDE_BIN 注入）。
         assert_eq!(argv.len(), 1);
         let env = env_entries(Path::new("D:\\proj"), "claude", "zhipu");
         assert!(env
@@ -1819,6 +1826,8 @@ mod tests {
         assert!(err.contains("no launch for agent 'codex'"), "{err}");
 
         std::env::remove_var("OMA_HOME");
+        std::env::remove_var("OMA_CLAUDE_BIN");
+        std::env::remove_var("OMA_CODEX_BIN");
         let _ = std::fs::remove_dir_all(&home);
     }
 
