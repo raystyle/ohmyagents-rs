@@ -228,6 +228,7 @@ if ($branch) {
 $projDir = if ($d.workspace -and $d.workspace.current_dir) { "$($d.workspace.current_dir)" } else { "$(Get-Location)" }
 $probe = $projDir
 $pkgTxt = $null
+$projKind = $null
 for ($i = 0; $i -lt 4 -and $probe; $i++) {
     if (Test-Path (Join-Path $probe 'Cargo.toml')) {
         $v = ((& git -C $probe config -f Cargo.toml --get package.version 2>$null) | Out-String).Trim()
@@ -237,6 +238,7 @@ for ($i = 0; $i -lt 4 -and $probe; $i++) {
             }
         }
         if ($v) { $pkgTxt = "󰏗 v$v" }
+        $projKind = 'rust'
         break
     }
     if (Test-Path (Join-Path $probe 'package.json')) {
@@ -244,6 +246,7 @@ for ($i = 0; $i -lt 4 -and $probe; $i++) {
             $pj = Get-Content -Raw (Join-Path $probe 'package.json') | ConvertFrom-Json
             if ($pj.version) { $pkgTxt = "󰏗 v$($pj.version)" }
         } catch {}
+        $projKind = 'node'
         break
     }
     $parent = Split-Path -Parent $probe
@@ -255,12 +258,40 @@ if ($pkgTxt) {
     if ($pk) { $parts.Add($pk) }
 }
 
-# ── Rust 工具链 󱘗 vN.N.N（有 Cargo.toml 才探测，对齐 starship rust 段）──
-if ($pkgTxt -and $pkgTxt -like '󰏗*') {
+# ── Rust 工具链 󱘗 vN.N.N（Cargo.toml 项目才探测——projKind 判，不再
+#    「有包版本就探测」：TS 项目曾因此误出 rust 段）──
+if ($projKind -eq 'rust') {
     $rv = (& rustc --version 2>$null | Out-String).Trim()
     if ($rv -match 'rustc\s+([\d.]+)') {
         $r = Seg "󱘗 v$($Matches[1])" '38;5;180'
         if ($r) { $parts.Add($r) }
+    }
+}
+
+# ── Node/TS 工具链 󰎙 vN.N.N（package.json 项目；TS 就绪再叠 󰛦 vM.M.M，
+#    typescript 版本就近读 node_modules 不起 tsc 子进程）──
+if ($projKind -eq 'node') {
+    $nv = (& node --version 2>$null | Out-String).Trim()
+    if ($nv -match 'v?([\d.]+)') {
+        $n = Seg "󰎙 v$($Matches[1])" '38;5;078'
+        if ($n) { $parts.Add($n) }
+    }
+    $tsProbe = $projDir
+    for ($j = 0; $j -lt 4 -and $tsProbe; $j++) {
+        $tsPj = Join-Path $tsProbe 'node_modules\typescript\package.json'
+        if (Test-Path $tsPj) {
+            try {
+                $tj = Get-Content -Raw $tsPj | ConvertFrom-Json
+                if ($tj.version) {
+                    $t = Seg "󰛦 v$($tj.version)" '38;5;067'
+                    if ($t) { $parts.Add($t) }
+                }
+            } catch {}
+            break
+        }
+        $p2 = Split-Path -Parent $tsProbe
+        if ($p2 -eq $tsProbe) { break }
+        $tsProbe = $p2
     }
 }
 
