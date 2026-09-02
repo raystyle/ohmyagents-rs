@@ -267,11 +267,11 @@ if ($pkgTxt) {
     if ($pk) { $parts.Add($pk) }
 }
 
-# ── Python 工具链 󰌍 vN.N.N（pyproject/uv.lock/requirements 项目）──
+# ── Python 工具链 󰌠 vN.N.N（pyproject/uv.lock/requirements 项目）──
 if ($projKind -eq 'python') {
     $pv = (& python --version 2>$null | Out-String).Trim()
     if ($pv -match 'Python\s+([\d.]+)') {
-        $py = Seg "󰌍 v$($Matches[1])" '38;5;143'
+        $py = Seg "󰌠 v$($Matches[1])" '38;5;143'
         if ($py) { $parts.Add($py) }
     }
 }
