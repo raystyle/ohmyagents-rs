@@ -396,6 +396,14 @@ enum AgentsCmd {
         /// 指定 agent（claude/codex/kimi/grok）；缺省四家都配
         names: Vec<String>,
     },
+    /// 引导设备码登录（grok/kimi）：转发 URL 加 code 给用户，等浏览器侧完成
+    Login {
+        /// agent 名（grok/kimi）
+        names: Vec<String>,
+        /// 等浏览器侧完成的最长秒数；0 不限时
+        #[arg(long, default_value_t = 600)]
+        timeout: u64,
+    },
     /// 提供商别名簿（~/.ohmyagents/providers.toml，标准 sops 托管）
     Providers {
         /// 打印示例模板（含 sops 托管说明）后退出
@@ -456,6 +464,7 @@ fn run() -> Result<(), String> {
             }
             Some(AgentsCmd::Update { names, force, root }) => cmd_agents_update(names, force, root),
             Some(AgentsCmd::Statusline { names }) => cmd_agents_statusline(names),
+            Some(AgentsCmd::Login { names, timeout }) => cmd_agents_login(names, timeout),
             Some(AgentsCmd::Providers { example }) => cmd_agents_providers(example),
         },
         Commands::Hook { event, agent } => cmd_hook(event, agent),
@@ -935,6 +944,24 @@ fn cmd_task_show(id: String, project: Option<PathBuf>) -> Result<(), String> {
             print!("{output}");
         }
         Err(_) => println!("task.show.{id}.output=pending"),
+    }
+    Ok(())
+}
+
+/// `oma agents login [名]`：设备码登录引导（grok/kimi，S026）——转发
+/// URL 加 code、等浏览器侧完成、以落盘凭据确认。
+fn cmd_agents_login(names: Vec<String>, timeout: u64) -> Result<(), String> {
+    if names.is_empty() {
+        return Err("login needs an agent: oma agents login grok|kimi".into());
+    }
+    let mut any_failed = false;
+    for name in &names {
+        let out = oma::login::run(name, timeout)?;
+        println!("login.ok={} detail={}", out.ok, out.detail);
+        any_failed |= !out.ok;
+    }
+    if any_failed {
+        std::process::exit(1);
     }
     Ok(())
 }

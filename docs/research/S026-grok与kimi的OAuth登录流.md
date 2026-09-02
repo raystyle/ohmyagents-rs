@@ -38,7 +38,7 @@
 ## 待办
 
 - doctor 登录态检查行（grok auth.json / kimi credentials json）：已落地（`oma doctor` 出 `check=login` 行，warn 不进 blocked 汇总，2026-09-02）
-- `oma agents login [名]`：pane 内起登录命令、扫屏转发 URL+code、确认成功——独立切片待立项
+- `oma agents login [名]`：已落地（2026-09-02，`src\login.rs`）——实现形态修正 S026 原推断：**子进程捕获**替代 pane 加扫屏（两家输出都是纯 eprintln / process.stderr.write、无 TTY 依赖，实证 device_code.rs 与 login-flow.ts）；转发 URL 加 code、扫成功标记、以落盘凭据为最终判据；WSL grok 真登录实机验收
 
 ## 事实源
 

@@ -6,6 +6,7 @@ pub mod deploy;
 pub mod doctor;
 pub mod hook;
 pub mod install;
+pub mod login;
 pub mod orch;
 pub mod pathutil;
 pub mod providers;

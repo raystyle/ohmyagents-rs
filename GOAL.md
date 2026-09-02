@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-02 | `oma agents login` 设备码引导落地：子进程捕获形态（两家输出纯 stderr 无 TTY 依赖，源码实证修正 S026 pane 扫屏原推断）、`login.url=`/`login.code=` 机读标记、超时杀进程、落盘凭据为最终判据；110+12 全绿，WSL grok 真登录实机验收通过（用户浏览器确认，doctor 验证凭据落盘） |
 | 2026-09-02 | agent doctor 部署诊断切片落地：doctor 加 warn 层与四类新检查（登录态 S026 判据、hook 形态 P0027 口径、状态栏 S025 落位、会话健康无会话不误报）；根修 deploy `is_ours` 对 codex Windows 调用操作符形态 `& "exe" hook` 的盲区（跨环境漏检加潜在重复追加）；测试 105+12 全绿，Windows/WSL 双侧实机验收（WSL 如实报 grok 未登录 warn）。余 `oma agents login` 引导切片排队 |
 | 2026-09-02 | 仓库更名 ohmyagents-rs 五步收口：GitHub 更名（用户）、remote set-url 新地址、双环境重跑 init 加 --pretrust（双侧 doctor.blocked=false）、旧名引用清扫（Cargo.toml/README/main.rs/S028；diary 存档不改）。四仓生态定调落 R001（ome 工具运行时 / oma agent 与编排 / ohmypwsh 总台密钥 / ohmycloud 云端分发，互相发 issue）。S026 OAuth 登录研究结项（双流取证已落档）；agent doctor 部署诊断立项接续 |
 | 2026-09-02 | P0027 当日闭环：Windows 侧 ENOENT 每提示弹噪音与状态栏 `??` 双报修——根因取证（WSL init 把 `.claude/settings.json` 与 codex 双字段全写成 `/mnt/d` 绝对路径，跨环境 see-saw；CP936 控制台吃 emoji）。落地：PATH 探针加 bare 形态（claude/grok，粘性不降级）、codex 字段所有权合并（各侧只写本侧、异侧逐字节保留）、statusline 强制 UTF-8；渲染按用户定调对齐 ohmypwsh Codex 风格段再对齐 starship（目录截断 3 段、git 旗标 [!?]、󰏗 包版本、󱘗 rust 工具链、󰅐 时长与 $ 成本）。双环境实机收敛：双侧 init 后三注册文件字节不变、`doctor.blocked=false`；Windows `init --pretrust` 清 kimi 家目录信任残留。测试 88+12 全绿；全仓 rustfmt 漂移就地清零并进门禁（用户定调）；M042 记档。追加（同日定调）：hook `--agent` 参数令用户手拉会话状态通道也活（本会话 PreToolUse 实时写）、状态记录带 session 加状态栏会话闸；状态栏多轮收敛为 starship 风格 + Catppuccin 配色 + `agent:state` 机读标记 + shell 段（mac 走 ps 兜底）；S025 四家状态栏矩阵一手取证（kimi tui.toml 300ms 约束、grok [ui.status_line] 仅用户级）——后续切片：kimi/grok 写入面与 rmux 扫屏消费 |
@@ -81,7 +82,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：agent doctor 部署诊断（2026-09-02）。核心当日落地——doctor 加 warn 层与登录态、hook 形态、状态栏、会话健康四类检查，is_ours 盲区根修，Windows/WSL 双侧实机验收。余项：`oma agents login` 引导切片（S026 落地项）、lan-win / lan-mac 远程验收通道。
+- 当前目标：agent doctor 部署诊断（2026-09-02）。核心当日落地——doctor 加 warn 层与登录态、hook 形态、状态栏、会话健康四类检查（is_ours 盲区根修），`oma agents login` 设备码引导同日落地（WSL grok 真登录验收）。余项：lan-win / lan-mac 远程验收通道。
 
 ## 历史
 

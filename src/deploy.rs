@@ -696,6 +696,10 @@ const COMMAND_MAP: &[(&str, &str)] = &[
         "只读诊断信任库、二进制、登录态、hook 形态、状态栏与会话健康",
     ),
     (
+        "oma agents login grok|kimi",
+        "设备码登录引导：转发 URL 加 code，等浏览器侧完成后以落盘凭据确认",
+    ),
+    (
         "oma agents install [名]",
         "安装缺失 agent（oma 自管根 ~/.ohmyagents）",
     ),

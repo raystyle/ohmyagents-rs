@@ -12,10 +12,8 @@ agent doctor 部署诊断（队列顺位接续，用户核心轴「agent 部署�
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
-| doctor 部署诊断扩展 | 已完成 | Status 加 warn 层（不进 blocked 汇总）；四类新检查：登录态（grok RFC3339 加 create_time 加 30 天兜底加 300s 提前量 / kimi hasToken 加空串墓碑区分，S026 判据）、hook 形态（bare/absolute；codex per-OS 字段）、状态栏（四家配置标记加脚本在位加 pwsh 咨询，S025）、会话健康（manifest 在才探 daemon 活性，无会话不误报）；`time` crate 选型入依赖（RFC3339 只 parsing feature） | 2026-09-02 |
-| 根修 is_ours 调用操作符盲区 | 已完成 | codex Windows 侧 `& "exe" hook` 首 token 是 `&`，is_ours 漏判——doctor 跨环境漏检 Windows 字段、deploy 换 exe 路径后旧条目被当外来者重复追加；剥前导 `&` 根修于 deploy 源头加回归测试 | 2026-09-02 |
-| 双环境实机验收 | 已完成 | Windows 全 ok；WSL 如实暴露 grok 未登录与状态栏未配（warn 不进 blocked）；共享目录 codex 双侧字段互检通过；105+12 全绿、fmt 过、clippy 存量 20 条不新增 | 2026-09-02 |
-| oma agents login 引导 | 排队 | pane 内起 `grok login --device-code` / `kimi login`、扫屏转发 URL+code、扫成功标记确认（S026 落地项，独立切片） | 2026-09-02 |
+| oma agents login 引导 | 已完成 | `src\login.rs`：子进程捕获（纯 stderr 无 TTY，源码实证推翻 S026 pane 扫屏原推断）、URL/code 机读标记转发、超时杀进程、成功判据 = 退出 0 且 doctor 落盘凭据过；5 黄金例（源码取证样例）加负例全绿；WSL grok 真登录实机验收（URL/code 精确转发，doctor 确认落盘） | 2026-09-02 |
+| 余项 | 排队 | lan-win / lan-mac 远程验收通道（doctor 与 login 同批走）；kimi 侧真登录待需时验 | 2026-09-02 |
 
 ## 前目标 P0027 清单
 

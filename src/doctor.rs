@@ -22,7 +22,7 @@ pub enum Status {
 }
 
 impl Status {
-    fn as_str(self) -> &'static str {
+    pub(crate) fn as_str(self) -> &'static str {
         match self {
             Status::Ok => "ok",
             Status::Warn => "warn",
@@ -341,6 +341,32 @@ fn kimi_login_state(v: Option<&Json>, now_secs: i64) -> (Status, String) {
             "access_token empty-string tombstone (revoked); kimi login again".into(),
         ),
         None => (Status::Warn, "no access_token field; kimi login".into()),
+    }
+}
+
+/// 当下登录态（grok/kimi），供 `oma agents login` 完成后以落盘文件确认。
+pub(crate) fn login_state(agent: &str) -> Option<(Status, String)> {
+    let home = dirs::home_dir()?;
+    match agent {
+        "grok" => {
+            let p = home.join(".grok").join("auth.json");
+            Some(grok_login_state(
+                json_file(&p).as_ref(),
+                OffsetDateTime::now_utc(),
+            ))
+        }
+        "kimi" => {
+            let p = home
+                .join(".kimi-code")
+                .join("credentials")
+                .join("kimi-code.json");
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|d| d.as_secs() as i64)
+                .unwrap_or(0);
+            Some(kimi_login_state(json_file(&p).as_ref(), now))
+        }
+        _ => None,
     }
 }
 
