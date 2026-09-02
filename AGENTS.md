@@ -107,7 +107,7 @@
 - **带产物等待的任务**：`oma task <agent> "<文本>" [--timeout N]`（学 reader_rs 形态，2026-09-01）：建 `.ohmyagents/tasks/<id>/`（prompt.md 提示词全文），send 带协议尾注，随后**阻塞等 DONE 标记**（agent 写 output.md 后最后创建 DONE——只认 DONE 防半写；缺省 600s、0 无限）→ 打产物退出；`oma task list|show <id>` 查清单与产物；SKILL 部署带任务目录协议（`oma init` 重跑同步）、仓根 `SKILL.md` 为 agent 技能文档
 - **查轨迹**：`oma trace sessions|timeline|blocks|agent|file|search`（六视图，`--project` 挂叶子）：查询时联邦读四家原生会话库（grok 主源 updates.jsonl 权威日志，chat_history 兜底，S020）
 - **自愈信任**：`oma settle [--wait N]`（自检测信任/审查框并自动确认默认应选项，各家自己持久化信任；密码类永不自动）。codex 的 hook 注册形态见 `src\deploy.rs`（绝对路径加 PowerShell 调用操作符 `&`）
-- **看状态**：`oma status`（层 0 pid + locate 进程名 + 1b 终端态 + 层 2 hook 态）
+- **看状态**：`oma status`（层 0 pid + locate 进程名 + 1b 终端态 + 层 2 hook 态 + 扫屏层：状态栏 `agent:state` 机读标记加 hook 交叉核对 `check=match|mismatch|-`，S025 消费面）
 - **重开一路**：`oma respawn <agent>`（强制关闭再打开该 agent 实例；kill-pane 单窗格，不动会话与其它路）
 - **收尾**：`oma cleanup`（只杀本 session）
 - **起 HTTP 编排面**：`oma serve start [--port N] [--project PATH]`（P0025 已落地，需 `--features server` 构建）：即调即退后台守护（CREATE_NO_WINDOW，已活秒回地址）；`serve stop` 协议化停机（`DELETE /shutdown` 优雅排空，超时才降级强杀）、`serve status` 探活；裸 `oma serve` 保留前台调试。六操作 RESTish 加 JSON 信封加 SSE 画面；**主页即 web 镜像，本地 operator 可打字可拖窗格**（用户定调 2026-09-01：本机回环已验证不必只读；外域由 Host 校验挡、公网中继走 `oma web` 的 PIN 与警示；前端资源包嵌二进制首启释放 oma 数据根，P0023）；只绑 127.0.0.1；curl 全绿口径见 `docs\references\R002`

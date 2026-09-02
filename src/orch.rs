@@ -566,6 +566,36 @@ pub struct PaneStatus {
     pub process: Option<String>,
     pub terminal: &'static str,
     pub hook_state: Option<String>,
+    /// 扫屏层（S025 机读标记消费）：状态栏画进 TUI 的 `<agent>:<state>`。
+    pub screen_state: Option<String>,
+}
+
+/// 扫屏层（S025 机读标记消费）：状态栏把 `<agent>:<state>` 画在 TUI 底部
+/// （ANSI 色码只包整段、标记本体不掺转义），倒序扫可见行取最后一次绘制。
+/// 覆盖 hook 够不着的用户手拉会话——状态文件回退写加会话闸在画端把关，
+/// 标记即活会话真相。
+pub fn scan_state_marker(lines: &[String]) -> Option<String> {
+    const STATES: [&str; 4] = ["idle", "working", "blocked", "unknown"];
+    for line in lines.iter().rev() {
+        for agent in AGENTS {
+            for st in STATES {
+                let marker = format!("{agent}:{st}");
+                if line.contains(&marker) {
+                    return Some(marker);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// hook 态与扫屏态交叉核对：双在比同异，缺侧 `-`。
+pub fn state_check(hook: Option<&str>, screen: Option<&str>) -> &'static str {
+    match (hook, screen) {
+        (Some(h), Some(s)) if h == s => "match",
+        (Some(_), Some(_)) => "mismatch",
+        _ => "-",
+    }
 }
 
 fn hook_state(root: &Path, agent: &str) -> Option<String> {
@@ -634,11 +664,17 @@ pub async fn status(link: &Link, root: &Path) -> Result<(Vec<PaneStatus>, Option
     let mut out = Vec::new();
     for (agent, pane, pid) in entries {
         let process = pid.and_then(|p| names.get(&p).cloned());
-        let terminal = match pane {
-            None => "dead",
+        // 终端态与扫屏态同一次快照出（扫屏零额外开销）。
+        let (terminal, screen_state) = match pane {
+            None => ("dead", None),
             Some(pane) => match pane.snapshot().await {
-                Ok(snap) => classify_snapshot(&snap).oma_state(),
-                Err(_) => "unknown",
+                Ok(snap) => {
+                    let terminal = classify_snapshot(&snap).oma_state();
+                    let screen = scan_state_marker(&snap.visible_lines())
+                        .and_then(|m| m.split(':').nth(1).map(str::to_string));
+                    (terminal, screen)
+                }
+                Err(_) => ("unknown", None),
             },
         };
         out.push(PaneStatus {
@@ -653,6 +689,7 @@ pub async fn status(link: &Link, root: &Path) -> Result<(Vec<PaneStatus>, Option
             },
             agent,
             pid,
+            screen_state,
         });
     }
     Ok((out, warning))
@@ -1869,6 +1906,35 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 
+    #[test]
+    fn scan_state_marker_reads_statusline_footer() {
+        // 样例来自 statusline ps1 的 oma 段（`Seg` 输出包 ANSI 色码，标记
+        // 本体不掺转义——S025）；倒序取最后一次绘制。
+        let footer = format!("\u{1b}[38;5;179m\u{f016b}\u{1b}[0m  {}", "claude:working");
+        let lines = vec!["some output".to_string(), footer];
+        assert_eq!(scan_state_marker(&lines).as_deref(), Some("claude:working"));
+        // 最后一行胜：重绘后旧标记不作数。
+        let lines = vec![
+            "x claude:idle x".to_string(),
+            "y grok:blocked y".to_string(),
+        ];
+        assert_eq!(scan_state_marker(&lines).as_deref(), Some("grok:blocked"));
+        // 无标记 / 死屏。
+        assert_eq!(scan_state_marker(&["plain".to_string()]), None);
+        assert_eq!(scan_state_marker(&[]), None);
+    }
+
+    #[test]
+    #[test]
+    fn state_check_compares_hook_and_screen() {
+        assert_eq!(state_check(Some("working"), Some("working")), "match");
+        assert_eq!(state_check(Some("idle"), Some("working")), "mismatch");
+        assert_eq!(state_check(Some("idle"), None), "-");
+        assert_eq!(state_check(None, Some("idle")), "-");
+        assert_eq!(state_check(None, None), "-");
+    }
+
+    #[test]
     #[test]
     fn plan_agents_stub_shape_and_count_guard() {
         let plan = plan_agents(Some(vec!["claude".into(), "codex".into()]), true).unwrap();

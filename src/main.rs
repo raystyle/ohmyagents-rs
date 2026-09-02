@@ -872,6 +872,16 @@ async fn cmd_status(project: Option<PathBuf>, json: bool) -> Result<(), String> 
             p.agent,
             p.hook_state.as_deref().unwrap_or("silent")
         );
+        println!(
+            "status.pane.{}.screen={}",
+            p.agent,
+            p.screen_state.as_deref().unwrap_or("-")
+        );
+        println!(
+            "status.pane.{}.check={}",
+            p.agent,
+            orch::state_check(p.hook_state.as_deref(), p.screen_state.as_deref())
+        );
     }
     println!("status.panes={}", panes.len());
     if let Some(w) = warning {

@@ -211,7 +211,9 @@ async fn print_status(root: &std::path::Path) {
 /// TTY 人读表格（S016 吸收，CLI 通道共用）：列宽取表头与单元格最大字符宽，
 /// 两空格槽。管道与测试面不在此函数的职责内（cmd_status 负责分流）。
 pub fn render_status_table(panes: &[orch::PaneStatus]) -> String {
-    let headers = ["AGENT", "PID", "PROCESS", "TERMINAL", "HOOK"];
+    let headers = [
+        "AGENT", "PID", "PROCESS", "TERMINAL", "HOOK", "SCREEN", "CHECK",
+    ];
     let rows: Vec<Vec<String>> = panes
         .iter()
         .map(|p| {
@@ -221,6 +223,8 @@ pub fn render_status_table(panes: &[orch::PaneStatus]) -> String {
                 p.process.clone().unwrap_or_else(|| "-".into()),
                 p.terminal.to_string(),
                 p.hook_state.clone().unwrap_or_else(|| "silent".into()),
+                p.screen_state.clone().unwrap_or_else(|| "-".into()),
+                orch::state_check(p.hook_state.as_deref(), p.screen_state.as_deref()).into(),
             ]
         })
         .collect();
@@ -292,6 +296,7 @@ mod tests {
             process: Some("pwsh.exe".into()),
             terminal,
             hook_state: None,
+            screen_state: None,
         }
     }
 

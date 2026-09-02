@@ -62,6 +62,12 @@ pub async fn status(root: &Path) -> Result<Value, String> {
                 "process": p.process,
                 "terminal": p.terminal,
                 "hook": p.hook_state.as_deref().unwrap_or("silent"),
+                // 扫屏层（S025）：状态栏机读标记 + 与 hook 态的交叉核对。
+                "screen": p.screen_state.as_deref().unwrap_or("-"),
+                "check": crate::orch::state_check(
+                    p.hook_state.as_deref(),
+                    p.screen_state.as_deref(),
+                ),
             })
         })
         .collect();

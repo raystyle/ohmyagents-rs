@@ -50,7 +50,7 @@ cargo run --example poc-negatives     # C-c Codex 守卫与 daemon-wide kill 负
 | 和解拉起 | `oma spawn [--agents a,b] [--stub] [--project PATH] [--json]` | **和解式**（P0024）：会话不在新开；在则逐 agent 判活——活路**附加**、死路重开（`spawn.attached=`/`spawn.respawned=`/`spawn.mode=new|reconcile`）；命令面只见 agent 实例，服务/会话/窗格复杂性绑在背后；claude 路另清 `CLAUDE_CODE_CHILD_SESSION` 并强开 session 持久化（从 Claude Code 里拉起的子 claude 否则不写 transcript，P0019）；不阻塞返回；已存在则拒绝叠格 |
 | 桩会话 | `oma spawn --stub [--agents a,b]` | 用 shell 桩替代真实 agent（验收与调试） |
 | 重开一路 | `oma respawn <agent> [--project PATH] [--json]` | 强制关闭再打开该 agent 实例（kill-pane 只打该窗格，不动会话与其它路）；manifest 回写新 pane id |
-| 看状态 | `oma status [--project PATH]` | 双读者（S016 吸收）：stdout 是 TTY 时打对齐表格（AGENT/PID/PROCESS/TERMINAL/HOOK），管道与测试时打 marker 行；只读不 attach；一路 pane 消失该路报 `terminal=dead` 其余照报（P0019） |
+| 看状态 | `oma status [--project PATH]`（扫屏层 2026-09-02：marker 行加 `status.pane.<agent>.screen=` 与 `check=match|mismatch|-`，TTY 表加 SCREEN/CHECK 列，api JSON 加 screen/check 字段——状态栏 `agent:state` 机读标记的消费面，S025） | 双读者（S016 吸收）：stdout 是 TTY 时打对齐表格（AGENT/PID/PROCESS/TERMINAL/HOOK），管道与测试时打 marker 行；只读不 attach；一路 pane 消失该路报 `terminal=dead` 其余照报（P0019） |
 | 发任务 | `oma send <agent> "<text>" [--confirm MARKER] [--project PATH]` | 守卫链（键策略、locate 进程名）后：单行走 SDK `send_text` 与 Enter 两段式；多行（含换行）走三段式粘贴（临时文件 + CLI `load-buffer` + `paste-buffer -p -t %<pane_id>`，Enter 仍单独发，中文可用）；`--confirm` 等短头可见 |
 | 收尾 | `oma cleanup [--project PATH]` | 只杀本项目会话并清 manifest；不 kill-server，daemon 随末 session 自然退 |
 | 自愈信任 | `oma settle [--wait N] [--project PATH]` | 轮询各路画面（SDK snapshot 全屏匹配，P0019），白名单按 (marker, key 序列) 三态自动确认：claude 工作区信任 Enter、kimi 文件夹信任 Up+Enter（默认焦点在不信任项）、codex 升级提示 2+Enter（Skip）；密码类与用户级 hook 审查永不自动 |
