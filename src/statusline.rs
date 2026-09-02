@@ -13,6 +13,8 @@ use std::path::{Path, PathBuf};
 
 use serde_json::json;
 
+use crate::yolo::{read_toml, toml_write};
+
 /// 状态栏脚本：读 stdin JSON（claude code 供给 model/context_window/cost 等；
 /// codex 无 stdin 数据时退化为 agent + 目录 + git 段）。单行输出。
 /// 渲染对齐用户 starship 配置（2026-09-02 定调）：目录截断 3 段、git 分支
@@ -311,6 +313,92 @@ pub fn merge_claude(home: &Path) -> Result<String, String> {
     Ok(settings.display().to_string())
 }
 
+/// kimi：`~/.kimi-code/tui.toml` `[status_line]` 表幂等合并（command 串经
+/// cmd/sh 执行，首行接管 footer；300ms 超时由 kimi 侧约束，超时自动回退
+/// 内置布局——S025）。其它表保留。
+pub fn merge_kimi(home: &Path) -> Result<String, String> {
+    let script = deploy_script(home)?;
+    let config = dirs::home_dir()
+        .ok_or("no home")?
+        .join(".kimi-code")
+        .join("tui.toml");
+    let script_str = script.display().to_string().replace('\\', "/");
+    let mut toml = read_toml(&config)?;
+    if apply_kimi_status_line(&mut toml, &script_str)? {
+        toml_write(&config, &toml)?;
+    }
+    Ok(config.display().to_string())
+}
+
+/// `[status_line].command` 幂等落位；返回是否变更（可测纯函数）。
+fn apply_kimi_status_line(toml: &mut toml::Value, script_str: &str) -> Result<bool, String> {
+    let table = match toml {
+        toml::Value::Table(t) => t,
+        _ => return Err("kimi tui.toml is not a table".into()),
+    };
+    let status_line = table
+        .entry("status_line".to_string())
+        .or_insert_with(|| toml::Value::Table(toml::map::Map::new()));
+    let sl = match status_line {
+        toml::Value::Table(t) => t,
+        _ => return Err("kimi [status_line] is not a table".into()),
+    };
+    let command = format!("pwsh -NoProfile -File \"{script_str}\" kimi");
+    let changed = sl.get("command").and_then(|v| v.as_str()) != Some(command.as_str());
+    if changed {
+        sl.insert("command".into(), toml::Value::String(command));
+    }
+    Ok(changed)
+}
+
+/// grok：`~/.grok/config.toml` `[ui.status_line]` 幂等合并（type=command；
+/// command 串先直接 spawn、失败回落 shell 解释，带参数命令行可用——S025
+/// command.rs 实证）。其它表保留。
+pub fn merge_grok(home: &Path) -> Result<String, String> {
+    let script = deploy_script(home)?;
+    let config = dirs::home_dir()
+        .ok_or("no home")?
+        .join(".grok")
+        .join("config.toml");
+    let script_str = script.display().to_string().replace('\\', "/");
+    let mut toml = read_toml(&config)?;
+    if apply_grok_status_line(&mut toml, &script_str)? {
+        toml_write(&config, &toml)?;
+    }
+    Ok(config.display().to_string())
+}
+
+/// `[ui.status_line]` 幂等落位（type=command + command 串）；返回是否变更
+/// （可测纯函数）。
+fn apply_grok_status_line(toml: &mut toml::Value, script_str: &str) -> Result<bool, String> {
+    let table = match toml {
+        toml::Value::Table(t) => t,
+        _ => return Err("grok config.toml is not a table".into()),
+    };
+    let ui = table
+        .entry("ui".to_string())
+        .or_insert_with(|| toml::Value::Table(toml::map::Map::new()));
+    let ui = match ui {
+        toml::Value::Table(t) => t,
+        _ => return Err("grok [ui] is not a table".into()),
+    };
+    let status_line = ui
+        .entry("status_line".to_string())
+        .or_insert_with(|| toml::Value::Table(toml::map::Map::new()));
+    let sl = match status_line {
+        toml::Value::Table(t) => t,
+        _ => return Err("grok [ui.status_line] is not a table".into()),
+    };
+    let command = format!("pwsh -NoProfile -File \"{script_str}\" grok");
+    let changed = sl.get("command").and_then(|v| v.as_str()) != Some(command.as_str())
+        || sl.get("type").and_then(|v| v.as_str()) != Some("command");
+    if changed {
+        sl.insert("command".into(), toml::Value::String(command));
+        sl.insert("type".into(), toml::Value::String("command".into()));
+    }
+    Ok(changed)
+}
+
 /// codex：config.toml 顶层 `[tui]` 段整段替换（幂等；ohmypwsh 同形态）。
 pub fn merge_codex(home: &Path) -> Result<String, String> {
     let script = deploy_script(home)?;
@@ -366,6 +454,49 @@ mod tests {
             STATUSLINE_PS1.contains("\u{f06a9}"),
             "oma segment robot glyph (md-robot, wide: two spaces survive one)"
         );
+    }
+
+    #[test]
+    fn kimi_and_grok_merges_are_idempotent_and_keep_other_tables() {
+        // 期望来自 kimi/grok 官方 schema（S025）：kimi [status_line].command、
+        // grok [ui.status_line] type=command；其它表必须存活。
+        let mut kimi: toml::Value =
+            toml::from_str("theme = \"dark\"\n[status_line]\nitems = [\"model\"]\n").unwrap();
+        assert!(apply_kimi_status_line(&mut kimi, "C:/x/oma-statusline.ps1").unwrap());
+        assert!(!apply_kimi_status_line(&mut kimi, "C:/x/oma-statusline.ps1").unwrap());
+        let kimi_t = kimi.as_table().unwrap();
+        assert_eq!(kimi_t.get("theme").unwrap().as_str(), Some("dark"));
+        let sl = kimi_t.get("status_line").unwrap().as_table().unwrap();
+        assert_eq!(
+            sl.get("command").unwrap().as_str(),
+            Some("pwsh -NoProfile -File \"C:/x/oma-statusline.ps1\" kimi")
+        );
+        assert_eq!(
+            sl.get("items").unwrap().as_array().unwrap().len(),
+            1,
+            "foreign [status_line] keys survive"
+        );
+
+        let mut grok: toml::Value =
+            toml::from_str("model = \"x\"\n[ui]\npermission_mode = \"always-approve\"\n").unwrap();
+        assert!(apply_grok_status_line(&mut grok, "C:/x/oma-statusline.ps1").unwrap());
+        assert!(!apply_grok_status_line(&mut grok, "C:/x/oma-statusline.ps1").unwrap());
+        let grok_t = grok.as_table().unwrap();
+        assert_eq!(grok_t.get("model").unwrap().as_str(), Some("x"));
+        let ui = grok_t.get("ui").unwrap().as_table().unwrap();
+        assert_eq!(
+            ui.get("permission_mode").unwrap().as_str(),
+            Some("always-approve"),
+            "yolo key in [ui] survives"
+        );
+        let sl = ui.get("status_line").unwrap().as_table().unwrap();
+        assert_eq!(sl.get("type").unwrap().as_str(), Some("command"));
+        assert!(sl
+            .get("command")
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .ends_with("\" grok"));
     }
 
     #[test]

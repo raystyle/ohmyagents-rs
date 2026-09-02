@@ -894,26 +894,34 @@ fn cmd_task_show(id: String, project: Option<PathBuf>) -> Result<(), String> {
 /// `oma agents statusline [名]`：配置 claude/codex 状态栏（幂等）。
 fn cmd_agents_statusline(names: Vec<String>) -> Result<(), String> {
     let home = install::oma_home()?;
-    let do_claude = names.iter().any(|n| n == "claude") || names.is_empty();
-    let do_codex = names.iter().any(|n| n == "codex") || names.is_empty();
+    let supported = ["claude", "codex", "kimi", "grok"];
+    let do_all = names.is_empty();
     let unknown: Vec<String> = names
         .iter()
-        .filter(|n| n.as_str() != "claude" && n.as_str() != "codex")
+        .filter(|n| !supported.contains(&n.as_str()))
         .cloned()
         .collect();
     if !unknown.is_empty() {
         return Err(format!(
-            "statusline supports claude/codex only: {}",
+            "statusline supports claude/codex/kimi/grok only: {}",
             unknown.join(",")
         ));
     }
-    if do_claude {
+    if do_all || names.iter().any(|n| n == "claude") {
         let p = oma::statusline::merge_claude(&home)?;
         println!("statusline.claude={p}");
     }
-    if do_codex {
+    if do_all || names.iter().any(|n| n == "codex") {
         let p = oma::statusline::merge_codex(&home)?;
         println!("statusline.codex={p}");
+    }
+    if do_all || names.iter().any(|n| n == "kimi") {
+        let p = oma::statusline::merge_kimi(&home)?;
+        println!("statusline.kimi={p}");
+    }
+    if do_all || names.iter().any(|n| n == "grok") {
+        let p = oma::statusline::merge_grok(&home)?;
+        println!("statusline.grok={p}");
     }
     // The bar renders through pwsh on every platform; without it the merged
     // config is inert. Advisory, never fatal (P0027).

@@ -208,10 +208,10 @@ fn init_rerun_is_byte_idempotent() {
 fn dies_statusline_unknown_agent() {
     // Unknown names fail before any home config is touched.
     oma()
-        .args(["agents", "statusline", "grok"])
+        .args(["agents", "statusline", "no-such-agent"])
         .assert()
         .failure()
-        .stderr(contains("claude/codex"));
+        .stderr(contains("claude/codex/kimi/grok"));
 }
 
 #[test]
