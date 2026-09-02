@@ -4,11 +4,24 @@
 
 ## 当前目标
 
-P0012 平台接管三阶段当日齐（用户定调 2026-09-01：WSL Linux 第一棒 → mac 接管收口 → 回 WSL 补尾）：Windows / mac / WSL Linux 三平台真机全链绿。P0012 全部任务项完成，待用户定向归档（proven 方案回填）。
+P0027 四环境部署自适应（用户定调 2026-09-02：hook 注册与状态栏在 Windows / WSL 共享目录 / Linux / macOS 自适应）。当日闭环，待归档后起 S025 后续切片（kimi/grok 状态栏写入面与 rmux 扫屏消费）。
 
 ## 任务进度清单
 
-> mac 阶段清单。
+> P0027 清单。
+
+| 任务项 | 进度 | 说明 | 日期 |
+| --- | --- | --- | --- |
+| 取证与立项 | 已完成 | S015/官方文档/盘上破坏面（codex 双字段皆 /mnt/d）/Node spawn 补 .exe 实测；S024 落档 | 2026-09-02 |
+| hook 注册自适应 | 已完成 | PATH 探针 bare 形态（claude/grok，粘性不降级）+ codex 字段所有权（OsSide 各写本侧、异侧逐字节保留）；`--agent` 参数进注册 | 2026-09-02 |
+| hook 状态通道全覆盖 | 已完成 | 无 env 回退写项目状态文件（payload cwd 沿 .git 上溯）；记录带 session 字段 | 2026-09-02 |
+| 状态栏重铸 | 已完成 | UTF-8 强制（CP936 根修）、starship 风格段、Catppuccin 配色、oma 段 agent:state 机读标记 + 会话闸、shell 段（三平台探测）、图标 cmap 实证 | 2026-09-02 |
+| 双环境实机收敛 | 已完成 | Windows/WSL cargo install + init，第二轮起三注册文件字节不变；doctor 双侧全绿（Windows 补 --pretrust 清 kimi 残留） | 2026-09-02 |
+| 测试与门禁 | 已完成 | 88+12 全绿（8 新例）；全仓 rustfmt 漂移清零进门禁；rumdl + md 扫描过 | 2026-09-02 |
+
+## 前目标 P0012 清单
+
+> mac 阶段。
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |

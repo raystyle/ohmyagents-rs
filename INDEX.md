@@ -112,6 +112,7 @@ ohmyagents/
 | P0024 | `P0024-agent实例和解式编排.md` | 已完成（spawn 三态和解：新开/附加/死路重开；oma respawn 强制单路重开） |
 | P0025 | `P0025-serve守护化与协议化停机.md` | 已完成（serve start 即调即退、stop 协议化停机 DELETE /shutdown 优先；FFI 探活避 Job Object 管道死锁） |
 | P0026 | `P0026-code-review修复-并发安全与健壮性.md` | 已完成（codex review 高 5 中 7 全修三切片；看板默认 spectator 只读、Host 校验、cleanup 僵局、陈旧 pane、task id 占位、slug 词法归一；计划外修 serve 零控制台卡死） |
+| P0027 | `P0027-四环境部署自适应-hook形态与状态栏.md` | 已完成（PATH bare 与 codex 字段所有权、状态栏 UTF-8 与机读标记 agent:state、双环境字节收敛） |
 
 ## 四、项目日记
 
@@ -120,6 +121,7 @@ ohmyagents/
 - `2026-08-29-对照ohmypwsh建立文档骨架.md`
 - `2026-08-31-研究体系与POC全绿.md`
 - `2026-09-01-和解式编排与资源包化.md`
+- `2026-09-02-四环境自适应与状态栏重铸.md`
 
 ## 五、研究文档
 
@@ -150,6 +152,8 @@ ohmyagents/
 | S021 | `S021-linux预备检测-指令集SIGILL问题类与检测阶梯.md` | AVX-512/AVX2 SIGILL 问题类、四级检测阶梯与 oma 探针落点（P0012 预备） |
 | S022 | `S022-rust程序自带资源包的三路线与释放裁决.md` | include_bytes 对 rust-embed 对嵌入归档加释放；指纹目录口径（P0023 依据） |
 | S023 | `S023-rmux在windows的进程树与原语实测.md` | 活体进程树加源码核实；三纠偏（internal-daemon 形态、conhost 兄弟、pane 无 shell 层）与原语表 |
+| S024 | `S024-四环境部署自适应矩阵.md` | PATH bare 形态与 codex 字段所有权（P0027 依据）；状态栏 UTF-8、信任键双族共存 |
+| S025 | `S025-四家状态栏配置矩阵与机读标记.md` | 四家状态栏命令驱动矩阵（kimi tui.toml、grok ui.status_line）；oma 机读标记 agent:state 与会话闸 |
 
 ## 六、开发测试参考
 
@@ -188,11 +192,11 @@ ohmyagents/
 | 编号 | 分类文件 | 覆盖关键词 | 行级编号段 |
 | --- | --- | --- | --- |
 | M101 | `M101-drive与paste错误.md` | send-keys、Enter、`C-c`、bracketed paste、marker 假阳性 | M001、M008、M027、M038-M039 |
-| M102 | `M102-信任与hook配置错误.md` | 信任框、trust、pretrust、init、yolo | M002、M009-M011 |
+| M102 | `M102-信任与hook配置错误.md` | 信任框、trust、pretrust、init、yolo、ENOENT、共享目录 | M002、M009-M011、M042 |
 | M103 | `M103-文档与命名错误.md` | 命名、显示名、CLI 名、六态、diary、标题规范 | M003-M005、M013-M014、M030 |
 | M104 | `M104-rmux安装与CLI调用错误.md` | 安装、`-V`、`-S`、`-L`、`cmd()`、`-t` 前缀匹配 | M006-M007、M016、M020、M029 |
 | M105 | `M105-agent检测与状态判断错误.md` | PATH、which、idle、Quiet、CPU | M012、M018-M019 |
-| M106 | `M106-Windows进程与daemon启动错误.md` | os error 5、Job Object、WMI、exit-empty、pane cwd | M015、M017、M021-M022、M031 |
+| M106 | `M106-Windows进程与daemon启动错误.md` | os error 5、Job Object、WMI、exit-empty、pane cwd | M015、M017、M021-M022、M031、M041 |
 | M107 | `M107-工具链与脚本错误.md` | sed、grep、PowerShell、中文路径、测试临时目录 | M023-M026、M028、M032-M034 |
 
 迭代规则：踩坑按当前最大号接编 MNNN 进对应分类文件（M0xx 行级、新分类用 M1xx 接编）；一行一事；同根因或同型坑**可合并聚合**进已有条目（保留最早编号与首踩日期，聚合后的正解写全），避免同型条目无限线性追加；反复踩落 `docs\research\`；改「正确处理」不删历史行；新分类文件登记本节。

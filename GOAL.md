@@ -14,7 +14,7 @@
 
 > 当前锚定的目标 + 推进时间线。
 
-- **锚定的目标**：P0025 serve 守护化于 2026-09-01 达成后，Windows 侧产品形态全量收口（P0017 至 P0025 连续九案闭环）。当前无现役切片，待用户定向。queued：P0012 的 Linux/mac 环境切换接管（用户定调排后）。
+- **锚定的目标**：P0027 四环境自适应部署于 2026-09-02 达成（hook 注册与状态栏；Windows / WSL 共享目录双环境实机收敛）。queued：S025 四家状态栏配置矩阵与机读标记（用户定调 2026-09-02：状态栏嵌 oma 状态标记，rmux 编排读 TUI 内容自动判断——部署/管理/验收/诊断核心轴）。
 
 ### 推进时间线
 
@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-02 | P0027 当日闭环：Windows 侧 ENOENT 每提示弹噪音与状态栏 `??` 双报修——根因取证（WSL init 把 `.claude/settings.json` 与 codex 双字段全写成 `/mnt/d` 绝对路径，跨环境 see-saw；CP936 控制台吃 emoji）。落地：PATH 探针加 bare 形态（claude/grok，粘性不降级）、codex 字段所有权合并（各侧只写本侧、异侧逐字节保留）、statusline 强制 UTF-8；渲染按用户定调对齐 ohmypwsh Codex 风格段再对齐 starship（目录截断 3 段、git 旗标 [!?]、󰏗 包版本、󱘗 rust 工具链、󰅐 时长与 $ 成本）。双环境实机收敛：双侧 init 后三注册文件字节不变、`doctor.blocked=false`；Windows `init --pretrust` 清 kimi 家目录信任残留。测试 88+12 全绿；全仓 rustfmt 漂移就地清零并进门禁（用户定调）；M042 记档。追加（同日定调）：hook `--agent` 参数令用户手拉会话状态通道也活（本会话 PreToolUse 实时写）、状态记录带 session 加状态栏会话闸；状态栏多轮收敛为 starship 风格 + Catppuccin 配色 + `agent:state` 机读标记 + shell 段（mac 走 ps 兜底）；S025 四家状态栏矩阵一手取证（kimi tui.toml 300ms 约束、grok [ui.status_line] 仅用户级）——后续切片：kimi/grok 写入面与 rmux 扫屏消费 |
 | 2026-09-01 | P0012 WSL 补尾收口：拉取 mac 侧变更后基线 80+10 / 83+10 全绿；四家 `--force` Linux 安装全链绿（codex 嵌套 bin 布局、grok CDN 裸二进制、探针全过、双源检测正常）；真身四路 + settle Linux 实拍命中（codex 数字菜单、kimi don't trust），grok 家目录阻塞以 `oma init --pretrust` 清零、`doctor.blocked=false`；`oma task` t026 真任务产物精确；cleanup 零残留。P0012 三平台（Windows / mac / WSL Linux）全链绿，待归档 |
 | 2026-09-01 | P0012 mac 阶段当日收口：测试基线 79+10 / 82+10 全绿；`oma check` arm64 全绿；stub 全链复验绿；四家 darwin 安装 `--force` 全链验收（抓到 grok 双 CDN 无 macos pin，实测推翻 S017「待出资产」假设，自算 sha 补双 CDN pin）；真身四路 + settle 全链绿（三路信任屏措辞漂移修复 + codex hooks 屏数字菜单新形态 + 黄金行回归测试）；`oma task` 真任务产物精确 + hook 流通；门禁全绿两提交（47b1ddd / 7211d41） |
 | 2026-09-01 | P0012 阶段切换：WSL Linux 第一棒收口（「目前只到 wsl linux 就可以了」），mac 接管开发启动（「准备让 mac 接管开发」）；变更推远程供 mac 侧拉取接续 |
