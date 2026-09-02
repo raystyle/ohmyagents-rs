@@ -26,13 +26,30 @@
 
 共同模式 [推断: 由上表归纳]：**规则表数据驱动 + 引擎薄壳 + fail-open + 分级（阻断/warn）**——没有谁把正则硬编码在拦截路径里。
 
+## 误报策略
+
+[实证: gitleaks 默认配置字段统计——130 处 per-rule `entropy`、`stopwords` 块、`allowlist` 16 处、`regexTarget` 4 处；kingfisher `rule.rs` 的 `min_entropy: f32` 与 `runtime_minimum_confidence`；ohmypwsh secret-guard.py 全文]
+
+八层防线（按误报率从低到高排）：
+
+1. **精确前缀硬阻断**：定长定字符集 provider 前缀（`ghp_`{36}、`AKIA`{16}、`sk-ant-`{20+}、PEM 头）——构造性碰撞概率可忽略，gitleaks 默认规则主体也是这类。
+2. **实值比对零误报通道**：本机真实密钥值（SECRET_ENV_NAMES 指到的环境变量 ≥8 字符 + oma 数据根 providers.toml 里的 key 值）直接做子串比对——命中即真泄露，构造性零误报。
+3. **熵值门**：通用赋值类（`api_key=`、`token=`、`bearer`）加 Shannon 熵下限，挡占位符与重复字符（kingfisher `min_entropy` / gitleaks `entropy` 同款）；provider 前缀类不需要。
+4. **stopwords 占位符豁免**：EXAMPLE、YOUR_API_KEY、changeme、dummy、test、xxxx 类命中即放行（gitleaks stopwords 同款）。
+5. **自扫与语料豁免**：guard 自身源码、测试语料（ohmypwsh 测试用运行时拼接构造避免源码自触发——移植时同法）、研究文档路径豁免。
+6. **warn-only 分级出口**：bare password 与低置信通用类只记不阻断——ohmypwsh 实测 659 次命中几乎全是 JSON/文档的教训。
+7. **审计日志掩码**：命中只记前 4 后 4（`_mask` 同款），审计日志自身不成为二次泄露面。
+8. **fail-open**：guard 异常 exit 0 不挡活（可用性优先）。
+
+行内豁免标记（`gitleaks:allow` 的 noqa 风格，如 `# oma-allow-secret`）记待办不进 v1。
+
 ## oma 接管落点
 
-- **零新依赖**：`regex` 与 `serde_json` 已在依赖面（R005 口径：组合不自写）。
+- **零新依赖**：`regex` 与 `serde_json` 已在依赖面（R005 口径：组合不自写）；Shannon 熵是 20 行纯函数不引库。
 - **通道已就绪**：`oma hook`（src\hook.rs）已解析四家信封写状态——拦截闸是同一条入口的第二职责：PreToolUse / UserPromptSubmit 命中密钥 → 状态照写 + `exit 2` 带原因；PostToolUse → warn 记状态不阻断。
-- **规则表**：独立 `src/secretguard.rs` 模块，模式表静态常量（对齐 secret-guard.py 清单与降级教训：bare password warn_only）；SECRET_ENV_NAMES 同表；自扫豁免（oma 自身源码与本文档）。
+- **规则表**：独立 `src/secretguard.rs` 模块，模式表静态常量带四元属性（regex、label、大小写策略、阻断层级 block/warn）+ 实值比对名单 + stopwords + 熵下限。
 - **注册面**：hook 注册已带 `--agent <名>` 参数与 bare 形态（P0027），guard 语义不需要新注册——同一 `oma hook` 调用内分流。
-- **测试**：ohmypwsh 14 例冒烟语料直接移植为黄金用例（独立 oracle：期望值来自其测试契约非 oma 实现镜像，R004）。
+- **测试**：ohmypwsh 14 例冒烟语料直接移植为黄金用例（独立 oracle：期望值来自其测试契约非 oma 实现镜像，R004）+ 误报分层各有专测（占位符放行、熵门、实值通道、日志掩码）。
 - **边界**：age/SOPS 金库与密钥部署（整块加密、备份脚本）**不接管**——那是 ohmypwsh 主权域（R001 四仓分工）；oma 只做会话出口拦截。
 
 ## 待办
