@@ -12,9 +12,11 @@
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
-| 2.1.24x 模式优先级研究 | 进行中 | claude-code-guide 代理：defaultMode 各层优先级（CLI flag / env / 各 settings / managed policy）、bypassPermissions 被忽略的已知情形、--dangerously-skip-permissions 行为 | 2026-09-02 |
-| 本机会话层取证 | 进行中 | user/local/project settings 的 defaultMode 冲突排查、oma spawn 实际 argv 与 env | 2026-09-02 |
-| 结论与修法 | 排队 | 落 S029；oma 候选修法 = spawn claude 路固定 `--dangerously-skip-permissions` argv | |
+| 2.1.24x 模式优先级研究 | 已完成 | claude-code-guide 官方取证：flag > settings defaultMode > 内置默认；2.1.257 起项目/local 层 bypass 被忽略；Allow 堆积 = 从未进 bypass 反证；BASE_URL 网关假设排除（transcript 自指假线索） | 2026-09-02 |
+| 本机会话层取证 | 已完成 | user+project 双层 bypass 却 pane 弹审批；无头 -p 双通道探针真执行（$RANDOM 判真伪）；119 条 Allow 为历史堆积（mtime 13:46 后不涨） | 2026-09-02 |
+| 结论与修法 | 已完成 | S029 落档；修法落地（04b5c74）：plan_agents claude 路固定 `--dangerously-skip-permissions`，respawn 同 plan 自动吃到；已活会话重开该路即生效；111+12 全绿 | 2026-09-02 |
+| 密钥 hook 安全拦截接管研究 | 已完成 | S030 落档：ohmypwsh secret-guard 语义逐行读（四 CLI 信封、exit 2 阻断、fail-open、双层正则加 bare password 降级教训）；gh 取证 kingfisher 1220★（规则数据驱动）/ foxguard / rtk-ai（hook 生命周期层最近域）；oma 落点 = 零新依赖、`oma hook` 同入口第二职责、ohmypwsh 14 例黄金语料移植 | 2026-09-02 |
+| secretguard 实现切片 | 排队 | `src/secretguard.rs` + hook.rs 分流接线 + 14 例黄金测试 | |
 
 ## 前目标 P0027 清单
 
