@@ -72,10 +72,7 @@ async fn stream_inner(pane: &Pane) -> Result<(), String> {
         "poc.stream.oldest.chunks={} bytes={}",
         seen.chunks, seen.bytes
     );
-    println!(
-        "poc.stream.oldest.first_seq={:?}",
-        seen.first_sequence
-    );
+    println!("poc.stream.oldest.first_seq={:?}", seen.first_sequence);
     drop(stream);
 
     // Now: anchored after the newest retained output, so only new bytes.
@@ -169,7 +166,5 @@ async fn collect_until(
 
 /// Substring search on raw bytes; the marker is plain ASCII.
 fn find_ascii(haystack: &[u8], needle: &[u8]) -> bool {
-    haystack
-        .windows(needle.len())
-        .any(|w| w == needle)
+    haystack.windows(needle.len()).any(|w| w == needle)
 }

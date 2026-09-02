@@ -38,7 +38,11 @@ fn main() {
                 .append_data(&mut header, &rel, data.as_slice())
                 .expect("append asset");
         }
-        archive.into_inner().expect("finish tar").finish().expect("finish gz");
+        archive
+            .into_inner()
+            .expect("finish tar")
+            .finish()
+            .expect("finish gz");
     }
 
     use sha2::{Digest, Sha256};

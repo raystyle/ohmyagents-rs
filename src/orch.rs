@@ -181,8 +181,7 @@ async fn sdk_connect(pipe: &str) -> Result<Rmux, String> {
 /// A stale pipe heals by re-querying `#{socket_path}` while the label lives.
 pub async fn connect(root: &Path, boot: bool) -> Result<Link, String> {
     let pin = RmuxPin::load()?;
-    let report =
-        rmux::ensure(&pin, false).map_err(|e| format!("{e}; run `oma check` first"))?;
+    let report = rmux::ensure(&pin, false).map_err(|e| format!("{e}; run `oma check` first"))?;
     if let Some(dir) = report.layout.dispatcher.parent() {
         prepend_path(dir);
     }
@@ -250,7 +249,10 @@ pub fn plan_agents(wanted: Option<Vec<String>>, stub: bool) -> Result<SpawnPlan,
     if let Some(list) = &wanted {
         let mut seen = std::collections::BTreeSet::new();
         for n in list {
-            if !n.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
+            if !n
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+            {
                 return Err(format!("invalid agent name: {n}"));
             }
             if !seen.insert(n.clone()) {
@@ -479,11 +481,7 @@ pub fn read_manifest_for(root: &Path) -> Option<Manifest> {
 
 /// Resolve one agent lane to its live Pane: manifest 定位 pane_id，再经
 /// session pane_by_id 拿句柄。传输面（SSE 画面等）用，与 send 同源。
-pub async fn pane_for_agent(
-    link: &Link,
-    root: &Path,
-    agent: &str,
-) -> Result<(u64, Pane), String> {
+pub async fn pane_for_agent(link: &Link, root: &Path, agent: &str) -> Result<(u64, Pane), String> {
     let manifest = read_manifest_req(root)?;
     let entry = manifest
         .agents
@@ -587,14 +585,17 @@ pub async fn status(link: &Link, root: &Path) -> Result<(Vec<PaneStatus>, Option
             terminal,
             // 死路不回填 hook（relay5 codex3：pane 已消失但 state 文件残留
             // idle/working 时，同一条 status 自相矛盾；dead 与 silent 同义）。
-            hook_state: if terminal == "dead" { None } else { hook_state(root, &agent) },
+            hook_state: if terminal == "dead" {
+                None
+            } else {
+                hook_state(root, &agent)
+            },
             agent,
             pid,
         });
     }
     Ok((out, warning))
 }
-
 
 // ---------------------------------------------------------------------------
 // 和解式编排（P0024）：命令面只见 agent 实例，服务/会话/窗口/窗格/PTY 全部
@@ -615,11 +616,7 @@ pub struct ReconcileOutcome {
 /// send/run/cleanup；中2：新开会话分支同样要过这里——respawned 含全部
 /// 新拉路）。每路等 TUI 就绪（idle 稳定/working/画面变化任一，20s）；
 /// 死路（进程秒退）由「pane gone」覆盖。返回 alerts 供三通道出口。
-pub async fn await_lanes_ready(
-    link: &Link,
-    root: &Path,
-    agents: &[String],
-) -> Vec<String> {
+pub async fn await_lanes_ready(link: &Link, root: &Path, agents: &[String]) -> Vec<String> {
     let mut alerts = Vec::new();
     let Ok(name) = session_name(root) else {
         return alerts;
@@ -637,9 +634,7 @@ pub async fn await_lanes_ready(
         };
         match pane_for(&session, entry.pane_id).await {
             Ok(pane) => {
-                alerts.extend(
-                    await_task_start(&pane, agent, Duration::from_secs(20), true).await,
-                );
+                alerts.extend(await_task_start(&pane, agent, Duration::from_secs(20), true).await);
             }
             Err(_) => alerts.push(format!("{agent}: pane gone right after respawn")),
         }
@@ -648,12 +643,7 @@ pub async fn await_lanes_ready(
 }
 
 /// agent 实例活判据：pane 存在 + pid 活 + 进程名匹配（stub 记 pwsh，真 agent 记本名）。
-async fn agent_alive(
-    session: &Session,
-    pane_id: u64,
-    stub: bool,
-    agent: &str,
-) -> bool {
+async fn agent_alive(session: &Session, pane_id: u64, stub: bool, agent: &str) -> bool {
     let Ok(pane) = pane_for(session, pane_id).await else {
         return false;
     };
@@ -736,7 +726,11 @@ pub async fn reconcile(
         // daemon 随末 session 退——单路 respawn/stub 切换必踩，M040 同根因
         // 的另一半）。先 split 新格、回写 pane_id，再清旧格（kill 失败容忍：
         // 旧格多活几秒无副作用，防堆积由 kill 幂等兜底）。
-        let old_pane = m.agents.iter().find(|a| &a.name == agent).map(|e| e.pane_id);
+        let old_pane = m
+            .agents
+            .iter()
+            .find(|a| &a.name == agent)
+            .map(|e| e.pane_id);
         // 从主窗格右侧分回一路（窗格复杂性在此，命令面不感知）。
         let base = session.pane(0, 0);
         let pane = split_spawn(
@@ -800,7 +794,11 @@ pub async fn reconcile(
     // 无条件按路数定型（grok 复核：纯附加时原布局可能是残留乱格；重排幂
     // 等且是毫秒级 CLI，「有动作才排」的省略不值得留缺口）。
     relayout(link, m.agents.len());
-    Ok(ReconcileOutcome { attached, respawned, removed })
+    Ok(ReconcileOutcome {
+        attached,
+        respawned,
+        removed,
+    })
 }
 
 /// 布局自愈（2026-09-01 用户定调）：按**实际路数**选形态——1 路全屏、
@@ -839,7 +837,9 @@ async fn kill_pane(link: &Link, session: &Session, pane_id: u64) -> Result<(), S
     if pane_for(session, pane_id).await.is_err() {
         return Ok(());
     }
-    Err(format!("kill-pane %{pane_id} failed and pane still present"))
+    Err(format!(
+        "kill-pane %{pane_id} failed and pane still present"
+    ))
 }
 
 /// 强制重新打开一路 agent 实例：**先分后杀**（kimi 四轮高项：单路会话
@@ -868,11 +868,7 @@ pub async fn respawn(link: &Link, root: &Path, agent: &str) -> Result<u64, Strin
         root,
     )
     .await?;
-    let id = match pane
-        .id()
-        .await
-        .map_err(|e| format!("pane id: {e}"))?
-    {
+    let id = match pane.id().await.map_err(|e| format!("pane id: {e}"))? {
         Some(id) => id,
         None => {
             // id 拿不到（进程秒退等）：pane 句柄无 id 可 kill（relay3 kimi1：
@@ -920,12 +916,7 @@ fn respawn_argv(root: &Path, m: &Manifest, agent: &str) -> Result<Vec<String>, S
 /// 发单个按键（受守卫入口，2026-09-01 用户定调：「对 Codex 发 C-c 是禁项」
 /// 应在代码层警告——裸 rmux CLI 绕过守卫曾实杀一路 codex）。守卫：
 /// `check_send_key`（codex 拒 C-c，M001 一个 C-c 杀进程）。
-pub async fn key(
-    link: &Link,
-    root: &Path,
-    agent: &str,
-    key: &str,
-) -> Result<(), String> {
+pub async fn key(link: &Link, root: &Path, agent: &str, key: &str) -> Result<(), String> {
     let (_, pane) = pane_for_agent(link, root, agent).await?;
     rmuxpoc::check_send_key(agent, key)?;
     pane.send_key(key.to_string())
@@ -1002,7 +993,11 @@ pub async fn send(
     eprintln!("send.proc={actual}");
     eprintln!(
         "send.split={}",
-        if multiline { "paste-buffer-p+Enter" } else { "text+Enter" }
+        if multiline {
+            "paste-buffer-p+Enter"
+        } else {
+            "text+Enter"
+        }
     );
 
     if let Some(marker) = confirm {
@@ -1058,7 +1053,9 @@ async fn await_task_start(
         let snap = match pane.snapshot().await {
             Ok(s) => s,
             Err(e) => {
-                return vec![format!("{agent}: snapshot failed while awaiting start ({e})")];
+                return vec![format!(
+                    "{agent}: snapshot failed while awaiting start ({e})"
+                )];
             }
         };
         let state = classify_snapshot(&snap).oma_state();
@@ -1074,7 +1071,9 @@ async fn await_task_start(
         // blocked 判定先于画面变化信号（codex 五轮高项：先 idle 后弹框时
         // 首帧变化会先命中返回空，把「任务被阻塞」误报成「已开始」）。
         if state == "blocked" {
-            return vec![format!("{agent}: blocked (confirm/password dialog) — task NOT started")];
+            return vec![format!(
+                "{agent}: blocked (confirm/password dialog) — task NOT started"
+            )];
         }
         if let Some(prev) = last {
             if prev != hash {
@@ -1139,7 +1138,9 @@ async fn await_new_text(
 /// pane. Targeting rides the stable pane id (`%N`), same source as the SDK.
 fn paste_three_step(link: &Link, _pane: &Pane, pane_id: u64, text: &str) -> Result<(), String> {
     if text.contains('\u{1b}') {
-        return Err("payload must not contain ESC; bracketed-paste wrappers belong to the daemon".into());
+        return Err(
+            "payload must not contain ESC; bracketed-paste wrappers belong to the daemon".into(),
+        );
     }
     let file = std::env::temp_dir().join(format!(
         "oma-paste-{}-{}.txt",
@@ -1163,7 +1164,16 @@ fn paste_three_step(link: &Link, _pane: &Pane, pane_id: u64, text: &str) -> Resu
         )?;
         rmuxpoc::run_cli_checked(
             &link.rmux_bin,
-            &["-L", label, "paste-buffer", "-p", "-b", &buffer, "-t", &target],
+            &[
+                "-L",
+                label,
+                "paste-buffer",
+                "-p",
+                "-b",
+                &buffer,
+                "-t",
+                &target,
+            ],
             "paste-buffer",
         )?;
         Ok(())
@@ -1263,8 +1273,7 @@ pub async fn settle(
     let manifest = read_manifest_req(root)?;
     let name = session_name(root)?;
     let session = rmuxpoc::reuse_only(&link.rmux, name).await?;
-    let deadline =
-        std::time::Instant::now() + Duration::from_secs(wait_secs);
+    let deadline = std::time::Instant::now() + Duration::from_secs(wait_secs);
 
     // 窗口内外层循环（codex 复核抓的真缺陷：原「每路首扫未命中即 break」
     // 让 wait_secs 只对命中后超时生效，config 扫描后才出现的屏等不到）：
@@ -1337,7 +1346,10 @@ pub async fn settle(
             if confirmed {
                 entry.1.push(format!("{marker}:{}", keys.join("+")));
             } else {
-                eprintln!("settle.{}.stalled={marker}: marker still on screen; NOT re-sending keys", agent.name);
+                eprintln!(
+                    "settle.{}.stalled={marker}: marker still on screen; NOT re-sending keys",
+                    agent.name
+                );
                 entry.1.push(format!("stalled={marker}:{}", keys.join("+")));
                 stalled.insert(agent.name.clone());
             }
@@ -1442,7 +1454,11 @@ fn alloc_task_id(root: &Path) -> Result<String, String> {
     loop {
         let id = format!("t{n:03}");
         let probe = dir.join(format!("{id}.json"));
-        match std::fs::OpenOptions::new().write(true).create_new(true).open(&probe) {
+        match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&probe)
+        {
             Ok(_) => return Ok(id),
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
                 n += 1;
@@ -1517,10 +1533,8 @@ pub async fn run(
     }
 
     let (panes, _) = status(link, root).await?;
-    let by_agent: std::collections::HashMap<String, &PaneStatus> = panes
-        .iter()
-        .map(|p| (p.agent.clone(), p))
-        .collect();
+    let by_agent: std::collections::HashMap<String, &PaneStatus> =
+        panes.iter().map(|p| (p.agent.clone(), p)).collect();
 
     let mut sent = Vec::new();
     let mut skipped = Vec::new();
@@ -1613,7 +1627,10 @@ mod tests {
             })
         };
         // mac 实拍：claude 新问句菜单项、codex contents 问句菜单项、grok 带快捷键选项。
-        assert_eq!(hit_keys(&[" ❯ 1. Yes, I trust this folder"]), Some(&["Enter"][..]));
+        assert_eq!(
+            hit_keys(&[" ❯ 1. Yes, I trust this folder"]),
+            Some(&["Enter"][..])
+        );
         assert_eq!(hit_keys(&["› 1. Yes, continue"]), Some(&["Enter"][..]));
         assert_eq!(
             hit_keys(&["               Yes, proceed                 y"]),

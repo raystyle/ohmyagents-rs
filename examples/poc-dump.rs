@@ -19,8 +19,7 @@ async fn main() -> std::process::ExitCode {
 
 async fn run(root: &std::path::Path) -> Result<(), String> {
     let link = orch::connect(root, false).await?;
-    let manifest = orch::read_manifest_for(root)
-        .ok_or_else(|| "no manifest".to_string())?;
+    let manifest = orch::read_manifest_for(root).ok_or_else(|| "no manifest".to_string())?;
     let name = orch::session_name(root)?;
     let session = oma::rmuxpoc::reuse_only(&link.rmux, name).await?;
     for agent in &manifest.agents {
@@ -33,7 +32,10 @@ async fn run(root: &std::path::Path) -> Result<(), String> {
                         println!("{:02}|{}", i, line);
                     }
                 }
-                println!("-- cursor row={} col={} visible={}", snap.cursor.row, snap.cursor.col, snap.cursor.visible);
+                println!(
+                    "-- cursor row={} col={} visible={}",
+                    snap.cursor.row, snap.cursor.col, snap.cursor.visible
+                );
             }
             Err(e) => println!("snapshot error: {e}"),
         }

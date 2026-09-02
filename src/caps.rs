@@ -57,7 +57,13 @@ pub fn detect() -> CpuCaps {
 /// marker 行形态：`x86_64 avx=true avx2=true avx512f=false`（unknown 时同形）。
 pub fn caps_line(c: &CpuCaps) -> String {
     let f = |v: Option<bool>| v.map(|b| b.to_string()).unwrap_or_else(|| "unknown".into());
-    format!("{} avx={} avx2={} avx512f={}", c.arch, f(c.avx), f(c.avx2), f(c.avx512f))
+    format!(
+        "{} avx={} avx2={} avx512f={}",
+        c.arch,
+        f(c.avx),
+        f(c.avx2),
+        f(c.avx512f)
+    )
 }
 
 #[cfg(test)]
@@ -85,6 +91,9 @@ mod tests {
         assert_eq!(classify_probe_exit(Some(1)), "failed");
         assert_eq!(classify_probe_exit(None), "signal-exit");
         #[cfg(windows)]
-        assert_eq!(classify_probe_exit(Some(ILLEGAL_INSTRUCTION_EXIT)), "illegal-instruction");
+        assert_eq!(
+            classify_probe_exit(Some(ILLEGAL_INSTRUCTION_EXIT)),
+            "illegal-instruction"
+        );
     }
 }

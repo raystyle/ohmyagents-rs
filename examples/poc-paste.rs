@@ -72,7 +72,16 @@ fn paste_flow(
     // `start-server` alone would exit immediately (empty server), so the
     // first WMI command is `new-session` itself: daemon plus keeper session.
     let mut argv: Vec<&str> = vec![
-        "-L", label, "new-session", "-d", "-s", session, "-x", "120", "-y", "32",
+        "-L",
+        label,
+        "new-session",
+        "-d",
+        "-s",
+        session,
+        "-x",
+        "120",
+        "-y",
+        "32",
     ];
     let shell: Vec<String> = rmuxpoc::interactive_shell_argv();
     let shell_refs: Vec<&str> = shell.iter().map(String::as_str).collect();
@@ -118,7 +127,16 @@ fn paste_flow(
     )?;
     run_cli_checked(
         &rmux_bin,
-        &["-L", label, "paste-buffer", "-p", "-b", buffer, "-t", &target],
+        &[
+            "-L",
+            label,
+            "paste-buffer",
+            "-p",
+            "-b",
+            buffer,
+            "-t",
+            &target,
+        ],
         "paste-buffer",
     )?;
     println!("poc.paste.split=load-buffer+paste-buffer-p");
@@ -188,9 +206,7 @@ fn wait_marker(rmux_bin: &Path, label: &str, target: &str) -> Result<(), String>
             &rmux_bin,
             &["-L", label, "capture-pane", "-p", "-t", target],
         )?;
-        if out.status.success()
-            && String::from_utf8_lossy(&out.stdout).contains(MARKER)
-        {
+        if out.status.success() && String::from_utf8_lossy(&out.stdout).contains(MARKER) {
             return Ok(());
         }
         std::thread::sleep(Duration::from_millis(250));

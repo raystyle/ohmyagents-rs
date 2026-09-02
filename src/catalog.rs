@@ -258,19 +258,29 @@ mod tests {
         // grok 双 CDN（direct）：x.ai 主带版本通道，GCS 兜底。
         let grok = cat.find("grok").unwrap();
         assert_eq!(grok.sources.len(), 2);
-        assert!(matches!(&grok.sources[0], PinSource::Cdn { version_url, .. } if version_url.is_some()));
-        assert!(matches!(&grok.sources[1], PinSource::Cdn { version_url, .. } if version_url.is_none()));
+        assert!(
+            matches!(&grok.sources[0], PinSource::Cdn { version_url, .. } if version_url.is_some())
+        );
+        assert!(
+            matches!(&grok.sources[1], PinSource::Cdn { version_url, .. } if version_url.is_none())
+        );
         // kimi 双渠道（github 主 + cdn manifest 兜底），两家制品不同（zip vs single）。
         let kimi = cat.find("kimi").unwrap();
         assert_eq!(kimi.sources.len(), 2);
         assert!(matches!(kimi.sources[0], PinSource::Github { .. }));
-        assert!(matches!(&kimi.sources[1], PinSource::Cdn { style, .. } if *style == CdnStyle::Manifest));
+        assert!(
+            matches!(&kimi.sources[1], PinSource::Cdn { style, .. } if *style == CdnStyle::Manifest)
+        );
         assert_eq!(kimi.sources[0].assets()[0].kind, AgentKind::Zip);
         assert_eq!(kimi.sources[1].assets()[0].kind, AgentKind::Single);
         // github 家带 repo 与官方校验清单。
         let claude = cat.find("claude").unwrap();
-        assert!(matches!(&claude.sources[0], PinSource::Github { repo, .. } if repo == "anthropics/claude-code"));
-        assert!(matches!(&claude.sources[0], PinSource::Github { sums: Some(s), .. } if s.name.as_deref() == Some("SHASUMS256.txt")));
+        assert!(
+            matches!(&claude.sources[0], PinSource::Github { repo, .. } if repo == "anthropics/claude-code")
+        );
+        assert!(
+            matches!(&claude.sources[0], PinSource::Github { sums: Some(s), .. } if s.name.as_deref() == Some("SHASUMS256.txt"))
+        );
     }
 
     #[test]

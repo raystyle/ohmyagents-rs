@@ -112,7 +112,9 @@ fn init_inner(root: &std::path::Path) -> Result<(), String> {
     println!("init.agents_md=preserved");
     let claude_md = fs::read_to_string(root.join("CLAUDE.md")).map_err(|e| e.to_string())?;
     if claude_md.trim() != "@AGENTS.md" {
-        return Err(format!("CLAUDE.md must be the include line, got {claude_md:?}"));
+        return Err(format!(
+            "CLAUDE.md must be the include line, got {claude_md:?}"
+        ));
     }
     println!("init.claude_md=include");
 
@@ -120,12 +122,12 @@ fn init_inner(root: &std::path::Path) -> Result<(), String> {
     let v: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(&settings).map_err(|e| e.to_string())?)
             .map_err(|e| e.to_string())?;
-    let stop = v["hooks"]["Stop"]
-        .as_array()
-        .ok_or("Stop groups missing")?;
-    let foreign_kept = stop.iter().any(|g| g["hooks"][0]["command"]
-        .as_str()
-        .is_some_and(|c| c.ends_with("fmt.sh")));
+    let stop = v["hooks"]["Stop"].as_array().ok_or("Stop groups missing")?;
+    let foreign_kept = stop.iter().any(|g| {
+        g["hooks"][0]["command"]
+            .as_str()
+            .is_some_and(|c| c.ends_with("fmt.sh"))
+    });
     if !foreign_kept {
         return Err("foreign hook entry was dropped".into());
     }
@@ -161,7 +163,9 @@ fn fingerprint(paths: &[PathBuf]) -> Vec<Option<String>> {
     paths
         .iter()
         .map(|p| {
-            fs::read(p).ok().map(|bytes| format!("{:x}", Sha256::digest(bytes)))
+            fs::read(p)
+                .ok()
+                .map(|bytes| format!("{:x}", Sha256::digest(bytes)))
         })
         .collect()
 }

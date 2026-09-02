@@ -84,9 +84,7 @@ pub async fn run(args: ReplArgs) -> Result<(), String> {
     } else {
         let mut bound = None;
         for port in 7900..=7909 {
-            if let Ok(addr) =
-                crate::server::serve_in_background(root.clone(), port).await
-            {
+            if let Ok(addr) = crate::server::serve_in_background(root.clone(), port).await {
                 bound = Some(format!("http://{addr}"));
                 break;
             }
@@ -168,7 +166,10 @@ pub async fn run(args: ReplArgs) -> Result<(), String> {
 /// 起会话或重连；返回值仅为统一错误出口。
 async fn start_session(root: &std::path::Path, args: &ReplArgs) -> Result<(), String> {
     if orch::read_manifest_for(root).is_some() {
-        println!("oma.session=reconnected {}", orch::session_name(root)?.as_str());
+        println!(
+            "oma.session=reconnected {}",
+            orch::session_name(root)?.as_str()
+        );
         return Ok(());
     }
     let v = api::spawn(root, args.agents.clone(), args.stub).await?;
@@ -296,7 +297,10 @@ mod tests {
 
     #[test]
     fn status_table_aligns_columns() {
-        let panes = vec![pane("claude", Some(123), "idle"), pane("codex", Some(45678), "idle")];
+        let panes = vec![
+            pane("claude", Some(123), "idle"),
+            pane("codex", Some(45678), "idle"),
+        ];
         let table = render_status_table(&panes);
         let mut lines = table.lines();
         let header = lines.next().expect("header");
@@ -304,7 +308,10 @@ mod tests {
         let row1 = lines.next().expect("row1");
         let row2 = lines.next().expect("row2");
         assert!(header.contains("AGENT") && header.contains("TERMINAL") && header.contains("HOOK"));
-        assert!(sep.starts_with("------"), "separator dashes under AGENT column");
+        assert!(
+            sep.starts_with("------"),
+            "separator dashes under AGENT column"
+        );
         // 对齐契约：同列单元格起始字符位一致（idle 与 pid 列各验一次）。
         assert_eq!(row1.find("idle"), row2.find("idle"));
         assert_eq!(row1.find("123"), row2.find("45678"));

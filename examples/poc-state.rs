@@ -65,8 +65,11 @@ async fn state_inner(pane: &Pane) -> Result<(), String> {
     println!("poc.state.ready={}", TermState::Ready.oma_state());
 
     // 2. Quiet is not idle: screen static while a command runs.
-    send_line(pane, format!("Start-Sleep -Seconds 8; Write-Host {SLEEP_MARKER}"))
-        .await?;
+    send_line(
+        pane,
+        format!("Start-Sleep -Seconds 8; Write-Host {SLEEP_MARKER}"),
+    )
+    .await?;
     tokio::time::sleep(Duration::from_secs(1)).await;
     let quiet = pane
         .wait_until_stable_for(Duration::from_millis(1200))
@@ -95,7 +98,9 @@ async fn state_inner(pane: &Pane) -> Result<(), String> {
     // 3. Confirm form: tail keyword -> blocked, then answer via Drive.
     send_line(
         pane,
-        format!("Write-Host 'Allow this action? [y/n]'; $r = Read-Host; Write-Host '{CONFIRM_ANSWER}'"),
+        format!(
+            "Write-Host 'Allow this action? [y/n]'; $r = Read-Host; Write-Host '{CONFIRM_ANSWER}'"
+        ),
     )
     .await?;
     wait_for_state(pane, TermState::Confirm, "confirm prompt").await?;
@@ -144,7 +149,10 @@ async fn send_line(pane: &Pane, text: String) -> Result<(), String> {
 }
 
 async fn classify(pane: &Pane) -> Result<TermState, String> {
-    let snap = pane.snapshot().await.map_err(|e| format!("snapshot: {e}"))?;
+    let snap = pane
+        .snapshot()
+        .await
+        .map_err(|e| format!("snapshot: {e}"))?;
     Ok(rmuxpoc::classify_snapshot(&snap))
 }
 
@@ -156,5 +164,7 @@ async fn wait_for_state(pane: &Pane, want: TermState, what: &str) -> Result<(), 
         }
         tokio::time::sleep(Duration::from_millis(150)).await;
     }
-    Err(format!("state {want:?} ({what}) not reached within deadline"))
+    Err(format!(
+        "state {want:?} ({what}) not reached within deadline"
+    ))
 }

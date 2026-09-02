@@ -33,8 +33,8 @@ async fn run() -> Result<(), String> {
     let name = rmuxpoc::poc_session_name("neg")?;
     println!("poc.session={}", name.as_str());
 
-    let session = rmuxpoc::create_only(&rmux, name.clone(), rmuxpoc::interactive_shell_argv())
-        .await?;
+    let session =
+        rmuxpoc::create_only(&rmux, name.clone(), rmuxpoc::interactive_shell_argv()).await?;
     let result = negatives_inner(&rmux, &session).await;
     // Same cleanup rule as every POC: session-scoped kill only.
     let _ = rmuxpoc::kill_handle(&session).await;
@@ -61,7 +61,9 @@ async fn negatives_inner(rmux: &rmux_sdk::Rmux, session: &Session) -> Result<(),
     // The stub survived: same pid, pane still listed.
     let pid_after = rmuxpoc::running_pid(&pane).await?;
     if pid_after != pid {
-        return Err(format!("pane process changed {pid} -> {pid_after}; guard leaked a send"));
+        return Err(format!(
+            "pane process changed {pid} -> {pid_after}; guard leaked a send"
+        ));
     }
     println!("poc.negatives.c_c_codex.survived=true");
 
@@ -78,9 +80,12 @@ async fn negatives_inner(rmux: &rmux_sdk::Rmux, session: &Session) -> Result<(),
     // 2. Cleanup kills only its own session: a sibling session on the same
     //    dedicated daemon must keep living after ours is killed.
     let sibling_name = rmuxpoc::poc_session_name("ng2")?;
-    let sibling =
-        rmuxpoc::create_only(rmux, sibling_name.clone(), rmuxpoc::keep_alive_echo("SIBLING"))
-            .await?;
+    let sibling = rmuxpoc::create_only(
+        rmux,
+        sibling_name.clone(),
+        rmuxpoc::keep_alive_echo("SIBLING"),
+    )
+    .await?;
     let self_killed = rmuxpoc::kill_handle(session).await?;
     println!("poc.negatives.self_killed={self_killed}");
     if session.exists().await.map_err(|e| e.to_string())? {
@@ -100,7 +105,8 @@ async fn negatives_inner(rmux: &rmux_sdk::Rmux, session: &Session) -> Result<(),
     //    (P0005 acceptance: negatives must not join src\ success paths).
     //    Examples may state the rule in comments, hence src-only scanning.
     for file in source_files()? {
-        let text = std::fs::read_to_string(&file).map_err(|e| format!("{}: {e}", file.display()))?;
+        let text =
+            std::fs::read_to_string(&file).map_err(|e| format!("{}: {e}", file.display()))?;
         if text.contains('k') && text.contains("ill-server") {
             return Err(format!("daemon-wide kill leaked into {}", file.display()));
         }

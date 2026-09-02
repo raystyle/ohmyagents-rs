@@ -94,7 +94,11 @@ const STILL_ACTIVE: u32 = 259;
 #[cfg(windows)]
 #[link(name = "kernel32")]
 extern "system" {
-    fn OpenProcess(desired_access: u32, inherit_handle: i32, process_id: u32) -> *mut core::ffi::c_void;
+    fn OpenProcess(
+        desired_access: u32,
+        inherit_handle: i32,
+        process_id: u32,
+    ) -> *mut core::ffi::c_void;
     fn GetExitCodeProcess(handle: *mut core::ffi::c_void, exit_code: *mut u32) -> i32;
     fn CloseHandle(handle: *mut core::ffi::c_void) -> i32;
 }
@@ -189,7 +193,10 @@ pub fn serve_start(root: &Path, port: u16) -> Result<String, String> {
         }
         std::thread::sleep(Duration::from_millis(200));
     }
-    Err(format!("serve daemon port {port} not ready in 10s; log: {}", log.display()))
+    Err(format!(
+        "serve daemon port {port} not ready in 10s; log: {}",
+        log.display()
+    ))
 }
 
 /// 停止：协议化优先（`DELETE /shutdown` 请 daemon 优雅排空自退，rmux
@@ -241,7 +248,10 @@ pub fn serve_stop(root: &Path) -> Result<bool, String> {
 /// 状态：`(活?, 记录)`。
 pub fn serve_status(root: &Path) -> (bool, Option<ServeRecord>) {
     let rec = read_record(root);
-    let live = rec.as_ref().map(|r| pid_alive(r.pid) && port_listening(r.port)).unwrap_or(false);
+    let live = rec
+        .as_ref()
+        .map(|r| pid_alive(r.pid) && port_listening(r.port))
+        .unwrap_or(false);
     (live, rec)
 }
 

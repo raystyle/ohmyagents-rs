@@ -11,7 +11,9 @@ use std::path::{Path, PathBuf};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{CallToolResult, ServerCapabilities, ServerInfo};
 use rmcp::transport::io::stdio;
-use rmcp::{schemars, serve_server, tool, tool_handler, tool_router, ErrorData as McpError, ServerHandler};
+use rmcp::{
+    schemars, serve_server, tool, tool_handler, tool_router, ErrorData as McpError, ServerHandler,
+};
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -44,16 +46,25 @@ pub async fn run(root: PathBuf) -> Result<(), String> {
 
 impl OmaMcp {
     pub fn new(root: PathBuf) -> Self {
-        Self { root, gate: std::sync::Arc::new(tokio::sync::Mutex::new(())) }
+        Self {
+            root,
+            gate: std::sync::Arc::new(tokio::sync::Mutex::new(())),
+        }
     }
 }
 
 /// 信封化：与 HTTP server 同形，传输只换壳。
-fn envelope(command: &str, root: &Path, outcome: Result<Value, String>) -> Result<CallToolResult, McpError> {
+fn envelope(
+    command: &str,
+    root: &Path,
+    outcome: Result<Value, String>,
+) -> Result<CallToolResult, McpError> {
     let meta = json!({ "command": command, "project": root.display().to_string() });
     Ok(match outcome {
         Ok(data) => CallToolResult::structured(json!({ "ok": true, "data": data, "meta": meta })),
-        Err(e) => CallToolResult::structured_error(json!({ "ok": false, "error": e, "meta": meta })),
+        Err(e) => {
+            CallToolResult::structured_error(json!({ "ok": false, "error": e, "meta": meta }))
+        }
     })
 }
 
@@ -113,7 +124,9 @@ struct SearchParams {
 
 #[tool_router]
 impl OmaMcp {
-    #[tool(description = "在项目专属会话拉起多路终端 agent（claude/codex/grok/kimi）；agents 缺省取已装交集，stub 用 shell 桩；拉起后自动过一轮信任框（同 CLI/HTTP 通道）")]
+    #[tool(
+        description = "在项目专属会话拉起多路终端 agent（claude/codex/grok/kimi）；agents 缺省取已装交集，stub 用 shell 桩；拉起后自动过一轮信任框（同 CLI/HTTP 通道）"
+    )]
     async fn oma_spawn(
         &self,
         Parameters(SpawnParams { agents, stub }): Parameters<SpawnParams>,
@@ -134,10 +147,16 @@ impl OmaMcp {
         envelope("status", &self.root, api::status(&self.root).await)
     }
 
-    #[tool(description = "向会话内某路 agent 发任务文本（多行自动走三段式粘贴）；confirm 为期望可见的确认短头；开始确认与告警同 CLI/HTTP")]
+    #[tool(
+        description = "向会话内某路 agent 发任务文本（多行自动走三段式粘贴）；confirm 为期望可见的确认短头；开始确认与告警同 CLI/HTTP"
+    )]
     async fn oma_send(
         &self,
-        Parameters(SendParams { agent, text, confirm }): Parameters<SendParams>,
+        Parameters(SendParams {
+            agent,
+            text,
+            confirm,
+        }): Parameters<SendParams>,
     ) -> Result<CallToolResult, McpError> {
         // 锁内粘贴、锁外确认（同 HTTP 形态）。
         let mut out = {
@@ -150,10 +169,16 @@ impl OmaMcp {
         envelope("send", &self.root, out)
     }
 
-    #[tool(description = "状态门分派任务到多路 agent：一路 blocked/busy 跳过不堵其它路；assign 指定分派路，缺省全会话")]
+    #[tool(
+        description = "状态门分派任务到多路 agent：一路 blocked/busy 跳过不堵其它路；assign 指定分派路，缺省全会话"
+    )]
     async fn oma_run(
         &self,
-        Parameters(RunParams { text, assign, confirm }): Parameters<RunParams>,
+        Parameters(RunParams {
+            text,
+            assign,
+            confirm,
+        }): Parameters<RunParams>,
     ) -> Result<CallToolResult, McpError> {
         let mut out = {
             let _guard = self.gate.lock().await;
@@ -165,7 +190,9 @@ impl OmaMcp {
         envelope("run", &self.root, out)
     }
 
-    #[tool(description = "自检测并自动确认信任/审查框（各家自己持久化信任；密码类永不自动）；wait 为全局扫描窗口秒数（显式 settle 缺省 30，上限 600）")]
+    #[tool(
+        description = "自检测并自动确认信任/审查框（各家自己持久化信任；密码类永不自动）；wait 为全局扫描窗口秒数（显式 settle 缺省 30，上限 600）"
+    )]
     async fn oma_settle(
         &self,
         Parameters(SettleParams { wait }): Parameters<SettleParams>,
@@ -186,32 +213,58 @@ impl OmaMcp {
 
     #[tool(description = "检索项目内各 agent 的原生会话（四家联邦：claude/codex/grok/kimi）")]
     fn oma_trace_sessions(&self) -> Result<CallToolResult, McpError> {
-        envelope("trace.sessions", &self.root, Ok(api::trace_sessions(&self.root)))
+        envelope(
+            "trace.sessions",
+            &self.root,
+            Ok(api::trace_sessions(&self.root)),
+        )
     }
 
-    #[tool(description = "检索项目编辑轨迹（意图操作块元素视图）：每条编辑带 operation_id、kind、双意图")]
+    #[tool(
+        description = "检索项目编辑轨迹（意图操作块元素视图）：每条编辑带 operation_id、kind、双意图"
+    )]
     fn oma_trace_timeline(
         &self,
         Parameters(TimelineParams { agent, file, limit }): Parameters<TimelineParams>,
     ) -> Result<CallToolResult, McpError> {
-        let limit = limit.unwrap_or(crate::trace::DEFAULT_LIMIT).clamp(1, crate::trace::MAX_LIMIT);
+        let limit = limit
+            .unwrap_or(crate::trace::DEFAULT_LIMIT)
+            .clamp(1, crate::trace::MAX_LIMIT);
         envelope(
             "trace.timeline",
             &self.root,
-            Ok(api::trace_timeline(&self.root, agent.as_deref(), file.as_deref(), limit)),
+            Ok(api::trace_timeline(
+                &self.root,
+                agent.as_deref(),
+                file.as_deref(),
+                limit,
+            )),
         )
     }
 
-    #[tool(description = "按正则检索 patch、file、双意图四域（非法正则退字面子串）；命中带 patch 全文")]
+    #[tool(
+        description = "按正则检索 patch、file、双意图四域（非法正则退字面子串）；命中带 patch 全文"
+    )]
     fn oma_trace_search(
         &self,
-        Parameters(SearchParams { query, agent, limit }): Parameters<SearchParams>,
+        Parameters(SearchParams {
+            query,
+            agent,
+            limit,
+        }): Parameters<SearchParams>,
     ) -> Result<CallToolResult, McpError> {
-        let limit = limit.unwrap_or(crate::trace::DEFAULT_LIMIT).clamp(1, crate::trace::MAX_LIMIT);
+        let limit = limit
+            .unwrap_or(crate::trace::DEFAULT_LIMIT)
+            .clamp(1, crate::trace::MAX_LIMIT);
         envelope(
             "trace.search",
             &self.root,
-            Ok(api::trace_search(&self.root, &query, agent.as_deref(), limit)),
+            Ok(api::trace_search(
+                &self.root,
+                &query,
+                agent.as_deref(),
+                limit,
+            )),
         )
     }
 }

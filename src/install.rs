@@ -8,7 +8,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
 
-use crate::catalog::{AgentAsset, AgentKind, AgentPin, AgentsCatalog, CdnStyle, PinSource, SumsMode};
+use crate::catalog::{
+    AgentAsset, AgentKind, AgentPin, AgentsCatalog, CdnStyle, PinSource, SumsMode,
+};
 use crate::rmux::{copy_dir, extract_tar_gz, extract_zip, sha256_file};
 
 const UA: &str = "ohmyagents-oma";
@@ -107,7 +109,11 @@ pub fn install_pin(pin: &AgentPin, home: &Path, force: bool) -> Result<InstallOu
     if !force {
         if let Some(hit) = crate::agents::Probe::from_env().find(&pin.name) {
             return Ok(InstallOutcome::Skipped {
-                detail: format!("already installed ({}: {})", hit.source.as_str(), hit.path.display()),
+                detail: format!(
+                    "already installed ({}: {})",
+                    hit.source.as_str(),
+                    hit.path.display()
+                ),
             });
         }
     }
@@ -115,7 +121,10 @@ pub fn install_pin(pin: &AgentPin, home: &Path, force: bool) -> Result<InstallOu
     let mut last_err = String::new();
     for (idx, src) in pin.sources.iter().enumerate() {
         let Some(asset) = pin.asset_for(idx, os, arch) else {
-            last_err = format!("source {} has no pinned asset for {os}-{arch}", src.kind_name());
+            last_err = format!(
+                "source {} has no pinned asset for {os}-{arch}",
+                src.kind_name()
+            );
             continue;
         };
         match install_from_source(pin, src, asset, home) {
@@ -267,7 +276,12 @@ pub fn find_binary(root: &Path, binary: &str) -> Option<PathBuf> {
     best.map(|(_, p)| p)
 }
 
-fn write_manifest(dir: &Path, pin: &AgentPin, asset: &AgentAsset, bin: &Path) -> Result<(), String> {
+fn write_manifest(
+    dir: &Path,
+    pin: &AgentPin,
+    asset: &AgentAsset,
+    bin: &Path,
+) -> Result<(), String> {
     let rel = bin.strip_prefix(dir).unwrap_or(bin);
     let bin_sha = sha256_file(bin).map_err(|e| e.to_string())?;
     let body = format!(
@@ -310,7 +324,9 @@ pub fn probe_version(bin: &Path) -> Option<String> {
 pub fn managed_binaries(home: &Path) -> Vec<(String, PathBuf)> {
     let mut out = Vec::new();
     let root = agents_root(home);
-    let Ok(names) = fs::read_dir(&root) else { return out };
+    let Ok(names) = fs::read_dir(&root) else {
+        return out;
+    };
     for ent in names.flatten() {
         let name_dir = ent.path();
         if !name_dir.is_dir() {
@@ -336,7 +352,9 @@ pub fn managed_binaries(home: &Path) -> Vec<(String, PathBuf)> {
 pub fn managed_version(home: &Path, name: &str) -> Option<String> {
     let dir = agents_root(home).join(name);
     let mut best: Option<String> = None;
-    let Ok(vers) = fs::read_dir(&dir) else { return None };
+    let Ok(vers) = fs::read_dir(&dir) else {
+        return None;
+    };
     for v in vers.flatten() {
         let manifest = v.path().join(MANIFEST_NAME);
         if let Some(ver) = manifest_field(&manifest, "version") {
@@ -377,9 +395,7 @@ fn download(url: &str, dest: &Path) -> Result<(), String> {
             }
         }
     }
-    let resp = req
-        .call()
-        .map_err(|e| format!("GET {url}: {e}"))?;
+    let resp = req.call().map_err(|e| format!("GET {url}: {e}"))?;
     if resp.status() != 200 {
         return Err(format!("GET {url} -> HTTP {}", resp.status()));
     }
@@ -427,7 +443,9 @@ pub fn update_agent(home: &Path, name: &str, force: bool) -> Result<UpdateOutcom
 
     let latest = resolve_latest(&pin)?;
     if !force && version_ge(&pin.version, &latest.version) {
-        return Ok(UpdateOutcome::UpToDate { version: pin.version });
+        return Ok(UpdateOutcome::UpToDate {
+            version: pin.version,
+        });
     }
 
     let new_pin = refresh_pin(&pin, &latest)?;
@@ -460,7 +478,9 @@ pub struct Latest {
 pub fn resolve_latest(pin: &AgentPin) -> Result<Latest, String> {
     match &pin.sources[0] {
         PinSource::Github { repo, .. } => {
-            let text = http_text(&format!("https://api.github.com/repos/{repo}/releases/latest"))?;
+            let text = http_text(&format!(
+                "https://api.github.com/repos/{repo}/releases/latest"
+            ))?;
             let json: serde_json::Value =
                 serde_json::from_str(&text).map_err(|e| format!("parse release json: {e}"))?;
             let tag = json["tag_name"]
@@ -470,7 +490,12 @@ pub fn resolve_latest(pin: &AgentPin) -> Result<Latest, String> {
             let version = version_from_tag(&tag);
             Ok(Latest { tag, version })
         }
-        PinSource::Cdn { base, style, version_url, .. } => match style {
+        PinSource::Cdn {
+            base,
+            style,
+            version_url,
+            ..
+        } => match style {
             CdnStyle::Direct => {
                 let url = version_url
                     .as_deref()
@@ -508,7 +533,12 @@ fn refresh_pin(pin: &AgentPin, latest: &Latest) -> Result<AgentPin, String> {
                     assets: new_assets,
                 });
             }
-            PinSource::Cdn { base, style, version_url, assets } => match style {
+            PinSource::Cdn {
+                base,
+                style,
+                version_url,
+                assets,
+            } => match style {
                 CdnStyle::Manifest => {
                     let new_assets = refresh_manifest_assets(base, latest, assets)?;
                     sources.push(PinSource::Cdn {
@@ -672,8 +702,12 @@ fn refresh_manifest_assets(
         let entry = json["platforms"][&plat]
             .as_object()
             .ok_or_else(|| format!("manifest has no platform {plat}"))?;
-        let name = entry["filename"].as_str().ok_or("manifest entry no filename")?;
-        let sha = entry["checksum"].as_str().ok_or("manifest entry no checksum")?;
+        let name = entry["filename"]
+            .as_str()
+            .ok_or("manifest entry no filename")?;
+        let sha = entry["checksum"]
+            .as_str()
+            .ok_or("manifest entry no checksum")?;
         if !is_sha256_hex(sha) {
             return Err(format!("manifest checksum invalid for {plat}: {sha}"));
         }
@@ -780,7 +814,12 @@ pub fn render_catalog(catalog: &AgentsCatalog) -> String {
                     }
                     push_assets(&mut out, assets);
                 }
-                PinSource::Cdn { base, style, version_url, assets } => {
+                PinSource::Cdn {
+                    base,
+                    style,
+                    version_url,
+                    assets,
+                } => {
                     out.push_str("\n[[agents.sources]]\nkind = \"cdn\"\n");
                     out.push_str(&format!("base = \"{base}\"\n"));
                     out.push_str(&format!(

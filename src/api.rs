@@ -23,11 +23,7 @@ pub fn envelope(command: &str, root: &Path, outcome: Result<Value, String>) -> V
 
 /// 和解式拉起（P0024）：会话不在新开；在则活路附加、死路重开。
 /// 命令面只见 agent 实例，窗格复杂性绑在背后。
-pub async fn spawn(
-    root: &Path,
-    agents: Option<Vec<String>>,
-    stub: bool,
-) -> Result<Value, String> {
+pub async fn spawn(root: &Path, agents: Option<Vec<String>>, stub: bool) -> Result<Value, String> {
     let plan = orch::plan_agents(agents, stub)?;
     let link = orch::connect(root, true).await?;
     let out = orch::reconcile(&link, root, &plan).await?;
@@ -118,7 +114,11 @@ pub async fn send_finalize(root: &Path, agent: &str, v: &mut Value) {
 pub async fn run_finalize(root: &Path, v: &mut Value) {
     let sent: Vec<String> = v["sent"]
         .as_array()
-        .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|x| x.as_str().map(String::from))
+                .collect()
+        })
         .unwrap_or_default();
     let Ok(link) = orch::connect(root, false).await else {
         return;
@@ -141,7 +141,11 @@ pub async fn spawn_finalize(root: &Path, v: &mut Value) {
         Ok(link) => {
             let respawned: Vec<String> = v["respawned"]
                 .as_array()
-                .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|x| x.as_str().map(String::from))
+                        .collect()
+                })
                 .unwrap_or_default();
             orch::await_lanes_ready(&link, root, &respawned).await
         }
@@ -280,7 +284,11 @@ pub async fn web_share(
         None => orch::session_name(root)?.as_str().to_string(),
     };
     let ttl_s = ttl.to_string();
-    let mode = if spectator { "--spectator-only" } else { "--operator-only" };
+    let mode = if spectator {
+        "--spectator-only"
+    } else {
+        "--operator-only"
+    };
     let mut argv: Vec<String> = vec![
         "web-share".into(),
         "-t".into(),
@@ -339,14 +347,20 @@ pub async fn web_share(
         .find(|l| l.trim_start().starts_with("share expires"))
         .and_then(|l| l.split_whitespace().last())
         .unwrap_or_default();
-    Ok(json!({ "agent": agent.unwrap_or("*session*"), "url": url, "pin": pin, "expires": expires, "warning": warning }))
+    Ok(
+        json!({ "agent": agent.unwrap_or("*session*"), "url": url, "pin": pin, "expires": expires, "warning": warning }),
+    )
 }
 
 /// 列活动 share（web-share list：`<id> <session>:<pane> ...`）。
 pub async fn web_shares(root: &Path) -> Result<Value, String> {
     let link = orch::connect(root, false).await?;
     let text = tokio::task::spawn_blocking(move || {
-        web_share_cli(link.rmux_bin.clone(), link.label.clone(), vec!["web-share".into(), "list".into()])
+        web_share_cli(
+            link.rmux_bin.clone(),
+            link.label.clone(),
+            vec!["web-share".into(), "list".into()],
+        )
     })
     .await
     .map_err(|e| format!("web-share join: {e}"))??;

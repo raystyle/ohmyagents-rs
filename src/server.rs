@@ -29,7 +29,6 @@ use tokio_stream::wrappers::ReceiverStream;
 use crate::api;
 use crate::orch;
 
-
 /// 优雅停机标志（rmux kill-server 同款协议化自杀，S023）：`DELETE /shutdown`
 /// 置位，`with_graceful_shutdown` 轮询到后排空在途请求退出。
 #[derive(Clone, Default)]
@@ -143,7 +142,10 @@ fn sse_error_reply(command: &str, root: &Path, msg: String) -> Response {
     .unwrap_or_default();
     (
         [
-            (axum::http::header::CONTENT_TYPE, "text/event-stream; charset=utf-8"),
+            (
+                axum::http::header::CONTENT_TYPE,
+                "text/event-stream; charset=utf-8",
+            ),
             (axum::http::header::CACHE_CONTROL, "no-store"),
         ],
         format!("event: error\ndata: {body}\n\n"),
@@ -164,10 +166,20 @@ async fn host_guard(
         .get(axum::http::header::HOST)
         .and_then(|h| h.to_str().ok())
     else {
-        return err_reply("host-guard", Path::new(""), StatusCode::BAD_REQUEST, "missing Host header".into());
+        return err_reply(
+            "host-guard",
+            Path::new(""),
+            StatusCode::BAD_REQUEST,
+            "missing Host header".into(),
+        );
     };
     if !host_is_local(host) {
-        return err_reply("host-guard", Path::new(""), StatusCode::BAD_REQUEST, format!("non-local Host: {host}"));
+        return err_reply(
+            "host-guard",
+            Path::new(""),
+            StatusCode::BAD_REQUEST,
+            format!("non-local Host: {host}"),
+        );
     }
     next.run(req).await
 }
@@ -210,10 +222,7 @@ fn router(state: Arc<ServeState>) -> axum::Router {
 /// SSE 终端镜像（P0019）：`render_stream` 是 daemon 侧 surface 投影（非视觉
 /// 输出在 daemon 已过滤），每次更新发全屏 `visible_lines`（JSON 数组）——
 /// 网页替换渲染，TUI 画面无 ANSI 转义。`/stream` 的行日志仍保留（append 面）。
-async fn screen(
-    State(st): State<Arc<ServeState>>,
-    AxPath(agent): AxPath<String>,
-) -> Response {
+async fn screen(State(st): State<Arc<ServeState>>, AxPath(agent): AxPath<String>) -> Response {
     let command = "screen";
     let link = match orch::connect(&st.root, false).await {
         Ok(l) => l,
@@ -239,7 +248,9 @@ async fn screen(
         match first {
             Ok(lines) => {
                 if tx
-                    .send(Ok(Event::default().data(serde_json::to_string(&lines).unwrap_or_default())))
+                    .send(Ok(
+                        Event::default().data(serde_json::to_string(&lines).unwrap_or_default())
+                    ))
                     .await
                     .is_err()
                 {
@@ -248,7 +259,9 @@ async fn screen(
             }
             Err(_) => {
                 if tx
-                    .send(Ok(Event::default().event("error").data("first snapshot unavailable")))
+                    .send(Ok(Event::default()
+                        .event("error")
+                        .data("first snapshot unavailable")))
                     .await
                     .is_err()
                 {
@@ -261,7 +274,8 @@ async fn screen(
                 Ok(Some(update)) => {
                     let lines = update.snapshot().visible_lines();
                     if tx
-                        .send(Ok(Event::default().data(serde_json::to_string(&lines).unwrap_or_default())))
+                        .send(Ok(Event::default()
+                            .data(serde_json::to_string(&lines).unwrap_or_default())))
                         .await
                         .is_err()
                     {
@@ -292,10 +306,7 @@ async fn trace_sessions(State(st): State<Arc<ServeState>>) -> Response {
     ok_reply("trace.sessions", &st.root, api::trace_sessions(&st.root))
 }
 
-async fn trace_timeline(
-    State(st): State<Arc<ServeState>>,
-    Query(q): Query<TraceQ>,
-) -> Response {
+async fn trace_timeline(State(st): State<Arc<ServeState>>, Query(q): Query<TraceQ>) -> Response {
     let limit = q
         .limit
         .unwrap_or(crate::trace::DEFAULT_LIMIT)
@@ -349,7 +360,7 @@ struct SettleReq {
 
 /// 前端静态目录托管：读盘 + 扩展名 MIME + ACAO（crossorigin=anonymous 资源
 /// 的 CORS 校验）+ no-store（SRI 与资产演进同步）。路径规范化防穿越。
-fn kanban_read(dir: &Path, rel: &str) ->Option<(&'static str, Vec<u8>)> {
+fn kanban_read(dir: &Path, rel: &str) -> Option<(&'static str, Vec<u8>)> {
     use std::path::Component;
     let base = dir;
     let mut full = base.to_path_buf();
@@ -386,7 +397,12 @@ fn kanban_reply(dir: &Path, rel: &str) -> Response {
             body,
         )
             .into_response(),
-        None => err_reply("kanban", dir, StatusCode::NOT_FOUND, format!("{rel} not found")),
+        None => err_reply(
+            "kanban",
+            dir,
+            StatusCode::NOT_FOUND,
+            format!("{rel} not found"),
+        ),
     }
 }
 
@@ -408,16 +424,18 @@ fn host_is_local(host: &str) -> bool {
 /// 由 Host 校验挡住，公网中继线走 `oma web` 的 PIN 与警示），200 直出前端
 /// HTML 并注入 hash-shim（无 hash 时 replace 到 `/#t=`，一次自载后前端按
 /// hash 连接——302 方案会对 `/` 自旋）。
-async fn home(
-    State(st): State<Arc<ServeState>>,
-    headers: axum::http::HeaderMap,
-) -> Response {
+async fn home(State(st): State<Arc<ServeState>>, headers: axum::http::HeaderMap) -> Response {
     let host = headers
         .get(axum::http::header::HOST)
         .and_then(|h| h.to_str().ok())
         .unwrap_or("127.0.0.1:7900");
     if !host_is_local(host) {
-        return err_reply("home", &st.root, StatusCode::BAD_REQUEST, format!("non-local Host: {host}"));
+        return err_reply(
+            "home",
+            &st.root,
+            StatusCode::BAD_REQUEST,
+            format!("non-local Host: {host}"),
+        );
     }
     // token 与 serve 同生命周期：页面刷新复用同一 share，不清不重建；
     // 但 share TTL 固定 12h（relay1 codex 中项跨三轮遗留）——缓存记到期
@@ -435,7 +453,10 @@ async fn home(
         let fe = format!("http://{host}/");
         match api::web_share(&st.root, None, false, SHARE_TTL, Some(&fe), true).await {
             Ok(v) => {
-                let token = v["url"].as_str().and_then(|u| u.split("#t=").nth(1)).map(String::from);
+                let token = v["url"]
+                    .as_str()
+                    .and_then(|u| u.split("#t=").nth(1))
+                    .map(String::from);
                 match token {
                     Some(t) => {
                         // 旧 share 不主动拆（relay3 kimi13 清死代码）：rmux 侧
@@ -448,7 +469,12 @@ async fn home(
                         if cached.as_ref().is_some_and(|(_, exp)| now < *exp) {
                             eprintln!("home.share=renew-parse-failed; keeping old token");
                         } else {
-                            return err_reply("home", &st.root, StatusCode::OK, "mirror url missing token".into());
+                            return err_reply(
+                                "home",
+                                &st.root,
+                                StatusCode::OK,
+                                "mirror url missing token".into(),
+                            );
                         }
                     }
                 }
@@ -465,17 +491,28 @@ async fn home(
         }
     }
     let Some((token, _)) = cached.clone() else {
-        return err_reply("home", &st.root, StatusCode::OK, "mirror url missing token".into());
+        return err_reply(
+            "home",
+            &st.root,
+            StatusCode::OK,
+            "mirror url missing token".into(),
+        );
     };
     // 资源已在 serve 启动时释放进 ServeState（P0026 低13：不再重复扫描）。
     let kanban_dir = st.kanban.clone();
     let mut html = match kanban_read(&kanban_dir, "index.html") {
         Some((_, b)) => String::from_utf8_lossy(&b).into_owned(),
-        None => return err_reply("home", &st.root, StatusCode::NOT_FOUND, format!("{}: index.html", kanban_dir.display())),
+        None => {
+            return err_reply(
+                "home",
+                &st.root,
+                StatusCode::NOT_FOUND,
+                format!("{}: index.html", kanban_dir.display()),
+            )
+        }
     };
-    let shim = format!(
-        "<script>if(!location.hash)location.replace('/#t={token}');</script></body>"
-    );
+    let shim =
+        format!("<script>if(!location.hash)location.replace('/#t={token}');</script></body>");
     html = html.replacen("</body>", &shim, 1);
     (
         [
@@ -495,7 +532,10 @@ async fn kanban_asset(State(st): State<Arc<ServeState>>, AxPath(path): AxPath<St
     kanban_reply(&st.kanban, &path)
 }
 
-async fn kanban_astro_asset(State(st): State<Arc<ServeState>>, AxPath(path): AxPath<String>) -> Response {
+async fn kanban_astro_asset(
+    State(st): State<Arc<ServeState>>,
+    AxPath(path): AxPath<String>,
+) -> Response {
     kanban_reply(&st.kanban, &format!("_astro/{path}"))
 }
 
@@ -512,7 +552,11 @@ async fn share_session(
         pin: Option<String>,
     }
     let req: ShareReq = if body.trim().is_empty() {
-        ShareReq { spectator: None, ttl: None, pin: None }
+        ShareReq {
+            spectator: None,
+            ttl: None,
+            pin: None,
+        }
     } else {
         match parse_body(&body, command, &st.root) {
             Ok(r) => r,
@@ -523,9 +567,17 @@ async fn share_session(
         .get(axum::http::header::HOST)
         .and_then(|h| h.to_str().ok())
         .map(|host| format!("http://{host}/"));
-    if let Some(h) = headers.get(axum::http::header::HOST).and_then(|h| h.to_str().ok()) {
+    if let Some(h) = headers
+        .get(axum::http::header::HOST)
+        .and_then(|h| h.to_str().ok())
+    {
         if !host_is_local(h) {
-            return err_reply(command, &st.root, StatusCode::BAD_REQUEST, format!("non-local Host: {h}"));
+            return err_reply(
+                command,
+                &st.root,
+                StatusCode::BAD_REQUEST,
+                format!("non-local Host: {h}"),
+            );
         }
     }
     let no_pin = fe.is_some() && req.pin.as_deref() != Some("on");
@@ -534,7 +586,15 @@ async fn share_session(
     finish(
         command,
         &st.root,
-        api::web_share(&st.root, None, req.spectator.unwrap_or(false), req.ttl.unwrap_or(3600), fe.as_deref(), no_pin).await,
+        api::web_share(
+            &st.root,
+            None,
+            req.spectator.unwrap_or(false),
+            req.ttl.unwrap_or(3600),
+            fe.as_deref(),
+            no_pin,
+        )
+        .await,
     )
 }
 
@@ -553,7 +613,11 @@ async fn share_agent(
         pin: Option<String>,
     }
     let req: ShareReq = if body.trim().is_empty() {
-        ShareReq { spectator: None, ttl: None, pin: None }
+        ShareReq {
+            spectator: None,
+            ttl: None,
+            pin: None,
+        }
     } else {
         match parse_body(&body, command, &st.root) {
             Ok(r) => r,
@@ -564,9 +628,17 @@ async fn share_agent(
         .get(axum::http::header::HOST)
         .and_then(|h| h.to_str().ok())
         .map(|host| format!("http://{host}/"));
-    if let Some(h) = headers.get(axum::http::header::HOST).and_then(|h| h.to_str().ok()) {
+    if let Some(h) = headers
+        .get(axum::http::header::HOST)
+        .and_then(|h| h.to_str().ok())
+    {
         if !host_is_local(h) {
-            return err_reply(command, &st.root, StatusCode::BAD_REQUEST, format!("non-local Host: {h}"));
+            return err_reply(
+                command,
+                &st.root,
+                StatusCode::BAD_REQUEST,
+                format!("non-local Host: {h}"),
+            );
         }
     }
     let no_pin = fe.is_some() && req.pin.as_deref() != Some("on");
@@ -574,7 +646,15 @@ async fn share_agent(
     finish(
         command,
         &st.root,
-        api::web_share(&st.root, Some(&agent), req.spectator.unwrap_or(false), req.ttl.unwrap_or(3600), fe.as_deref(), no_pin).await,
+        api::web_share(
+            &st.root,
+            Some(&agent),
+            req.spectator.unwrap_or(false),
+            req.ttl.unwrap_or(3600),
+            fe.as_deref(),
+            no_pin,
+        )
+        .await,
     )
 }
 
@@ -590,7 +670,11 @@ async fn share_list(State(st): State<Arc<ServeState>>) -> Response {
 
 async fn share_stop(State(st): State<Arc<ServeState>>, AxPath(id): AxPath<String>) -> Response {
     let _guard = st.gate.lock().await;
-    finish("share.stop", &st.root, api::web_share_stop(&st.root, &id).await)
+    finish(
+        "share.stop",
+        &st.root,
+        api::web_share_stop(&st.root, &id).await,
+    )
 }
 
 async fn index(State(st): State<Arc<ServeState>>) -> Response {
@@ -788,8 +872,14 @@ fn parse_body<T: for<'de> Deserialize<'de>>(
     command: &str,
     root: &Path,
 ) -> Result<T, Response> {
-    serde_json::from_str(body)
-        .map_err(|e| err_reply(command, root, StatusCode::BAD_REQUEST, format!("bad json body: {e}")))
+    serde_json::from_str(body).map_err(|e| {
+        err_reply(
+            command,
+            root,
+            StatusCode::BAD_REQUEST,
+            format!("bad json body: {e}"),
+        )
+    })
 }
 
 fn finish(command: &str, root: &Path, outcome: Result<Value, String>) -> Response {

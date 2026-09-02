@@ -59,7 +59,11 @@ fn alloc_task_dir(root: &Path) -> Result<String, String> {
     loop {
         let id = format!("t{n:03}");
         let claim = dir.join(format!("{id}.json"));
-        match std::fs::OpenOptions::new().write(true).create_new(true).open(&claim) {
+        match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&claim)
+        {
             Ok(_) => {}
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
                 n += 1;
@@ -91,11 +95,7 @@ fn valid_id(id: &str) -> bool {
 
 /// 建任务并发给 agent。返回 (id, task_dir)。send 文本 = 用户文本 + 协议
 /// 尾注（提示词全文在 prompt.md，agent 无论从 send 还是文件都能拿到任务）。
-pub async fn task_new(
-    root: &Path,
-    agent: &str,
-    text: &str,
-) -> Result<(String, PathBuf), String> {
+pub async fn task_new(root: &Path, agent: &str, text: &str) -> Result<(String, PathBuf), String> {
     let id = alloc_task_dir(root)?;
     let dir = task_dir(root, &id);
     // 全路径回滚（Round1 codex4/claude2/kimi13：此前只包 send 失败——
@@ -125,8 +125,7 @@ async fn task_new_inner(
             .unwrap_or(0),
     };
     let meta_body = serde_json::to_string_pretty(&meta).map_err(|e| e.to_string())? + "\n";
-    std::fs::write(dir.join("task.json"), meta_body)
-        .map_err(|e| format!("task.json: {e}"))?;
+    std::fs::write(dir.join("task.json"), meta_body).map_err(|e| format!("task.json: {e}"))?;
     std::fs::write(dir.join("prompt.md"), text).map_err(|e| format!("prompt.md: {e}"))?;
 
     let link = orch::connect(root, false).await?;
@@ -154,10 +153,7 @@ pub fn task_wait(root: &Path, id: &str, timeout_secs: u64) -> Result<String, Str
     let deadline = if timeout_secs == 0 {
         None
     } else {
-        Some(
-            std::time::Instant::now()
-                + std::time::Duration::from_secs(timeout_secs.min(86_400)),
-        )
+        Some(std::time::Instant::now() + std::time::Duration::from_secs(timeout_secs.min(86_400)))
     };
     let dir = task_dir(root, id);
     let done = dir.join("DONE");
@@ -168,10 +164,11 @@ pub fn task_wait(root: &Path, id: &str, timeout_secs: u64) -> Result<String, Str
             // Round1 四家全中）：3s 宽限（不突破 timeout 上限，Round3 codex8），
             // **仍缺失或空则报错**——空产物静默当成功会让调用方无从判断。
             let grace = std::time::Instant::now()
-                + std::time::Duration::from_secs(3)
-                    .min(deadline.map_or(std::time::Duration::from_secs(3), |d| {
+                + std::time::Duration::from_secs(3).min(
+                    deadline.map_or(std::time::Duration::from_secs(3), |d| {
                         d.saturating_duration_since(std::time::Instant::now())
-                    }));
+                    }),
+                );
             while std::time::Instant::now() < grace {
                 if output.exists() && output.metadata().map(|m| m.len() > 0).unwrap_or(false) {
                     break;
@@ -182,7 +179,9 @@ pub fn task_wait(root: &Path, id: &str, timeout_secs: u64) -> Result<String, Str
                 return Err(format!("task {id}: DONE present but output.md missing"));
             }
             if output.metadata().map(|m| m.len() == 0).unwrap_or(true) {
-                return Err(format!("task {id}: DONE present but output.md empty (protocol violation)"));
+                return Err(format!(
+                    "task {id}: DONE present but output.md empty (protocol violation)"
+                ));
             }
             return std::fs::read_to_string(&output)
                 .map_err(|e| format!("DONE present but output.md unreadable: {e}"));
@@ -235,8 +234,8 @@ pub fn task_show(root: &Path, id: &str) -> Result<TaskMeta, String> {
         return Err(format!("invalid task id: {id}"));
     }
     let dir = task_dir(root, id);
-    let text = std::fs::read_to_string(dir.join("task.json"))
-        .map_err(|e| format!("task {id}: {e}"))?;
+    let text =
+        std::fs::read_to_string(dir.join("task.json")).map_err(|e| format!("task {id}: {e}"))?;
     serde_json::from_str(&text).map_err(|e| format!("task {id}: corrupt meta: {e}"))
 }
 

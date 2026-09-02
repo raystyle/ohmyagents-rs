@@ -264,13 +264,17 @@ pub fn claude_project_slug(project: &Path) -> String {
 
 pub fn claude_sessions_in(dir: &Path, project: &Path) -> Vec<TraceSession> {
     let mut out = Vec::new();
-    let Ok(rd) = fs::read_dir(dir) else { return out };
+    let Ok(rd) = fs::read_dir(dir) else {
+        return out;
+    };
     for ent in rd.flatten() {
         let p = ent.path();
         if p.extension().and_then(|e| e.to_str()) != Some("jsonl") {
             continue;
         }
-        let Some(id) = p.file_stem().and_then(|s| s.to_str()) else { continue };
+        let Some(id) = p.file_stem().and_then(|s| s.to_str()) else {
+            continue;
+        };
         out.push(TraceSession {
             agent: "claude".into(),
             id: id.to_string(),
@@ -347,17 +351,23 @@ fn codex_session_meta(file: &Path) -> Option<serde_json::Value> {
 pub fn grok_sessions_in(root: &Path, project: &Path) -> Vec<TraceSession> {
     let mut out = Vec::new();
     let want = normalize_compare(project);
-    let Ok(rd) = fs::read_dir(root) else { return out };
+    let Ok(rd) = fs::read_dir(root) else {
+        return out;
+    };
     for ent in rd.flatten() {
         let p = ent.path();
         if !p.is_dir() {
             continue;
         }
-        let Some(name) = p.file_name().and_then(|s| s.to_str()) else { continue };
+        let Some(name) = p.file_name().and_then(|s| s.to_str()) else {
+            continue;
+        };
         if normalize_compare(Path::new(&percent_decode(name))) != want {
             continue;
         }
-        let Ok(inner) = fs::read_dir(&p) else { continue };
+        let Ok(inner) = fs::read_dir(&p) else {
+            continue;
+        };
         for sdir in inner.flatten() {
             let spath = sdir.path();
             let updates = spath.join("updates.jsonl");
@@ -365,9 +375,15 @@ pub fn grok_sessions_in(root: &Path, project: &Path) -> Vec<TraceSession> {
                 updates
             } else {
                 let hist = spath.join("chat_history.jsonl");
-                if hist.is_file() { hist } else { continue }
+                if hist.is_file() {
+                    hist
+                } else {
+                    continue;
+                }
             };
-            let Some(id) = spath.file_name().and_then(|s| s.to_str()) else { continue };
+            let Some(id) = spath.file_name().and_then(|s| s.to_str()) else {
+                continue;
+            };
             let started = if file.file_name().and_then(|s| s.to_str()) == Some("updates.jsonl") {
                 grok_updates_first_ms(&file).or_else(|| grok_uuid_v7_ms(id))
             } else {
@@ -471,12 +487,24 @@ pub fn list_sessions(project: &Path) -> Vec<TraceSession> {
     let mut out = Vec::new();
     let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
     out.extend(claude_sessions_in(
-        &home.join(".claude").join("projects").join(claude_project_slug(project)),
+        &home
+            .join(".claude")
+            .join("projects")
+            .join(claude_project_slug(project)),
         project,
     ));
-    out.extend(codex_sessions_under(&home.join(".codex").join("sessions"), project));
-    out.extend(grok_sessions_in(&home.join(".grok").join("sessions"), project));
-    out.extend(kimi_sessions_in(&home.join(".kimi-code").join("session_index.jsonl"), project));
+    out.extend(codex_sessions_under(
+        &home.join(".codex").join("sessions"),
+        project,
+    ));
+    out.extend(grok_sessions_in(
+        &home.join(".grok").join("sessions"),
+        project,
+    ));
+    out.extend(kimi_sessions_in(
+        &home.join(".kimi-code").join("session_index.jsonl"),
+        project,
+    ));
     out
 }
 
@@ -518,7 +546,10 @@ pub fn claude_events(session: &TraceSession) -> Vec<TraceEvent> {
             }
             "assistant" => {
                 let msg = v.get("message").cloned().unwrap_or_default();
-                let ts = v.get("timestamp").and_then(|x| x.as_str()).map(|s| s.to_string());
+                let ts = v
+                    .get("timestamp")
+                    .and_then(|x| x.as_str())
+                    .map(|s| s.to_string());
                 let ts_ms = ts.as_deref().and_then(ts_to_ms);
                 if let Some(blocks) = msg.get("content").and_then(|c| c.as_array()) {
                     for b in blocks {
@@ -723,12 +754,7 @@ pub fn parse_apply_patch(input: &str) -> Vec<(EditKind, String)> {
 /// grok 双源分发（S020）：updates.jsonl 是权威日志，chat_history.jsonl 是派生缓存
 /// （compaction 触发整体重建）。会话发现层已按存在性选源，这里按文件名分发。
 pub fn grok_events(session: &TraceSession) -> Vec<TraceEvent> {
-    if session
-        .file
-        .file_name()
-        .and_then(|s| s.to_str())
-        == Some("updates.jsonl")
-    {
+    if session.file.file_name().and_then(|s| s.to_str()) == Some("updates.jsonl") {
         return grok_events_from_updates(session);
     }
     grok_events_from_chat_history(session)
@@ -749,9 +775,15 @@ fn grok_events_from_updates(session: &TraceSession) -> Vec<TraceEvent> {
         if v.get("method").and_then(|x| x.as_str()) != Some("session/update") {
             continue;
         }
-        let Some(u) = v.get("params").and_then(|p| p.get("update")) else { continue };
+        let Some(u) = v.get("params").and_then(|p| p.get("update")) else {
+            continue;
+        };
         let secs = u_ms(v.get("timestamp"));
-        match u.get("sessionUpdate").and_then(|x| x.as_str()).unwrap_or("") {
+        match u
+            .get("sessionUpdate")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+        {
             "user_message_chunk" => {
                 // 合成闸门：hideFromScrollback 标记的注入（system-reminder 等）不是用户意图。
                 let hidden = u
@@ -860,7 +892,11 @@ fn grok_events_from_chat_history(session: &TraceSession) -> Vec<TraceEvent> {
     for v in read_json_lines(&session.file) {
         match v.get("type").and_then(|x| x.as_str()).unwrap_or("") {
             "user" => {
-                if !v.get("synthetic_reason").map(|s| s.is_null()).unwrap_or(true) {
+                if !v
+                    .get("synthetic_reason")
+                    .map(|s| s.is_null())
+                    .unwrap_or(true)
+                {
                     continue;
                 }
                 let text = concat_text_parts(v.get("content"));
@@ -901,10 +937,7 @@ fn grok_events_from_chat_history(session: &TraceSession) -> Vec<TraceEvent> {
                         out.push(TraceEvent {
                             agent: session.agent.clone(),
                             session_id: session.id.clone(),
-                            call_id: tc
-                                .get("id")
-                                .and_then(|x| x.as_str())
-                                .map(|s| s.to_string()),
+                            call_id: tc.get("id").and_then(|x| x.as_str()).map(|s| s.to_string()),
                             tool: Some(name.to_string()),
                             file,
                             kind: EditKind::Modify,
@@ -1007,7 +1040,9 @@ fn concat_text_parts(v: Option<&serde_json::Value>) -> String {
     if let Some(s) = v.as_str() {
         return s.to_string();
     }
-    let Some(arr) = v.as_array() else { return String::new() };
+    let Some(arr) = v.as_array() else {
+        return String::new();
+    };
     let mut out = String::new();
     for p in arr {
         if p.get("type").and_then(|x| x.as_str()) == Some("text") {
@@ -1137,15 +1172,27 @@ mod tests {
         // serde_json 的 map 按键字典序迭代，不假设文件顺序。
         let events = codex_events(&sessions[0]);
         assert_eq!(events.len(), 2);
-        let by_file = |f: &str| events.iter().find(|e| e.file.as_deref() == Some(f)).unwrap();
+        let by_file = |f: &str| {
+            events
+                .iter()
+                .find(|e| e.file.as_deref() == Some(f))
+                .unwrap()
+        };
         assert_eq!(by_file("notes.md").kind, EditKind::Create);
         assert_eq!(by_file("README.md").kind, EditKind::Modify);
-        assert!(by_file("notes.md").patch.as_deref().unwrap().contains("hello"));
+        assert!(by_file("notes.md")
+            .patch
+            .as_deref()
+            .unwrap()
+            .contains("hello"));
         for e in &events {
             assert_eq!(e.tool.as_deref(), Some("apply_patch"));
             assert!(e.call_id.as_deref().unwrap().starts_with("call_"));
             assert!(e.ts_ms.is_some());
-            assert_eq!(e.user_intent.as_deref(), Some("加一个笔记文件并更新 README"));
+            assert_eq!(
+                e.user_intent.as_deref(),
+                Some("加一个笔记文件并更新 README")
+            );
         }
         // B：无 FileChange（旧版形状）→ 退回 custom_tool_call 补丁头解析。
         let events = codex_events(&sessions[1]);
@@ -1170,7 +1217,9 @@ mod tests {
 
     #[test]
     fn codex_injected_context_is_recognized() {
-        assert!(is_codex_injected_context("# AGENTS.md instructions for D:\\x"));
+        assert!(is_codex_injected_context(
+            "# AGENTS.md instructions for D:\\x"
+        ));
         assert!(is_codex_injected_context("<environment_context>"));
         assert!(is_codex_injected_context("<user_shell_command>"));
         assert!(!is_codex_injected_context("正常用户输入"));
@@ -1200,14 +1249,12 @@ mod tests {
         let dir = fixture("grok-updates");
         let sessions = grok_sessions_in(&dir, Path::new(r"D:\demo"));
         assert_eq!(sessions.len(), 1);
-        assert!(
-            sessions[0]
-                .file
-                .file_name()
-                .and_then(|s| s.to_str())
-                .unwrap()
-                .ends_with("updates.jsonl")
-        );
+        assert!(sessions[0]
+            .file
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap()
+            .ends_with("updates.jsonl"));
         // 1787999890 秒 = 2026-08-29T10:38:10Z（fixture 契约）。
         assert_eq!(
             sessions[0].started_at.as_deref(),
@@ -1230,10 +1277,17 @@ mod tests {
         assert!(edit.call_id.as_deref().unwrap().ends_with("-1"));
         // hideFromScrollback 的 system-reminder 分片不能污染用户意图。
         assert_eq!(edit.user_intent.as_deref(), Some("把标题改成中文"));
-        assert_eq!(edit.op_intent.as_deref(), Some("我来修改 app.rs 的标题渲染"));
+        assert_eq!(
+            edit.op_intent.as_deref(),
+            Some("我来修改 app.rs 的标题渲染")
+        );
         // 每事件真实时间：信封秒 * 1000。
         assert_eq!(edit.ts_ms, Some(1_787_999_900_000));
-        assert!(edit.ts.as_deref().unwrap().starts_with("2026-08-29T10:38:20"));
+        assert!(edit
+            .ts
+            .as_deref()
+            .unwrap()
+            .starts_with("2026-08-29T10:38:20"));
         assert!(edit.patch.as_deref().unwrap().contains("你好"));
         let write = events
             .iter()
@@ -1286,7 +1340,10 @@ mod tests {
         let mut kinds = b.kinds.clone();
         kinds.sort();
         assert_eq!(kinds, vec!["create".to_string(), "modify".to_string()]);
-        assert_eq!(b.user_intent.as_deref(), Some("加一个笔记文件并更新 README"));
+        assert_eq!(
+            b.user_intent.as_deref(),
+            Some("加一个笔记文件并更新 README")
+        );
         assert!(b.op.ends_with(":call_xyz789"));
     }
 
@@ -1306,11 +1363,19 @@ mod tests {
             patch: Some(format!("fn v{i}() {{}}")),
         };
         let events: Vec<TraceEvent> = (0..10).map(mk).collect();
-        let f = TraceFilter { agent: Some("claude"), file_glob: Some("src/*.rs"), limit: 999 };
+        let f = TraceFilter {
+            agent: Some("claude"),
+            file_glob: Some("src/*.rs"),
+            limit: 999,
+        };
         let got = apply_filter(events.clone(), &f);
         assert!(got.iter().all(|e| e.agent == "claude"));
         assert_eq!(got.len(), 5);
-        let f = TraceFilter { agent: None, file_glob: None, limit: 3 };
+        let f = TraceFilter {
+            agent: None,
+            file_glob: None,
+            limit: 3,
+        };
         assert_eq!(apply_filter(events.clone(), &f).len(), 3);
         // 正则与字面退路。
         let re_hit = events.iter().find(|e| search_matches(e, r"fn v3")).unwrap();

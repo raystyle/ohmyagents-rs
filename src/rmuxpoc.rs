@@ -103,10 +103,7 @@ pub async fn connect(tag: &str) -> Result<Rmux, String> {
 
 /// Connect to an arbitrary dedicated endpoint, starting the daemon via WMI
 /// when trapped in a Job Object. Shared by POCs and product orchestration.
-pub async fn connect_dedicated(
-    report: &rmux::Report,
-    ep: RmuxEndpoint,
-) -> Result<Rmux, String> {
+pub async fn connect_dedicated(report: &rmux::Report, ep: RmuxEndpoint) -> Result<Rmux, String> {
     prepare_env();
     match try_connect_or_start(ep.clone()).await {
         Ok(rmux) => Ok(rmux),
@@ -405,7 +402,10 @@ pub fn expect_process(
     let actual = names
         .get(&pid)
         .ok_or_else(|| format!("pid {pid} not found (dead or recycled); expected {expected}"))?;
-    if !actual.to_ascii_lowercase().contains(&expected.to_ascii_lowercase()) {
+    if !actual
+        .to_ascii_lowercase()
+        .contains(&expected.to_ascii_lowercase())
+    {
         return Err(format!(
             "pid {pid} is '{actual}', expected '{expected}' -- refusing to send"
         ));
@@ -450,11 +450,7 @@ pub const CONFIRM_TAIL_KEYWORDS: &[&str] =
 /// Priority mirrors clum `detect_terminal_state`: password (tail, wins even
 /// at col 0) > confirm (tail) > hidden cursor means running > live shell
 /// prompt (tail must be the prompt row with a visible cursor) > Unknown.
-pub fn detect_terminal_state(
-    lines: &[String],
-    cursor_row: u16,
-    cursor_visible: bool,
-) -> TermState {
+pub fn detect_terminal_state(lines: &[String], cursor_row: u16, cursor_visible: bool) -> TermState {
     // Tail = last non-empty line plus its row index.
     let tail = lines
         .iter()
@@ -485,8 +481,7 @@ pub fn detect_terminal_state(
     // "# "、zsh 为 "% "），trim 后提示符落在行尾；已输入命令的行（如
     // "$ sleep 30"）不以提示符收尾，天然不误判。裸 "%" 才算 zsh 提示符，
     // 后缀匹配会吃掉 "42%" 进度行。
-    if (tail.ends_with('$') || tail.ends_with('#') || tail == "%")
-        && cursor_row == tail_row as u16
+    if (tail.ends_with('$') || tail.ends_with('#') || tail == "%") && cursor_row == tail_row as u16
     {
         return TermState::Ready;
     }
@@ -726,7 +721,10 @@ mod tests {
         assert_eq!(detect_terminal_state(&l, 0, true), TermState::Confirm);
         // Chinese text still classifies when an ASCII marker is present.
         let zh_mixed = lines(&["是否继续？(y/n)"]);
-        assert_eq!(detect_terminal_state(&zh_mixed, 0, true), TermState::Confirm);
+        assert_eq!(
+            detect_terminal_state(&zh_mixed, 0, true),
+            TermState::Confirm
+        );
         // Known gap (S010): pure-Chinese confirm words are not in the keyword
         // tables and must fall through to Unknown, never Ready.
         let zh = lines(&["是否继续？"]);
@@ -763,7 +761,10 @@ mod tests {
         let zsh = lines(&["%"]);
         assert_eq!(detect_terminal_state(&zsh, 0, true), TermState::Ready);
         let progress = lines(&["downloading 42%"]);
-        assert_eq!(detect_terminal_state(&progress, 0, true), TermState::Unknown);
+        assert_eq!(
+            detect_terminal_state(&progress, 0, true),
+            TermState::Unknown
+        );
         // 已输入命令（"$ sleep 30"）不以提示符收尾：不 Ready。
         let mid = lines(&["$ sleep 30"]);
         assert_eq!(detect_terminal_state(&mid, 0, true), TermState::Unknown);
