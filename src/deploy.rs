@@ -28,14 +28,22 @@ fn oma_exe() -> PathBuf {
     std::env::current_exe().unwrap_or_else(|_| PathBuf::from("oma"))
 }
 
-fn is_ours(command: &str) -> bool {
+pub(crate) fn is_ours(command: &str) -> bool {
     let lower = command.to_ascii_lowercase();
     if lower.contains(&oma_exe().display().to_string().to_ascii_lowercase()) {
         return true;
     }
     // First whitespace token covers both the exec form (bare path) and the
-    // Grok shell form (`"C:\...\oma.exe" hook`).
-    let first = lower.split_whitespace().next().unwrap_or("");
+    // Grok shell form (`"C:\...\oma.exe" hook`). The codex Windows form puts
+    // the PowerShell call operator first (`& "exe" hook`), so strip a leading
+    // `&` before taking the token — without this the Windows-side field of a
+    // shared project reads as foreign (doctor misses it; redeploy appends a
+    // duplicate once the embedded exe path goes stale).
+    let first = lower
+        .trim_start_matches('&')
+        .split_whitespace()
+        .next()
+        .unwrap_or("");
     let stem = first
         .rsplit(['\\', '/'])
         .next()
@@ -804,6 +812,18 @@ pub fn apply_project_hooks_with(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn is_ours_handles_windows_call_operator_form() {
+        // codex commandWindows 是 `& "exe" hook`：调用操作符在首 token 前，
+        // 不剥掉会把 Windows 侧字段误判成外来者（跨环境共享目录必踩）。
+        assert!(is_ours(r#"& "D:\cargo\bin\oma.exe" hook --agent codex"#));
+        assert!(is_ours(r#""C:\somewhere\oma.exe" hook"#));
+        assert!(is_ours("oma hook --agent claude"));
+        assert!(is_ours(r#""/home/ray/.cargo/bin/oma" hook --agent codex"#));
+        assert!(!is_ours(r#"& "D:\tools\echo.exe" args"#));
+        assert!(!is_ours("echo hi"));
+    }
 
     /// Unique per-call suffix: same-millisecond parallel tests must not
     /// share (and mutually delete) a temp dir.
