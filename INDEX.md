@@ -39,6 +39,7 @@
 | `src\install.rs` | 自适应安装层：多渠道下载、sha 信任锚、oma 自管根布局、update 取证与 pin 写回 |
 | `src\login.rs` | `oma agents login`：grok/kimi 设备码登录引导（子进程捕获、URL/code 转发、落盘凭据确认） |
 | `src\secretguard.rs` | `oma hook` 密钥拦截闸（S030）：模式表八层防误报、实值比对通道、PreToolUse/UserPromptSubmit 阻断 exit 2 |
+| `srcmtio.rs` | 全局输出三态（kv/json/jsonl）与结构化错误出口（issue #1 契约，R011） |
 | `src\secrets.rs` | `oma agents secrets`：一钥两密文存储（app.key/identity.enc/secrets.yaml）与四 shell 懒注入块（S031） |
 | `src\trace.rs` | 意图轨迹检索层：四家会话发现 + 四家联邦 loader（codex FileChange 主源、grok updates 权威日志加 chat_history 兜底、注入过滤、epoch ms 归一）+ 块聚合与过滤分页检索 |
 | `src\api.rs` | 传输无关编排操作层（P0011）：六操作加 trace 检索三件返回结构化 JSON，HTTP 与 MCP 共用 |
@@ -180,6 +181,7 @@ ohmyagents/
 | R008 | `R008-项目工具Python库选型细则-pypi与uv.md` | py 工具选库与 uv 工作流 |
 | R009 | `R009-项目工具PowerShell模块选型细则-psgallery与psresourceget.md` | ps 模块选型与 ohmypwsh 统一管理 |
 | R010 | `R010-Windows到Linux交接清单.md` | WSL/Linux 开工读本：现状、已平台化项、Linux 欠账、坑索引、开工顺序 |
+| R011 | `R011-Agent友好IO契约-format三态信封退出码与冻结面.md` | --format 三态、信封与双通道错误、退出码表、冻结面（issue #1） |
 
 （R003 退役：原全量清单并入本索引，编号不复用。）
 

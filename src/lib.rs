@@ -4,6 +4,7 @@ pub mod caps;
 pub mod catalog;
 pub mod deploy;
 pub mod doctor;
+pub mod fmtio;
 pub mod hook;
 pub mod install;
 pub mod login;

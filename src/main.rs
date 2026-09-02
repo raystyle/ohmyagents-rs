@@ -21,6 +21,12 @@ use oma::yolo;
     about = "Oh My Agents：通用智能体多路复用任务编排器"
 )]
 struct Cli {
+    /// JSON 信封输出（--format json 简写）
+    #[arg(long, global = true, conflicts_with = "format")]
+    json: bool,
+    /// 输出格式：kv（marker 行，缺省）| json（信封）| jsonl（列表逐行对象）
+    #[arg(long, global = true)]
+    format: Option<String>,
     /// REPL：不开 HTTP 编排面
     #[arg(long)]
     no_web: bool,
@@ -87,18 +93,12 @@ enum Commands {
         /// 项目根；默认当前目录
         #[arg(long)]
         project: Option<PathBuf>,
-        /// 输出 JSON 信封（与 HTTP/MCP 同形）而非 marker 行
-        #[arg(long)]
-        json: bool,
     },
     /// 只读列出本项目会话各 agent 的 pid、进程名、终端态与 hook 态
     Status {
         /// 项目根；默认当前目录
         #[arg(long)]
         project: Option<PathBuf>,
-        /// 输出 JSON 信封（与 HTTP/MCP 同形）而非 marker 行
-        #[arg(long)]
-        json: bool,
     },
     /// 向会话内某路 agent 发单行任务（文本与 Enter 分发）
     Send {
@@ -112,9 +112,6 @@ enum Commands {
         /// 项目根；默认当前目录
         #[arg(long)]
         project: Option<PathBuf>,
-        /// 输出 JSON 信封（与 HTTP/MCP 同形）而非 marker 行
-        #[arg(long)]
-        json: bool,
     },
     /// 向某路 agent 发单个按键（受守卫：codex 拒 C-c——一个 C-c 杀进程，M001）
     Key {
@@ -147,9 +144,6 @@ enum Commands {
         /// 项目根；默认当前目录
         #[arg(long)]
         project: Option<PathBuf>,
-        /// 输出 JSON 信封（与 HTTP/MCP 同形）而非 marker 行
-        #[arg(long)]
-        json: bool,
     },
     /// 把任务分派给会话内多路 agent（状态门：一路 blocked 不堵其它路）
     Run {
@@ -164,9 +158,6 @@ enum Commands {
         /// 项目根；默认当前目录
         #[arg(long)]
         project: Option<PathBuf>,
-        /// 输出 JSON 信封（与 HTTP/MCP 同形）而非 marker 行
-        #[arg(long)]
-        json: bool,
     },
     /// 自检测并自动确认信任框（各家自己持久化信任；预置信任的兜底）
     Settle {
@@ -176,9 +167,6 @@ enum Commands {
         /// 项目根；默认当前目录
         #[arg(long)]
         project: Option<PathBuf>,
-        /// 输出 JSON 信封（与 HTTP/MCP 同形）而非 marker 行
-        #[arg(long)]
-        json: bool,
     },
     /// 检索项目的 agent 意图操作块与编辑轨迹（查询时读各家原生会话库）
     Trace {
@@ -233,9 +221,6 @@ enum Commands {
         /// 项目根；默认当前目录
         #[arg(long)]
         project: Option<PathBuf>,
-        /// 输出 JSON 信封（与 HTTP/MCP 同形）
-        #[arg(long)]
-        json: bool,
     },
     /// 起官方 web 镜像（rmux web-share）：operator 可操作真 attach
     Web {
@@ -469,13 +454,13 @@ enum AgentsCmd {
 
 fn main() {
     if let Err(e) = run() {
-        eprintln!("oma: {e}");
-        std::process::exit(1);
+        oma::fmtio::error_exit(e);
     }
 }
 
 fn run() -> Result<(), String> {
     let cli = Cli::parse();
+    oma::fmtio::init(cli.json, cli.format.as_deref())?;
     let Some(command) = cli.command else {
         return cmd_repl(cli.no_web, cli.open, cli.stub, cli.agents);
     };
@@ -489,7 +474,26 @@ fn run() -> Result<(), String> {
         Commands::Doctor { project } => cmd_doctor(project),
         Commands::Agents { cmd } => match cmd {
             None => {
-                agents::print_reports(&agents::detect());
+                // 结构化三态（issue #1 契约）：json 信封；jsonl 逐 agent 行。
+                match oma::fmtio::mode() {
+                    oma::fmtio::Format::Json => {
+                        let rows: Vec<Value> =
+                            agents::detect().iter().map(agent_report_row).collect();
+                        let v = serde_json::json!({
+                            "installed": rows.iter().filter(|r| r["status"] == "installed").count(),
+                            "missing": rows.iter().filter(|r| r["status"] == "missing").count(),
+                            "agents": rows,
+                        });
+                        let cwd = std::env::current_dir().unwrap_or_default();
+                        print_json("agents", &cwd, Ok(v))?;
+                    }
+                    oma::fmtio::Format::Jsonl => {
+                        let rows: Vec<Value> =
+                            agents::detect().iter().map(agent_report_row).collect();
+                        oma::fmtio::print_jsonl(&rows);
+                    }
+                    oma::fmtio::Format::Kv => agents::print_reports(&agents::detect()),
+                }
                 Ok(())
             }
             Some(AgentsCmd::Install { names, force, root }) => {
@@ -506,16 +510,14 @@ fn run() -> Result<(), String> {
             agents,
             stub,
             project,
-            json,
-        } => tokio_block(cmd_spawn(agents, stub, project, json)),
-        Commands::Status { project, json } => tokio_block(cmd_status(project, json)),
+        } => tokio_block(cmd_spawn(agents, stub, project)),
+        Commands::Status { project } => tokio_block(cmd_status(project)),
         Commands::Send {
             agent,
             text,
             confirm,
             project,
-            json,
-        } => tokio_block(cmd_send(agent, text, confirm, project, json)),
+        } => tokio_block(cmd_send(agent, text, confirm, project)),
         Commands::Key {
             agent,
             key,
@@ -532,19 +534,14 @@ fn run() -> Result<(), String> {
             Some(TaskCmd::Show { id, project: inner }) => cmd_task_show(id, inner.or(project)),
             None => tokio_block(cmd_task(agent, text, timeout, project)),
         },
-        Commands::Cleanup { project, json } => tokio_block(cmd_cleanup(project, json)),
+        Commands::Cleanup { project } => tokio_block(cmd_cleanup(project)),
         Commands::Run {
             text,
             assign,
             confirm,
             project,
-            json,
-        } => tokio_block(cmd_run(text, assign, confirm, project, json)),
-        Commands::Settle {
-            wait,
-            project,
-            json,
-        } => tokio_block(cmd_settle(wait, project, json)),
+        } => tokio_block(cmd_run(text, assign, confirm, project)),
+        Commands::Settle { wait, project } => tokio_block(cmd_settle(wait, project)),
         Commands::Trace { cmd } => cmd_trace(cmd),
         Commands::Serve { cmd, port, project } => match cmd {
             None => cmd_serve(port, project),
@@ -575,11 +572,7 @@ fn run() -> Result<(), String> {
             ),
         },
         Commands::Completions { shell } => cmd_completions(shell),
-        Commands::Respawn {
-            agent,
-            project,
-            json,
-        } => tokio_block(cmd_respawn(agent, project, json)),
+        Commands::Respawn { agent, project } => tokio_block(cmd_respawn(agent, project)),
         Commands::Web {
             agent,
             spectator,
@@ -591,9 +584,9 @@ fn run() -> Result<(), String> {
 }
 
 /// 重新打开一路 agent 实例：关闭旧窗格再开新一路（会话与其它路不动）。
-async fn cmd_respawn(agent: String, project: Option<PathBuf>, json: bool) -> Result<(), String> {
+async fn cmd_respawn(agent: String, project: Option<PathBuf>) -> Result<(), String> {
     let root = project_root(project)?;
-    if json {
+    if oma::fmtio::structured() {
         return print_json("respawn", &root, oma::api::respawn(&root, &agent).await);
     }
     let link = orch::connect(&root, false).await?;
@@ -818,10 +811,9 @@ async fn cmd_spawn(
     wanted: Option<Vec<String>>,
     stub: bool,
     project: Option<PathBuf>,
-    json: bool,
 ) -> Result<(), String> {
     let root = project_root(project)?;
-    if json {
+    if oma::fmtio::structured() {
         // 三通道同语义单点（Round3 grok1/codex7：json 分支此前手写副本且
         // 顺序与 api 层分叉）。
         let mut out = oma::api::spawn(&root, wanted, stub).await;
@@ -864,10 +856,23 @@ async fn cmd_spawn(
     Ok(())
 }
 
-async fn cmd_status(project: Option<PathBuf>, json: bool) -> Result<(), String> {
+async fn cmd_status(project: Option<PathBuf>) -> Result<(), String> {
     let root = project_root(project)?;
-    if json {
-        return print_json("status", &root, oma::api::status(&root).await);
+    // 结构化三态（issue #1 契约）：json 信封单对象；jsonl 逐 pane 行对象。
+    match oma::fmtio::mode() {
+        oma::fmtio::Format::Json => {
+            return print_json("status", &root, oma::api::status(&root).await);
+        }
+        oma::fmtio::Format::Jsonl => {
+            let v = oma::api::status(&root).await?;
+            let mut rows: Vec<Value> = v["panes"].as_array().cloned().unwrap_or_default();
+            if let Some(w) = v.get("warning").and_then(|x| x.as_str()) {
+                rows.push(serde_json::json!({ "warning": w }));
+            }
+            oma::fmtio::print_jsonl(&rows);
+            return Ok(());
+        }
+        oma::fmtio::Format::Kv => {}
     }
     // 双读者（S016）：TTY 走人读表格，管道与测试走 marker 行。
     if std::io::stdout().is_terminal() {
@@ -1152,10 +1157,9 @@ async fn cmd_send(
     text: String,
     confirm: Option<String>,
     project: Option<PathBuf>,
-    json: bool,
 ) -> Result<(), String> {
     let root = project_root(project)?;
-    if json {
+    if oma::fmtio::structured() {
         return print_json(
             "send",
             &root,
@@ -1171,9 +1175,9 @@ async fn cmd_send(
     Ok(())
 }
 
-async fn cmd_cleanup(project: Option<PathBuf>, json: bool) -> Result<(), String> {
+async fn cmd_cleanup(project: Option<PathBuf>) -> Result<(), String> {
     let root = project_root(project)?;
-    if json {
+    if oma::fmtio::structured() {
         return print_json("cleanup", &root, oma::api::cleanup(&root).await);
     }
     let link = orch::connect(&root, false).await?;
@@ -1184,9 +1188,9 @@ async fn cmd_cleanup(project: Option<PathBuf>, json: bool) -> Result<(), String>
     Ok(())
 }
 
-async fn cmd_settle(wait: u64, project: Option<PathBuf>, json: bool) -> Result<(), String> {
+async fn cmd_settle(wait: u64, project: Option<PathBuf>) -> Result<(), String> {
     let root = project_root(project)?;
-    if json {
+    if oma::fmtio::structured() {
         return print_json("settle", &root, oma::api::settle(&root, wait).await);
     }
     let link = orch::connect(&root, false).await?;
@@ -1201,10 +1205,9 @@ async fn cmd_run(
     assign: Option<Vec<String>>,
     confirm: Option<String>,
     project: Option<PathBuf>,
-    json: bool,
 ) -> Result<(), String> {
     let root = project_root(project)?;
-    if json {
+    if oma::fmtio::structured() {
         // 全路被门挡：api::run 直接 Err（relay6 grok1 裁决），信封
         // ok:false、退出非 0，与文本通道、R002 契约一致。
         return print_json(
@@ -1579,10 +1582,53 @@ fn cmd_init(yolo: bool, pretrust: bool, project: Option<PathBuf>) -> Result<(), 
     Ok(())
 }
 
+/// agents 检测行 → 结构化对象（字段序与 kv 行序一致，preserve_order）。
+fn agent_report_row(r: &agents::Report) -> Value {
+    match &r.hit {
+        Some(h) => serde_json::json!({
+            "agent": r.agent,
+            "status": "installed",
+            "source": h.source.as_str(),
+            "path": h.path.display().to_string(),
+            "version": h.version.as_deref().unwrap_or("-"),
+            "extras": h.extras.iter().map(|p| p.display().to_string()).collect::<Vec<_>>(),
+        }),
+        None => serde_json::json!({
+            "agent": r.agent,
+            "status": "missing",
+            "hint": format!("oma agents install {}", r.agent),
+        }),
+    }
+}
+
 fn cmd_doctor(project: Option<PathBuf>) -> Result<(), String> {
     let root = project_root(project)?;
     let d = doctor::diagnose(&root)?;
-    doctor::print_diagnosis(&d);
+    let findings: Vec<Value> = d
+        .findings
+        .iter()
+        .map(|f| {
+            serde_json::json!({
+                "agent": f.agent,
+                "check": f.check,
+                "status": f.status.as_str(),
+                "path": f.path,
+                "detail": f.detail,
+            })
+        })
+        .collect();
+    // 结构化三态（issue #1 契约）：json 信封；jsonl 逐 finding 行对象；
+    // blocked 退出码 1 在三种模式下一致。
+    match oma::fmtio::mode() {
+        oma::fmtio::Format::Json => {
+            let v = serde_json::json!({ "blocked": d.blocked(), "findings": findings });
+            print_json("doctor", &root, Ok(v))?;
+        }
+        oma::fmtio::Format::Jsonl => {
+            oma::fmtio::print_jsonl(&findings);
+        }
+        oma::fmtio::Format::Kv => doctor::print_diagnosis(&d),
+    }
     if d.blocked() {
         std::process::exit(1);
     }
@@ -1603,21 +1649,6 @@ fn cmd_check(no_install: bool) -> Result<(), String> {
                 Source::Managed => "managed",
                 Source::Path => "PATH",
             };
-            println!("rmux.ok=true");
-            println!("rmux.source={src}");
-            println!("rmux.path={}", report.layout.dispatcher.display());
-            println!("rmux.helper={}", report.layout.helper.display());
-            println!("rmux.daemon={}", report.layout.daemon.display());
-            println!("rmux.version={}", report.version);
-            println!("rmux.pin={}", pin.version);
-            println!("rmux.asset={}", asset.name);
-            println!("rmux.asset_sha256={}", asset.sha256);
-            println!("rmux.dispatcher_sha256={}", report.dispatcher_sha256);
-            println!("rmux.helper_sha256={}", report.helper_sha256);
-            println!("rmux.daemon_sha256={}", report.daemon_sha256);
-            if let Some(a) = report.archive_sha256 {
-                println!("rmux.archive_sha256={a}");
-            }
             if report.version != pin.version {
                 return Err(format!(
                     "version {} does not match pin {}",
@@ -1625,8 +1656,43 @@ fn cmd_check(no_install: bool) -> Result<(), String> {
                 ));
             }
             let managed = managed_root(&pin).map_err(|e| e.to_string())?;
-            println!("rmux.managed_root={}", managed.display());
-            println!("rmux.bin_dir={}", bin_dir(&managed).display());
+            // 结构化三态（issue #1 契约）：check 是单对象报告，jsonl 单行
+            // 视同列表退化形态。字段序与 kv 行序一致（preserve_order）。
+            let row = serde_json::json!({
+                "ok": "true",
+                "source": src,
+                "path": report.layout.dispatcher.display().to_string(),
+                "helper": report.layout.helper.display().to_string(),
+                "daemon": report.layout.daemon.display().to_string(),
+                "version": report.version,
+                "pin": pin.version,
+                "asset": asset.name,
+                "asset_sha256": asset.sha256,
+                "dispatcher_sha256": report.dispatcher_sha256,
+                "helper_sha256": report.helper_sha256,
+                "daemon_sha256": report.daemon_sha256,
+                "archive_sha256": report.archive_sha256.as_deref().unwrap_or("-"),
+                "managed_root": managed.display().to_string(),
+                "bin_dir": bin_dir(&managed).display().to_string(),
+            });
+            match oma::fmtio::mode() {
+                oma::fmtio::Format::Json => {
+                    let cwd = std::env::current_dir().unwrap_or_default();
+                    print_json("check", &cwd, Ok(row))?;
+                }
+                oma::fmtio::Format::Jsonl => {
+                    oma::fmtio::print_jsonl(&[row]);
+                }
+                oma::fmtio::Format::Kv => {
+                    for (k, v) in row.as_object().unwrap() {
+                        if let Some(s) = v.as_str() {
+                            if s != "-" {
+                                println!("rmux.{k}={s}");
+                            }
+                        }
+                    }
+                }
+            }
             Ok(())
         }
         Err(CheckError::Missing { reason }) => Err(format!(

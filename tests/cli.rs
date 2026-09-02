@@ -385,3 +385,123 @@ fn completions_emit_shell_scripts() {
         .clone();
     assert!(String::from_utf8_lossy(&out).contains("_oma"));
 }
+
+// ===== Agent 友好 IO 契约（issue #1，与 ome S003 同构）=====
+
+#[test]
+fn format_json_doctor_envelope_parses_and_blocked_exits_one() {
+    let tmp = std::env::temp_dir().join(format!(
+        "oma-fmt-doctor-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis()
+    ));
+    std::fs::create_dir_all(&tmp).unwrap();
+    let out = oma()
+        .args(["--format", "json", "doctor", "--project"])
+        .arg(&tmp)
+        .assert()
+        .code(1)
+        .get_output()
+        .stdout
+        .clone();
+    let v: serde_json::Value = serde_json::from_slice(&out).expect("envelope parses");
+    assert_eq!(v["ok"], serde_json::json!(true));
+    assert_eq!(v["data"]["blocked"], serde_json::json!(true));
+    assert!(v["data"]["findings"].as_array().unwrap().len() > 0);
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn format_jsonl_agents_rows_each_parse() {
+    let out = oma()
+        .args(["--format", "jsonl", "agents"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let text = String::from_utf8_lossy(&out);
+    let lines: Vec<&str> = text.lines().filter(|l| !l.trim().is_empty()).collect();
+    assert!(lines.len() >= 1, "至少一路 agent 行");
+    for l in &lines {
+        let v: serde_json::Value = serde_json::from_str(l).expect("jsonl 逐行可解析");
+        assert!(v.get("agent").is_some(), "行带 agent 字段：{l}");
+    }
+    // 字段序契约（preserve_order）：installed 行首键 agent、次键 status。
+    let first: serde_json::Value = serde_json::from_str(lines[0]).unwrap();
+    let keys: Vec<String> = first
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(String::clone)
+        .collect();
+    assert_eq!(keys.first().map(String::as_str), Some("agent"));
+}
+
+#[test]
+fn json_shorthand_works_after_subcommand() {
+    let tmp = std::env::temp_dir().join(format!(
+        "oma-fmt-sh-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis()
+    ));
+    std::fs::create_dir_all(&tmp).unwrap();
+    let out = oma()
+        .args(["doctor", "--json", "--project"])
+        .arg(&tmp)
+        .assert()
+        .code(1)
+        .get_output()
+        .stdout
+        .clone();
+    let v: serde_json::Value = serde_json::from_slice(&out).expect("--json 简写出信封");
+    assert_eq!(v["data"]["blocked"], serde_json::json!(true));
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn json_and_format_are_mutually_exclusive() {
+    oma()
+        .args(["--json", "--format", "json", "agents"])
+        .assert()
+        .failure()
+        .code(2);
+}
+
+#[test]
+fn structured_error_goes_to_stderr_as_single_line_json() {
+    // oma 契约（与 ome 裸数据的分道点）：业务失败**信封仍进 stdout** 且退出
+    // 非 0（P0015），结构化模式 stderr 另出单行 JSON 错误行（人称与机器双通道）。
+    let tmp = std::env::temp_dir().join(format!(
+        "oma-fmt-err-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis()
+    ));
+    std::fs::create_dir_all(&tmp).unwrap();
+    let out = oma()
+        .args(["--format", "json", "status", "--project"])
+        .arg(&tmp)
+        .assert()
+        .code(1)
+        .get_output()
+        .clone();
+    let stdout_v: serde_json::Value =
+        serde_json::from_slice(&out.stdout).expect("stdout 信封可解析（业务失败也在）");
+    assert_eq!(stdout_v["ok"], serde_json::json!(false));
+    let err = String::from_utf8_lossy(&out.stderr);
+    let lines: Vec<&str> = err.lines().filter(|l| !l.trim().is_empty()).collect();
+    assert_eq!(lines.len(), 1, "stderr 单行：{err}");
+    let v: serde_json::Value = serde_json::from_str(lines[0]).expect("stderr 单行 JSON");
+    assert_eq!(v["code"], serde_json::json!("error"));
+    assert!(v["message"].as_str().is_some());
+    let _ = std::fs::remove_dir_all(&tmp);
+}
