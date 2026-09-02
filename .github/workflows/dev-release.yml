@@ -1,0 +1,82 @@
+# 滚动 dev release（用户定调 2026-09-02）：main 每推一次三平台构建，
+# 覆盖发布到 prerelease tag `dev`。`oma self update` 默认从该滚动源更新
+# （S028：dev 通道按资产 sha256 判新）。封版后加 latest 通道正式版。
+name: dev-release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            archive: zip
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            archive: tar.gz
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            archive: tar.gz
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - name: Build
+        run: cargo build --release --locked --features server,mcp --target ${{ matrix.target }}
+      - name: Package
+        shell: bash
+        run: |
+          ver=$(cargo metadata --no-deps --format-version 1 | sed -E 's/.*"version":"([^"]+)".*/\1/' | head -c 32)
+          triple="${{ matrix.target }}"
+          src="target/${triple}/release/oma"
+          [ "${{ matrix.os }}" = "windows-latest" ] && src="${src}.exe"
+          dir="oma-${ver}-${triple}"
+          mkdir -p "dist/${dir}"
+          cp "$src" "dist/${dir}/"
+          cd dist
+          if [ "${{ matrix.archive }}" = "zip" ]; then
+            7z a "${dir}.zip" "${dir}" || zip -r "${dir}.zip" "${dir}"
+          else
+            tar czf "${dir}.tar.gz" "${dir}"
+          fi
+          sha256sum "${dir}.${{ matrix.archive }}" > "${dir}.${{ matrix.archive }}.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oma-${{ matrix.target }}
+          path: dist/*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Rolling dev release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete dev --yes --cleanup-tag || true
+          gh release create dev dist/* --prerelease \
+            --title "oma dev (rolling)" \
+            --notes "滚动开发版：main 最新提交自动构建。安装：oma self update（默认 dev 通道）。"

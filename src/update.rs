@@ -30,10 +30,33 @@ fn default_true() -> bool {
 pub struct Asset {
     pub name: String,
     pub browser_download_url: String,
+    /// GitHub 资产摘要（新 API 形如 "sha256:<hex>"；旧响应可能缺省）。
+    #[serde(default)]
+    pub digest: Option<String>,
 }
 
-pub fn fetch_latest(repo: &str) -> Result<Release, String> {
-    let url = format!("https://api.github.com/repos/{repo}/releases/latest");
+/// 更新通道：dev = 滚动预发布 tag `dev`（CI 每推覆盖，部署位缺省）；
+/// latest = 正式封版后的 releases/latest。
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Channel {
+    Dev,
+    Latest,
+}
+
+impl Channel {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Channel::Dev => "dev",
+            Channel::Latest => "latest",
+        }
+    }
+}
+
+pub fn fetch_release(repo: &str, channel: Channel) -> Result<Release, String> {
+    let url = match channel {
+        Channel::Latest => format!("https://api.github.com/repos/{repo}/releases/latest"),
+        Channel::Dev => format!("https://api.github.com/repos/{repo}/releases/tags/dev"),
+    };
     let resp = ureq::get(&url)
         .set("User-Agent", UA)
         .set("Accept", "application/vnd.github+json")
@@ -42,7 +65,8 @@ pub fn fetch_latest(repo: &str) -> Result<Release, String> {
         Ok(r) => r,
         Err(ureq::Error::Status(404, _)) => {
             return Err(format!(
-                "no releases published for {repo} yet (pre-release phase); use `oma update --git`"
+                "release '{ch}' not published for {repo} yet (pre-release phase); use `oma self update --git`",
+                ch = channel.as_str()
             ))
         }
         Err(e) => return Err(format!("github api: {e}")),
@@ -88,6 +112,29 @@ pub fn pick_asset(assets: &[Asset]) -> Option<&Asset> {
         })
 }
 
+/// 资产名 `oma-<version>-<triple>.(zip|tar.gz)` 抽版本；抽不出 None。
+pub fn version_from_asset_name(name: &str) -> Option<String> {
+    let stem = name
+        .strip_prefix("oma-")?
+        .split('.')
+        .next_back()
+        .map(|ext| name.len() - ext.len() - 1)
+        .map(|cut| &name[..cut])?;
+    let rest = stem.strip_prefix("oma-")?;
+    let arch = if cfg!(target_arch = "aarch64") {
+        "aarch64"
+    } else {
+        "x86_64"
+    };
+    let idx = rest.find(arch)?;
+    let ver = rest[..idx].trim_end_matches('-');
+    if ver.chars().next().is_some_and(|c| c.is_ascii_digit()) {
+        Some(ver.to_string())
+    } else {
+        None
+    }
+}
+
 /// Dotted-numeric compare: is `tag` (v-prefix tolerated) strictly newer than
 /// `current` (CARGO_PKG_VERSION)?
 pub fn version_newer(tag: &str, current: &str) -> bool {
@@ -112,6 +159,26 @@ pub fn version_newer(tag: &str, current: &str) -> bool {
         }
     }
     false
+}
+
+/// dev 通道判新：资产摘要与当前 exe 的 sha256 一致（且摘要有值）即已最新。
+fn dev_is_current(release: &Release) -> bool {
+    let Some(asset) = pick_asset(&release.assets) else {
+        return false;
+    };
+    let Some(digest) = asset.digest.as_deref() else {
+        return false;
+    };
+    let Some(hex) = digest.strip_prefix("sha256:") else {
+        return false;
+    };
+    let Ok(cur) = std::env::current_exe() else {
+        return false;
+    };
+    match crate::rmux::sha256_file(&cur) {
+        Ok(actual) => actual.eq_ignore_ascii_case(hex),
+        Err(_) => false,
+    }
 }
 
 /// Atomic-ish self replace: write the new binary beside the current exe, then
@@ -160,24 +227,39 @@ pub fn git_install(repo: &str) -> Result<(), String> {
     }
 }
 
-/// `oma update` entry: release path with git fallback.
-pub fn run(repo: &str, git_mode: bool, force: bool) -> Result<(), String> {
+/// `oma self update` entry: release path with git fallback.
+///
+/// dev 通道（滚动源）判新：资产带 digest 且等于当前 exe 的 sha256 → 已最新；
+/// 否则更新（滚动版版本号常不变，sha256 才是判据）。latest 通道按版本比较。
+pub fn run(repo: &str, channel: Channel, git_mode: bool, force: bool) -> Result<(), String> {
     println!("update.current={}", env!("CARGO_PKG_VERSION"));
+    println!("update.channel={}", channel.as_str());
     if git_mode {
         return git_install(repo);
     }
-    let release = match fetch_latest(repo) {
+    let release = match fetch_release(repo, channel) {
         Ok(r) => r,
         Err(e) => {
             println!("update.release=unavailable detail={e}");
-            println!("update.hint=oma update --git 走源码安装（封版前主路径）");
+            println!("update.hint=oma self update --git 走源码安装（封版前主路径）");
             return Ok(());
         }
     };
     println!("update.latest={}", release.tag_name);
-    if !force && !version_newer(&release.tag_name, env!("CARGO_PKG_VERSION")) {
-        println!("update.ok=already-latest");
-        return Ok(());
+    if !force {
+        let up_to_date = match channel {
+            Channel::Dev => dev_is_current(&release),
+            Channel::Latest => release
+                .assets
+                .iter()
+                .find_map(|a| version_from_asset_name(&a.name))
+                .map(|v| !version_newer(&v, env!("CARGO_PKG_VERSION")))
+                .unwrap_or_else(|| !version_newer(&release.tag_name, env!("CARGO_PKG_VERSION"))),
+        };
+        if up_to_date {
+            println!("update.ok=already-latest");
+            return Ok(());
+        }
     }
     let Some(asset) = pick_asset(&release.assets) else {
         println!("update.release=asset-missing names={}", {
@@ -261,6 +343,7 @@ mod tests {
                 .map(|n| Asset {
                     name: n.to_string(),
                     browser_download_url: format!("https://x/{n}"),
+                    digest: None,
                 })
                 .collect()
         };
@@ -283,5 +366,18 @@ mod tests {
         let fb_assets = mk(&["oma-any.bin", "x.txt"]);
         let fallback = pick_asset(&fb_assets).unwrap();
         assert_eq!(fallback.name, "oma-any.bin");
+    }
+
+    #[test]
+    fn version_from_asset_name_parses_convention() {
+        let arch = if cfg!(target_arch = "aarch64") {
+            "aarch64"
+        } else {
+            "x86_64"
+        };
+        let name = format!("oma-0.2.7-{arch}-pc-windows-msvc.zip");
+        assert_eq!(version_from_asset_name(&name).as_deref(), Some("0.2.7"));
+        assert_eq!(version_from_asset_name("oma-dev-x86_64.tar.gz"), None);
+        assert_eq!(version_from_asset_name("notes.txt"), None);
     }
 }
