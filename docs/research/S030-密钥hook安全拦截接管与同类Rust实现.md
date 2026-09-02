@@ -26,6 +26,11 @@
 
 共同模式 [推断: 由上表归纳]：**规则表数据驱动 + 引擎薄壳 + fail-open + 分级（阻断/warn）**——没有谁把正则硬编码在拦截路径里。
 
+## dogfood 案例记
+
+- **publicKeyToken 误报（2026-09-02 首日实报）**：pve-harness 会话写 unattend.xml 被 Write 与 Bash 两面拦截——Generic Token 模式无词边界地在 `publicKeyToken="31bf3856ad364e35"`（微软公开程序集标识符）命中中间词 `Token=`。修复双层：BENIGN_KEY_NAMES 回扫标识符前缀重建完整键名判良性（regex 无 lookbehind 故在门内回扫）加微软 PKT 值入 stopwords。黄金回归：unattend 行放行、真 token 与 access_token 前缀照拦。
+- **活捉作者**：修复验证时我在 Bash 命令文本里写了字面量假 token（违反自己定的测试语料拼接构造纪律），PreToolUse 被 guard 当场拦下——前缀类模式不做 stopword 门是设计态（高信号），假 token 想过开发关必须拼接构造。dogfood 闭环成立。
+
 ## 误报策略
 
 [实证: gitleaks 默认配置字段统计——130 处 per-rule `entropy`、`stopwords` 块、`allowlist` 16 处、`regexTarget` 4 处；kingfisher `rule.rs` 的 `min_entropy: f32` 与 `runtime_minimum_confidence`；ohmypwsh secret-guard.py 全文]

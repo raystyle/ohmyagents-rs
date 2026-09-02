@@ -176,7 +176,15 @@ const STOPWORDS: &[&str] = &[
     "1234567890",
     "abcdefghijklmnop",
     "qwertyuiop",
+    // 微软程序集公钥令牌（每个 .NET 引用与 unattend 组件属性都有，公开
+    // 标识符非密钥——dogfood 实报 FP，2026-09-02）。
+    "31bf3856ad364e35",
 ];
+
+/// 良性键名表（防线 4 扩展）：`publicKeyToken` 是微软公开标识符，值恒为
+/// 公钥令牌非密钥。regex crate 无 lookbehind，scan 的 generic 分支回扫
+/// 标识符前缀重建完整键名再判（dogfood 实报 FP，2026-09-02）。
+const BENIGN_KEY_NAMES: &[&str] = &["publickeytoken", "public_key_token", "public-key-token"];
 
 /// 熵值门下限（防线 3，kingfisher min_entropy / gitleaks entropy 同款）。
 const ENTROPY_MIN: f32 = 3.5;
@@ -299,6 +307,23 @@ pub fn scan(text: &str) -> Vec<Finding> {
         for m in re.find_iter(text) {
             let whole = m.as_str();
             if spec.generic {
+                // 良性键名：无 lookbehind，回扫标识符前缀重建完整键名
+                //（`publicKeyToken=` 命中的是中间词 `Token=`）。
+                let head_end = whole.find(['=', ':']).unwrap_or(whole.len());
+                let key_head = &whole[..head_end];
+                let bytes = text.as_bytes();
+                let mut i = m.start();
+                while i > 0
+                    && (bytes[i - 1].is_ascii_alphanumeric()
+                        || bytes[i - 1] == b'_'
+                        || bytes[i - 1] == b'-')
+                {
+                    i -= 1;
+                }
+                let full_key = format!("{}{}", &text[i..m.start()], key_head).to_ascii_lowercase();
+                if BENIGN_KEY_NAMES.contains(&full_key.as_str()) {
+                    continue;
+                }
                 let value = re
                     .captures(whole)
                     .and_then(|c| c.name("v"))
@@ -486,6 +511,23 @@ mod tests {
         assert!(scan("api_key=YOUR_API_KEY_HERE").is_empty());
         assert!(scan("token=changeme-please-not-real").is_empty());
         assert!(scan("secret_key=XXXXXXXXXXXXXXXX").is_empty());
+    }
+
+    #[test]
+    fn microsoft_public_key_token_is_not_a_secret() {
+        // dogfood 实报（2026-09-02）：unattend.xml 的
+        // publicKeyToken="31bf3856ad364e35" 是微软公开标识符，Generic Token
+        // 模式曾把中间词 Token= 判密，卡死 Write 与 Bash 两面。
+        let line = "<component name=\"Microsoft-Windows-Shell-Setup\" processorArchitecture=\"amd64\" publicKeyToken=\"31bf3856ad364e35\" language=\"neutral\"";
+        assert!(scan(line).is_empty(), "{:?}", scan(line));
+        // 键名变体同豁免（回扫前缀重建键名）。
+        assert!(scan("public_key_token=31bf3856ad364e35").is_empty());
+        // 回归：真 token 赋值仍拦（含带前缀键名 access_token——前缀不是
+        // 良性表成员不豁免）。
+        let real = format!("{}{}", "token=", "aB3xK9mQ2vZ7nR5tW");
+        assert!(scan(&real).iter().any(|x| x.label == "Generic Token"));
+        let at = format!("{}{}", "access_token=", "aB3xK9mQ2vZ7nR5tW");
+        assert!(scan(&at).iter().any(|x| x.label == "Generic Token"));
     }
 
     #[test]
