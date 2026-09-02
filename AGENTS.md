@@ -11,6 +11,7 @@
 
 2. **边界**
    - 编排钉在启动的项目目录；不替代 ohmypwsh 五端环境总台，不替代各 agent 本体。
+   - 四仓分工（2026-09-02 定调，细目见 R001 四仓生态节）：ohmyenv-rs（`ome`）管工具与运行时依赖、本仓（`oma`）管 code agent 部署配置与编排、ohmypwsh 管五端总台与密钥安全、ohmycloud 管云端二进制分发；跨仓协作互相发 issue。
    - 编排操作三通道：CLI、HTTP API、MCP 接口（P0011）；网页做可视化编排。弹不出浏览器不是错误。
    - 运行时后端是 rmux，不引入 herdr 当宿主。
    - hook、skill、状态文件只落启动目录；oma 自管应用数据根是 `~/.ohmyagents`（agent 安装与本地 pin，P0012），默认不改用户家目录 hook 注册。
@@ -123,6 +124,8 @@
 > 定位看 `INDEX.md`（项目根目录，唯一索引：编号表、目录结构、代码文件位置）。本节是**配合 INDEX 的搜索与分析方法**。
 
 **速记**：前缀定位 `P`（proven 归档）/ `S`（research 研究）/ `R`（references 开发测试参考）/ `G`（guide 元规范）/ `M`（mistakes 错误；文件 M1xx、行级 M0xx）；根目录三原语 `GOAL` / `PLAN` / `TODO`。
+
+**外部数据源**：`gh` / `git`（源码、issue 与同类仓检索取证）；`browser-harness`（浏览器搜索与任意网站抓取，ohmyenv-rs 安装）；`reader`（本地文档与电子书读取，ohmyenv-rs 安装）。
 
 **搜索方法（文档）**：
 

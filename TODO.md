@@ -85,7 +85,7 @@ agent doctor 部署诊断（队列顺位接续，用户核心轴「agent 部署�
 | statusline 覆盖 kimi 与 grok | 已完成 | merge_kimi/merge_grok 幂等合并落位（2026-09-02 当日） |
 | S026 grok/kimi OAuth 登录研究 | 已完成 | 双流取证落档（grok loopback+设备码双流、kimi 仅设备码；凭据落盘与纯文件登录态判据）；`oma agents login` 与 doctor 登录态行归 agent doctor 切片落地 |
 | agent doctor 部署诊断 | 排队 | 一次性核查四家安装态/yolo/信任/hook 形态/状态栏/登录态/会话健康 |
-| agent 密钥管理 age 加 sops | 排队 | 参考 remotex_rs（age 身份自管副本 + sops 加密 + 注入 agent 配置） |
+| agent 密钥管理 age 加 sops | 排队 | 参考 remotex_rs（age 身份自管副本 + sops 加密 + 注入 agent 配置）；密钥体系主权与跨仓密钥扫描归 ohmypwsh，集成而非自建（2026-09-02 四仓定调） |
 | 提供商与模型变量注入 | 排队 | claude/codex 用变量配 provider url/key/model（参考 D:\sourcecode\core model_lns 模式），spawn env 指派 |
 | rmux 编排扫屏消费 agent:state | 排队 | status/doctor 交叉核对 hook 态与扫屏态 |
 | 会话层 bypassPermissions 未生效排查 | 排队 | 用户实测本会话 /permissions 非 bypass（Allow 规则堆积即审批实锤）；配置层 doctor 全绿；2.1.24x 模式优先级与网关限制研究结论待收（claude-code-guide 代理）；oma 侧候选修法：spawn 的 claude 路固定 `--dangerously-skip-permissions` argv |
