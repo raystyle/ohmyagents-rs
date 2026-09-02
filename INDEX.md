@@ -114,6 +114,7 @@ ohmyagents/
 | P0025 | `P0025-serve守护化与协议化停机.md` | 已完成（serve start 即调即退、stop 协议化停机 DELETE /shutdown 优先；FFI 探活避 Job Object 管道死锁） |
 | P0026 | `P0026-code-review修复-并发安全与健壮性.md` | 已完成（codex review 高 5 中 7 全修三切片；看板默认 spectator 只读、Host 校验、cleanup 僵局、陈旧 pane、task id 占位、slug 词法归一；计划外修 serve 零控制台卡死） |
 | P0027 | `P0027-四环境部署自适应-hook形态与状态栏.md` | 已完成（PATH bare 与 codex 字段所有权、状态栏 UTF-8 与机读标记 agent:state、双环境字节收敛） |
+| P0028 | `P0028-agent-doctor部署诊断与登录引导.md` | 已完成（doctor warn 层四类部署检查、oma agents login 跨机引导、is_ours 调用操作符根修、四端验收） |
 
 ## 四、项目日记
 

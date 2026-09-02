@@ -4,16 +4,17 @@
 
 ## 当前目标
 
-agent doctor 部署诊断（队列顺位接续，用户核心轴「agent 部署、管理、验收与诊断」）：一次性核查四家安装态、yolo、信任、hook 形态、状态栏、登录态（S026 落地）、会话健康。方案见 PLAN。
+会话层 bypassPermissions 未生效排查（用户报修：oma 拉起的 claude 会话 `/permissions` 非 bypass、Allow 规则堆积即审批实锤；配置层 doctor 全绿）。
 
 ## 任务进度清单
 
-> agent doctor 切片。
+> bypassPermissions 排查切片。
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
-| oma agents login 引导 | 已完成 | `src\login.rs`：子进程捕获（纯 stderr 无 TTY，源码实证推翻 S026 pane 扫屏原推断）、URL/code 机读标记转发、超时杀进程、成功判据 = 退出 0 且 doctor 落盘凭据过；5 黄金例（源码取证样例）加负例全绿。WSL 实机**双半程闭环**：失败路径（TLS 断连诊断转述）加成功路径（跨机 UX 定调后重跑：用户另一台机器完成授权，`login.ok=true`，doctor 登录态翻绿） | 2026-09-02 |
-| 余项 | 已完成 | 四端验收收口：lan-win 拷 release 二进制、lan-mac git archive 源码包 cargo install --path（未推远端不经 git 安装）；两端四家 agent 全装、doctor 判读全对（裸目录 hooks.form/statusline warn、kimi/grok 未登录如实 warn、session 无 manifest 不误报、blocked=true 系信任面预期）；lan-mac 活捉第三种登录态分支（grok 过期带 refresh_token → warn 自动刷新咨询）。kimi 真登录待需时验 | 2026-09-02 |
+| 2.1.24x 模式优先级研究 | 进行中 | claude-code-guide 代理：defaultMode 各层优先级（CLI flag / env / 各 settings / managed policy）、bypassPermissions 被忽略的已知情形、--dangerously-skip-permissions 行为 | 2026-09-02 |
+| 本机会话层取证 | 进行中 | user/local/project settings 的 defaultMode 冲突排查、oma spawn 实际 argv 与 env | 2026-09-02 |
+| 结论与修法 | 排队 | 落 S029；oma 候选修法 = spawn claude 路固定 `--dangerously-skip-permissions` argv | |
 
 ## 前目标 P0027 清单
 

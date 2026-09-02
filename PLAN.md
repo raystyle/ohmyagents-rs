@@ -1,34 +1,22 @@
 # PLAN：当前目标实施计划
 
-> 角色：**当前目标方案文档**——基于 `docs
-esearch\`（为什么）与 `docs
-eferences\`（怎么做）撰写的执行计划；每条挂依据来源，随目标变化更新，不存历史目标。
-> 分工：`TODO.md` = 做到哪；本文件 = 怎么做；通用工作流见 `docs\guide\G003-工作流标准细则-从登记到归档五步.md`。
+## 当前目标：会话层 bypassPermissions 未生效排查
 
-## 当前目标：agent doctor 部署诊断
-
-> 用户核心轴「agent 部署、管理、验收与诊断」队列顺位项（2026-09-02 起）。一次性核查四家：安装态、yolo、信任、hook 形态、状态栏、登录态、会话健康。
+> 用户报修 2026-09-02：oma 拉起的 claude 会话 `/permissions` 非 bypass，Allow 规则堆积（审批仍在弹）即实锤；`oma doctor` 配置层全绿（`permissions.defaultMode=bypassPermissions` 落在项目 `.claude/settings.json`）——问题在会话层不在配置层。
 
 ### 方案骨架
 
-- 基础：现有 `oma doctor` 已覆盖 yolo、trust.*、binary、caps、state——在其上聚合而非另起炉灶（依据 R002 命令细则、S026 登录态判据）。
-- 新增检查项：登录态（S026 纯文件判据：grok `~/.grok/auth.json` scope 键未过期、kimi `~/.kimi-code/credentials/kimi-code.json` access_token 非空）；状态栏形态（S025 四家落位文件存在性与 oma 段标记）；hook 形态标记（`init.hooks.form=` 同型口径）。
-- 会话健康：无 rmux 会话时不误报（部署诊断先于会话存在）。
-- 输出：按 agent 分组一行一检查（status=ok|warn|block 同现有 doctor 行协议），`doctor.blocked=` 汇总不变。
-- `oma agents login [名]`（S026 待办）：pane 内起 `grok login --device-code` / `kimi login`，扫屏转发 URL+code，完成扫 `✓ Signed in` / `Logged in` 确认——独立切片，本目标先落检测不落引导。
+1. **研究**（claude-code-guide 代理）：claude 2.1.24x 的权限模式解析优先级——`--permission-mode`/`--dangerously-skip-permissions` CLI flag、`CLAUDE_CODE_*` env、user `~/.claude/settings.json`、项目 `.claude/settings.json` 与 `settings.local.json` 各层 defaultMode 的胜负关系；`bypassPermissions` 被静默降级的已知情形（managed settings、gateway/自定义 ANTHROPIC_BASE_URL 限制、版本行为变化）；`--dangerously-skip-permissions` 与 defaultMode 的差异。
+2. **本机取证**：三层 settings 的 defaultMode 实值；oma spawn claude 路的实际 argv 与 env（`orch.rs`）；oma 会话与用户手拉会话的差异面。
+3. **结论落 S029**（六态标注），按结论定 oma 修法；候选（若 defaultMode 在会话层确被忽略）：spawn 的 claude 路固定 `--dangerously-skip-permissions` argv。
 
 ### 验收口径
 
-- 本机 Windows 与 WSL 双侧四家全绿（或带明确 warn 而非误报 block）；lan-mac / lan-win 远程验收通道可用（mac `ssh ray@lan-mac`、Windows `ssh ray@lan-win`）。
-- 测试：新增检测各有单测（判据来自 S026 事实源黄金样例，不镜像实现）；rmux 依赖项带闸门。
+oma 拉起的 claude 会话内 `/permissions` 显示 bypassPermissions（或等效不再弹审批）；`oma doctor` 语义不破；测试守卫不倒退。
 
 ### 门禁
 
 `cargo fmt --all -- --check` + `cargo clippy` 存量告警不新增 + `cargo test`（隔离 target）+ `rumdl check .` + `md-ref-scan.py` + `md-heading-scan.py`；提交精确 add（M036）。
 
-## 完成的定义
-
-> 本目标验收口径。
-
-- mac 真机：达成（2026-09-01）——构建与测试基线全绿、rmux 资产验收、四家 agent 安装、真身四路 + settle 全链绿（含真任务与 hook 流）。
-- WSL Linux：达成（2026-09-01）——第一棒（构建/基线/daemon/分类器/stub 全链）加补尾棒（四家 `--force` 安装探针全绿、真身四路 + settle、`oma task` 真任务产物精确、doctor 零阻塞、cleanup 零残留）。
+> 角色：**当前目标方案文档**——基于 `docs\research\`（为什么）与 `docs\references\`（怎么做）撰写的执行计划；每条挂依据来源，随目标变化更新，不存历史目标。
+> 分工：`TODO.md` = 做到哪；本文件 = 怎么做；通用工作流见 `docs\guide\G003-工作流标准细则-从登记到归档五步.md`。
