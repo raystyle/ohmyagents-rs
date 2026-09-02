@@ -73,11 +73,18 @@ jobs:
         with:
           path: dist
           merge-multiple: true
-      - name: Rolling dev release
+      - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete dev --yes --cleanup-tag || true
-          gh release create dev dist/* --prerelease \
-            --title "oma dev (rolling)" \
-            --notes "滚动开发版：main 最新提交自动构建。安装：oma self update（默认 dev 通道）。"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            tag="${GITHUB_REF#refs/tags/}"
+            gh release create "$tag" dist/*.zip dist/*.tar.gz dist/*.sha256 --latest \
+              --title "oma $tag" \
+              --notes "正式版 $tag（版本 tag 触发构建）。安装：oma self update --stable。"
+          else
+            gh release delete dev --yes --cleanup-tag || true
+            gh release create dev dist/*.zip dist/*.tar.gz dist/*.sha256 --prerelease \
+              --title "oma dev (rolling)" \
+              --notes "滚动开发版：main 最新提交自动构建。安装：oma self update（默认 dev 通道）。"
+          fi
