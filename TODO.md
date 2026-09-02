@@ -12,7 +12,7 @@ agent doctor 部署诊断（队列顺位接续，用户核心轴「agent 部署�
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
-| oma agents login 引导 | 已完成 | `src\login.rs`：子进程捕获（纯 stderr 无 TTY，源码实证推翻 S026 pane 扫屏原推断）、URL/code 机读标记转发、超时杀进程、成功判据 = 退出 0 且 doctor 落盘凭据过；5 黄金例（源码取证样例）加负例全绿；WSL grok 真登录实机验收（URL/code 精确转发，doctor 确认落盘） | 2026-09-02 |
+| oma agents login 引导 | 已完成 | `src\login.rs`：子进程捕获（纯 stderr 无 TTY，源码实证推翻 S026 pane 扫屏原推断）、URL/code 机读标记转发、超时杀进程、成功判据 = 退出 0 且 doctor 落盘凭据过；5 黄金例（源码取证样例）加负例全绿。WSL 实机：URL/code 转发与**失败路径**（grok TLS 断连：失败行捕获、login_state 转、exit 1）实证；成功半程待用户闲时重跑 | 2026-09-02 |
 | 余项 | 排队 | lan-win / lan-mac 远程验收通道（doctor 与 login 同批走）；kimi 侧真登录待需时验 | 2026-09-02 |
 
 ## 前目标 P0027 清单
