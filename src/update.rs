@@ -138,24 +138,45 @@ pub fn version_newer(tag: &str, current: &str) -> bool {
     false
 }
 
-/// dev 通道判新：资产摘要与当前 exe 的 sha256 一致（且摘要有值）即已最新。
+/// 上次安装记录：`~/.ohmyagents/selfupdate.json`（资产 digest 为判据——
+/// digest 是压缩包哈希，与 exe 哈希不可比）。
+fn record_path() -> Result<PathBuf, String> {
+    Ok(crate::install::oma_home()?.join("selfupdate.json"))
+}
+
+fn read_record_digest() -> Option<String> {
+    let text = std::fs::read_to_string(record_path().ok()?).ok()?;
+    let v: serde_json::Value = serde_json::from_str(&text).ok()?;
+    v.get("digest").and_then(|d| d.as_str()).map(String::from)
+}
+
+fn write_record(digest: &str, tag: &str) {
+    if let Ok(p) = record_path() {
+        let body = format!(
+            "{{\"digest\": \"{digest}\", \"tag\": \"{tag}\", \"ts\": {}}}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0)
+        );
+        let _ = std::fs::write(p, body);
+    }
+}
+
+/// 判据纯函数：记录 digest 与资产 digest 一致即已最新（缺任一侧 = 需更新）。
+fn digest_matches(record: Option<&str>, asset: Option<&str>) -> bool {
+    match (record, asset) {
+        (Some(r), Some(a)) => r.eq_ignore_ascii_case(a),
+        _ => false,
+    }
+}
+
+/// dev 通道判新：滚动源资产 digest 与上次安装记录一致即已最新。
 fn dev_is_current(release: &Release) -> bool {
     let Some(asset) = pick_asset(&release.assets) else {
         return false;
     };
-    let Some(digest) = asset.digest.as_deref() else {
-        return false;
-    };
-    let Some(hex) = digest.strip_prefix("sha256:") else {
-        return false;
-    };
-    let Ok(cur) = std::env::current_exe() else {
-        return false;
-    };
-    match crate::rmux::sha256_file(&cur) {
-        Ok(actual) => actual.eq_ignore_ascii_case(hex),
-        Err(_) => false,
-    }
+    digest_matches(read_record_digest().as_deref(), asset.digest.as_deref())
 }
 
 /// Atomic-ish self replace: write the new binary beside the current exe, then
@@ -264,6 +285,9 @@ pub fn run(repo: &str, channel: Channel, git_mode: bool, force: bool) -> Result<
     };
     let final_path = self_replace(&extracted)?;
     println!("update.replaced={}", final_path.display());
+    if let Some(d) = asset.digest.as_deref() {
+        write_record(d, &release.tag_name);
+    }
     println!("update.ok=true");
     Ok(())
 }
@@ -306,6 +330,15 @@ mod tests {
         assert!(!version_newer("0.0.9", "0.1.0"));
         // 非数字段按 0 处理不炸。
         assert!(version_newer("v1.0.0-rc1", "0.9.0"));
+    }
+
+    #[test]
+    fn digest_matches_is_the_rolling_freshness_rule() {
+        assert!(digest_matches(Some("sha256:abc"), Some("sha256:ABC")));
+        assert!(!digest_matches(Some("sha256:abc"), Some("sha256:def")));
+        // 缺记录或缺摘要 = 需更新（保守）。
+        assert!(!digest_matches(None, Some("sha256:abc")));
+        assert!(!digest_matches(Some("sha256:abc"), None));
     }
 
     #[test]
