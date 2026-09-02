@@ -75,6 +75,15 @@ P0027 四环境部署自适应（用户定调 2026-09-02：hook 注册与状态�
 
 ## 队列目标
 
-（无现役——P0012 三平台（Windows / mac / WSL Linux）全部完成，待归档后起新目标。）
+> 用户定调 2026-09-02「agent 部署、管理、验收与诊断」核心轴，五端视角（本机 / WSL / lan-win / lan-linux / lan-mac）。
+
+| 目标 | 状态 | 说明 |
+| --- | --- | --- |
+| statusline 覆盖 kimi 与 grok | 已完成 | merge_kimi/merge_grok 幂等合并落位（2026-09-02 当日） |
+| S026 grok/kimi OAuth 登录研究 | 进行中 | 登录 URL 与 auth code 交互呈现、登录态检测；源码取证子代理进行中 |
+| agent doctor 部署诊断 | 排队 | 一次性核查四家安装态/yolo/信任/hook 形态/状态栏/登录态/会话健康 |
+| agent 密钥管理 age 加 sops | 排队 | 参考 remotex_rs（age 身份自管副本 + sops 加密 + 注入 agent 配置） |
+| 提供商与模型变量注入 | 排队 | claude/codex 用变量配 provider url/key/model（参考 D:\sourcecode\core model_lns 模式），spawn env 指派 |
+| rmux 编排扫屏消费 agent:state | 排队 | status/doctor 交叉核对 hook 态与扫屏态 |
 
 （P0006 至 P0026 已完成；过程与经验在对应 proven 方案。）
