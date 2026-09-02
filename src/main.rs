@@ -15,7 +15,11 @@ use oma::trace;
 use oma::yolo;
 
 #[derive(Parser)]
-#[command(name = "oma", about = "Oh My Agents：通用智能体多路复用任务编排器")]
+#[command(
+    name = "oma",
+    version,
+    about = "Oh My Agents：通用智能体多路复用任务编排器"
+)]
 struct Cli {
     /// REPL：不开 HTTP 编排面
     #[arg(long)]

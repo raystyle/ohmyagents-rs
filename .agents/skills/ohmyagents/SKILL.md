@@ -21,7 +21,8 @@ description: oma 项目编排命令图：会话拉起、状态、委派、自愈
 | 检索本项目各 agent 的意图操作块与编辑轨迹（四家原生会话库联邦读） | `oma trace sessions|timeline|blocks|agent|file|search` |
 | 起 HTTP 编排面（GET / 直出可视化网页） | `oma serve [--port N]` |
 | 作为 MCP server 跑 stdio（六操作加 trace 检索 tools） | `oma mcp` |
-| 只读诊断信任库、已装二进制与状态链 | `oma doctor` |
+| 只读诊断信任库、二进制、登录态、hook 形态、状态栏与会话健康 | `oma doctor` |
+| 设备码登录引导：转发 URL 加 code，等浏览器侧完成后以落盘凭据确认 | `oma agents login grok|kimi` |
 | 安装缺失 agent（oma 自管根 ~/.ohmyagents） | `oma agents install [名]` |
 
 ## 任务目录协议
@@ -30,7 +31,7 @@ description: oma 项目编排命令图：会话拉起、状态、委派、自愈
 
 1. 提示词全文在 `prompt.md`（可随时重读）；
 2. 产物写到 `output.md`（先写全内容）；
-3. **最后**创建空文件 `DONE` 表示完成——oma 只认 DONE 不认 output 存在，顺序不能反。
+3. **最后**创建空文件 `DONE` 表示完成（oma 只认 DONE 不认 output 存在，顺序不能反）。
 
 等另一个 agent 的任务产物时用**收件人模式**（不前台死等）：
 
