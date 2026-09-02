@@ -2,7 +2,9 @@
 
 > 2026-09-02 用户定调两条合一：①参考 D:\ohmycloud 的 app.key、identity.enc、vault.yaml（D20「一钥两密文」）方式保存 deepseek 与智谱密钥；②参考 D:\ohmypwsh 历史的懒注入（pwsh/bash/zsh/nushell profile），彻底平移接管 agent 的密钥管理。四仓分工下密钥**主权在 ohmypwsh**（R001），oma 接管的是 **agent 会话的存储与投递面**——本机 agent 键的存取不再依赖 ohmypwsh 载体。
 
-## ohmycloud 一钥两密文（D20）
+## ohmycloud 一钥两密文
+
+> D20 应用标准。
 
 [实证: src\lib\keystore.ts 逐行读 + ~/.omcf 实体文件结构核对]
 
@@ -12,7 +14,9 @@
 - **identity.meta.json**：source（标准 age 钥匙链路径）、recipient（公钥可明文）、createdAt。
 - 身份走 **SOPS 标准 age 钥匙链**（`SOPS_AGE_KEY_FILE` → `%APPDATA%\sops\age\keys.txt` / `~/.config/sops/age/keys.txt` → `~/.config/age/keys.txt`），与 ohmypwsh、remotex 同源——**身份不自建**（R003 裁决）。
 
-## ohmypwsh 懒注入（历史形态）
+## ohmypwsh 懒注入
+
+> 历史形态取证。
 
 [实证: scripts\profile-pwsh.ps1 与 profile-posix.ps1 逐行读、R001 命令行]
 
@@ -43,7 +47,17 @@
 - **secretguard 联动**：实值通道后续可把 vault 解出的值并入防线 2（待办，不进本切片）。
 - **providers.toml 关系**：现明文过渡形态保留；后续可让 providers env 值引用 vault 键（间接层）——待办不进本切片。
 
-## 纪律（对齐 ohmycloud D20 + ohmypwsh）
+## 纪律
+
+> 对齐 ohmycloud D20 与 ohmypwsh。
 
 - 盘上恒密文（app.key 除外——它是链根，0600 文件态）；秘密不进 argv；输出 redacted 只报「已设置/来源」。
 - 原子写 0600；解密失败不泄漏密文内容。
+
+## 落地记
+
+- `src\secrets.rs` + `oma agents secrets init|set|env|inject|status` 五命令落地；134+13 全绿。
+- 实机部署即验收：本机 init（真身份 `~/.config/age/keys.txt` 包裹）；ohmypwsh 密文平移两键（`sops -d | base64 -d | oma set` 管道直传，不过 argv 不过记录）加 BASE_URL；三 shell env 输出掩码核对；`inject` 四 profile 齐写；pwsh `AK=True DS=True`、bash `AK=set DS=set URL=bigmodel`——端到端全通，与 ohmypwsh 历史形态同语义。
+- oma 数据根自管（用户定调：oma 用自己的应用数据存用户目录下）——全部落 `~/.ohmyagents`，不碰 `.omcf`。
+- 新 oma 已 `cargo install --path` 就位：secretguard 与 secrets 同批激活，本仓即刻 dogfood。
+- 待办：providers.toml env 值引用 vault 键的间接层；secretguard 实值通道并入 vault 解出值。

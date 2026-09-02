@@ -14,6 +14,7 @@ pub mod repl;
 pub mod rmux;
 pub mod rmuxpoc;
 pub mod secretguard;
+pub mod secrets;
 pub mod statusline;
 pub mod task;
 pub mod trace;

@@ -89,11 +89,11 @@
 | statusline 覆盖 kimi 与 grok | 已完成 | merge_kimi/merge_grok 幂等合并落位（2026-09-02 当日） |
 | S026 grok/kimi OAuth 登录研究 | 已完成 | 双流取证落档（grok loopback+设备码双流、kimi 仅设备码；凭据落盘与纯文件登录态判据）；`oma agents login` 与 doctor 登录态行归 agent doctor 切片落地 |
 | agent doctor 部署诊断 | 排队 | 一次性核查四家安装态/yolo/信任/hook 形态/状态栏/登录态/会话健康 |
-| agent 密钥管理 age 加 sops | 排队 | 参考 remotex_rs（age 身份自管副本 + sops 加密 + 注入 agent 配置）；密钥体系主权与跨仓密钥扫描归 ohmypwsh，集成而非自建（2026-09-02 四仓定调） |
+| agent 密钥管理 age 加 sops | 已完成 | S031 落地（一钥两密文加四 shell 懒注入）；身份走 SOPS 标准钥匙链集成不自建；主权面留 ohmypwsh |
 | 提供商与模型变量注入 | 已完成（P0027 批） | providers.toml 别名簿加 `oma spawn --agents claude@zhipu,codex@deepseek` env/argv 注入已落地（S027 四格矩阵）；本行陈旧已并 |
 | rmux 编排扫屏消费 agent:state | 已完成 | `oma status` 三面（marker 行/TTY 表/api JSON）加 screen 扫屏列与 check 交叉核对（match/mismatch/-）；同一次快照出终端态与扫屏态零额外开销；stub 实机验收（画标记→screen=working、无标记→-、hook 缺侧 check=-） |
-| 密钥一钥两密文存储 | 进行中 | 用户定调：参考 D:\ohmycloud 的 app.key、identity.enc、vault.yaml（一钥两密文）方式保存 deepseek 与智谱密钥 |
-| 会话层 bypassPermissions 未生效排查 | 排队 | 用户实测本会话 /permissions 非 bypass（Allow 规则堆积即审批实锤）；配置层 doctor 全绿；2.1.24x 模式优先级与网关限制研究结论待收（claude-code-guide 代理）；oma 侧候选修法：spawn 的 claude 路固定 `--dangerously-skip-permissions` argv |
+| 密钥一钥两密文存储 | 已完成 | S031 落地：oma agents secrets 五命令（init/set/env/inject/status）；app.key 加 identity.enc AES-256-GCM 包裹加 secrets.yaml SOPS 制；四 profile 懒注入幂等块；ohmypwsh 密文平移两键加 BASE_URL；pwsh/bash 实机端到端全通；oma 自管根不碰 .omcf |
+| 会话层 bypassPermissions 未生效排查 | 已完成 | S029 落档加 argv 修法（04b5c74）：spawn claude 路固定 --dangerously-skip-permissions（flag > settings 各层；2.1.257 项目层 bypass 被忽略）；已活会话 respawn 重开即生效 |
 | 仓库与目录更名 ohmyagents-rs | 已完成 | 五步收口：GitHub 更名（用户）、remote set-url、目录 D:\ohmyagents-rs、双环境重跑 init 加 --pretrust（双侧 doctor.blocked=false）；残留清扫 Cargo.toml/README/main.rs 帮助文案/S028（diary 存档不改） |
 
 （P0006 至 P0026 已完成；过程与经验在对应 proven 方案。）

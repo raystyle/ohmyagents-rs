@@ -390,6 +390,30 @@ enum TraceCmd {
 }
 
 #[derive(Subcommand)]
+enum SecretsCmd {
+    /// 链路初始化：app.key 生成 + age 身份包裹进 identity.enc + meta 落盘
+    Init,
+    /// 写入一个键（值走 stdin，秘密不进 argv；base64 后 sops 加密入 vault）
+    Set {
+        /// 键名（A-Z0-9_，如 DEEPSEEK_API_KEY）
+        name: String,
+    },
+    /// 解 vault 出对应 shell 的会话 env 语句（profile 块的后端）
+    Env {
+        /// 目标 shell：pwsh | bash | zsh | nu
+        #[arg(long)]
+        shell: String,
+    },
+    /// 向 shell profile 写懒注入块（幂等，标志行包裹）
+    Inject {
+        /// 目标 shell：pwsh | bash | zsh | nu；缺省四个都写
+        shells: Vec<String>,
+    },
+    /// 链路体检（redacted：只报存在性）
+    Status,
+}
+
+#[derive(Subcommand)]
 enum AgentsCmd {
     /// 配置四家状态栏（幂等：claude/codex/kimi/grok 各自配置面，脚本随 oma 释放）
     Statusline {
@@ -403,6 +427,11 @@ enum AgentsCmd {
         /// 等浏览器侧完成的最长秒数；0 不限时
         #[arg(long, default_value_t = 600)]
         timeout: u64,
+    },
+    /// 密钥一钥两密文存储与四 shell 懒注入（S031，对齐 ohmycloud D20 与 ohmypwsh 懒注入）
+    Secrets {
+        #[command(subcommand)]
+        cmd: Option<SecretsCmd>,
     },
     /// 提供商别名簿（~/.ohmyagents/providers.toml，标准 sops 托管）
     Providers {
@@ -465,6 +494,7 @@ fn run() -> Result<(), String> {
             Some(AgentsCmd::Update { names, force, root }) => cmd_agents_update(names, force, root),
             Some(AgentsCmd::Statusline { names }) => cmd_agents_statusline(names),
             Some(AgentsCmd::Login { names, timeout }) => cmd_agents_login(names, timeout),
+            Some(AgentsCmd::Secrets { cmd }) => cmd_agents_secrets(cmd),
             Some(AgentsCmd::Providers { example }) => cmd_agents_providers(example),
         },
         Commands::Hook { event, agent } => cmd_hook(event, agent),
@@ -974,6 +1004,50 @@ fn cmd_agents_login(names: Vec<String>, timeout: u64) -> Result<(), String> {
         std::process::exit(1);
     }
     Ok(())
+}
+
+/// `oma agents secrets`：一钥两密文存储与四 shell 懒注入（S031）。
+fn cmd_agents_secrets(cmd: Option<SecretsCmd>) -> Result<(), String> {
+    use SecretsCmd as S;
+    let root = oma::install::oma_home()?;
+    match cmd {
+        None | Some(S::Status) => {
+            for line in oma::secrets::status(&root) {
+                println!("{line}");
+            }
+            Ok(())
+        }
+        Some(S::Init) => {
+            for line in oma::secrets::init(&root)? {
+                println!("{line}");
+            }
+            Ok(())
+        }
+        Some(S::Set { name }) => {
+            let value = oma::secrets::read_stdin_value()?;
+            for line in oma::secrets::set(&root, &name, &value)? {
+                println!("{line}");
+            }
+            Ok(())
+        }
+        Some(S::Env { shell }) => {
+            print!("{}", oma::secrets::env_lines(&root, &shell)?);
+            Ok(())
+        }
+        Some(S::Inject { shells }) => {
+            let targets = if shells.is_empty() {
+                vec!["pwsh", "bash", "zsh", "nu"]
+            } else {
+                shells.iter().map(String::as_str).collect()
+            };
+            for shell in targets {
+                for line in oma::secrets::inject(shell)? {
+                    println!("{line}");
+                }
+            }
+            Ok(())
+        }
+    }
 }
 
 /// `oma agents statusline [名]`：配置 claude/codex 状态栏（幂等）。
