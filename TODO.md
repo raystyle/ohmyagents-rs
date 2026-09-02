@@ -13,7 +13,7 @@ agent doctor 部署诊断（队列顺位接续，用户核心轴「agent 部署�
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
 | oma agents login 引导 | 已完成 | `src\login.rs`：子进程捕获（纯 stderr 无 TTY，源码实证推翻 S026 pane 扫屏原推断）、URL/code 机读标记转发、超时杀进程、成功判据 = 退出 0 且 doctor 落盘凭据过；5 黄金例（源码取证样例）加负例全绿。WSL 实机**双半程闭环**：失败路径（TLS 断连诊断转述）加成功路径（跨机 UX 定调后重跑：用户另一台机器完成授权，`login.ok=true`，doctor 登录态翻绿） | 2026-09-02 |
-| 余项 | 排队 | lan-win / lan-mac 远程验收通道（doctor 与 login 同批走）；kimi 侧真登录待需时验 | 2026-09-02 |
+| 余项 | 已完成 | 四端验收收口：lan-win 拷 release 二进制、lan-mac git archive 源码包 cargo install --path（未推远端不经 git 安装）；两端四家 agent 全装、doctor 判读全对（裸目录 hooks.form/statusline warn、kimi/grok 未登录如实 warn、session 无 manifest 不误报、blocked=true 系信任面预期）；lan-mac 活捉第三种登录态分支（grok 过期带 refresh_token → warn 自动刷新咨询）。kimi 真登录待需时验 | 2026-09-02 |
 
 ## 前目标 P0027 清单
 

@@ -82,7 +82,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：agent doctor 部署诊断（2026-09-02）。核心当日落地——doctor 加 warn 层与登录态、hook 形态、状态栏、会话健康四类检查（is_ours 盲区根修），`oma agents login` 设备码引导同日全链闭环（跨机 UX 定调、失败与成功双半程实机验证、WSL grok 登录态翻绿）。余项：lan-win / lan-mac 远程验收通道。
+- 当前目标：agent doctor 部署诊断（2026-09-02）——**四端验收达成，目标完成待归档**：本机（全 ok）+ WSL（补登录后绿）+ lan-win（release 二进制直送）+ lan-mac（源码包 cargo install --path）；doctor 四类新检查四端判读全对，grok 登录态三分支全部活体实证（存活/缺失/过期可刷新）；`oma agents login` 跨机引导失败成功双半程闭环；rust 1.98 零改动适配。
 
 ## 历史
 
