@@ -15,6 +15,7 @@ eferences\`（怎么做）撰写的执行计划；每条挂依据来源，随目
 
 - 下一目标候选（S025 待办升格）：`oma agents statusline` 扩展 kimi（`~/.kimi-code/tui.toml [status_line].command`，300ms/1s 节流约束）与 grok（`~/.grok/config.toml [ui.status_line] type=command`，仅用户级）；rmux 编排扫屏消费 `agent:state` 标记（status/doctor 交叉核对）。
 - 远程验收通道（用户 2026-09-02 提供）：mac `ssh ray@lan-mac`、Windows `ssh ray@lan-win`、本机 WSL、本机——四端可验收。
+- 更名 ohmyagents-rs 余项清单（用户定调 2026-09-02）：① GitHub 仓库 Settings 更名（旧 URL 自动重定向）；② 本地 `git remote set-url origin https://github.com/raystyle/ohmyagents-rs.git`；③ 关全部会话后目录 `D:\ohmyagents` → `D:\ohmyagents-rs`（oma 项目 slug 随路径哈希变化，旧会话自然失效、新会话起新 slug）；④ WSL 侧路径同步；⑤ 更名后 Windows 与 WSL 各重跑 `oma init`（codex hooks.json 内绝对路径随目录变、codex 信任键内嵌路径需重播）。
 - 门禁：`cargo fmt --all -- --check`（2026-09-02 起进门禁）+ `cargo clippy` 存量告警不新增 + `cargo test`（隔离 target）+ `rumdl check .` + `md-ref-scan.py` + `md-heading-scan.py`；提交精确 add（M036）。
 
 ## 完成的定义

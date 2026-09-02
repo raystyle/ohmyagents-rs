@@ -86,7 +86,7 @@
 ## 三、意图路由
 
 > 需求意图与操作方法的映射。命令细则见 `docs\references\R002-常用命令与管理流程-从项目init到会话cleanup.md`。
-> 显示名 Oh My Agents；仓库 `ohmyagents`；CLI 二进制 `oma`。数据目录仍是 `.ohmyagents`。
+> 显示名 Oh My Agents；仓库 `ohmyagents-rs`（更名自 OhMyAgents，2026-09-02 定调）；CLI 二进制 `oma`。数据目录仍是 `.ohmyagents`。
 
 - **核对照**：`oma check`（rmux 版本 + 哈希 + 完整布局；缺则按 `catalog/rmux.toml` 安装。`--no-install` 只诊断）
 - **无阻塞诊断**：`oma doctor`（进程存活 + hook 语义 + 任务指向 + yolo；不把 wait-pane Quiet 当 idle）

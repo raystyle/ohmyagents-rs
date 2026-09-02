@@ -7,8 +7,10 @@ use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
-/// Default repo; `--repo owner/name` overrides.
-pub const DEFAULT_REPO: &str = "raystyle/OhMyAgents";
+/// Default repo; `--repo owner/name` overrides. 更名预备（2026-09-02）：
+/// 仓库名 OhMyAgents → ohmyagents-rs；GitHub 更名后旧名 URL 自动重定向，
+/// 此值在更名前后均可用。
+pub const DEFAULT_REPO: &str = "raystyle/ohmyagents-rs";
 
 const UA: &str = concat!("oma/", env!("CARGO_PKG_VERSION"));
 

@@ -85,5 +85,7 @@ P0027 四环境部署自适应（用户定调 2026-09-02：hook 注册与状态�
 | agent 密钥管理 age 加 sops | 排队 | 参考 remotex_rs（age 身份自管副本 + sops 加密 + 注入 agent 配置） |
 | 提供商与模型变量注入 | 排队 | claude/codex 用变量配 provider url/key/model（参考 D:\sourcecode\core model_lns 模式），spawn env 指派 |
 | rmux 编排扫屏消费 agent:state | 排队 | status/doctor 交叉核对 hook 态与扫屏态 |
+| 会话层 bypassPermissions 未生效排查 | 排队 | 用户实测本会话 /permissions 非 bypass（Allow 规则堆积即审批实锤）；配置层 doctor 全绿；2.1.24x 模式优先级与网关限制研究结论待收（claude-code-guide 代理）；oma 侧候选修法：spawn 的 claude 路固定 `--dangerously-skip-permissions` argv |
+| 仓库与目录更名 ohmyagents-rs | 进行中 | DEFAULT_REPO 与 AGENTS 已切新名；余项清单见 PLAN 接续口径（GitHub 更名 / remote set-url / 本地目录改名 / 双环境重跑 init） |
 
 （P0006 至 P0026 已完成；过程与经验在对应 proven 方案。）
