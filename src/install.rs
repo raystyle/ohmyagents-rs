@@ -386,6 +386,11 @@ fn manifest_field(path: &Path, key: &str) -> Option<String> {
 
 // ---- 下载 ----
 
+/// 单文件下载（github 域自动带 GH_TOKEN）；update.rs 复用。
+pub(crate) fn download_asset(url: &str, dest: &Path) -> Result<(), String> {
+    download(url, dest)
+}
+
 fn download(url: &str, dest: &Path) -> Result<(), String> {
     let mut req = ureq::get(url).set("User-Agent", UA);
     if url.starts_with("https://github.com/") || url.starts_with("https://api.github.com/") {

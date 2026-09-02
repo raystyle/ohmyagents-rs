@@ -211,6 +211,12 @@ enum Commands {
         #[arg(long)]
         print_config: bool,
     },
+    /// oma 自身管理（self update 自更新）
+    #[command(name = "self")]
+    SelfGroup {
+        #[command(subcommand)]
+        cmd: SelfSub,
+    },
     /// 生成 shell 补全脚本到 stdout（S016 吸收）
     Completions {
         /// 目标 shell
@@ -243,6 +249,22 @@ enum Commands {
         /// 项目根；默认当前目录
         #[arg(long)]
         project: Option<PathBuf>,
+    },
+}
+
+#[derive(Subcommand)]
+enum SelfSub {
+    /// oma 自更新：GitHub Releases 拉新版自替换；封版前用 --git 源码安装
+    Update {
+        /// 仓库（owner/name）；缺省 raystyle/OhMyAgents
+        #[arg(long)]
+        repo: Option<String>,
+        /// 走 cargo install --git 源码安装（封版前主路径）
+        #[arg(long)]
+        git: bool,
+        /// 同版本也重装
+        #[arg(long)]
+        force: bool,
     },
 }
 
@@ -489,6 +511,13 @@ fn run() -> Result<(), String> {
             project,
             print_config,
         } => cmd_mcp(project, print_config),
+        Commands::SelfGroup { cmd } => match cmd {
+            SelfSub::Update { repo, git, force } => oma::update::run(
+                &repo.unwrap_or_else(|| oma::update::DEFAULT_REPO.into()),
+                git,
+                force,
+            ),
+        },
         Commands::Completions { shell } => cmd_completions(shell),
         Commands::Respawn {
             agent,

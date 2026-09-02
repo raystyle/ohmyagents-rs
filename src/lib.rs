@@ -15,6 +15,7 @@ pub mod rmuxpoc;
 pub mod statusline;
 pub mod task;
 pub mod trace;
+pub mod update;
 pub mod webassets;
 pub mod yolo;
 

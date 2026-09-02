@@ -156,6 +156,7 @@ ohmyagents/
 | S025 | `S025-四家状态栏配置矩阵与机读标记.md` | 四家状态栏命令驱动矩阵（kimi tui.toml、grok ui.status_line）；oma 机读标记 agent:state 与会话闸 |
 | S026 | `S026-grok与kimi的OAuth登录流.md` | 两家设备码流取证（URL+code 落 stderr 可转发）、凭据落盘与登录态纯文件检测 |
 | S027 | `S027-提供商别名注入矩阵.md` | zhipu/deepseek x claude/codex 四格官方端点与注入形态；sops 托管密钥 |
+| S028 | `S028-oma自更新机制.md` | releases/latest 查询、oma-<triple> 资产约定、Windows rename 舞步自替换、封版前 --git 主路径 |
 
 ## 六、开发测试参考
 
