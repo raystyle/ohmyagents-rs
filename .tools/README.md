@@ -18,6 +18,8 @@
 | `md-heading-scan.py` | 标题括号规范扫描（G001 标题干净的机检项；代码围栏内的注释不计） | `uv run --script .tools/md-heading-scan.py [--root docs]`；退出码 0/1 |
 | `mdcharlint.py` | 四类禁用字符检查（G005；掩豁免区后扫，中文标点白名单放行） | `uv run --script .tools/mdcharlint.py 文件.md ...`；退出码 0/1 |
 | `md-replace.py` | 中文与反斜杠路径安全的字面批量替换（规避 sed 转义坑，见 M023） | `uv run --script .tools/md-replace.py --glob 'docs/**/*.md' --map 映射.txt [--dry]` |
+| `review-round.py` | agent 轮换接力 review 工作流（不并行，每家 review 上家修复后状态，FINDINGS=0 终止；产物归 `.ohmyagents/reviews/relay/`） | `uv run --script .tools/review-round.py relay <轮> <agent> [--project P] [--oma PATH] [--timeout 1800]`；退出码 0/1/2 |
+| `share-view-probe.py` | 连本地 rmux web-share 网关抓 spectator 视角 session view 数据（排查前端布局数据源） | `uv run --script .tools/share-view-probe.py <token> [ws-url]`；缺省 `ws://127.0.0.1:9777/share` |
 
 ## 历史注记
 
