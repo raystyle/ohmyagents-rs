@@ -1,26 +1,13 @@
 # mdcharlint 封闭豁免清单（G005）
 # 只减不增：存量带病文件一次性入册，清理一处删一行；新文件不进清单强制合规。
 # diary/proven（历史归档不回改）与 node_modules（第三方）由脚本 SKIP_DIRS 整体跳过，不占本清单。
-AGENTS.md
-CHANGELOG.md
 GOAL.md
-INDEX.md
 PLAN.md
-README.md
 SKILL.md
-TODO.md
-docs/guide/G001-文档标准细则-命名写作规范与rumdl检查.md
-docs/guide/G003-工作流标准细则-从登记到归档五步.md
-docs/guide/G004-经验沉淀细则-成功与错误经验分治.md
 docs/mistakes/M101-drive与paste错误.md
 docs/mistakes/M105-agent检测与状态判断错误.md
 docs/mistakes/M106-Windows进程与daemon启动错误.md
 docs/mistakes/M107-工具链与脚本错误.md
-docs/references/R002-常用命令与管理流程-从项目init到会话cleanup.md
-docs/references/R004-测试标准细则-分层断言与门禁流程.md
-docs/references/R006-rmux开发参考-连接会话布局与驱动.md
-docs/references/R007-agent信任与无阻塞参考-四家配置与检测.md
-docs/references/R009-项目工具PowerShell模块选型细则-psgallery与psresourceget.md
 docs/references/R010-Windows到Linux交接清单.md
 docs/research/S001-四路会话的控制面与观察面.md
 docs/research/S002-跨平台与无浏览器.md
@@ -53,3 +40,10 @@ docs/research/S029-bypassPermissions会话层失效与命令面注入.md
 docs/research/S030-密钥hook安全拦截接管与同类Rust实现.md
 docs/research/S031-密钥一钥两密文存储与四shell懒注入接管.md
 docs/web/share-src/src/scripts/share/wasm/README.md
+docs/guide/G001-文档标准细则-命名写作规范与rumdl检查.md
+docs/guide/G003-工作流标准细则-从登记到归档五步.md
+docs/guide/G004-经验沉淀细则-成功与错误经验分治.md
+docs/references/R004-测试标准细则-分层断言与门禁流程.md
+docs/references/R006-rmux开发参考-连接会话布局与驱动.md
+docs/references/R007-agent信任与无阻塞参考-四家配置与检测.md
+docs/references/R009-项目工具PowerShell模块选型细则-psgallery与psresourceget.md
