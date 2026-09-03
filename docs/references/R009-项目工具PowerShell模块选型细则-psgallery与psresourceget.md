@@ -1,6 +1,6 @@
 # 项目工具PowerShell模块选型细则：psgallery与psresourceget
 
-> AGENTS 操作规则「写临时脚本时」的 PowerShell 侧细则。与 `R005`（Rust 产品依赖）、`R008`（py 工具）三分项目工具选型。素材：2026-08-31 用户提供《PowerShell 模块选择与开发稳定指南》，经本机实证并对照 ohmypwsh `scripts\psmodule.ps1` 与 `modules.psd1`（自研模块管理器，P0006）的实际配置对齐后落定。
+> AGENTS 工作规则「写临时脚本时」的 PowerShell 侧细则。与 `R005`（Rust 产品依赖）、`R008`（py 工具）三分项目工具选型。素材：2026-08-31 用户提供《PowerShell 模块选择与开发稳定指南》，经本机实证并对照 ohmypwsh `scripts\psmodule.ps1` 与 `modules.psd1`（自研模块管理器，P0006）的实际配置对齐后落定。
 
 ## 一、搜索能力对照
 
