@@ -4,98 +4,33 @@
 
 ## 当前目标
 
-会话层 bypassPermissions 未生效排查（用户报修：oma 拉起的 claude 会话 `/permissions` 非 bypass、Allow 规则堆积即审批实锤；配置层 doctor 全绿）。
+文档体系重构（PRD D01 至 D05，登记日 2026-09-03；参考 `D:\reader_rs` 形态）。四项定调：引入 PRD 四原语；AGENTS 意图路由细节全下沉 R002（唯一权威）；根级五文件禁字合规退出豁免清单，存量另跑；docs\web 不动只登记角色。
+
+完成定义：PRD 落地且 D01 至 D05 全部已交付；R002 补齐七缺命令面；AGENTS 意图路由字符占比降到两成量级；INDEX 九节与磁盘对账零差异；TODO 只留当前与队列；CHANGELOG 与 ROADMAP 补 09-01 至 09-02 里程碑；五根文件 mdcharlint 零违规并退出豁免清单。
 
 ## 任务进度清单
 
-> bypassPermissions 排查切片。
+> 对齐重构提交序列。
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
-| 2.1.24x 模式优先级研究 | 已完成 | claude-code-guide 官方取证：flag > settings defaultMode > 内置默认；2.1.257 起项目/local 层 bypass 被忽略；Allow 堆积 = 从未进 bypass 反证；BASE_URL 网关假设排除（transcript 自指假线索） | 2026-09-02 |
-| 本机会话层取证 | 已完成 | user+project 双层 bypass 却 pane 弹审批；无头 -p 双通道探针真执行（$RANDOM 判真伪）；119 条 Allow 为历史堆积（mtime 13:46 后不涨） | 2026-09-02 |
-| 结论与修法 | 已完成 | S029 落档；修法落地（04b5c74）：plan_agents claude 路固定 `--dangerously-skip-permissions`，respawn 同 plan 自动吃到；已活会话重开该路即生效；111+12 全绿 | 2026-09-02 |
-| 密钥 hook 安全拦截接管研究 | 已完成 | S030 落档：ohmypwsh secret-guard 语义逐行读（四 CLI 信封、exit 2 阻断、fail-open、双层正则加 bare password 降级教训）；gh 取证 kingfisher 1220★（规则数据驱动）/ foxguard / rtk-ai（hook 生命周期层最近域）；oma 落点 = 零新依赖、`oma hook` 同入口第二职责、ohmypwsh 14 例黄金语料移植 | 2026-09-02 |
-| secretguard 实现切片 | 已完成 | `src/secretguard.rs` 落地：模式表 27 条带四元属性、实值通道（env + providers.toml 明文，sops 密文跳过不起子进程）、命名组圈值部（URI 语法组坑测试当场抓）、hook.rs 双职责分流（guard 独立于 state 写）、codex 事件形状推断顺手补齐；12 新例 + CLI exit 2 集成例，126+13 全绿，实机冒烟 exit 2 掩码原因精确 | 2026-09-02 |
-
-## 前目标 P0027 清单
-
-> 已归档；方案与过程在 `docs\proven\P0027-四环境部署自适应-hook形态与状态栏.md`，当日闭环。
-
-| 任务项 | 进度 | 说明 | 日期 |
-| --- | --- | --- | --- |
-| 全链 | 已完成 | 取证（S024）、hook 自适应、状态通道、状态栏重铸（S025）、双环境收敛、测试门禁——详表见 proven | 2026-09-02 |
-
-## 前目标 P0012 清单
-
-> mac 阶段。
-
-| 任务项 | 进度 | 说明 | 日期 |
-| --- | --- | --- | --- |
-| mac 环境搭建 | 已完成 | 基线 79+10 / 82+10 全绿（比 Linux 各多 1 例系 a4160d6 Unix 提示符单测）；build --features server,mcp 25.7s | 2026-09-01 |
-| rmux mac 资产验收 | 已完成 | `oma check` arm64 全绿：PATH 发现 rmux 0.10.0、darwin 资产 sha 对锚、dispatcher/helper/daemon 哈希齐、自管根布局 | 2026-09-01 |
-| 四家 agent mac 安装 | 已完成 | 检测四家全绿（PATH）；`--force` darwin 四家全链验收；抓到 grok 双 CDN 无 macos pin，实测推翻 S017 假设并自算 sha 补 pin（47b1ddd） | 2026-09-01 |
-| 真身四路 + settle 真机 | 已完成 | 抓到三路信任屏措辞漂移 + codex hooks 屏数字菜单新形态，补 marker 加黄金行回归（7211d41）；全新项目 settle 窗口四路全收零手工、`oma task` 真任务产物精确、hook 流通、doctor.blocked=false | 2026-09-01 |
-
-## WSL Linux 阶段清单
-
-> 两棒收口：第一棒（构建/基线/daemon/分类器）加补尾棒（安装/真身四路），2026-09-01 当日齐。
-
-| 任务项 | 进度 | 说明 | 日期 |
-| --- | --- | --- | --- |
-| WSL 环境搭建 | 已完成 | 全量构建 43s 过；测试基线首跑 5 败（1 真 bug M041 + 4 处测试 Windows 假设）全修复；78+10 与 81+10 全绿零警告；重跑 `oma init` 修复 hook 的 Windows 路径报错 | 2026-09-01 |
-| rmux Linux 资产验收 | 已完成 | `oma check` 全绿：PATH 发现 rmux 0.10.0，asset/dispatcher/helper/daemon 四层 sha256 对 pin 全过；unix socket 链路 stub 实测通 | 2026-09-01 |
-| daemon 启动路径 | 已完成 | `boot_new_session` Unix 分支（无 Job Object，裸 spawn + stdio 置空 + 独立进程组）；分类器 Unix 提示符判据与 serve `process_group(0)` 同批落地；stub 全链验收（spawn/status/send/respawn/cleanup/serve/doctor/HTTP 信封） | 2026-09-01 |
-| 拉取后基线复验 | 已完成 | mac 侧 marker 与 catalog 改动拉回后 80+10 / 83+10 全绿（黄金行回归计入） | 2026-09-01 |
-| 四家 agent Linux 安装 | 已完成 | `--force` 真下载四家全链绿：claude 2.1.251 / codex 0.151.0（嵌套 bin 布局）/ grok 1.0.13（CDN 裸二进制）/ kimi 0.39.1（zip），自管根落位、探针全过、双源检测 `extra=` 行正常 | 2026-09-01 |
-| 真身四路 + settle 真机 | 已完成 | 四 pane 真身拉起；settle Linux 实拍命中（codex 数字菜单双 marker、kimi don't trust Up+Enter）；grok 家目录阻塞（yolo+信任）用 `oma init --pretrust` 清零、`doctor.blocked=false`；`oma task` t026 真任务产物精确（斐波那契前 10 项）；claude/codex hook 流在写状态；cleanup 零残留 | 2026-09-01 |
-
-| 任务项 | 进度 | 说明 | 日期 |
-| --- | --- | --- | --- |
-| 切片 1 安全与僵局 | 已完成 | 看板默认 spectator 只读、Host 校验（高5）、connect label 兜底解 cleanup 僵局（高2）、死路杀旧 pane（高3）、manifest 原子写（高1a）；计划外修 serve daemon 零控制台卡死（CREATE_NO_WINDOW） | 2026-09-01 |
-| 切片 2 并发与语义 | 已完成 | alloc_task_id 原子占位（高1b）、三秒级同步段进 spawn_blocking（高4 分档）、reconcile 判活用 plan.stub 并回写（中8，语义=补缺不移除） | 2026-09-01 |
-| 切片 3 健壮性批 | 已完成 | send baseline（中6）、slug 词法归一 16hex（中7，实踩 canonicalize 时序双身份）、web_share 行锚点（中9）、status warning（中10）、SSE error event（中11）、settle 行级短行（中12） | 2026-09-01 |
-
-## 前目标 0024 残表
-
-| 任务项 | 进度 | 说明 | 日期 |
-| --- | --- | --- | --- |
-| reconcile 三态 | 已完成 | 会话不在新开；在则活路附加、死路重开（split 回一路回写 manifest） | 2026-09-01 |
-| oma respawn | 已完成 | 强制关闭打开一路（kill-pane 单窗格）；api/CLI/HTTP 三面 | 2026-09-01 |
-| 四连验收 | 已完成 | 新开/附加/杀路重开/强制重开（pane-only）stub 全绿 | 2026-09-01 |
-| P0025 serve 守护化 | 已完成 | serve start 即调即退（DETACHED 孤儿化）；stop 协议化停机次轮补齐（DELETE /shutdown 优先，超时降级强杀），实测日志见 draining | 2026-09-01 |
-| G004 经验沉淀细则 | 已完成 | 成功经验 proven/references 双链、错误经验 mistakes 当场记加二犯升格；挂 AGENTS 工作节奏第 5 条强规则位 | 2026-09-01 |
-| M035 记档 | 已完成 | python str.replace 吃路径 \r 转义劈行；修复过程又踩同型两次（记档本身的教训） | 2026-09-01 |
-| README 三段重写 | 已完成 | 项目介绍/安装部署/完整命令示例（含典型用法）；serve start 形态次轮补齐 | 2026-09-01 |
-
-## 更早前目标 0017 与 0018 残表
-
-| 任务项 | 进度 | 说明 | 日期 |
-| --- | --- | --- | --- |
-| 立项 0017 | 已完成 | 五切片定界：send 间隔、HTTP trace、SKILL 命令图、grok 无头、mcp 配置打印 | 2026-08-31 |
-| send 间隔产品化 | 已完成 | expect_visible_text 等末行短头可见再 Enter；超时降级照发留痕；stub 验证 visible | 2026-08-31 |
-| HTTP trace 端点 | 已完成 | 三端点挂 api 现成函数；/api 11 端点；网页轨迹面板；本仓真数据全绿 | 2026-08-31 |
-| SKILL 命令图生成 | 已完成 | COMMAND_MAP 生成；标记覆写加旧版升级加用户内容跳过三态；活体验证 | 2026-08-31 |
-| grok 无头实跑 | 已完成 | `--always-approve -p` 写文件 exit 0 产物精确；联邦 trace 同场检出；S007 回填 | 2026-08-31 |
-| mcp 配置打印 | 已完成 | `--print-config` 三形态片段；featureless 构建也可用 | 2026-08-31 |
-| 0018 指令集检测 | 已完成 | 用户反问触发：caps 检测进 doctor、退出分类进 agents 与装机；本机 avx512f=false 实测 | 2026-08-31 |
+| PRD 引入与四原语同步（D01） | 已完成 | PRD.md 五节 + G001/G003/INDEX/GOAL/PLAN/TODO/README 头部同步；提交 b948d67 | 2026-09-03 |
+| R002 扩容命令面唯一权威 | 已完成 | 重排四节八命令族，补 providers/statusline/secrets/self update/key/task/hook 拦截闸七面，修仓库名与 POC 十四件；提交 61a3035 | 2026-09-03 |
+| AGENTS 重写与意图路由瘦身 | 已完成 | 二节四类场景加文档对齐义务表 14 行，三节每命令一行；8 处下游段名引用同步；提交 4147eff | 2026-09-03 |
+| INDEX 收敛九节与登记修复（D04） | 已完成 | 删目录树与十节，P 表去状态化，补 diary 篇与 9 件代码文件，M105/M107 编号段延长，M043 记档；提交 03a6271 | 2026-09-03 |
+| TODO 残表清退（D05 前半） | 进行中 | 本提交 | 2026-09-03 |
+| PLAN 与 GOAL 切目标 | 排队 | PLAN 换文档体系重构；GOAL 断表合并且锚点切 D01 至 D05 | 2026-09-03 |
+| CHANGELOG 与 ROADMAP 补史（D05 后半） | 排队 | 09-01 与 09-02 两段里程碑 | 2026-09-03 |
+| G002 CR 修复与 R 系列六态整改 | 排队 | G002 L80 路径修复；R004/R006/R007/R009 共八行 `[推断]` 越级按三出口整改 | 2026-09-03 |
+| 豁免清单退出（D03） | 排队 | 最后执行：五根文件（ROADMAP 验过后六件）删行，全仓 mdcharlint 复验零违规 | 2026-09-03 |
+| 重构收口 | 排队 | diary 新篇、GOAL 历史行、PRD D02 至 D05 转已交付全表复查 | 2026-09-03 |
 
 ## 队列目标
 
-> 用户定调 2026-09-02「agent 部署、管理、验收与诊断」核心轴，五端视角（本机 / WSL / lan-win / lan-linux / lan-mac）。
+> 历届目标残表已清退：过程与经验见 `docs\proven\` 对应方案与 `GOAL.md` 历史节；本清单只留当前目标与队列。排队项启动时先入 `PRD.md` 走澄清。
 
 | 目标 | 状态 | 说明 |
 | --- | --- | --- |
-| statusline 覆盖 kimi 与 grok | 已完成 | merge_kimi/merge_grok 幂等合并落位（2026-09-02 当日） |
-| S026 grok/kimi OAuth 登录研究 | 已完成 | 双流取证落档（grok loopback+设备码双流、kimi 仅设备码；凭据落盘与纯文件登录态判据）；`oma agents login` 与 doctor 登录态行归 agent doctor 切片落地 |
-| agent doctor 部署诊断 | 排队 | 一次性核查四家安装态/yolo/信任/hook 形态/状态栏/登录态/会话健康 |
-| agent 密钥管理 age 加 sops | 已完成 | S031 落地（一钥两密文加四 shell 懒注入）；身份走 SOPS 标准钥匙链集成不自建；主权面留 ohmypwsh |
-| 提供商与模型变量注入 | 已完成（P0027 批） | providers.toml 别名簿加 `oma spawn --agents claude@zhipu,codex@deepseek` env/argv 注入已落地（S027 四格矩阵）；本行陈旧已并 |
-| rmux 编排扫屏消费 agent:state | 已完成 | `oma status` 三面（marker 行/TTY 表/api JSON）加 screen 扫屏列与 check 交叉核对（match/mismatch/-）；同一次快照出终端态与扫屏态零额外开销；stub 实机验收（画标记→screen=working、无标记→-、hook 缺侧 check=-） |
-| 密钥一钥两密文存储 | 已完成 | S031 落地：oma agents secrets 五命令（init/set/env/inject/status）；app.key 加 identity.enc AES-256-GCM 包裹加 secrets.yaml SOPS 制；四 profile 懒注入幂等块；ohmypwsh 密文平移两键加 BASE_URL；pwsh/bash 实机端到端全通；oma 自管根不碰 .omcf |
-| G005 存量字符清理 | 排队 | 3671 处四类禁字（DASH 2142、ARROW 255、EMOJI 892、FULLWIDTH 382，2026-09-02 量化）：FULLWIDTH 可机械替换，DASH/ARROW 按语义改写；清零后 mdcharlint.py 进验证链 |
+| G005 存量字符清理 | 排队 | 3671 处四类禁字（DASH 2142、ARROW 255、EMOJI 892、FULLWIDTH 382，2026-09-02 量化）：FULLWIDTH 可机械替换，DASH/ARROW 按语义改写；清零后 mdcharlint.py 进验证链零容忍 |
 | 状态栏工具链段扩展 zig/golang/cpp | 排队 | 用户定调 2026-09-02「以后」：projKind 探测加 build.zig / go.mod / CMakeLists（或 meson），图标先 cmap 实证；现役 rust/node+ts/python 三态 |
-| 会话层 bypassPermissions 未生效排查 | 已完成 | S029 落档加 argv 修法（04b5c74）：spawn claude 路固定 --dangerously-skip-permissions（flag > settings 各层；2.1.257 项目层 bypass 被忽略）；已活会话 respawn 重开即生效 |
-| 仓库与目录更名 ohmyagents-rs | 已完成 | 五步收口：GitHub 更名（用户）、remote set-url、目录 D:\ohmyagents-rs、双环境重跑 init 加 --pretrust（双侧 doctor.blocked=false）；残留清扫 Cargo.toml/README/main.rs 帮助文案/S028（diary 存档不改） |
-
-（P0006 至 P0026 已完成；过程与经验在对应 proven 方案。）
+| 根下 `.ohmyagents/t006/` 孤儿目录收敛 | 排队 | 早期 task 布局遗留，与 tasks/t006/ 内容不同；动前先核对两轮产物归属（diary 09-03 待接） |
