@@ -19,7 +19,7 @@
 - **指令集检测**（P0018）：`oma doctor` CPU 能力段（avx/avx2/avx512f）与探针异常退出分类（illegal-instruction 带缓解 hint），S021 问题类的 Windows 落地。
 - **文档地基**：AGENTS 四段、三原语、P/S/R/G/M 编号体系、六态标记、rumdl 加两件自研扫描进门禁、`.tools` 脚本归档。
 
-### 里程碑（2026-09-01）
+### 里程碑 2026-09-01
 
 - **web 镜像与看板**（P0021 至 P0023）：`oma web` 三面接管 rmux web-share（operator、PIN、TTL）；前端源码本地构建托管、serve 主页即 web-mirror-server；看板资源包化（build.rs 打 tar.gz 嵌二进制、首启释放 oma 数据根）。
 - **和解式编排**（P0024）：spawn 三态（会话不在新开、在则活路附加、死路重开）；`oma respawn` 单路强制重开；精确集合与布局自适应。
@@ -28,7 +28,7 @@
 - **任务与委派**：`oma task` 带产物等待（任务目录协议 prompt.md/output.md/DONE）；send/run/task 任务开始确认与阻塞告警；`oma key` 单键守卫。
 - **流程件**：G004 经验沉淀细则；README 三段重写；oma 编排的 agent 轮换接力 review 工作流（`.tools/review-round.py`）。
 
-### 里程碑（2026-09-02）
+### 里程碑 2026-09-02
 
 - **四环境部署自适应**（P0027）：PATH 探针 bare 形态与 codex 字段所有权（Windows 与 WSL 双侧并存不互踢）；状态栏重铸（starship 风格、`agent:state` 机读标记、`oma status` 扫屏交叉核对）。
 - **agent doctor 部署诊断与登录引导**（P0028）：doctor warn 层四类部署检查（登录态、hook 形态、状态栏、会话健康）；`oma agents login` 跨机设备码引导。
