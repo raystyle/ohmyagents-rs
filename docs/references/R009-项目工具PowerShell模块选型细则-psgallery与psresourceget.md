@@ -42,7 +42,7 @@ pwsh -NoProfile -File D:\ohmypwsh\scripts\psmodule.ps1 update [all]           # 
 
 - **版本锁超出指南**：指南口径「生产钉 `-RequiredVersion`」；ohmypwsh 锁定清单 `modules.psd1` 记 Version 加 nupkg SHA256 双锁，安装前校验哈希。[实证: modules.psd1 Pester 5.7.1 与 Posh-SSH 3.2.7 均带 Sha256]
 - **安装走直连 nupkg 而非 Install-PSResource**：`api/v2/package/<名>/<版本>` 下载加哈希校验加手工部署——指南说「日常用 CLI 不必手写 HTTP」，此处是 S028 结论的有意偏离（规避 PSGallery 直连不稳），哈希锁兜住了完整性。[经验: ohmypwsh S028]
-- **5.1 的 PowerShellGet/TLS 老坑被架构绕开**：psmodule `#Requires 7.0`，安装由 pwsh7 执行，PS5 只作为部署目标目录；bootstrap 无 TLS 1.2 处理但不需要。[实证: 源码；推断: 5.1 仅本地 Import]
+- **5.1 的 PowerShellGet/TLS 老坑被架构绕开**：psmodule `#Requires 7.0`，安装由 pwsh7 执行，PS5 只作为部署目标目录、不跑安装；bootstrap 无 TLS 1.2 处理但不需要。[实证: psmodule 与 bootstrap 源码]
 - **Trusted 语义**：本机 PSGallery 在两套注册表均为 Untrusted，ohmypwsh 也不设 Trusted——与指南「Trusted 只减确认不代表安全」一致，且哈希校验比 Trusted 更强。[实证: Get-PSRepository / Get-PSResourceRepository]
 - **注册表残留已清净**：S028 时点提过的 `OhMyClaude` 本地仓残留，现两表均只剩 PSGallery。[实证: 2026-08-31]
 

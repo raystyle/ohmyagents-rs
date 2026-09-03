@@ -27,7 +27,7 @@
 
 ## 四、状态与等待
 
-13. **分层判断**（详细见 `research\S009-agent状态判断-通道与分层.md`）：0 存活（pid）→ 2 语义（hook 文件，可选加速）→ 1b 终端语义兜底（`terminal_state` / `wait_for_text`）→ 3 任务。Quiet 只给 Drive 同步，不当 idle。[推断: 分层对照；实证: poc-dialogs]
+13. **分层判断**（详细见 `research\S009-agent状态判断-通道与分层.md`）：0 存活（pid）→ 2 语义（hook 文件，可选加速）→ 1b 终端语义兜底（`terminal_state` / `wait_for_text`）→ 3 任务。Quiet 只给 Drive 同步，不当 idle。（分层依据 `docsesearch\S009-agent状态判断-通道与分层.md`；[实证: poc-dialogs]）
 14. **SDK 等待**：`pane.expect_visible_text().to_contain(..).timeout(..)`；per-op 超时用 `.timeout(Duration)`（V1 默认 5s）。[实证: poc-drive；clum 源码核实]
 15. **观察**：网页镜像走 `output_stream_starting_at(Oldest)` 字节流；结论写文件不写屏幕（备屏 capture 常空）。[经验: web-claude-demo + win-rmux]
 

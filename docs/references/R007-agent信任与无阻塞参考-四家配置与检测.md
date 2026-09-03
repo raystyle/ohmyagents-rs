@@ -22,7 +22,8 @@ flags（`--yolo`、`--always-approve` 等）只作单次覆盖，配置落盘优
 - `trust.project`：folder 键在不在（父路径覆盖子目录；Windows 路径可能裂多条键）。
 - `trust.hooks`：Claude 交互下 covered_by folder；Codex 看 `[hooks.state] trusted_hash`；Grok 未信任且有 hooks 报 block（无头静默跳过）。
 - `trust.mcp`：独立门。Claude committed 项目审批不算数（v2.1.196+），生效来源：用户 / managed / `--settings` / 未跟踪 local。
-- `trust.skill`：**只对 skills-dir plugin 形态报**（skill 目录带 `.claude-plugin/plugin.json`）；普通 `.claude/skills` 归 `trust.project`。[推断: 2026-08-31 裁决，官方口径]
+- `trust.skill`：**只对 skills-dir plugin 形态报**（skill 目录带 `.claude-plugin/plugin.json`）；普通 `.claude/skills` 归 `trust.project`。（依据 `docs
+esearch\S006-信任阻塞门-四家种类与官方口径.md` 2026-08-31 裁决节）
 - `yolo` / `skip_prompt` / `onboarding` 分立检查。
 - doctor 退出码：缺二进制、缺 yolo 键、缺信任、blocked 过期则非 0；全程只读磁盘与进程表，不 attach。[实证: poc-yolo-doctor]
 
@@ -44,11 +45,13 @@ flags（`--yolo`、`--always-approve` 等）只作单次覆盖，配置落盘优
 > `oma hook` 怎么接
 
 1. spawn 注入 `OHMYAGENTS_PROJECT` / `OHMYAGENTS_AGENT` / `OHMYAGENTS_STATE_FILE`；各家项目 hook 的 `command` 调 `oma hook`（stdin 事件 JSON 或 `oma hook blocked`）。[实证: poc-dialogs]
-2. hook 缺环境变量或项目对不上 **exit 0**（安全带：用户级误装也不污染别的仓库）；不连 rmux 管道。[推断: evo-harness 安全带模式]
+2. hook 缺环境变量或项目对不上 **exit 0**（安全带：用户级误装也不污染别的仓库）；不连 rmux 管道。（依据 `docs
+esearch\S008-项目级hook与skill.md` 安全带节）
 3. 事件映射四态：idle（SessionStart/Stop/Interrupt/SessionEnd）、working（UserPromptSubmit/Pre/PostToolUse 等）、blocked（PermissionRequest，Codex/Kimi）、unknown（Notification，**不映 idle**）。事件名双形态归一。[经验: evo-harness STATE_MAP]
 4. hook 注册项目级：Claude settings `matcher:"*"`；Codex 须先信任再写 `hooks.state.trusted_hash`；Grok 项目 hooks 要 folder-trust；Kimi 暂用户 config 加项目脚本。[经验: 各家官方]
-5. hook 沉默不判 idle：走终端语义兜底（`terminal_state` 分类 password/confirm、`wait_for_text` 等执行证据）。Codex `Stop` 常不触发，working 超阈值标 stale。[推断: clum 研究 + win-rmux 实测]
-6. 报阻塞（hook 写文件）与点阻塞（drive 发键）分路，不合成一条 pipe。[推断: hook 短命进程找不到专用 pipe]
+5. hook 沉默不判 idle：走终端语义兜底（`terminal_state` 分类 password/confirm、`wait_for_text` 等执行证据）。Codex `Stop` 常不触发，working 超阈值标 stale。（依据 `docs
+esearch\S010-clum等待原语作为hook兜底状态.md`）
+6. 报阻塞（hook 写文件）与点阻塞（drive 发键）分路，不合成一条 pipe。（依据 `docsesearch\S009-agent状态判断-通道与分层.md` 分层模型）
 
 ## 五、委派前检查清单
 
