@@ -19,4 +19,4 @@ oma 拉起的 claude 会话内 `/permissions` 显示 bypassPermissions（或等�
 `cargo fmt --all -- --check` + `cargo clippy` 存量告警不新增 + `cargo test`（隔离 target）+ `rumdl check .` + `md-ref-scan.py` + `md-heading-scan.py`；提交精确 add（M036）。
 
 > 角色：**当前目标方案文档**——基于 `docs\research\`（为什么）与 `docs\references\`（怎么做）撰写的执行计划；每条挂依据来源，随目标变化更新，不存历史目标。
-> 分工：`TODO.md` = 做到哪；本文件 = 怎么做；通用工作流见 `docs\guide\G003-工作流标准细则-从登记到归档五步.md`。
+> 分工：`PRD.md` = 要什么；`TODO.md` = 做到哪；本文件 = 怎么做；通用工作流见 `docs\guide\G003-工作流标准细则-从登记到归档五步.md`。

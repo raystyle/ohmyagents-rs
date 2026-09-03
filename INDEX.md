@@ -4,7 +4,7 @@
 
 ## 一、编号体系
 
-**前缀定位**：`P`（proven，已完成 plan 归档，4 位）；`S`（research，研究原型过程，3 位）；`R`（references，开发测试参考，3 位）；`G`（guide，元规范，3 位）；`M`（mistakes，分类文件 M1xx、行级错误 M0xx 全局递增不复用）。根目录三原语：`GOAL`（目标轨迹）/ `PLAN`（当前目标方案，基于研究与参考）/ `TODO`（进度清单）。
+**前缀定位**：`D`（PRD 需求清单，2 位）；`P`（proven，已完成 plan 归档，4 位）；`S`（research，研究原型过程，3 位）；`R`（references，开发测试参考，3 位）；`G`（guide，元规范，3 位）；`M`（mistakes，分类文件 M1xx、行级错误 M0xx 全局递增不复用）。根目录四原语：`PRD`（需求清单）/ `GOAL`（目标轨迹）/ `PLAN`（当前目标方案，基于研究与参考）/ `TODO`（进度清单）。
 
 **目录职能**：`proven` 已完成 plan 归档；`diary` 一天一篇总结与自省；`research` 研究原型过程（为什么，六态对齐，规范见 G002）；`references` 开发测试参考（要做什么怎么做，六态溯源）；`guide` 元规范（含 `template.md`）；`mistakes` 出错怎么纠（与 references 是经验教训的两面）。
 

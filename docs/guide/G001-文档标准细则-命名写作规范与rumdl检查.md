@@ -11,7 +11,7 @@
 | 位置 | 命名模式 | 说明 |
 | --- | --- | --- |
 | 根目录 | `INDEX.md` | 文档总索引（编号即定位；唯一索引，不另设清单） |
-| 根目录 | `GOAL.md` / `PLAN.md` / `TODO.md` | 任务目标管理 / 当前目标方案 / 进度清单 |
+| 根目录 | `PRD.md` / `GOAL.md` / `PLAN.md` / `TODO.md` | 需求清单 / 任务目标管理 / 当前目标方案 / 进度清单（四原语） |
 | 根目录 | `AGENTS.md` / `CHANGELOG.md` / `ROADMAP.md` / `README.md` | 项目级文档（工具约定大写） |
 | `docs\proven\` | `PNNNN-动词短语.md` | 已完成状态的 plan 归档（P 加 4 位递增，不复用） |
 | `docs\diary\` | `YYYY-MM-DD-主题.md` | 项目日记（**一天一篇**；写当天全部工作的总结与自省——概貌、关键裁决、得失；不写工作细节，细节进方案与研究） |
@@ -24,9 +24,9 @@
 规则细项：
 
 - 禁止模糊词（`misc` / `other` / `temp` / `new`）
-- 编号前缀全局唯一且不复用：`P`（proven，4 位）、`S`（research，3 位）、`R`（references，3 位）、`G`（guide，3 位）、`M`（mistakes：分类文件 M1xx，行级错误 M0xx 按首次踩时间递增）
-- 新文档落位后登记 `INDEX.md` 对应节；编号接当前最大号
-- 特殊名固定大写：`INDEX` / `GOAL` / `PLAN` / `TODO`；小写固定：`template`
+- 编号前缀全局唯一且不复用：`D`（PRD 需求，2 位）、`P`（proven，4 位）、`S`（research，3 位）、`R`（references，3 位）、`G`（guide，3 位）、`M`（mistakes：分类文件 M1xx，行级错误 M0xx 按首次踩时间递增）
+- 新文档落位后登记 `INDEX.md` 对应节（PRD 需求清单除外：`PRD.md` 自身即权威清单，INDEX 不另建 D 表）；编号接当前最大号
+- 特殊名固定大写：`INDEX` / `PRD` / `GOAL` / `PLAN` / `TODO`；小写固定：`template`
 - `docs\proven\` 只放 `PNNNN` 方案；当天流水账不进 proven
 
 ## 二、写作规范
