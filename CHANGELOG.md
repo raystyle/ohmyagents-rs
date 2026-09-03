@@ -35,6 +35,7 @@
 - **密钥与权限面**：spawn claude 路固定 `--dangerously-skip-permissions`（S029）；`oma hook` 密钥拦截闸（S030，八层防误报）；`oma agents secrets` 一钥两密文与四 shell 懒注入（S031）；`oma agents providers` 别名注入（S027）。
 - **生态**：仓库更名 ohmyagents-rs；四仓生态定调（ohmyenv-rs / ohmyagents-rs / ohmypwsh / ohmycloud）。
 - **三平台验收**：Windows、macOS、WSL Linux 四家 agent 安装与真身四路全链绿（P0012 收口）。
+- **流程件（2026-09-03）**：参考 reader_rs 文档体系重构：PRD 四原语引入、AGENTS 工作规则重组加文档对齐义务表、R002 升命令面唯一权威、INDEX 收敛九节修复登记缺陷、TODO 残表清退、根级五文件禁字合规退出豁免清单。
 
 ### 排后
 

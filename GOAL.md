@@ -14,7 +14,7 @@
 
 > 当前锚定的目标 + 推进时间线。
 
-- **锚定的目标**：文档体系重构（2026-09-03 起，回指 PRD D01 至 D05）：参考 `D:\reader_rs` 形态引入 PRD 四原语、AGENTS 意图路由细节全下沉 R002 成命令面唯一权威、INDEX 收敛九节修复登记缺陷、TODO 残表清退、CHANGELOG 与 ROADMAP 补史、根级五文件禁字合规退出豁免清单。
+- **锚定的目标**：无（文档体系重构已达成入历史；新需求先入 `PRD.md` 澄清，队列项见 `TODO.md`）。
 
 ### 推进时间线
 
@@ -22,7 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
-| 2026-09-03 | 文档体系重构推进（进行中）：仓库清理与工具清单对账（diary 09-03 前篇）；PRD 落地四原语同步（b948d67）；R002 扩容命令面唯一权威补七缺命令面（61a3035）；AGENTS 重写工作规则加文档对齐义务表并瘦身意图路由（4147eff）；INDEX 收敛九节修复登记缺陷（03a6271，M043 记档）；TODO 残表清退（2e14434） |
+| 2026-09-03 | 文档体系重构当日闭环（PRD D01 至 D05，参考 reader_rs 形态）：仓库清理与工具清单对账（0497dac/2914164）；PRD 四原语引入（b948d67）；R002 扩容命令面唯一权威补七缺命令面（61a3035）；AGENTS 重写工作规则加文档对齐义务表并瘦身意图路由、8 处下游段名同步（4147eff）；INDEX 收敛九节修复登记缺陷（03a6271，补 9 件代码文件登记，M043 记档）；TODO 残表清退（2e14434）；PLAN 与 GOAL 切目标（df362f5）；CHANGELOG 与 ROADMAP 补 09-01/09-02 里程碑（fd45180）；G002 CR 修复（8be704d）；R 系列八行六态越级整改（0bf7a5f）；根级五文件禁字合规退出豁免清单（2c0e67e）；11+2 提交全绿 |
 | 2026-09-02 | `oma agents login` 设备码引导落地并**全链闭环**：子进程捕获形态（两家输出纯 stderr 无 TTY 依赖，源码实证修正 S026 pane 扫屏原推断）、`login.url=`/`login.code=` 机读标记、超时杀进程、落盘凭据为最终判据；110+12 全绿。WSL 实机双半程：失败路径（TLS 断连：失败行捕获、login_state 转、exit 1）加成功路径（用户定调跨机 UX——只给 code URL 与 code 不转发原始 stderr，在另一台机器完成授权，`login.ok=true` 带    scope 与 expires_at，doctor 登录态翻绿） |
 | 2026-09-02 | agent doctor 部署诊断切片落地：doctor 加 warn 层与四类新检查（登录态 S026 判据、hook 形态 P0027 口径、状态栏 S025 落位、会话健康无会话不误报）；根修 deploy `is_ours` 对 codex Windows 调用操作符形态 `& "exe" hook` 的盲区（跨环境漏检加潜在重复追加）；测试 105+12 全绿，Windows/WSL 双侧实机验收（WSL 如实报 grok 未登录 warn）。余 `oma agents login` 引导切片排队 |
 | 2026-09-02 | 仓库更名 ohmyagents-rs 五步收口：GitHub 更名（用户）、remote set-url 新地址、双环境重跑 init 加 --pretrust（双侧 doctor.blocked=false）、旧名引用清扫（Cargo.toml/README/main.rs/S028；diary 存档不改）。四仓生态定调落 R001（ome 工具运行时 / oma agent 与编排 / ohmypwsh 总台密钥 / ohmycloud 云端分发，互相发 issue）。S026 OAuth 登录研究结项（双流取证已落档）；agent doctor 部署诊断立项接续 |
@@ -80,7 +80,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：文档体系重构（2026-09-03 起，回指 PRD D01 至 D05）。已交付 PRD 引入、R002 扩容、AGENTS 重写、INDEX 收敛、TODO 清退；余 PLAN 与 GOAL 切目标、CHANGELOG 与 ROADMAP 补史、G002 与 R 系列整改、豁免清单退出、收口五件。
+- 当前目标：无（文档体系重构已达成，PRD D01 至 D05 全部已交付；新目标先入 `PRD.md` 走澄清）。
 
 ## 历史
 
@@ -88,6 +88,7 @@
 
 | 日期 | 目标 | 结果 |
 | --- | --- | --- |
+| 2026-09-03 | 文档体系重构（PRD D01 至 D05，参考 reader_rs） | 达成：PRD 四原语引入、AGENTS 工作规则重组加文档对齐义务表、R002 命令面唯一权威、INDEX 九节收敛修复登记缺陷、TODO 残表清退、CHANGELOG 与 ROADMAP 补史、G002 CR 修复、R 系列六态整改、根级五文件退出豁免清单；13 提交门禁全绿 |
 | 2026-09-02 | agent doctor 部署诊断与登录引导（P0028） | 达成：doctor warn 层四类部署检查、`oma agents login` 跨机引导（失败成功双半程实证）、is_ours 调用操作符根修、四端验收（grok 登录态四分支活体实证）；同日 rust 1.98 零改动适配、更名收口、四仓生态定调 |
 | 2026-09-01 | code review 修复（P0026） | 达成：codex review 高 5 中 7 全修；计划外修 serve 零控制台卡死、task id 撞号、canonicalize 时序双身份；看板默认只读 |
 | 2026-09-01 | serve 守护化与协议化停机（P0025） | 达成：serve start 即调即退、stop 协议化优先（次轮补齐实测）；FFI 探活避 Job Object 管道死锁 |

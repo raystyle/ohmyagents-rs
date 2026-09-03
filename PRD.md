@@ -17,11 +17,11 @@
 
 | 编号 | 需求 | 状态 | 澄清轮次 | 派生去向 |
 | --- | --- | --- | --- | --- |
-| D01 | 学习 reader_rs 引入 PRD 需求清单为第四原语，需求驱动目标 | 已交付 | 第 0 轮（用户 2026-09-03 拍板） | 本文件；AGENTS / G001 / G003 / INDEX / GOAL / PLAN / TODO / README 同步 |
-| D02 | AGENTS 意图路由细节全下沉 R002，R002 成为命令面唯一权威 | 已澄清 | 第 0 轮（用户拍板） | AGENTS 三节瘦身；R002 扩容 |
-| D03 | 根级重写五文件（AGENTS / INDEX / TODO / CHANGELOG / README）禁字合规并退出 `md-char-allow.txt` 豁免 | 已澄清 | 第 0 轮 | 五文件重写；豁免清单删行 |
-| D04 | INDEX 收敛九节并修复登记缺陷；docs\web 登记为资源包输入区 | 已澄清 | 第 0 轮 | INDEX 重写；M103 记 M043 |
-| D05 | TODO 残表清退；CHANGELOG 与 ROADMAP 补 2026-09-01 至 09-02 里程碑 | 已澄清 | 第 0 轮 | TODO 瘦身；CHANGELOG / ROADMAP 补史 |
+| D01 | 学习 reader_rs 引入 PRD 需求清单为第四原语，需求驱动目标 | 已交付 | 第 0 轮（用户 2026-09-03 拍板） | 本文件；AGENTS / G001 / G003 / INDEX / GOAL / PLAN / TODO / README 同步（b948d67） |
+| D02 | AGENTS 意图路由细节全下沉 R002，R002 成为命令面唯一权威 | 已交付 | 第 0 轮（用户拍板） | R002 扩容（61a3035）；AGENTS 重写（4147eff） |
+| D03 | 根级重写五文件（AGENTS / INDEX / TODO / CHANGELOG / README）禁字合规并退出 `md-char-allow.txt` 豁免 | 已交付 | 第 0 轮 | 五文件重写；豁免清单删五行（2c0e67e） |
+| D04 | INDEX 收敛九节并修复登记缺陷；docs\web 登记为资源包输入区 | 已交付 | 第 0 轮 | INDEX 重写（03a6271）；M103 记 M043 |
+| D05 | TODO 残表清退；CHANGELOG 与 ROADMAP 补 2026-09-01 至 09-02 里程碑 | 已交付 | 第 0 轮 | TODO 瘦身（2e14434）；CHANGELOG / ROADMAP 补史（fd45180） |
 
 ## 状态机定义
 
