@@ -1,22 +1,36 @@
 # PLAN：当前目标实施计划
 
-## 当前目标：会话层 bypassPermissions 未生效排查
+## 当前目标：文档体系重构（PRD D01 至 D05）
 
-> 用户报修 2026-09-02：oma 拉起的 claude 会话 `/permissions` 非 bypass，Allow 规则堆积（审批仍在弹）即实锤；`oma doctor` 配置层全绿（`permissions.defaultMode=bypassPermissions` 落在项目 `.claude/settings.json`）——问题在会话层不在配置层。
+> 用户定调 2026-09-03「参考 D:\reader_rs 重构项目文档」。四项拍板：引入 PRD 四原语；AGENTS 意图路由细节全下沉 R002；根级五文件禁字合规退出豁免清单（存量 3671 处另跑）；docs\web 不动只登记角色。需求清单见 `PRD.md`。
 
 ### 方案骨架
 
-1. **研究**（claude-code-guide 代理）：claude 2.1.24x 的权限模式解析优先级——`--permission-mode`/`--dangerously-skip-permissions` CLI flag、`CLAUDE_CODE_*` env、user `~/.claude/settings.json`、项目 `.claude/settings.json` 与 `settings.local.json` 各层 defaultMode 的胜负关系；`bypassPermissions` 被静默降级的已知情形（managed settings、gateway/自定义 ANTHROPIC_BASE_URL 限制、版本行为变化）；`--dangerously-skip-permissions` 与 defaultMode 的差异。
-2. **本机取证**：三层 settings 的 defaultMode 实值；oma spawn claude 路的实际 argv 与 env（`orch.rs`）；oma 会话与用户手拉会话的差异面。
-3. **结论落 S029**（六态标注），按结论定 oma 修法；候选（若 defaultMode 在会话层确被忽略）：spawn 的 claude 路固定 `--dangerously-skip-permissions` argv。
+按提交序列推进（依赖有序，8/9 可并行）：
+
+1. **PRD 引入**：新建 `PRD.md`（D 编号与生命周期状态机、与 G003 五步衔接）；G001/G003/INDEX/GOAL/PLAN/TODO/README 头部同步四原语。
+2. **R002 扩容**：重排四节八命令族，补七缺命令面（providers/statusline/secrets/self update/key/task/hook 拦截闸）；先于 AGENTS 瘦身防细节在途丢失。
+3. **AGENTS 重写**：二节四类场景（对话/操作/编码/文档）加文档对齐义务表 14 行；三节每命令一行摘要，权威指向 R002；8 处下游段名引用同提交同步（操作规则改工作规则、规则号改名字引用）。
+4. **INDEX 收敛**：十节收敛九节（删目录树与十节）；P 表去状态化；登记缺陷修复（diary 篇、.tools 四件、src 五件、M105/M107 编号段、P0020 注记）；docs\web 登记资源包输入区；M043 记档。
+5. **TODO 清退**：残表删除留指针，只留当前目标与队列三行。
+6. **PLAN 与 GOAL 切目标**：本文件换新目标；GOAL 锚点进程切换、断表合并不丢行。
+7. **CHANGELOG 与 ROADMAP 补史**：09-01（P0021 至 P0026）与 09-02（P0027/P0028 加密钥权限面加更名）两段里程碑。
+8. **G002 CR 修复**：L80 `docs\references\` 路径被字面 CR 劈断，恢复并去 0x0D。
+9. **R 系列六态整改**：R004/R006/R007/R009 共八行 `[推断]` 越级，按升实证、改引用式（依据 S 编号）、移研究或删三出口处理；只改标注不改断言语义。
+10. **豁免清单退出**：最后执行；五根文件（ROADMAP 验过后六件）从 `md-char-allow.txt` 删行，全仓 mdcharlint 复验零违规。
+11. **收口**：diary 新篇、GOAL 历史行、PRD D02 至 D05 转已交付全表复查、TODO 清单收口。
 
 ### 验收口径
 
-oma 拉起的 claude 会话内 `/permissions` 显示 bypassPermissions（或等效不再弹审批）；`oma doctor` 语义不破；测试守卫不倒退。
+- PRD D01 至 D05 全部已交付，无残留已采纳
+- R002 补齐七缺命令面；AGENTS 意图路由字符占比两成量级
+- INDEX 九节与磁盘对账零差异（数量与文件名逐字一致）
+- 五根文件 mdcharlint 零违规并退出豁免清单；`rg 三原语|操作规则|工作节奏`（排除 diary/proven/web 与历史叙述）零残留
+- 每提交四件验证全绿
 
 ### 门禁
 
-`cargo fmt --all -- --check` + `cargo clippy` 存量告警不新增 + `cargo test`（隔离 target）+ `rumdl check .` + `md-ref-scan.py` + `md-heading-scan.py`；提交精确 add（M036）。
+`rumdl check .` + `uv run --script .tools\md-ref-scan.py` + `uv run --script .tools\md-heading-scan.py` + `uv run --script .tools\mdcharlint.py`（触碰文件逐个过）；cargo test 不需要（零 src 改动，COMMAND_MAP 只读不动）；SKILL.md 生成物不动不手改。
 
 > 角色：**当前目标方案文档**——基于 `docs\research\`（为什么）与 `docs\references\`（怎么做）撰写的执行计划；每条挂依据来源，随目标变化更新，不存历史目标。
 > 分工：`PRD.md` = 要什么；`TODO.md` = 做到哪；本文件 = 怎么做；通用工作流见 `docs\guide\G003-工作流标准细则-从登记到归档五步.md`。

@@ -14,7 +14,7 @@
 
 > 当前锚定的目标 + 推进时间线。
 
-- **锚定的目标**：会话层 bypassPermissions 未生效排查（2026-09-02 接续）：用户实测 oma 拉起的 claude 会话 `/permissions` 非 bypass、Allow 规则堆积即审批实锤；配置层 doctor 全绿——矛头指向会话层模式优先级或网关限制。研究 2.1.24x 模式优先级（claude-code-guide）加本机取证，结论落 S029，oma 修法按结论定。
+- **锚定的目标**：文档体系重构（2026-09-03 起，回指 PRD D01 至 D05）：参考 `D:\reader_rs` 形态引入 PRD 四原语、AGENTS 意图路由细节全下沉 R002 成命令面唯一权威、INDEX 收敛九节修复登记缺陷、TODO 残表清退、CHANGELOG 与 ROADMAP 补史、根级五文件禁字合规退出豁免清单。
 
 ### 推进时间线
 
@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-03 | 文档体系重构推进（进行中）：仓库清理与工具清单对账（diary 09-03 前篇）；PRD 落地四原语同步（b948d67）；R002 扩容命令面唯一权威补七缺命令面（61a3035）；AGENTS 重写工作规则加文档对齐义务表并瘦身意图路由（4147eff）；INDEX 收敛九节修复登记缺陷（03a6271，M043 记档）；TODO 残表清退（2e14434） |
 | 2026-09-02 | `oma agents login` 设备码引导落地并**全链闭环**：子进程捕获形态（两家输出纯 stderr 无 TTY 依赖，源码实证修正 S026 pane 扫屏原推断）、`login.url=`/`login.code=` 机读标记、超时杀进程、落盘凭据为最终判据；110+12 全绿。WSL 实机双半程：失败路径（TLS 断连：失败行捕获、login_state 转、exit 1）加成功路径（用户定调跨机 UX——只给 code URL 与 code 不转发原始 stderr，在另一台机器完成授权，`login.ok=true` 带    scope 与 expires_at，doctor 登录态翻绿） |
 | 2026-09-02 | agent doctor 部署诊断切片落地：doctor 加 warn 层与四类新检查（登录态 S026 判据、hook 形态 P0027 口径、状态栏 S025 落位、会话健康无会话不误报）；根修 deploy `is_ours` 对 codex Windows 调用操作符形态 `& "exe" hook` 的盲区（跨环境漏检加潜在重复追加）；测试 105+12 全绿，Windows/WSL 双侧实机验收（WSL 如实报 grok 未登录 warn）。余 `oma agents login` 引导切片排队 |
 | 2026-09-02 | 仓库更名 ohmyagents-rs 五步收口：GitHub 更名（用户）、remote set-url 新地址、双环境重跑 init 加 --pretrust（双侧 doctor.blocked=false）、旧名引用清扫（Cargo.toml/README/main.rs/S028；diary 存档不改）。四仓生态定调落 R001（ome 工具运行时 / oma agent 与编排 / ohmypwsh 总台密钥 / ohmycloud 云端分发，互相发 issue）。S026 OAuth 登录研究结项（双流取证已落档）；agent doctor 部署诊断立项接续 |
@@ -54,9 +55,6 @@
 | 2026-08-31 | 目标切到 P0013：S018 aitrace 研究落档（operation_id 归组、双意图、补账、裁决表八坑，七条断言抽查全中）；P0013 立项（五切片，补 agent 过滤与项目路径两缺口） |
 | 2026-08-31 | P0012 达成：oma 自适应安装部署——catalog 两层 pin（出厂锚 + `~/.ohmyagents` 用户本地层写回）、渠道序 github 主 CDN 兜底、四家 Windows 装机全绿、update 取证闭环；S017 落档（含四家官方安装脚本逐家实证的渠道反转） |
 | 2026-08-31 | S016 incurs 双层源码研究落档（吸收裁决表，三传输模式升核心）；P0011 立项（三通道编排加网页可视化，axum/rmcp 可选 feature 选型） |
-
-| 日期 | 进展 |
-| --- | --- |
 | 2026-08-31 | P0009 达成：真四路拉通——claude 路全通（hook 事件流实时迁移、真任务执行）；spawn cwd 缺陷修复（M031）；三路保守拦截符合设计 |
 | 2026-08-31 | P0008 达成：oma run 状态门分派（一路忙/blocked 跳过不堵其它路）加层 3 任务文件；cargo test 41 过。附 init 接 deploy 层收尾 |
 | 2026-08-31 | P0007 达成：label 端点融合（CLI 起 daemon、`#{socket_path}` 桥 SDK）、send 多行三段式粘贴（中文验收）、stale pipe 自愈；boot 前缀坑记 M029 |
@@ -82,7 +80,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：会话层 bypassPermissions 未生效排查（2026-09-02 起）。doctor 配置层全绿但会话内 /permissions 非 bypass——先研究（claude-code-guide 2.1.24x 模式优先级与网关限制）加本机取证，再定 oma 修法（候选：spawn claude 路固定 `--dangerously-skip-permissions` argv）。
+- 当前目标：文档体系重构（2026-09-03 起，回指 PRD D01 至 D05）。已交付 PRD 引入、R002 扩容、AGENTS 重写、INDEX 收敛、TODO 清退；余 PLAN 与 GOAL 切目标、CHANGELOG 与 ROADMAP 补史、G002 与 R 系列整改、豁免清单退出、收口五件。
 
 ## 历史
 
