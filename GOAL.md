@@ -82,7 +82,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：D06 吸收合并 agent 二进制下装部署（五端全量，配置域除外）。切片与验收见 `PLAN.md`，进度见 `TODO.md`。
+- 当前目标：D07 oma 收窄配合（配置 agent、hook、编排为本域；agents install/update 迁册 ome 的 deprecated 与数据源注记、doctor 四类检查归 agents 域重排；等 ome D07 切片落地后执行）。
 
 ## 历史
 
@@ -90,6 +90,7 @@
 
 | 日期 | 目标 | 结果 |
 | --- | --- | --- |
+| 2026-09-05 | D06 吸收合并 agent 二进制下装部署（五端全量） | 达成：oma `--version` 三处实测部署位更新；lan-win 下发 4/4 纳管、lan-linux 首装三家加 kimi default 位纳管二连跑幂等；五端 install 全 skipped 验收绿；AGENTS 边界行、ohmypwsh#9、#2 回填。同日方向反转（用户追问链三轮六裁）：agent 二进制安装域回归 ome 承载，oma 收窄为配置 agent、hook、编排；本目标五端成果转为过渡态，迁册见 D07 |
 | 2026-09-03 | 文档体系重构（PRD D01 至 D05，参考 reader_rs） | 达成：PRD 四原语引入、AGENTS 工作规则重组加文档对齐义务表、R002 命令面唯一权威、INDEX 九节收敛修复登记缺陷、TODO 残表清退、CHANGELOG 与 ROADMAP 补史、G002 CR 修复、R 系列六态整改、根级五文件退出豁免清单；13 提交门禁全绿 |
 | 2026-09-02 | agent doctor 部署诊断与登录引导（P0028） | 达成：doctor warn 层四类部署检查、`oma agents login` 跨机引导（失败成功双半程实证）、is_ours 调用操作符根修、四端验收（grok 登录态四分支活体实证）；同日 rust 1.98 零改动适配、更名收口、四仓生态定调 |
 | 2026-09-01 | code review 修复（P0026） | 达成：codex review 高 5 中 7 全修；计划外修 serve 零控制台卡死、task id 撞号、canonicalize 时序双身份；看板默认只读 |

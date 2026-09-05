@@ -10,6 +10,7 @@ D06 agent 二进制下装部署五端全量收敛（吸收合并下载、安装�
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
+| 迁册批：agents install/update deprecated（D07） | 待办 | 提示指向 `ome install`；`catalog\agents.toml` 头注记数据权威转 ome；doctor 登录态等四类检查归 agents 域重排；等 ome 仓 D07 切片 1 与 3 落地后执行 | |
 | 切片 1：oma --version 支持 | 已完成 | 源码 clap version 属性已在（部署位旧构建遮蔽）；CI 同口径 --features server,mcp 三处构建实测 oma 0.1.0（本机、WSL、lan-linux）；部署位更新（本机与 lan-win 的 D:\ohmyenv\cargo\bin、lan-linux 的 ~/.local/bin）；R002 补 --version 全局参数登记 | 2026-09-05 |
 | 切片 2：lan-win 与 lan-linux 下发加盘点 | 已完成 | lan-win oma.exe scp 下发（4/4 installed source=path，codex 为 EnvRoot 越界物 D:\ohmyenv\codex\bin）；lan-linux linux-gnu 构建经 WSL（target-linux 持久目录）下发 ~/.local/bin；盘点修正：lan-linux 三家缺（claude/codex/grok）、kimi 在 default 位 0.38.0 | 2026-09-05 |
 | 切片 3：五端幂等验收 | 已完成 | 本机 4/4 全 skipped；WSL 4/4 全 skipped；lan-win 4/4 全 skipped；lan-linux 首装三家（各带版本探针）加二连跑全 skipped；mac 4/4 全 skipped（旧版 oma，agents 子命令语义未变） | 2026-09-05 |
