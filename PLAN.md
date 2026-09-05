@@ -4,7 +4,9 @@
 
 > 回指 `PRD.md` D06。用户 2026-09-05 裁决三边界：安装行为不动（保持幂等检测安装）、存量原地纳管（不重装不删）、五端全量；配置域（settings、API key、MCP、statusline 等）除外。
 
-### 事实基线（2026-09-05 立项盘点）
+### 事实基线
+
+> 2026-09-05 立项盘点。
 
 - 本机 Windows：`oma agents` 四家 installed=4、全 source=path（原地纳管探测在工作）；`oma agents install` 四家全 skipped（幂等）[实证： 当日实跑]
 - P0012 已收口本机三台（Windows / WSL / lan-mac 同机开发位）四家安装全链 [实证： GOAL 历史 2026-09-01]
