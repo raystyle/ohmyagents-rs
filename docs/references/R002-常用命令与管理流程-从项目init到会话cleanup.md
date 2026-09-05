@@ -127,6 +127,7 @@ Drive 铁律（S005，三段式粘贴）：发前扫框、`paste-buffer -p`、En
 - **TTY 表格（人读面）**：stdout 是 TTY 时 `oma status` 打对齐表格（手写 formatter，无 toon 依赖）；同一份数据两副面孔，测试跑在非 TTY 下天然走 marker。
 - **`--format kv|json|jsonl` 与 `--json` 简写（互斥）**：kv 是 marker 行缺省；json 出 `{ok, data\|error, meta:{command, project}}` 信封与 HTTP / MCP 三传输同形（P0015，api 层一份信封三消费）；jsonl 列表逐行对象。值一律字符串、字段序与 kv 行序一致（preserve_order）；结构化错误 stderr 单行 JSON、业务失败信封仍进 stdout 退出非 0，机器读者拿信封、人类拿 stderr 错误行。机器面冻结命令与退出码表见 `docs\references\R011-Agent友好IO契约-format三态信封退出码与冻结面.md`（issue #1）。
 - **错误 CTA**：用户可见错误自带下一步（如 `no session manifest; run oma spawn first`）；新增错误路径保持同款，禁止裸报错。
+- **`--version`**：oma 自身版本（clap 标准，源 `Cargo.toml`；也是 ome catalog 集成本仓条目的探测条件之一，D06 切片 1 复核）。与 agent 装后探针的 `--version`（各家 agent 二进制）是两回事。
 
 ## 四、维护规则
 

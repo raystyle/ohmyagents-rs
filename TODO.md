@@ -4,7 +4,17 @@
 
 ## 当前目标
 
-无（文档体系重构已达成，PRD D01 至 D05 全部已交付，2026-09-03 当日闭环；新需求先入 `PRD.md` 走追问链）。
+D06 agent 二进制下装部署五端全量收敛（吸收合并下载、安装、部署，配置域除外；方案见 `PLAN.md`，2026-09-05 立项）。
+
+### 任务进度清单
+
+| 任务项 | 进度 | 说明 | 日期 |
+| --- | --- | --- | --- |
+| 切片 1：oma --version 支持 | 待办 | clap version 挂 Cargo.toml 版本；SKILL.md / R002 / README 同步；解 ome 集成条件之一 | |
+| 切片 2：lan-win 与 lan-linux 下发加盘点 | 待办 | oma 二进制 sha 对比下发（sync 脚本固化 .tools）；两端 agent 探测矩阵 | |
+| 切片 3：五端幂等验收 | 待办 | 五端 oma agents 加 install（存量纳管 / 缺失补装），install 二连跑零变更；mac 加 WSL 复验 | |
+| 切片 4：边界收口与跨仓 ISSUE | 待办 | AGENTS 边界段一行（agent 二进制下装部署归 oma，配置域除外）；ohmypwsh 退役配合 ISSUE；ohmyagents #2 #3 复核 | |
+| 立项登记（D06） | 已完成 | PRD D06 第 1 轮三裁、GOAL 起点锚点切换、PLAN 四切片、TODO 建行；基线盘点（本机 4/4 幂等纳管实证、--version 缺口实证、五端缺口 lan-win 加 lan-linux） | 2026-09-05 |
 
 ## 前目标清单
 
