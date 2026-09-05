@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-05 | D06 五端当日闭环：oma `--version` 三处实测 0.1.0（本机 / WSL / lan-linux 构建，部署位更新三端）；lan-win 下发 4/4 纳管；lan-linux 首装三家（claude 2.1.251、codex 0.151.0、grok 1.0.13，kimi default 位纳管）二连跑幂等；五端 install 全 skipped 验收绿（mac 用旧版 oma，agents 语义未变）；AGENTS 边界行、ohmypwsh#9、#2 回填；余量 mac --version 走 CI 新资产待推 |
 | 2026-09-05 | D06 立项：基线盘点（本机 Windows `oma agents` 四家 installed=4 source=path、install 全 skipped 幂等纳管已在工作 [实证： 当日实跑]；oma `--version` 不支持，ome catalog 集成条件缺口之一 [实证： 当日实跑]；P0012 已收口本机三台，五端真实缺口为 lan-win 加 lan-linux [推断： 待盘点]）；PRD D06 登记、GOAL 起点锚点切换、PLAN 四切片、TODO 清单建行 |
 | 2026-09-03 | 文档体系重构当日闭环（PRD D01 至 D05，参考 reader_rs 形态）：仓库清理与工具清单对账（0497dac/2914164）；PRD 四原语引入（b948d67）；R002 扩容命令面唯一权威补七缺命令面（61a3035）；AGENTS 重写工作规则加文档对齐义务表并瘦身意图路由、8 处下游段名同步（4147eff）；INDEX 收敛九节修复登记缺陷（03a6271，补 9 件代码文件登记，M043 记档）；TODO 残表清退（2e14434）；PLAN 与 GOAL 切目标（df362f5）；CHANGELOG 与 ROADMAP 补 09-01/09-02 里程碑（fd45180）；G002 CR 修复（8be704d）；R 系列八行六态越级整改（0bf7a5f）；根级五文件禁字合规退出豁免清单（2c0e67e）；11+2 提交全绿 |
 | 2026-09-02 | `oma agents login` 设备码引导落地并**全链闭环**：子进程捕获形态（两家输出纯 stderr 无 TTY 依赖，源码实证修正 S026 pane 扫屏原推断）、`login.url=`/`login.code=` 机读标记、超时杀进程、落盘凭据为最终判据；110+12 全绿。WSL 实机双半程：失败路径（TLS 断连：失败行捕获、login_state 转、exit 1）加成功路径（用户定调跨机 UX——只给 code URL 与 code 不转发原始 stderr，在另一台机器完成授权，`login.ok=true` 带    scope 与 expires_at，doctor 登录态翻绿） |

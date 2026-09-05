@@ -10,10 +10,11 @@ D06 agent 二进制下装部署五端全量收敛（吸收合并下载、安装�
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
-| 切片 1：oma --version 支持 | 待办 | clap version 挂 Cargo.toml 版本；SKILL.md / R002 / README 同步；解 ome 集成条件之一 | |
-| 切片 2：lan-win 与 lan-linux 下发加盘点 | 待办 | oma 二进制 sha 对比下发（sync 脚本固化 .tools）；两端 agent 探测矩阵 | |
-| 切片 3：五端幂等验收 | 待办 | 五端 oma agents 加 install（存量纳管 / 缺失补装），install 二连跑零变更；mac 加 WSL 复验 | |
-| 切片 4：边界收口与跨仓 ISSUE | 待办 | AGENTS 边界段一行（agent 二进制下装部署归 oma，配置域除外）；ohmypwsh 退役配合 ISSUE；ohmyagents #2 #3 复核 | |
+| 切片 1：oma --version 支持 | 已完成 | 源码 clap version 属性已在（部署位旧构建遮蔽）；CI 同口径 --features server,mcp 三处构建实测 oma 0.1.0（本机、WSL、lan-linux）；部署位更新（本机与 lan-win 的 D:\ohmyenv\cargo\bin、lan-linux 的 ~/.local/bin）；R002 补 --version 全局参数登记 | 2026-09-05 |
+| 切片 2：lan-win 与 lan-linux 下发加盘点 | 已完成 | lan-win oma.exe scp 下发（4/4 installed source=path，codex 为 EnvRoot 越界物 D:\ohmyenv\codex\bin）；lan-linux linux-gnu 构建经 WSL（target-linux 持久目录）下发 ~/.local/bin；盘点修正：lan-linux 三家缺（claude/codex/grok）、kimi 在 default 位 0.38.0 | 2026-09-05 |
+| 切片 3：五端幂等验收 | 已完成 | 本机 4/4 全 skipped；WSL 4/4 全 skipped；lan-win 4/4 全 skipped；lan-linux 首装三家（各带版本探针）加二连跑全 skipped；mac 4/4 全 skipped（旧版 oma，agents 子命令语义未变） | 2026-09-05 |
+| 切片 4：边界收口与跨仓 ISSUE | 已完成 | AGENTS 边界段加 agent 二进制域归本仓行（幂等检测安装唯一权威通道、存量原地纳管、配置域除外）；ohmypwsh#9 发出（catalog.psd1 四家 agent 节冻结退役配合）；ohmyagents #2 回填进展（--version 已解、装位三裁覆盖、发布通道待裁） | 2026-09-05 |
+| 余量：mac --version 一致性 | 待办 | mac 现 oma 为旧版（无 --version）；待推 main 触发 CI 出新资产后走 oma self update 收口（推远端待用户指示） | |
 | 立项登记（D06） | 已完成 | PRD D06 第 1 轮三裁、GOAL 起点锚点切换、PLAN 四切片、TODO 建行；基线盘点（本机 4/4 幂等纳管实证、--version 缺口实证、五端缺口 lan-win 加 lan-linux） | 2026-09-05 |
 
 ## 前目标清单

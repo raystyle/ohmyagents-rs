@@ -8,11 +8,13 @@
 
 - 本机 Windows：`oma agents` 四家 installed=4、全 source=path（原地纳管探测在工作）；`oma agents install` 四家全 skipped（幂等）[实证： 当日实跑]
 - P0012 已收口本机三台（Windows / WSL / lan-mac 同机开发位）四家安装全链 [实证： GOAL 历史 2026-09-01]
-- 五端真实缺口：lan-win 与 lan-linux 两端的 oma 可达性、agent 盘点与幂等验收均未做 [推断： 待切片 2 盘点证实]
+- 五端真实缺口：lan-win 与 lan-linux 两端的 oma 可达性、agent 盘点与幂等验收均未做 [推断： 立项时判断；切片 2 实测修正为 lan-linux 三家缺（claude / codex / grok），kimi 在 default 位 0.38.0 被探测纳管]
 - oma `--version` 不支持（clap 未挂版本参数）；ome catalog 的 oma 条目集成条件为此加发布通道裁决（见 ohmyagents issue #2 #3）[实证： 当日实跑与 ome catalog 注释]
 - 存量越界物 `D:\ohmyenv\claude\claude.exe`（ohmyenv.ps1 时代遗产）：按「原地纳管」裁决 oma 仅探测不迁移；EnvRoot 清理归 ome 域另议，本批不发
 
-### 方案骨架（四切片，1 与 2 可并行）
+### 方案骨架
+
+> 四切片，1 与 2 可并行。
 
 1. **切片 1：oma --version 支持**：clap `version` 挂 Cargo.toml 版本（build.rs 嵌资源口径对齐）；SKILL.md / R002 / README 命令面同步；解开 ome catalog 集成条件之一。
 2. **切片 2：lan-win 与 lan-linux 下发加盘点**：oma 二进制下发（sha 对比按需传，sync 脚本固化 `.tools\`，对齐 ome 的 sync-ome-lanwin 模式）；两端 `oma agents` 探测盘点（来源 / 版本 / 路径矩阵落 TODO）。

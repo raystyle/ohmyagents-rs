@@ -12,6 +12,7 @@
 2. **边界**
    - 编排钉在启动的项目目录；不替代 ohmypwsh 五端环境总台，不替代各 agent 本体。
    - 四仓分工（2026-09-02 定调，细目见 R001 四仓生态节）：ohmyenv-rs（`ome`）管工具与运行时依赖、本仓（`oma`）管 code agent 部署配置与编排、ohmypwsh 管五端总台与密钥安全、ohmycloud 管云端二进制分发；跨仓协作互相发 issue。
+   - agent 二进制的下载、安装、部署（五端）归本仓：`oma agents install` 幂等检测安装是唯一权威通道（已装任何来源即跳过），存量原地纳管不迁移（D06 三裁，2026-09-05）；agent 配置域（settings、API key、MCP、statusline）不在二进制吸收范围，各配置面切片与 ohmypwsh 密钥域既有归属不变。
    - 编排操作三通道：CLI、HTTP API、MCP 接口（P0011）；网页做可视化编排。弹不出浏览器不是错误。
    - 运行时后端是 rmux，不引入 herdr 当宿主。
    - hook、skill、状态文件只落启动目录；oma 自管应用数据根是 `~/.ohmyagents`（agent 安装与本地 pin，P0012），默认不改用户家目录 hook 注册。
