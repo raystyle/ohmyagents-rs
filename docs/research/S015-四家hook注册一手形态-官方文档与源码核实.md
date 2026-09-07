@@ -52,7 +52,7 @@
 ```
 
 - handler 四型：command（含 **commandWindows** 平台专用命令字段——oma 部署可直接用）、mcp_tool、prompt、agent。**2026-08-31 本机 0.149.1 偏差注记**：Windows 实测 codex 经 PowerShell 执行 command 串，`"exe" hook` 是 PS 语法错，需 `& "exe" hook` 调用操作符；hook 执行环境不继承调用方 PATH，command 必须绝对路径。S015 系 HEAD 源码，落地以本机版本实测为准。[实证: P0010]
-- 层序（discovery）：managed requirements → config layers low-to-high（用户 `~/.codex`、项目 `.codex`，每层先读层目录 hooks.json 再读 config.toml `[hooks]`）→ plugin 源。插件 env 注入 `PLUGIN_ROOT`/`CLAUDE_PLUGIN_ROOT`/`PLUGIN_DATA`/`CLAUDE_PLUGIN_DATA`（对 Claude 插件生态 OOTB 兼容）。
+- 层序（discovery）：managed requirements，再 config layers low-to-high（用户 `~/.codex`、项目 `.codex`，每层先读层目录 hooks.json 再读 config.toml `[hooks]`），再 plugin 源。插件 env 注入 `PLUGIN_ROOT`/`CLAUDE_PLUGIN_ROOT`/`PLUGIN_DATA`/`CLAUDE_PLUGIN_DATA`（对 Claude 插件生态 OOTB 兼容）。
 - 信任持久化：`[hooks.state."<source>:<event>[i].hooks[j]"] {enabled, trusted_hash}`（S006 的 trusted_hash 口径一手确认）；`bypass_hook_trust` 旗标跳过。
 - 事件 12 个：PreToolUse、PermissionRequest、PostToolUse、PreCompact、PostCompact、SessionStart、SessionEnd、UserPromptSubmit、SubagentStart、SubagentStop、Stop、**Interrupt**（无 Notification）。stdin snake_case 加 Codex 扩展 `turn_id`、`permission_mode`；输出 wire camelCase，注释明言兼容 Claude 语义（"Claude requires reason when decision is block"）。
 
@@ -72,7 +72,7 @@
 
 - 源两种（workspace config.rs `HookSourceConfig`）：`SettingsFile`（可直接指 `~/.claude/settings.json`——grok 兼容读 Claude 配置）与 `Directory`（`~/.grok/hooks/*.json`、项目 `<project>/.grok/hooks/*.json`）。TOML 层 `[[hooks.<Event>]]` 写 `.grok/config.toml`（项目层从 cwd 向上走到 git root 逐层叠加）。
 - handler 两型：command、http（无 prompt/agent/mcp_tool）；`env` map 注入 hook 进程；command/url 支持 `$VAR` 环境展开（matcher 不展开）。
-- 事件集（event.rs 宏）：SessionStart、PreToolUse、PostToolUse、PostToolUseFailure、SessionEnd、Stop、StopFailure、StopCancelled、Notification、UserPromptSubmit、**PermissionDenied**、SubagentStart、SubagentStop、SubagentEnd、PreCompact、PostCompact，另有 legacy 别名（beforeShellExecution→PreToolUse 等）。**无 PermissionRequest**：Claude settings 里的 PermissionRequest 段被 lenient skip（未知事件跳过不报错）。oma 的 grok 路 blocked 信号只能靠 PermissionDenied（已拒，非等待）与 Notification，等待审批态走 1b 画面兜底。
+- 事件集（event.rs 宏）：SessionStart、PreToolUse、PostToolUse、PostToolUseFailure、SessionEnd、Stop、StopFailure、StopCancelled、Notification、UserPromptSubmit、**PermissionDenied**、SubagentStart、SubagentStop、SubagentEnd、PreCompact、PostCompact，另有 legacy 别名（beforeShellExecution 对应 PreToolUse 等）。**无 PermissionRequest**：Claude settings 里的 PermissionRequest 段被 lenient skip（未知事件跳过不报错）。oma 的 grok 路 blocked 信号只能靠 PermissionDenied（已拒，非等待）与 Notification，等待审批态走 1b 画面兜底。
 - matcher 是正则（invalid regex 报错）；Stop 等 MatcherPolicy::Ignored 事件带 matcher 只警告不生效。超时默认 5s，Stop 门 600s，prompt 门 30s。
 - runner 恒注入 env：`GROK_HOOK_EVENT`、`GROK_HOOK_NAME`、`GROK_SESSION_ID`、`GROK_WORKSPACE_ROOT`、`CLAUDE_PROJECT_DIR`（oma hook 可直接读这些，不依赖 stdin 也行）。
 - 名字前缀分层：`global/<stem>`、`project/<stem>`、`plugin/`、`agent:`；层间 additive、同命令 dedup 保高层。
@@ -136,7 +136,7 @@ timeout = 10            # 1–600，默认 30
 
 | 类型 | 定位 | 日期 | 提供 |
 | --- | --- | --- | --- |
-| web | code.claude.com/docs/llms.txt → en/hooks.md | 2026-08-31 | Claude hook 事件/schema/裁决/超时/信任 |
+| web | code.claude.com/docs/llms.txt 到 en/hooks.md | 2026-08-31 | Claude hook 事件/schema/裁决/超时/信任 |
 | git | openai/codex 浅克隆 | 2026-08-31 | hook_config.rs、schema.rs、discovery.rs |
 | git | xai-org/grok-build 浅克隆 | 2026-08-31 | xai-grok-hooks 全套、folder_trust、project_config |
 | git | MoonshotAI/kimi-code 浅克隆 | 2026-08-31 | HookDefSchema、types.ts、projectLocalConfigService、官方 hooks 文档 |

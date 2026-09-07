@@ -21,7 +21,7 @@ oma 作为可安装产品（exe + 自管数据根 `~/.ohmyagents`），kanban �
 
 细节口径：
 
-- build.rs：`docs/web/kanban` → `OUT_DIR/kanban-web.tar.gz`（内容寻址：对 tar.gz 字节算 sha256 取前 8 位做指纹目录名）。
+- build.rs：`docs/web/kanban` 打包为 `OUT_DIR/kanban-web.tar.gz`（内容寻址：对 tar.gz 字节算 sha256 取前 8 位做指纹目录名）。
 - 运行时：`ensure_web_assets()` 检 `~/.ohmyagents/web/<sha8>/`——存在即跳过；缺失或指纹不符则清旧目录解压新包（同 install.rs 的 zip 解压姿态：建目录、逐条目写、错误带路径）。
 - serve 的 `KANBAN_DIR` 从仓库路径改指 `~/.ohmyagents/web/<sha8>/`（`oma_home()` 同源，`OMA_HOME` 可覆盖）。
 - 仓库仍保留 `docs/web/kanban`（构建输入，保证无 node 环境也能 `cargo build` 出带资源的产品）；`share-src` 是它的源（npm build 产出），两层都进仓。

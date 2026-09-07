@@ -7,10 +7,10 @@
 [实证: D:\ohmypwsh\scripts\hooks\secret-guard.py 逐行读]
 
 - **信封兼容四 CLI**：Claude Code / Kimi（`hook_event_name` + snake_case）、Codex（snake_case 无事件名，从 payload 推断）、Reasonix（`event` + camelCase）。
-- **阻断语义**：PreToolUse / UserPromptSubmit → 命中即 `exit 2` 阻断；PostToolUse → 只观察（Codex 路替换输出）；异常 **fail-open** `exit 0`（防护挂了不挡活）。
+- **阻断语义**：PreToolUse / UserPromptSubmit 命中即 `exit 2` 阻断；PostToolUse 只观察（Codex 路替换输出）；异常 **fail-open** `exit 0`（防护挂了不挡活）。
 - **双层正则**：provider 前缀类大小写敏感（`sk-ant-`、`ghp_`、`AKIA`、`xox`、`eyJ` JWT、PEM 私钥头、mongodb/pg/mysql/redis 带密码 URI）；通用赋值类忽略大小写（`api_key=`、`token=`、`bearer `）；**bare password 只 warn 不阻断**——659 次命中绝大多数是大段 JSON/文档的误报教训（P0 降级）。
 - **配套**：SECRET_ENV_NAMES 环境变量名名单；自扫豁免（guard 源码自身与豁免研究文档）；URI 正则字符串拼接构造避免源码自身触发扫描。
-- **测试**：14 例冒烟（payload → 期望 exit code），覆盖四 CLI 信封 × 命中/干净。
+- **测试**：14 例冒烟（payload 对应期望 exit code），覆盖四 CLI 信封 × 命中/干净。
 
 ## 同类 Rust 实现
 
@@ -51,7 +51,7 @@
 ## oma 接管落点
 
 - **零新依赖**：`regex` 与 `serde_json` 已在依赖面（R005 口径：组合不自写）；Shannon 熵是 20 行纯函数不引库。
-- **通道已就绪**：`oma hook`（src\hook.rs）已解析四家信封写状态——拦截闸是同一条入口的第二职责：PreToolUse / UserPromptSubmit 命中密钥 → 状态照写 + `exit 2` 带原因；PostToolUse → warn 记状态不阻断。
+- **通道已就绪**：`oma hook`（src\hook.rs）已解析四家信封写状态——拦截闸是同一条入口的第二职责：PreToolUse / UserPromptSubmit 命中密钥则状态照写加 `exit 2` 带原因；PostToolUse 则 warn 记状态不阻断。
 - **规则表**：独立 `src/secretguard.rs` 模块，模式表静态常量带四元属性（regex、label、大小写策略、阻断层级 block/warn）+ 实值比对名单 + stopwords + 熵下限。
 - **注册面**：hook 注册已带 `--agent <名>` 参数与 bare 形态（P0027），guard 语义不需要新注册——同一 `oma hook` 调用内分流。
 - **测试**：ohmypwsh 14 例冒烟语料直接移植为黄金用例（独立 oracle：期望值来自其测试契约非 oma 实现镜像，R004）+ 误报分层各有专测（占位符放行、熵门、实值通道、日志掩码）。

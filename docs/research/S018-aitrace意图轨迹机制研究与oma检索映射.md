@@ -19,11 +19,11 @@
 | 源 | 机制 | 证据 |
 | --- | --- | --- |
 | 文件 watcher | notify + debouncer 递归监听，只取 Create/Modify；组件级 ignore（精确 + glob，如 `*.tmp.*` 滤编辑器原子写） | src\watcher\fs_watcher.rs:66-100 |
-| Claude PostToolUse hook | matcher `Write\|Edit` → `aitrace hook-send` → UDS 换行分隔 JSON；payload 改写为 `agent_id`（=session_id）、`operation_id`、`tool_name`、`file`、`transcript_path`、`is_error` | src\hook\send.rs:46-95 |
+| Claude PostToolUse hook | matcher `Write\|Edit` 再 `aitrace hook-send` 再 UDS 换行分隔 JSON；payload 改写为 `agent_id`（=session_id）、`operation_id`、`tool_name`、`file`、`transcript_path`、`is_error` | src\hook\send.rs:46-95 |
 | transcript jsonl | `~/.claude/projects/<路径>/<session-uuid>.jsonl` 增量 tail（记 byte offset，半行留给下轮） | src\daemon\intent_index.rs:104-156 |
 | 自有存储 | 追加式 `edits.jsonl` + 内容寻址快照库 + 每会话 meta.json，全在 `<project>/.aitrace/sessions/<id>/` | 源码 |
 
-**hook↔watcher 竞态**：PostToolUse 在落盘之后触发，watcher 事件先到——daemon 用 `HOOK_GRACE = 250ms` 忙等收 hook 元数据再归组。[实证: src\daemon\mod.rs:506、:339]
+**hook 与 watcher 竞态**：PostToolUse 在落盘之后触发，watcher 事件先到——daemon 用 `HOOK_GRACE = 250ms` 忙等收 hook 元数据再归组。[实证: src\daemon\mod.rs:506、:339]
 
 **路径归一化**：hook 报绝对路径、watcher 报相对路径，关联键统一「相对化 + 正斜杠 + Windows 小写」再进 FIFO；macOS FSEvents 前缀用 canonicalize 兜底。[实证: src\daemon\correlation.rs:13-39]
 
@@ -48,13 +48,13 @@ pub struct EditEvent {
 
 [实证: src\event.rs:39-53 及全结构；真实数据 `.aitrace/sessions/20260828-072234-773273/edits.jsonl` 尾行含 `"intent":"继续"` 与完整 operation_id]
 
-**`operation_id = "session_id:tool_use_id"` 一根线串起「hook 元数据 ↔ transcript 意图 ↔ 编辑帧」——这是该项目最值钱的设计。** 无 tool_use_id 时退回 session_id。[实证: src\hook\send.rs:70-74]
+**`operation_id = "session_id:tool_use_id"` 一根线串起「hook 元数据、transcript 意图、编辑帧」——这是该项目最值钱的设计。** 无 tool_use_id 时退回 session_id。[实证: src\hook\send.rs:70-74]
 
 ### 意图切分算法
 
 > 查询时活走父链。
 
-1. `operation_id` 用 `rsplit_once(':')` 取回 tool_use_id，transcript 里 `tool_use` 块登记 `tool_use_id → entry uuid`。
+1. `operation_id` 用 `rsplit_once(':')` 取回 tool_use_id，transcript 里 `tool_use` 块登记 `tool_use_id` 对应 entry uuid。
 2. 沿 `parentUuid` 父链上溯：**最近一个 assistant text 块胜出；链上无 text 取最近 thinking**；ToolUse/UserText/Other 是游走边界。批量并行工具调用共享同一前置文本。[实证: intent_index.rs:268-290 与测试 :393-414]
 3. 截断 `MAX_INTENT_CHARS = 200` 按字符不按字节（按字节切中文会 panic 在 log 宏里杀死 daemon）。[实证: :23、:302-305；panic 坑有回归测试]
 4. 用户意图 `intent` 双源：`last-prompt` 标记 + 真实 user text entry，**文件里更靠后的赢**（标记滞后一轮）。[实证: :100-102、:158-194]
@@ -63,7 +63,7 @@ pub struct EditEvent {
 
 ## 五、编辑轨迹与帧重建
 
-- **事件 + 内容双轨**：内容真变才记（新旧相同跳过）→ similar 算 unified diff 与 ±行数 → 新内容按 SHA-256 进内容寻址库（`snapshots/<前2字符>/<后62字符>`，仿 Git 对象布局，天然去重）→ 事件追加 edits.jsonl。删除按空串读记 kind=Delete。[实证: recorder\mod.rs:140-170、store.rs:8-49]
+- **事件 + 内容双轨**：内容真变才记（新旧相同跳过），再 similar 算 unified diff 与 ±行数，再新内容按 SHA-256 进内容寻址库（`snapshots/<前2字符>/<后62字符>`，仿 Git 对象布局，天然去重），再事件追加 edits.jsonl。删除按空串读记 kind=Delete。[实证: recorder\mod.rs:140-170、store.rs:8-49]
 - **帧 = 编辑 id**：`get_frame` 重建任意时刻状态——每文件取 ≤frame_id 的最后一条编辑按 after_hash 从快照库取内容。[实证: mcp\handlers.rs:174-205]
 - **跨会话基线继承**：daemon 启动找最近真有 edits.jsonl 的前会话，继承 `file → after_hash` 表并复用其快照库作 diff 旧内容源——否则重启后所有文件都变 create。[实证: session.rs:139-149、recorder\mod.rs:71-107]
 - 恢复动作预登记 `restore_id` 且优先于 hook 富化，避免把自己的恢复记成 agent 编辑。[实证: correlation.rs:128-147]

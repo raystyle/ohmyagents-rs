@@ -15,7 +15,7 @@
 
 - **流程**：OAuth 2.1，默认 loopback（授权码+PKCE+本地回调），可切 RFC 8628 设备码（`grok login --device-code`；旗标 > `GROK_LOGIN_DEVICE_FLOW` env > `[auth] login_device_flow` 配置）。issuer `https://auth.x.ai`。
 - **用户可见输出**（stderr）：`To sign in, open this URL in your browser: <url>` + `Then enter this code: <user_code>`——URL+code 可复制到任何机器的浏览器，**设备码流天生无头友好**。
-- **凭据落盘**：`~/.grok/auth.json`（`GROK_AUTH_PATH` 可覆盖）；scope 键 → {key, refresh_token, expires_at(RFC3339), email,...} 的 map。无 `expires_at` 时按 `create_time + 30 天`兜底；提前 300s 视过期（env 可调）。
+- **凭据落盘**：`~/.grok/auth.json`（`GROK_AUTH_PATH` 可覆盖）；scope 键对应 {key, refresh_token, expires_at(RFC3339), email,...} 的 map。无 `expires_at` 时按 `create_time + 30 天`兜底；提前 300s 视过期（env 可调）。
 - **刷新**：自动（AuthManager 静默 refresh，flock 防并发）；替代路径 `XAI_API_KEY` env。
 - **登录态检测**（doctor 可用）：文件存在 + 目标 scope 键存在 + 未过期——纯文件判断，无需起进程。
 

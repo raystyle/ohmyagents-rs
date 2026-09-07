@@ -21,13 +21,13 @@
 > drive
 
 9. **短 ASCII**：`pane.send_text(text)` 后单独 `pane.send_key("Enter")`。`send_text` 字面 UTF-8、不隐式换行、不解析键名。文本和 Enter 禁止同发。[实证: 2026-08-29 poc-drive]
-10. **长文与中文**：全 CLI 三段式——payload 写临时文件（UTF-8 无换行无 ESC）→ `load-buffer -b <name> <file>` → `paste-buffer -p -b <name> -t <session>:0.0` → `send-keys Enter` → `capture-pane -p` 轮询验证。发送侧永不自包 `\x1b[200~`。[实证: 2026-08-31 poc-paste 中文绿]
+10. **长文与中文**：全 CLI 三段式：payload 写临时文件（UTF-8 无换行无 ESC），再 `load-buffer -b <name> <file>`，再 `paste-buffer -p -b <name> -t <session>:0.0`，再 `send-keys Enter`，再 `capture-pane -p` 轮询验证。发送侧永不自包 `\x1b[200~`。[实证: 2026-08-31 poc-paste 中文绿]
 11. **发前扫框**：驱动前检查画面有无确认框（`expect_visible_text` / DIALOGS 模式），有则先点掉（`y` + Enter）。[经验: evo-harness `_sweep_dialogs`]
 12. **超时只补 Enter**：quiet 超时不重发全文；禁止对 Codex 发 `C-c`（单次即退出）。[经验: evo-harness + win-rmux 2026-08-21]
 
 ## 四、状态与等待
 
-13. **分层判断**（详细见 `research\S009-agent状态判断-通道与分层.md`）：0 存活（pid）→ 2 语义（hook 文件，可选加速）→ 1b 终端语义兜底（`terminal_state` / `wait_for_text`）→ 3 任务。Quiet 只给 Drive 同步，不当 idle。（分层依据 `docsesearch\S009-agent状态判断-通道与分层.md`；[实证: poc-dialogs]）
+13. **分层判断**（详细见 `research\S009-agent状态判断-通道与分层.md`）：0 存活（pid），再 2 语义（hook 文件，可选加速），再 1b 终端语义兜底（`terminal_state` / `wait_for_text`），再 3 任务。Quiet 只给 Drive 同步，不当 idle。（分层依据 `docsesearch\S009-agent状态判断-通道与分层.md`；[实证: poc-dialogs]）
 14. **SDK 等待**：`pane.expect_visible_text().to_contain(..).timeout(..)`；per-op 超时用 `.timeout(Duration)`（V1 默认 5s）。[实证: poc-drive；clum 源码核实]
 15. **观察**：网页镜像走 `output_stream_starting_at(Oldest)` 字节流；结论写文件不写屏幕（备屏 capture 常空）。[经验: web-claude-demo + win-rmux]
 

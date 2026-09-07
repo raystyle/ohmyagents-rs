@@ -36,7 +36,7 @@ rmux.exe --__internal-daemon ...（另一个 -L daemon）        pid 22580
 
 ## 三、源码核实的机制链
 
-- **daemon 生命周期**：客户端 auto-start → `spawn_hidden_daemon`（`rmux_os::daemon::spawn_hidden_daemon_command_requiring_job_breakaway`）→ **drop(child) 故意不 wait**——daemon 必须比短命客户端活得久（孤儿化的来源）；Windows 侧用 `StartupReadyEvent` 同步就绪（2s 超时）。[实证: 源码]
+- **daemon 生命周期**：客户端 auto-start 再 `spawn_hidden_daemon`（`rmux_os::daemon::spawn_hidden_daemon_command_requiring_job_breakaway`），再 **drop(child) 故意不 wait**——daemon 必须比短命客户端活得久（孤儿化的来源）；Windows 侧用 `StartupReadyEvent` 同步就绪（2s 超时）。[实证: 源码]
 - **job breakaway**：daemon 启动要求 Job Object breakaway——宿主在 Job 内且不许 breakaway 即 os error 5（oma 的 WMI 退路正是绕这个，两端同源）。[实证: 源码 + P0005 实战]
 - **ConPTY flags**：`PSEUDOCONSOLE_RESIZE_QUIRK | WIN32_INPUT_MODE`（按需加 `PASSTHROUGH`）——解释 resize 行为与 win32 输入模式（oma 发键用的正是这条通路）。[实证: 源码 flags.rs]
 - **控制台信号**：Ctrl+C 走 conhost 的进程组广播，非 Linux 的 process group + TTY 驱动——oma 禁对 codex 发 C-c 的守卫在此机制层。[经验: S005 旧口径，本次未重测]

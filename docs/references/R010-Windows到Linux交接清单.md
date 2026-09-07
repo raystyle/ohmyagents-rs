@@ -18,7 +18,7 @@ oma 是通用智能体多路复用任务编排器：rmux 后端上把 claude/cod
 ## 三、Linux 特有欠账：WSL 开工首查
 
 1. **daemon 启动路径**：`ensure_label_daemon`（`src\rmuxpoc.rs`）Windows 用 WMI 起进程（默认 cwd=System32 是 M031/M040 家族的根因）；Linux 侧确认 rmux 的 daemon 拉起形态（fork/exec 或 CLI 自举），`wmi_new_session` 需要 Linux 等价或绕开
-2. **rmux 本体**：oma 自管根装的是 Windows 资产；Linux 取 rmux 0.10.0 对应包（catalog 已 pin sha），验证 pipe 命名（`\\.\pipe\` → unix socket）在 SDK 的 endpoint_from_pipe 是否分叉
+2. **rmux 本体**：oma 自管根装的是 Windows 资产；Linux 取 rmux 0.10.0 对应包（catalog 已 pin sha），验证 pipe 命名（`\\.\pipe\` 对应 unix socket）在 SDK 的 endpoint_from_pipe 是否分叉
 3. **agent 四家 Linux 安装**：官方安装脚本形态（S017 已逐家实证过渠道反转），Linux 资产名/解包/安装目录在 `oma agents install` 的 leaf 找二进制逻辑待真机验收
 4. **后台进程形态**：serve daemon 的 `CREATE_NO_WINDOW` 是 Windows 分支；Linux 用 `setsid`/`nohup` 等价（`src\servectl.rs` 已有 `#[cfg]` 骨架）
 5. **探针与探活**：`pid_alive` 的 FFI OpenProcess 是 Windows；Linux 走 `kill -0`（分支已在）
@@ -35,7 +35,7 @@ oma 是通用智能体多路复用任务编排器：rmux 后端上把 claude/cod
 
 ## 五、开工顺序建议
 
-1. WSL 里 clone 本仓 → `cargo test`（应绿——平台无关层）→ `cargo build --features server,mcp`
+1. WSL 里 clone 本仓，再 `cargo test`（应绿：平台无关层），再 `cargo build --features server,mcp`
 2. `oma check`：Linux 资产下载与安装真机验收（第三节 2）
 3. `oma spawn --stub`：daemon 启动路径与 stub 判活（第三节 1）——单路全屏形态即可验证
 4. `oma agents install` 四家 Linux 形态

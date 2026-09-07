@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-07 | D10 切片 2：ARROW 72 处改写清零；余 DASH 472 |
 | 2026-09-07 | D10 切片 1：FULLWIDTH 与 EMOJI 清零（GOAL/S018 全角加号、S024 字形进行内代码） |
 | 2026-09-07 | D10 立项 G005 存量清理。复测 SKIP_DIRS 外 555 处（DASH 476、ARROW 72、FULLWIDTH 6、EMOJI 1）。D11 状态栏 zig/go/cpp、D12 t006 孤儿、D13 mac --version 已澄清排队；D13 推远端仍待指示 |
 | 2026-09-07 | D08 达成归档 P0030：doctor Grok 状态栏三态与 hook args 形态；用户实证栏正常；同日 D09 边界交付 |
@@ -49,7 +50,7 @@
 | 2026-09-01 | P0026 切片 1 达成：codex review 结果 trace 收取（15 条，高 5 核实 4 真 1 部分真）后立项三切片；看板默认 spectator 只读（用户定调）+Host 回环校验（高5）+cleanup 僵局解除（高2）+死路杀旧 pane 不堆积（高3）+manifest 原子写（高1a）；计划外抓到并修 serve daemon DETACHED 零控制台下 rmux CLI 卡死（改 CREATE_NO_WINDOW） |
 | 2026-09-01 | serve stop 协议化补齐：核对三原语时发现 `serve_stop` 实际只有 taskkill（P0025/R002 口径超写）——补 `DELETE /shutdown` 优先（ureq 复用）加轮询退出加超时强杀兜底，实测日志见 draining；顺手清三处未用导入；README/AGENTS 对齐 start/stop/status 形态 |
 | 2026-09-01 | 规则体系收口：G004 经验沉淀细则（proven/references 双链、mistakes 当场记加二犯升格）挂 AGENTS 工作节奏强规则位；M035 记档（python 替换吃 `\r` 劈行，修复过程又踩同型两次）；README 重写为介绍/安装部署/完整命令示例三段 |
-| 2026-09-01 | P0025 达成：serve 守护化——`serve start` 即调即退（DETACHED 孤儿化、端口就绪等待、状态文件）、协议化停机端点（DELETE /shutdown → AtomicBool → 优雅排空，rmux kill-server 同构）、FFI OpenProcess 探活（tasklist 在 Job Object 内管道死锁） |
+| 2026-09-01 | P0025 达成：serve 守护化——`serve start` 即调即退（DETACHED 孤儿化、端口就绪等待、状态文件）、协议化停机端点（DELETE /shutdown 到 AtomicBool 到优雅排空，rmux kill-server 同构）、FFI OpenProcess 探活（tasklist 在 Job Object 内管道死锁） |
 | 2026-09-01 | P0024 达成：agent 实例和解式编排——spawn 三态（新开/附加/死路重开，`attached`/`respawned` marker）+ `oma respawn` 强制单路重开（kill-pane 单窗格）；命令面只见 agent 实例，六级原语绑在背后；S023 实测纠偏三处（internal-daemon 形态、conhost 兄弟、pane 无 shell 层） |
 | 2026-09-01 | P0023 达成：看板资源包化——build.rs 打 tar.gz 嵌二进制、首启释放 `~/.ohmyagents/web/<指纹>/`（一次一份），serve 从释放位托管；单 exe 自带看板 JS 资源，产品化收口 |
 | 2026-08-31 | P0022 达成：web 镜像本地化与主页化——前端源码仓发现（rmux-web-share/rmux-typescript）并 npm 构建本地托管（四挫四根因：尾斜杠、e 参数、WASM、ACAO）；session 镜像缺省加免 PIN；`oma serve` 主页即 web-mirror-server（打开即四路窗格），dashboard 删除、编排回归 CLI/API/MCP |
@@ -61,7 +62,7 @@
 | 2026-08-31 | P0016 达成：REPL 落地——裸 `oma` 重连或拉起会话、编排面内嵌（7900 顺延 7909、--no-web/--open）、行循环分派（all/agent/status/web/quit）；stdin 线程喂 mpsc 保 serve 同活；顺手删 mcp 冗余 tool_router 字段并回归冒烟 |
 | 2026-08-31 | P0015 达成：S016 吸收件收口——api::envelope 上提三传输共用、六会话命令 `--json`、status TTY 对齐表（非 TTY 恒 marker 保测试契约）、`oma completions`（clap_complete）、R002 输出规范节 |
 | 2026-08-31 | P0014 达成：grok loader 主源切 updates.jsonl（S020 分类学先行——两流职责、hideFromScrollback 闸门、kind 判写族、信封秒逐事件真实时间）；chat_history 留旧会话兜底；本仓 8-29 历史 ts 逐秒散开验收 |
-| 2026-08-31 | P0011 达成：三传输编排面当日闭环——切片 3 `oma mcp` stdio（六操作 + trace 三 tools、信封同形、orch 进度迁 stderr 保 stdout 纯协议）+ 切片 4 三通道共测（同 stub 项目 CLI/HTTP/MCP 各走 spawn→status→send→cleanup 全绿） |
+| 2026-08-31 | P0011 达成：三传输编排面当日闭环——切片 3 `oma mcp` stdio（六操作 + trace 三 tools、信封同形、orch 进度迁 stderr 保 stdout 纯协议）+ 切片 4 三通道共测（同 stub 项目 CLI/HTTP/MCP 各走 spawn、status、send、cleanup 全绿） |
 | 2026-08-31 | P0011 切片 2 完成：网页可视化单页直出（状态卡、委派、SSE 画面）+ `/stream/{agent}` SSE 桥（tokio-stream 组合不自写 poll）；oldest 回放与未知路负例验收过 |
 | 2026-08-31 | P0011 切片 1 完成：HTTP 编排面落地——api 传输无关层 + axum server（feature 隔离）、六操作 JSON 信封、会话锁串行；stub curl 全绿（含 400 与 ok:false 负例）；选型核实订正 rmcp 为 stable 3.1.4 |
 | 2026-08-31 | P0013 达成：四家联邦检索全落地——grok/kimi loader 接完（源码核实纠三处偏）、codex 升 FileChange 双源、时间 epoch ms 归一；grok/kimi 真实历史检索命中；S019 落档；M034 记档 |
@@ -94,7 +95,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：D10 G005 存量字符清理（切片 1 FULLWIDTH 与 EMOJI）。
+- 当前目标：D10 G005 存量字符清理（切片 2 ARROW 已清；余 DASH 472）。
 
 ## 历史
 
