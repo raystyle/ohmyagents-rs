@@ -11,8 +11,8 @@
 
 2. **边界**
    - 编排钉在启动的项目目录；不替代 ohmypwsh 五端环境总台，不替代各 agent 本体。
-   - 四仓分工（2026-09-02 定调，D07 修正 agent 二进制归属，细目见 R001 四仓生态节）：ohmyenv-rs（`ome`）管工具、运行时依赖与 agent 二进制下装部署、本仓（`oma`）管 code agent 配置与编排、ohmypwsh 管五端总台与密钥安全、ohmycloud 管云端二进制分发；跨仓协作互相发 issue。
-   - agent 二进制的下载、安装、部署（五端）归 ohmyenv-rs：`ome install` 幂等检测安装（已装任何来源即跳过，存量原地纳管），数据权威 ome `catalog\tools.toml` agent 四节（D07 方向反转 2026-09-05，ohmyagents#5；前 D06 三裁成果转过渡态）。本仓 `oma agents install` 与 `update` 已 deprecated 指向 ome（保留兼容），`catalog\agents.toml` 冻结为历史锚；oma 收窄为 agent 配置域（settings、API key、MCP、statusline、登录态）、hook 与编排，oma doctor 的登录态 / hook 形态 / 状态栏 / 会话健康四类检查归 agents 域（二进制在位与版本、token 诊断归 ome doctor）。
+   - 四仓分工（2026-09-02 定调，D07 修正 agent 二进制归属，D09 钉种子不归 oma，细目见 R001 四仓生态节）：ohmyenv-rs（`ome`）管工具、运行时依赖与 agent 二进制下装部署、本仓（`oma`）管诊断、配置、hook、状态栏与编排、ohmypwsh 管五端总台与密钥安全、ohmycloud 管云端二进制分发与镜像种子；跨仓协作互相发 issue。
+   - oma 不管种子、不管 agent 二进制下装（D09，2026-09-07）：只管诊断、配置、hook、状态栏和编排。下载、安装、部署（五端）归 ohmyenv-rs：`ome install` 幂等检测安装（已装任何来源即跳过，存量原地纳管），数据权威 ome `catalog\tools.toml` agent 四节（D07 方向反转 2026-09-05，ohmyagents#5；前 D06 三裁成果转过渡态）。本仓 `oma agents install` 与 `update` 已 deprecated 指向 ome（保留兼容），`catalog\agents.toml` 冻结为历史锚。配置域含 settings、API key、MCP、statusline、登录态；oma doctor 的登录态 / hook 形态 / 状态栏 / 会话健康四类检查归 agents 域（二进制在位与版本、token 诊断归 ome doctor）。
    - 编排操作三通道：CLI、HTTP API、MCP 接口（P0011）；网页做可视化编排。弹不出浏览器不是错误。
    - 运行时后端是 rmux，不引入 herdr 当宿主。
    - hook、skill、状态文件只落启动目录；oma 自管应用数据根是 `~/.ohmyagents`（agent 安装与本地 pin，P0012；D07 后安装域迁 ome，此根承载存量安装与配置数据），默认不改用户家目录 hook 注册。

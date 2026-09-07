@@ -25,6 +25,7 @@
 | D06 | 吸收合并 agent 二进制的下载、安装、部署入 oma（配置域除外）：安装行为保持幂等检测不动，存量原地纳管，五端全量验收 | 已交付（方向反转） | 第 1 轮（2026-09-05 用户三裁：不动 oma 的保持幂等检测安装、存量原地纳管、五端全量） | 当日五端验收闭环；同日追问链再裁安装域回归 ome（见 D07），五端成果转过渡态 |
 | D07 | oma 收窄为配置 agent、hook、编排（用户裁定 2026-09-05「oma 以后只管配置 agent 和 hook 和编排，不管 agent 的升级和安装」）：agents install/update 加 deprecated 指向 ome，`catalog\agents.toml` 数据权威注记转 ome；登录态 / hook 形态 / 状态栏 / 会话健康四类检查归 agents 域 | 已交付 | 第 3 轮（随 ome 仓 D07 三轮六裁，跨仓同轮）；2026-09-07 用户裁定不等 ome 切片 3 先清自身面 | 迁册批落地 2026-09-07（deprecated 提示加两条集成测试、agents.toml 冻结历史锚、doctor 四类 R002 与 AGENTS 归 agents 域、根 SKILL 再生）；ome 侧部署滞后以 issue 交底 ohmyenv-rs，其仓 D07 切片 3 与 4 自跟；归档 P0029 |
 | D08 | ome只管软件部署；oma 要对 hook、状态栏和 agent 配置的检查 | 已采纳 | 第 1 轮（2026-09-07 用户裁定，纠正「ome doctor 调用 oma」的误读）：检查面留 oma doctor，不收进 ome；触发项 Grok 状态栏显示错误。2026-09-07 用户实证 M048 修复后栏正常，立项补检查面缺口 | GOAL / PLAN / TODO 切 D08；doctor 补 Grok 状态栏 command 形态（M048）与 hook args 数组（M047） |
+| D09 | oma不管种子 只管诊断、配置、hook、状态栏和编排 | 已交付 | 第 1 轮（2026-09-07 用户裁定，纠正把 ohmycloud 镜像种子算进本仓 TODO）：种子归 ohmycloud，本机安装归 ome | AGENTS 边界、R001 四仓职责与分发通道；不立项新功能 |
 
 ## 状态机定义
 

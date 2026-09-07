@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-07 | D09 用户裁定：oma 不管种子，只管诊断、配置、hook、状态栏和编排。种子归 ohmycloud，本机安装归 ome。AGENTS 边界与 R001 四仓 / 分发通道同步；R001 旧「安装归本仓」行删除 |
 | 2026-09-07 | D08 切片落地：doctor Grok 状态栏三态（Windows 只认 .cmd 单路径）加 hook args 形态 warn；141 单测绿；本机 grok statusline ok、hooks.form=bare |
 | 2026-09-07 | 用户实证 M048 修复后 Grok 状态栏正常。D08 立项：doctor 补 Grok command 三态与 hook args 形态，堵住「写了配置仍 ok」 |
 | 2026-09-07 | 热修 M048：Grok 状态栏 os error 123。grok-build `command.rs` 整串 `Command::new`，带引号的 `pwsh -File` 行是 ERROR_INVALID_NAME 不是 NotFound，shell 回落不发生。Windows 改写 `oma-statusline-grok.cmd` 单路径 |
