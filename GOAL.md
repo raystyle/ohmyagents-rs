@@ -8,13 +8,13 @@
 > 当前目标的起点：何时发起、为什么发起、要解决什么问题。
 
 - **日期**：2026-09-07。
-- **起点**：用户点名 D11 至 D13。D11 已归档 P0032。当前 D12：根下 `.ohmyagents/t006/` 孤儿目录收敛。
+- **起点**：用户点名 D11 至 D13。D11 / D12 当日闭环。D13 mac `--version` 排队，推远端仍待指示。
 
 ## 锚点
 
 > 当前锚定的目标 + 推进时间线。
 
-- **锚定的目标**：D12 根下 `.ohmyagents/t006/` 孤儿目录收敛。
+- **锚定的目标**：无当前实施目标。D13 排队（推远端待用户指示）。
 
 ### 推进时间线
 
@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-07 | D12 达成归档 P0033：删 `.ohmyagents/t006/`（t008 第二轮草稿误落）；协议尾注路径显式 tasks/。切空，D13 仍待推远端指示 |
 | 2026-09-07 | D11 达成归档 P0032：projKind 加 zig/go/cpp；本机临时目录实跑（zig 0.16.0、go 1.27.0、cmake/meson 包版本、Grok 无工具链、Cargo.toml 先到先得）。切 D12 |
 | 2026-09-07 | D11 立项：projKind 加 build.zig / go.mod / CMakeLists / meson.build；图标 seti-zig E6A9、seti-go E627、seti-cpp E646（两字体 cmap 实证）。Grok 仍跳过工具链子进程 |
 | 2026-09-07 | D10 达成归档 P0031：SKIP_DIRS 外四类禁字 0，封闭清单已删，mdcharlint 零容忍 |
@@ -99,7 +100,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：D12 `.ohmyagents/t006/` 孤儿目录收敛。
+- 当前目标：无。D13 排队。
 
 ## 历史
 
@@ -107,6 +108,7 @@
 
 | 日期 | 目标 | 结果 |
 | --- | --- | --- |
+| 2026-09-07 | D12 根下 `.ohmyagents/t006/` 孤儿目录收敛 | 达成：对账为 t008 第二轮草稿；已删；协议尾注显式 tasks/。归档 P0033 |
 | 2026-09-07 | D11 状态栏工具链段扩展 zig / go / cpp | 达成：projKind 加 build.zig / go.mod / CMakeLists 或 meson；图标 cmap 实证；本机临时目录实跑。归档 P0032 |
 | 2026-09-07 | D10 G005 存量字符清理 | 达成：SKIP_DIRS 外四类禁字清零；封闭清单删除；mdcharlint 零容忍。diary/proven 仍不回改 |
 | 2026-09-07 | D08 doctor 检查面补形态 | 达成：Grok 状态栏 command 三态（Windows 只认 `.cmd` 单路径，`pwsh -File` 壳行 warn）；JSON hook args 数组 warn；141 单测绿；本机 doctor grok statusline ok。同日 D09：oma 不管种子。归档 P0030 |

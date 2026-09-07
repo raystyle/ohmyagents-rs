@@ -44,7 +44,7 @@
 | `src\login.rs` | `oma agents login`：grok/kimi 设备码登录引导（子进程捕获、URL/code 转发、落盘凭据确认） |
 | `src\providers.rs` | `oma agents providers`：别名簿 providers.toml 读写与 `agent@alias` 注入形态（S027） |
 | `src\statusline.rs` | `oma agents statusline`：四家状态栏写入面幂等合并（S025 矩阵）；projKind 含 rust/node/python/zig/go/cpp（P0032） |
-| `src\task.rs` | `oma task`：任务目录协议（prompt.md/output.md/DONE）、阻塞等待与产物收取 |
+| `src\task.rs` | `oma task`：任务目录协议（prompt.md/output.md/DONE）、阻塞等待与产物收取；send 尾注路径显式 `tasks/`（P0033） |
 | `src\update.rs` | `oma self update`：dev 滚动源与正式版判新、sha256 取证、Windows rename 舞步（S028） |
 | `src\servectl.rs` | `oma serve start/stop/status`：后台守护拉起（CREATE_NO_WINDOW）、协议化停机与探活 |
 | `src\secretguard.rs` | `oma hook` 密钥拦截闸（S030）：模式表八层防误报、实值比对通道、PreToolUse/UserPromptSubmit 阻断 exit 2 |
@@ -101,6 +101,7 @@
 | P0030 | `P0030-D08-doctor检查面补形态.md` | D08 doctor 检查面：Grok 状态栏 command 三态与 hook args 形态 |
 | P0031 | `P0031-D10-G005存量字符清理.md` | D10 G005：SKIP_DIRS 外四类禁字清零，封闭清单删除 |
 | P0032 | `P0032-D11-状态栏工具链段扩展-zig-go-cpp.md` | D11 状态栏 projKind 扩展 zig / go / cpp |
+| P0033 | `P0033-D12-任务目录孤儿收敛.md` | D12 删除误落 `.ohmyagents/t006/`；协议尾注路径显式 tasks/ |
 
 （P0020 断号：编号已预留未使用，不复用。）
 

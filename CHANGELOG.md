@@ -44,6 +44,7 @@
 - **边界**（D09）：oma 不管种子，只管诊断、配置、hook、状态栏和编排。
 - **G005 存量字符**（P0031 / D10）：SKIP_DIRS 外四类禁字清零；封闭清单删除；mdcharlint 零容忍。
 - **状态栏工具链**（P0032 / D11）：projKind 扩展 zig / go / cpp（build.zig / go.mod / CMakeLists 或 meson）；图标 cmap 实证 seti-zig E6A9、seti-go E627、seti-cpp E646。
+- **任务目录孤儿**（P0033 / D12）：删除误落 `.ohmyagents/t006/`；协议尾注路径显式 `tasks/`。
 
 ### 排后
 

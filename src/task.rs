@@ -26,6 +26,14 @@ fn task_dir(root: &Path, id: &str) -> PathBuf {
     tasks_dir(root).join(id)
 }
 
+/// send 尾注路径必须带 `tasks/`。写成 `.ohmyagents/{id}/` 会让 agent 在
+/// `.ohmyagents/tNNN/` 落孤儿（D12：t008 第二轮误落到 `.ohmyagents/t006/`）。
+fn task_protocol_note(id: &str, text: &str) -> String {
+    format!(
+        "{text}\n\n（任务协议：提示词全文在 .ohmyagents/tasks/{id}/prompt.md；产物写到 .ohmyagents/tasks/{id}/output.md；写完最后创建空文件 .ohmyagents/tasks/{id}/DONE 表示完成）"
+    )
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TaskMeta {
     pub id: String,
@@ -129,10 +137,7 @@ async fn task_new_inner(
     std::fs::write(dir.join("prompt.md"), text).map_err(|e| format!("prompt.md: {e}"))?;
 
     let link = orch::connect(root, false).await?;
-    let note = format!(
-        "{text}\n\n（任务协议：提示词全文在 .ohmyagents/{id}/prompt.md；产物写到 .ohmyagents/{id}/output.md；写完最后创建空文件 .ohmyagents/{id}/DONE 表示完成）",
-        id = format!("tasks/{id}"),
-    );
+    let note = task_protocol_note(id, text);
     orch::send(&link, root, agent, &note, None).await?;
     // 开始确认（Round2 grok1：task 委派同样要「阻塞框挂着就别空等到超时」
     // 的即时告警；alerts 进 stderr，task 等待本身照旧）。
@@ -265,6 +270,21 @@ mod tests {
         assert_eq!(alloc_task_dir(&root).unwrap(), "t001");
         assert_eq!(alloc_task_dir(&root).unwrap(), "t002");
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn protocol_note_paths_stay_under_tasks_dir() {
+        let note = task_protocol_note("t001", "review src");
+        assert!(
+            note.contains(".ohmyagents/tasks/t001/prompt.md")
+                && note.contains(".ohmyagents/tasks/t001/output.md")
+                && note.contains(".ohmyagents/tasks/t001/DONE"),
+            "D12: agent-facing paths must sit under tasks/"
+        );
+        assert!(
+            !note.contains(".ohmyagents/t001/"),
+            "D12: a missing tasks/ segment drops output next to .ohmyagents/"
+        );
     }
 
     #[test]
