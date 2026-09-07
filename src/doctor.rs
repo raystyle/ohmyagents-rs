@@ -653,7 +653,7 @@ fn push_hooks_form(out: &mut Vec<Finding>, agent: &str, form: &str, path: &Path)
 /// 会话清单态：无 manifest 是合法部署前态（不误报）；有则列路数，活性由
 /// 调用方探测注入（None = 未探，测试注入口）。
 fn session_finding(root: &Path, alive: Option<bool>) -> Finding {
-    let path = root.join(".ohmyagents").join("session.json");
+    let path = crate::pathutil::project_dir(root).join("session.json");
     match crate::orch::read_manifest_for(root) {
         None => Finding {
             agent: "oma".into(),
@@ -1358,7 +1358,7 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         ),
     }
 
-    let state_dir = root.join(".ohmyagents").join("state");
+    let state_dir = crate::pathutil::project_dir(&root).join("state");
     if state_dir.is_dir() {
         if let Ok(rd) = fs::read_dir(&state_dir) {
             for ent in rd.flatten() {
@@ -1428,7 +1428,7 @@ mod tests {
                 .unwrap()
                 .as_millis()
         ));
-        let state = root.join(".ohmyagents").join("state");
+        let state = crate::pathutil::project_dir(&root).join("state");
         fs::create_dir_all(&state).unwrap();
         fs::write(state.join("codex.json"), r#"{"state":"blocked"}"#).unwrap();
         let d = diagnose(&root).expect("diagnose");
@@ -1753,9 +1753,9 @@ mod tests {
             (f.agent.as_str(), f.check, f.status),
             ("oma", "session", Status::Ok)
         );
-        fs::create_dir_all(root.join(".ohmyagents")).unwrap();
+        fs::create_dir_all(crate::pathutil::project_dir(&root)).unwrap();
         fs::write(
-            root.join(".ohmyagents").join("session.json"),
+            crate::pathutil::project_dir(&root).join("session.json"),
             r#"{"stub":true,"agents":[{"name":"claude","pane_id":3}]}"#,
         )
         .unwrap();

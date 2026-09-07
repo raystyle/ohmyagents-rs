@@ -140,7 +140,7 @@ pub fn version_newer(tag: &str, current: &str) -> bool {
     false
 }
 
-/// 上次安装记录：`~/.ohmyagents/selfupdate.json`（资产 digest 为判据——
+/// 上次安装记录：`~/.oma/selfupdate.json`（资产 digest 为判据——
 /// digest 是压缩包哈希，与 exe 哈希不可比）。
 fn record_path() -> Result<PathBuf, String> {
     Ok(crate::install::oma_home()?.join("selfupdate.json"))

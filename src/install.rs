@@ -1,6 +1,5 @@
 //! oma 自适应本机安装（P0012）：catalog pin、多渠道下载（github 默认、CDN 兜底）、
-//! sha256 信任锚校验、自管根布局（`~/.ohmyagents/agents/<name>/<version>/`）、
-//! 装后版本探针、`oma agents update` 的最新版解析与用户本地 pin 写回。
+//! sha256 信任锚校验、自管根布局（`~/.oma/agents/<name>/<version>/`）、
 
 use std::fs::{self, File};
 use std::io::{self, Read, Write};
@@ -18,8 +17,8 @@ const MANIFEST_NAME: &str = ".oma-agent-manifest.toml";
 
 // ---- 根与 pin 解析 ----
 
-/// oma 应用数据根：`OMA_HOME` 环境变量 > `~/.ohmyagents`（用户定调 2026-08-31：
-/// oma 在用户 home 下建立维护自己的应用数据）。
+/// oma 应用数据根：`OMA_HOME` 环境变量 > `~/.oma`（D14；旧 `~/.ohmyagents`
+/// 仅旧在则改名迁过去）。
 pub fn oma_home() -> Result<PathBuf, String> {
     if let Some(v) = std::env::var_os("OMA_HOME") {
         if !v.is_empty() {
@@ -27,7 +26,7 @@ pub fn oma_home() -> Result<PathBuf, String> {
         }
     }
     let home = dirs::home_dir().ok_or("cannot resolve home dir")?;
-    Ok(home.join(".ohmyagents"))
+    Ok(crate::pathutil::data_dir(&home))
 }
 
 pub fn agents_root(home: &Path) -> PathBuf {

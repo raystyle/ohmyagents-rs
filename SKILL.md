@@ -36,7 +36,7 @@ oma cleanup                           只杀本会话
 
 ## 任务目录协议
 
-`oma task <agent> "<文本>"` 在 `<project>\.ohmyagents\tasks\<id>\` 建任务目录并阻塞等待。收到委派的 agent 按此协议操作：
+`oma task <agent> "<文本>"` 在 `<project>\.oma\tasks\<id>\` 建任务目录并阻塞等待。收到委派的 agent 按此协议操作：
 
 1. **读**：提示词全文在 `prompt.md`（send 文本只带尾注，文件才是权威）。
 2. **写**：产物写到同目录 `output.md`，先写完整内容。
@@ -49,8 +49,8 @@ oma 等 DONE 出现后打印 `output.md` 全文退出；超时（缺省 600s，0
 不要前台死等（会占住会话）。挂后台 watcher，DONE 出现即收：
 
 ```bash
-while [ ! -f ".ohmyagents/tasks/<id>/DONE" ]; do sleep 15; done
-cat ".ohmyagents/tasks/<id>/output.md"      # 产物到手，继续处理或报告
+while [ ! -f ".oma/tasks/<id>/DONE" ]; do sleep 15; done
+cat ".oma/tasks/<id>/output.md"      # 产物到手，继续处理或报告
 ```
 
 要点：只等 DONE 不等 output.md（半写不算完成）；间隔 10-15s 足够（产物不赶秒级）；中途随时 `oma task show <id>` 查进度。

@@ -74,7 +74,7 @@ enum Commands {
         #[command(subcommand)]
         cmd: Option<AgentsCmd>,
     },
-    /// Agent hook 入口：读事件写 `.ohmyagents/state`。oma 会话走 env；用户手拉会话按 payload cwd 回退写项目状态文件
+    /// Agent hook 入口：读事件写 `.oma/state`。oma 会话走 env；用户手拉会话按 payload cwd 回退写项目状态文件
     Hook {
         /// 事件名或四态（idle/working/blocked/unknown）；省略则读 stdin JSON
         event: Option<String>,
@@ -422,20 +422,20 @@ enum AgentsCmd {
         #[command(subcommand)]
         cmd: Option<SecretsCmd>,
     },
-    /// 提供商别名簿（~/.ohmyagents/providers.toml，标准 sops 托管）
+    /// 提供商别名簿（~/.oma/providers.toml，标准 sops 托管）
     Providers {
         /// 打印示例模板（含 sops 托管说明）后退出
         #[arg(long)]
         example: bool,
     },
-    /// 安装缺失的 agent（已 deprecated，D07 迁册 ome：请用 ome install；oma 自管根 ~/.ohmyagents；已装任何来源即跳过）
+    /// 安装缺失的 agent（已 deprecated，D07 迁册 ome：请用 ome install；oma 自管根 ~/.oma；已装任何来源即跳过）
     Install {
         /// agent 名列表；缺省 = catalog 全部的缺失者
         names: Vec<String>,
         /// 已装也重装（oma 自管根）
         #[arg(long)]
         force: bool,
-        /// 自定义 oma 应用数据根；缺省 OMA_HOME 环境变量或 ~/.ohmyagents
+        /// 自定义 oma 应用数据根；缺省 OMA_HOME 环境变量或 ~/.oma
         #[arg(long)]
         root: Option<PathBuf>,
     },
@@ -985,7 +985,7 @@ fn cmd_task_show(id: String, project: Option<PathBuf>) -> Result<(), String> {
     // marker 行单行契约（Round3 codex5）：多行提示词压成单行（换行转义）。
     let one_line = meta.text.replace('\n', "\\n");
     println!("task.show.{id}.text={one_line}");
-    let dir = root.join(".ohmyagents").join("tasks").join(&id);
+    let dir = oma::pathutil::project_dir(&root).join("tasks").join(&id);
     println!("task.show.{id}.done={}", dir.join("DONE").exists());
     match std::fs::read_to_string(dir.join("output.md")) {
         Ok(output) => {

@@ -16,7 +16,7 @@
 | --- | --- | --- |
 | 文档 | `docs\`（proven/diary/research/guide/references/mistakes/web）+ 根目录 PRD/GOAL/PLAN/TODO/INDEX/AGENTS/README/CHANGELOG/ROADMAP | 见上节职能 |
 | 代码 | `src\` + `catalog\` | Rust CLI `oma`；rmux 与四家 agent 的 pin（信任锚）在 catalog |
-| 运行时产物 | 目标项目下 `.ohmyagents\`；本机工具 `%LOCALAPPDATA%\ohmyagents\rmux\<ver>\` | gitignore 项目态；工具前缀不进仓 |
+| 运行时产物 | 目标项目下 `.oma\`；本机工具 `%LOCALAPPDATA%\ohmyagents\rmux\<ver>\` | gitignore 项目态；工具前缀不进仓 |
 
 **代码文件位置**：
 
@@ -27,7 +27,7 @@
 | `.tools\md-replace.py` | 中文与反斜杠路径安全的字面批量替换（规避 sed 坑 M023） |
 | `.tools\md-heading-scan.py` | 标题括号规范扫描（G001 标题干净的机检项；代码围栏内的注释不计） |
 | `.tools\mdcharlint.py` | 四类禁用字符检查（G005：破折号、箭头、emoji、非法全角；掩豁免区后逐字符扫） |
-| `.tools\review-round.py` | agent 轮换接力 review 工作流（不并行，FINDINGS=0 终止；产物归 `.ohmyagents/reviews/relay/`） |
+| `.tools\review-round.py` | agent 轮换接力 review 工作流（不并行，FINDINGS=0 终止；产物归 `.oma/reviews/relay/`） |
 | `.tools\share-view-probe.py` | 连本地 rmux web-share 网关抓 spectator 视角 session view 数据（排查前端布局数据源） |
 | `src\main.rs` | CLI 入口与全部子命令分发（check/init/doctor/agents/hook/spawn/status/send/cleanup/run/settle/trace/serve/mcp/completions）；`--json` 信封出口与 status TTY 表格 |
 | `src\lib.rs` | 模块声明 |
@@ -55,9 +55,9 @@
 | `src\mcp.rs` | MCP 适配层（feature `mcp`，P0011）：rmcp 3.1.4 stdio 九 tools，信封同形，stdout 纯协议 |
 | `src\server.rs` | HTTP 适配层（feature `server`，P0011/P0019）：axum 六操作 RESTish + JSON 信封 + 会话写串行化 + 网页直出 + 行日志 SSE + 终端镜像 SSE（render_stream 加首帧）+ trace 三端点；`serve_in_background` 供 REPL 内嵌 |
 | `src\repl.rs` | REPL 交互层（P0016）：裸 `oma` 进；stdin 线程喂 mpsc、行命令分派、编排面内嵌、状态表格渲染（CLI 共用） |
-| `src\webassets.rs` | 资源包嵌入与首启释放（`~/.ohmyagents/web/<指纹>/`，一次一份，P0023） |
+| `src\webassets.rs` | 资源包嵌入与首启释放（`~/.oma/web/<指纹>/`，一次一份，P0023） |
 | `src\caps.rs` | CPU 指令集能力与探针退出形态分类（S021/P0018：is_x86_feature_detected 加 0xC000001D 识别） |
-| `src\pathutil.rs` | 路径工具 |
+| `src\pathutil.rs` | 路径工具；项目/家目录 `.oma`（旧 `.ohmyagents` 改名迁，D14） |
 | `build.rs` | kanban 资源包打包（tar.gz 加 sha256 指纹进 OUT_DIR；rerun-if-changed 挂资产目录） |
 | `tests\cli.rs` | CLI 集成冒烟（assert_cmd；check/agents/hook/doctor/send 快败） |
 | `examples\poc-*.rs` | 十四个 POC（Windows 范围全表绿；命令清单与逐件说明见 R002 一节） |
@@ -102,6 +102,7 @@
 | P0031 | `P0031-D10-G005存量字符清理.md` | D10 G005：SKIP_DIRS 外四类禁字清零，封闭清单删除 |
 | P0032 | `P0032-D11-状态栏工具链段扩展-zig-go-cpp.md` | D11 状态栏 projKind 扩展 zig / go / cpp |
 | P0033 | `P0033-D12-任务目录孤儿收敛.md` | D12 删除误落 `.ohmyagents/t006/`；协议尾注路径显式 tasks/ |
+| P0034 | `P0034-D14-数据目录改名为oma.md` | D14 项目与家目录 `.ohmyagents` 改 `.oma` |
 
 （P0020 断号：编号已预留未使用，不复用。）
 

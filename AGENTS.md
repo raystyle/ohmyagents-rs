@@ -15,7 +15,7 @@
    - oma 不管种子、不管 agent 二进制下装（D09，2026-09-07）：只管诊断、配置、hook、状态栏和编排。下载、安装、部署（五端）归 ohmyenv-rs：`ome install` 幂等检测安装（已装任何来源即跳过，存量原地纳管），数据权威 ome `catalog\tools.toml` agent 四节（D07 方向反转 2026-09-05，ohmyagents#5；前 D06 三裁成果转过渡态）。本仓 `oma agents install` 与 `update` 已 deprecated 指向 ome（保留兼容），`catalog\agents.toml` 冻结为历史锚。配置域含 settings、API key、MCP、statusline、登录态；oma doctor 的登录态 / hook 形态 / 状态栏 / 会话健康四类检查归 agents 域（二进制在位与版本、token 诊断归 ome doctor）。
    - 编排操作三通道：CLI、HTTP API、MCP 接口（P0011）；网页做可视化编排。弹不出浏览器不是错误。
    - 运行时后端是 rmux，不引入 herdr 当宿主。
-   - hook、skill、状态文件只落启动目录；oma 自管应用数据根是 `~/.ohmyagents`（agent 安装与本地 pin，P0012；D07 后安装域迁 ome，此根承载存量安装与配置数据），默认不改用户家目录 hook 注册。
+   - hook、skill、状态文件只落启动目录；oma 自管应用数据根是 `~/.oma`（D14；旧 `~/.ohmyagents` 仅旧在则改名迁过去。agent 安装与本地 pin，P0012；D07 后安装域迁 ome，此根承载存量安装与配置数据），默认不改用户家目录 hook 注册。
 
 3. **管理对象**
    - 可注册的终端 agent（当前默认 claude / codex / grok / kimi，可扩展）。

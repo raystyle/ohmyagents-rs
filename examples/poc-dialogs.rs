@@ -1,6 +1,6 @@
 //! Residual dialog: hook writes blocked, then sendkeys click through.
 //!
-//! Hook reports via `.ohmyagents/state` (not an rmux pipe). Drive uses
+//! Hook reports via `.oma/state` (not an rmux pipe). Drive uses
 //! `send_text` / `send_key` against a fake Allow prompt.
 
 use std::process::ExitCode;

@@ -727,12 +727,12 @@ fn skill_md() -> String {
     s.push_str("---\nname: ohmyagents\ndescription: oma 项目编排命令图：会话拉起、状态、委派、自愈、轨迹检索\n---\n\n");
     s.push_str("# Oh My Agents 命令图\n\n");
     s.push_str(SKILL_MARKER);
-    s.push_str("\n\n本项目会话由 oma 编排：agent 状态写 `.ohmyagents/state/`，会话清单在 `.ohmyagents/session.json`。\n\n");
+    s.push_str("\n\n本项目会话由 oma 编排：agent 状态写 `.oma/state/`，会话清单在 `.oma/session.json`。\n\n");
     s.push_str("| 意图 | 命令 |\n| --- | --- |\n");
     for (cmd, intent) in COMMAND_MAP {
         s.push_str(&format!("| {intent} | `{cmd}` |\n"));
     }
-    s.push_str("\n## 任务目录协议\n\n收到带「任务协议」尾注的委派时，按 `.ohmyagents/tasks/<id>/` 目录操作：\n\n1. 提示词全文在 `prompt.md`（可随时重读）；\n2. 产物写到 `output.md`（先写全内容）；\n3. **最后**创建空文件 `DONE` 表示完成（oma 只认 DONE 不认 output 存在，顺序不能反）。\n\n等另一个 agent 的任务产物时用**收件人模式**（不前台死等）：\n\n```bash\nwhile [ ! -f \".ohmyagents/tasks/<id>/DONE\" ]; do sleep 15; done\ncat \".ohmyagents/tasks/<id>/output.md\"\n```\n\n裸 `oma` 进 REPL；六会话命令加 `--json` 出信封。细则见仓库 `docs\\references\\R002`。\n");
+    s.push_str("\n## 任务目录协议\n\n收到带「任务协议」尾注的委派时，按 `.oma/tasks/<id>/` 目录操作：\n\n1. 提示词全文在 `prompt.md`（可随时重读）；\n2. 产物写到 `output.md`（先写全内容）；\n3. **最后**创建空文件 `DONE` 表示完成（oma 只认 DONE 不认 output 存在，顺序不能反）。\n\n等另一个 agent 的任务产物时用**收件人模式**（不前台死等）：\n\n```bash\nwhile [ ! -f \".oma/tasks/<id>/DONE\" ]; do sleep 15; done\ncat \".oma/tasks/<id>/output.md\"\n```\n\n裸 `oma` 进 REPL；六会话命令加 `--json` 出信封。细则见仓库 `docs\\references\\R002`。\n");
     s
 }
 
@@ -760,7 +760,7 @@ fn write_skill(path: &Path, report: &mut DeployReport) -> Result<(), String> {
     Ok(())
 }
 
-const AGENTS_MD: &str = "# AGENTS\n\n本项目会话由 Oh My Agents（oma）编排：agent 状态写 `.ohmyagents/state/`，委派与诊断经 oma CLI。\n";
+const AGENTS_MD: &str = "# AGENTS\n\n本项目会话由 Oh My Agents（oma）编排：agent 状态写 `.oma/state/`，委派与诊断经 oma CLI。\n";
 
 /// Skills: `.agents/skills/ohmyagents` is the source; Claude and Grok and
 /// Kimi get copies (Claude does not scan .agents/skills, S008).

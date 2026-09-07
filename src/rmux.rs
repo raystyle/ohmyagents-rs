@@ -52,7 +52,7 @@ pub fn host_os_arch() -> (&'static str, &'static str) {
 }
 
 pub fn managed_root(pin: &RmuxPin) -> Result<PathBuf, CheckError> {
-    // oma 应用数据根迁到 ~/.ohmyagents（用户定调 2026-08-31）；旧 LOCALAPPDATA 布局保留兼容探测。
+    // oma 应用数据根 ~/.oma（D14；旧 ~/.ohmyagents 仅旧在则改名）。LOCALAPPDATA 布局保留兼容探测。
     let home = crate::install::oma_home().map_err(CheckError::Message)?;
     Ok(home.join("rmux").join(&pin.version))
 }

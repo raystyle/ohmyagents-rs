@@ -3,7 +3,7 @@
 //!   读改写，保留 env/permissions 等，只覆盖 statusLine 键）
 //! - codex：`~/.codex/config.toml` 顶层 `[tui]` 段整段替换（幂等），
 //!   `status_line` 为内置项 ID 数组（Codex 无外部命令面，S016）
-//! 状态栏脚本本体（pwsh）随 oma 释放到 `~/.ohmyagents/statusline/`。
+//! 状态栏脚本本体（pwsh）随 oma 释放到 `~/.oma/statusline/`。
 //! 用户定调 2026-09-02：渲染对齐用户 starship 配置风格（目录截断、git 旗标、
 //! 包与工具链版本段、nerdfont 图标、Catppuccin 系 256 色）；oma 段 = 当前
 //! agent 名 + 实时四态（hook 状态通道 + 会话闸，机读标记见 S025），另探测
@@ -119,12 +119,16 @@ if ($dir) {
 # ── oma 段：当前 agent 名 + 实时状态（hook 状态通道；机读标记见 S025）──
 # agent 名：oma 会话 env 优先，部署参数次之（每家配置注入自家名字）。
 $agent = if ($env:OMA_AGENT) { $env:OMA_AGENT } else { $AgentName }
-# 状态：会话状态文件优先，回退项目 .ohmyagents/state/<agent>.json。
+# 状态：会话状态文件优先，回退项目 .oma/state/<agent>.json（旧名 .ohmyagents）。
 $state = $null
 $stateFile = $env:OHMYAGENTS_STATE_FILE
 if (-not $stateFile) {
     $base = if ($root) { $root } else { $dir }
-    if ($base) { $stateFile = Join-Path (Join-Path (Join-Path $base '.ohmyagents') 'state') "$agent.json" }
+    if ($base) {
+        $omaDir = Join-Path $base '.oma'
+        if (-not (Test-Path $omaDir)) { $omaDir = Join-Path $base '.ohmyagents' }
+        $stateFile = Join-Path (Join-Path $omaDir 'state') "$agent.json"
+    }
 }
 if ($stateFile -and (Test-Path $stateFile)) {
     try {
@@ -643,6 +647,11 @@ mod tests {
         assert!(
             STATUSLINE_PS1.contains("$nerd = $AgentName -ne 'grok'"),
             "Grok TUI has no Nerd PUA glyphs; script must take the ASCII path (M046)"
+        );
+        assert!(
+            STATUSLINE_PS1.contains("Join-Path $base '.oma'")
+                && STATUSLINE_PS1.contains("Join-Path $base '.ohmyagents'"),
+            "D14: statusline dual-reads .oma then legacy .ohmyagents"
         );
         assert!(
             STATUSLINE_PS1.contains("build.zig")

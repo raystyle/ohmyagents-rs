@@ -643,7 +643,7 @@ pub fn ensure_label_daemon(
 }
 
 pub fn state_path(root: &std::path::Path, agent: &str) -> PathBuf {
-    root.join(".ohmyagents")
+    crate::pathutil::project_dir(root)
         .join("state")
         .join(format!("{agent}.json"))
 }

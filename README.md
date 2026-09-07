@@ -18,7 +18,7 @@
 
 ## 如何安装部署
 
-前置：Rust 工具链（rustc/cargo）。oma 自管数据根 `~/.ohmyagents`，不动家目录注册。
+前置：Rust 工具链（rustc/cargo）。oma 自管数据根 `~/.oma`，不动家目录注册。
 
 ```powershell
 git clone https://github.com/raystyle/ohmyagents-rs
@@ -125,7 +125,7 @@ oma agents statusline codex            # 只配一家
 oma init                               # 全套：yolo 键 + 四家 hook/skill（SKILL.md 命令图生成）
 oma init --yolo                        # 仅无阻塞键
 oma init --yolo --pretrust             # 额外预写家目录信任库（四家）
-oma hook                               # agent hook 入口（读 stdin JSON 写 .ohmyagents/state）
+oma hook                               # agent hook 入口（读 stdin JSON 写 .oma/state）
 ```
 
 ### 编排
@@ -161,7 +161,7 @@ oma cleanup                             # 只杀本项目会话（不动 daemon 
 
 ### 带产物等待的任务
 
-> 任务目录协议：`.ohmyagents\tasks\<id>\` 下 agent 读 `prompt.md`、写 `output.md`、最后创建空文件 `DONE`；oma 只认 DONE（防半写）。SKILL 已部署协议，agent 知道怎么做。
+> 任务目录协议：`.oma\tasks\<id>\` 下 agent 读 `prompt.md`、写 `output.md`、最后创建空文件 `DONE`；oma 只认 DONE（防半写）。SKILL 已部署协议，agent 知道怎么做。
 
 ```powershell
 oma task codex "review src/ 并把结论写产物"             # 建目录 + 发送 + 阻塞等 DONE → 打印产物退出
@@ -174,8 +174,8 @@ oma task show t001                                     # 元数据 + 产物收�
 等另一个 agent 的产物用**收件人模式**（不占会话前台）：
 
 ```powershell
-while (-not (Test-Path .ohmyagents\tasks\t001\DONE)) { Start-Sleep 15 }
-Get-Content .ohmyagents\tasks\t001\output.md
+while (-not (Test-Path .oma\tasks\t001\DONE)) { Start-Sleep 15 }
+Get-Content .oma\tasks\t001\output.md
 ```
 
 ### 轨迹检索

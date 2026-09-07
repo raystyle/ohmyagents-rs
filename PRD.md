@@ -30,6 +30,7 @@
 | D11 | 状态栏工具链段扩展 zig/golang/cpp | 已交付 | 第 1 轮（2026-09-02「以后」；2026-09-07 点名启动）：projKind 加 build.zig / go.mod / CMakeLists（或 meson），图标先 cmap 实证 | 共享 ps1 探测加三枚码位；本机临时目录实跑；归档 P0032 |
 | D12 | 根下 `.ohmyagents/t006/` 孤儿目录收敛 | 已交付 | 第 1 轮（diary 09-03 待接；2026-09-07 点名启动）：动前核对与 `tasks/t006/` 产物归属 | 孤儿是 t008 第二轮草稿；已删；协议路径显式 tasks/；归档 P0033 |
 | D13 | mac `--version` 一致性 | 已澄清 | 第 1 轮（D06 余量；2026-09-07 点名）：源码已有 clap `version`，mac 部署位为旧版；门槛为推 main 出 CI 资产后 `oma self update` | 排队；推远端仍待用户指示 |
+| D14 | .ohmyagents 改名为 .oma 目录 | 已交付 | 第 2 轮（2026-09-07）：用户纠错「失误 我们的目录应该是oma」。不是 `.omc`（ohmycloud CLI `omc` / `~/.omc` 金库，其仓 D24）。两根同改：项目 `<cwd>/.oma` 与家目录 `~/.oma`。旧 `.ohmyagents` 在、新目录不在则改名迁过去。技能名 / hook 文件名 `ohmyagents*` 不动。M004 数据目录行被本裁定覆盖 | 归档 P0034 |
 
 ## 状态机定义
 

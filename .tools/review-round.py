@@ -6,7 +6,7 @@
 即「找不出问题」，工作流终止）。
 
 判定契约：产物 output.md 第一行 `FINDINGS=N`；KNOWN-WONTFIX.md 内事项
-不计入、不复报。产物归档 `<project>/.ohmyagents/reviews/relay/<轮>-<agent>.md`。
+不计入、不复报。产物归档 `<project>/.oma/reviews/relay/<轮>-<agent>.md`。
 
 用法：
   uv run --script .tools/review-round.py relay <轮> <agent> [--project P] [--oma PATH] [--timeout 1800]
@@ -26,7 +26,7 @@ AGENTS = ["claude", "codex", "grok", "kimi"]
 REVIEW_PROMPT = (
     "review 当前仓库 src/ 与最近提交：找正确性、并发、边界、契约问题。"
     "范围：src/orch.rs、src/api.rs、src/server.rs、src/task.rs、src/main.rs、src/mcp.rs。"
-    "收敛规则：.ohmyagents/reviews/KNOWN-WONTFIX.md 内是已拍板不修的取舍，"
+    "收敛规则：.oma/reviews/KNOWN-WONTFIX.md 内是已拍板不修的取舍，"
     "不计入 FINDINGS、不要复报；对该决策有新的实质证据才可重新提出。"
     "此前各轮已修项（git log 可见）不复报。"
     "产物契约：output.md 第一行必须是 FINDINGS=N（N=发现的问题条数，没发现问题写 0），"
@@ -80,7 +80,10 @@ def main() -> int:
         return 2
     n = int(fm.group(1))
 
-    arc_dir = project / ".ohmyagents" / "reviews" / args.mode / f"{args.n}-{agent}"
+    oma_dir = project / ".oma"
+    if not oma_dir.exists() and (project / ".ohmyagents").exists():
+        oma_dir = project / ".ohmyagents"
+    arc_dir = oma_dir / "reviews" / args.mode / f"{args.n}-{agent}"
     arc_dir.mkdir(parents=True, exist_ok=True)
     if out_md.exists():
         shutil.copyfile(out_md, arc_dir / "output.md")

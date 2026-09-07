@@ -45,6 +45,7 @@
 - **G005 存量字符**（P0031 / D10）：SKIP_DIRS 外四类禁字清零；封闭清单删除；mdcharlint 零容忍。
 - **状态栏工具链**（P0032 / D11）：projKind 扩展 zig / go / cpp（build.zig / go.mod / CMakeLists 或 meson）；图标 cmap 实证 seti-zig E6A9、seti-go E627、seti-cpp E646。
 - **任务目录孤儿**（P0033 / D12）：删除误落 `.ohmyagents/t006/`；协议尾注路径显式 `tasks/`。
+- **数据目录**（P0034 / D14）：项目与家目录 `.ohmyagents` 改名为 `.oma`；旧目录仅旧在则改名迁过去。不是 `.omc`（ohmycloud）。
 
 ### 排后
 

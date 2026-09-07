@@ -191,7 +191,7 @@ pub(crate) fn run_with_payload(
     let state_file: Option<PathBuf> = env_nonempty("OHMYAGENTS_STATE_FILE")
         .map(PathBuf::from)
         .or_else(|| {
-            // Fallback: <project root>/.ohmyagents/state/<agent>.json where the
+            // Fallback: <project root>/.oma/state/<agent>.json where the
             // root is the nearest .git ancestor of the payload cwd.
             let cwd = payload
                 .as_ref()
@@ -206,7 +206,7 @@ pub(crate) fn run_with_payload(
                 let dir = base?;
                 if dir.join(".git").exists() {
                     return Some(
-                        dir.join(".ohmyagents")
+                        crate::pathutil::project_dir(&dir)
                             .join("state")
                             .join(format!("{agent}.json")),
                     );
@@ -338,7 +338,9 @@ mod tests {
             "session_id": "sess-42",
         });
         let wrote = run_with_payload(None, Some("claude"), Some(payload)).unwrap();
-        let expect = root.join(".ohmyagents").join("state").join("claude.json");
+        let expect = crate::pathutil::project_dir(&root)
+            .join("state")
+            .join("claude.json");
         assert_eq!(wrote.state_file.as_deref(), Some(expect.as_path()));
         let v: Json = serde_json::from_str(&fs::read_to_string(&expect).unwrap()).unwrap();
         assert_eq!(v["state"], "working");

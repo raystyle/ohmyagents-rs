@@ -2,7 +2,7 @@
 //! spawn 按 `agent@alias` 注入该路的 env（claude 走 `ANTHROPIC_*`）与 argv
 //! 追加（codex 走 `-c key=value` 运行时覆写，0.149 实证）。别名与 agent
 //! 任意组合（zhipu/deepseek 都兼容 claude 与 codex）。
-//! 存储在 oma 自管根 `~/.ohmyagents/providers.toml`，**标准 sops 托管**：
+//! 存储在 oma 自管根 `~/.oma/providers.toml`，**标准 sops 托管**：
 //! 密钥值密文落盘（键名可读），调度时 `sops -d` 内存解密、仅注入 pane env
 //! （其它 sops 兼容 CLI 同格式可读）；明文形态兼容过渡。
 
@@ -120,10 +120,10 @@ pub fn split_agent_profile(spec: &str) -> Result<(String, Option<String>), Strin
 
 /// Printable template for `oma agents providers example`：明文形态（sops
 /// 托管后密钥值变 ENC[...]，键名保持可读；`sops <文件>` 编辑即加密）。
-pub const EXAMPLE_TOML: &str = r#"# ~/.ohmyagents/providers.toml
+pub const EXAMPLE_TOML: &str = r#"# ~/.oma/providers.toml
 # 提供商别名簿：oma spawn --agents claude@zhipu,codex@deepseek 按别名注入该路。
 # 别名与 agent 任意组合（四格官方口径见 S027：智谱/deepseek 都兼容 claude 与 codex）。
-# 密钥值建议 sops 托管：`sops ~/.ohmyagents/providers.toml` 编辑保存后为标准
+# 密钥值建议 sops 托管：`sops ~/.oma/providers.toml` 编辑保存后为标准
 # sops 密文（oma 调度时内存解密注入 env，其它 sops 兼容 CLI 同样可读）。
 
 # claude x 智谱（官方 Claude API 兼容端点）

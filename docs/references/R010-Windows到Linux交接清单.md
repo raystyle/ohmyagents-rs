@@ -44,6 +44,6 @@ oma 是通用智能体多路复用任务编排器：rmux 后端上把 claude/cod
 
 ## 六、Windows 侧遗留的已拍板事项
 
-- KNOWN-WONTFIX 清单（`.ohmyagents\reviews\`，22 条取舍）跨平台有效，Linux 侧不要复修
+- KNOWN-WONTFIX 清单（`.oma\reviews\`，22 条取舍）跨平台有效，Linux 侧不要复修
 - 看板前端（`docs\web\share-src` 构建）平台无关；serve 只绑 127.0.0.1 与 Host 回环闸同理
-- review 接力工作流产物在 `.ohmyagents\reviews\relay\`（7 棒），可续棒
+- review 接力工作流产物在 `.oma\reviews\relay\`（7 棒），可续棒

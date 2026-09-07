@@ -1,5 +1,5 @@
 //! kanban 前端资源包（P0023，S022 路线 C）：build.rs 打的 tar.gz 在编译期嵌进
-//! 二进制，首次（或指纹变更）运行时释放到 oma 自管数据根 `~/.ohmyagents/web/
+//! 二进制，首次（或指纹变更）运行时释放到 oma 自管数据根 `~/.oma/web/
 //! <指纹>/`，serve 从那里托管。单 exe 自带资源，克隆仓不克隆仓都能跑。
 
 use std::path::{Path, PathBuf};

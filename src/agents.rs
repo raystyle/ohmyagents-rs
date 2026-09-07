@@ -86,7 +86,7 @@ pub struct Probe {
     pub env_bins: BTreeMap<String, PathBuf>,
     pub path_dirs: Vec<PathBuf>,
     pub extra_dirs: Vec<PathBuf>,
-    /// oma 自管安装（`~/.ohmyagents/agents/<name>/<ver>/`，manifest 指路）的精确二进制表。
+    /// oma 自管安装（`~/.oma/agents/<name>/<ver>/`，manifest 指路）的精确二进制表。
     pub oma_files: Vec<(String, PathBuf)>,
     pub default_files: Vec<(String, PathBuf)>,
     pub probe_version: bool,

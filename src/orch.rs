@@ -86,13 +86,13 @@ fn endpoint_from_pipe(pipe: &str) -> RmuxEndpoint {
 }
 
 fn state_file(root: &Path, agent: &str) -> PathBuf {
-    root.join(".ohmyagents")
+    crate::pathutil::project_dir(root)
         .join("state")
         .join(format!("{agent}.json"))
 }
 
 fn manifest_path(root: &Path) -> PathBuf {
-    root.join(".ohmyagents").join("session.json")
+    crate::pathutil::project_dir(root).join("session.json")
 }
 
 /// Spawn manifest: the agent -> stable pane id map that survives CLI
@@ -422,7 +422,7 @@ pub async fn spawn(link: &Link, root: &Path, plan: &SpawnPlan) -> Result<Manifes
             name.as_str()
         ));
     }
-    std::fs::create_dir_all(root.join(".ohmyagents").join("state"))
+    std::fs::create_dir_all(crate::pathutil::project_dir(root).join("state"))
         .map_err(|e| format!("state dir: {e}"))?;
 
     let first = &plan.agents[0];
@@ -788,7 +788,7 @@ pub async fn reconcile(
             removed: Vec::new(),
         });
     }
-    std::fs::create_dir_all(root.join(".ohmyagents").join("state"))
+    std::fs::create_dir_all(crate::pathutil::project_dir(root).join("state"))
         .map_err(|e| format!("state dir: {e}"))?;
     let session = rmuxpoc::reuse_only(&link.rmux, name).await?;
     let mut m = read_manifest(root)?.ok_or_else(|| {
@@ -1568,7 +1568,7 @@ pub fn gate(hook_state: Option<&str>, terminal: &str) -> Gate {
 }
 
 fn tasks_dir(root: &Path) -> PathBuf {
-    root.join(".ohmyagents").join("tasks")
+    crate::pathutil::project_dir(root).join("tasks")
 }
 
 /// 分配任务 id：scan 出初值后用 `create_new` 原子占位，撞号自增重试
@@ -1819,9 +1819,9 @@ mod tests {
         assert_eq!(env[1], "OHMYAGENTS_AGENT=codex");
         // 状态文件路径的分隔符随平台（Path::join 语义），断言不能写死反斜杠。
         let state_file = if cfg!(windows) {
-            r".ohmyagents\state\codex.json".to_string()
+            r".oma\state\codex.json".to_string()
         } else {
-            ".ohmyagents/state/codex.json".to_string()
+            ".oma/state/codex.json".to_string()
         };
         assert!(env[2].ends_with(&state_file));
     }

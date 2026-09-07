@@ -1,7 +1,7 @@
 //! serve 守护化（P0025）：`oma serve` 即调即退——后台拉起编排面进程
 //! （Windows CREATE_NO_WINDOW + CREATE_NEW_PROCESS_GROUP，日志重定向文
 //! 件；**不用 DETACHED_PROCESS**——零控制台下 rmux CLI 子进程会卡死，
-//! P0026 实证），状态记 `~/.ohmyagents/serve/<slug>.json`；`stop` 协议化
+//! P0026 实证），状态记 `~/.oma/serve/<slug>.json`；`stop` 协议化
 //! 优先（DELETE /shutdown）；`status` 探活。与 rmux 的 hidden daemon 同
 //! 一进程模型（S023）。
 

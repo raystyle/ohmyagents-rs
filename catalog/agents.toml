@@ -3,7 +3,7 @@
 # pin 与 sha 不再随上游滚动。oma agents install/update 已 deprecated 指向 `ome install <agent>`
 # （ohmyagents#5）。下述取证注释保留作迁册时点的版本基线记录。
 #
-# 四家 agent pin：信任锚是本文件（及用户本地覆盖层 ~/.ohmyagents\catalog\agents.toml）的 sha256，
+# 四家 agent pin：信任锚是本文件（及用户本地覆盖层 ~/.oma\catalog\agents.toml）的 sha256，
 # 不是现场官方清单（与 rmux.toml 同原则）。oma agents update 解析最新版后写回用户本地层，仓库层是出厂锚。
 # 渠道（sources 按序尝试：github 默认、CDN 兜底）；资产按 source 绑定——同一家不同渠道的制品可能不同
 # （kimi 实证：GitHub 是 zip，CDN manifest 是裸单二进制，checksum 各异）。

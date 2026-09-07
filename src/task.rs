@@ -1,7 +1,7 @@
 //! oma task：带产物等待的任务委派（用户定调 2026-09-01，学 reader_rs 的
 //! SKILL 与输出契约形态）。
 //!
-//! 任务目录协议（`<project>\.ohmyagents\tasks\<id>\`）：
+//! 任务目录协议（`<project>\.oma\tasks\<id>\`）：
 //! - `task.json`：元数据（id / agent / text / created / status）
 //! - `prompt.md`：完整任务提示词（oma 写入，agent 可重读）
 //! - `output.md`：任务产物（agent 写入）
@@ -19,18 +19,18 @@ use serde::{Deserialize, Serialize};
 use crate::orch;
 
 fn tasks_dir(root: &Path) -> PathBuf {
-    root.join(".ohmyagents").join("tasks")
+    crate::pathutil::project_dir(root).join("tasks")
 }
 
 fn task_dir(root: &Path, id: &str) -> PathBuf {
     tasks_dir(root).join(id)
 }
 
-/// send 尾注路径必须带 `tasks/`。写成 `.ohmyagents/{id}/` 会让 agent 在
-/// `.ohmyagents/tNNN/` 落孤儿（D12：t008 第二轮误落到 `.ohmyagents/t006/`）。
+/// send 尾注路径必须带 `tasks/`。写成 `.oma/{id}/` 会让 agent 在
+/// `.oma/tNNN/` 落孤儿（D12：t008 第二轮误落到 `.ohmyagents/t006/`）。
 fn task_protocol_note(id: &str, text: &str) -> String {
     format!(
-        "{text}\n\n（任务协议：提示词全文在 .ohmyagents/tasks/{id}/prompt.md；产物写到 .ohmyagents/tasks/{id}/output.md；写完最后创建空文件 .ohmyagents/tasks/{id}/DONE 表示完成）"
+        "{text}\n\n（任务协议：提示词全文在 .oma/tasks/{id}/prompt.md；产物写到 .oma/tasks/{id}/output.md；写完最后创建空文件 .oma/tasks/{id}/DONE 表示完成）"
     )
 }
 
@@ -276,14 +276,14 @@ mod tests {
     fn protocol_note_paths_stay_under_tasks_dir() {
         let note = task_protocol_note("t001", "review src");
         assert!(
-            note.contains(".ohmyagents/tasks/t001/prompt.md")
-                && note.contains(".ohmyagents/tasks/t001/output.md")
-                && note.contains(".ohmyagents/tasks/t001/DONE"),
+            note.contains(".oma/tasks/t001/prompt.md")
+                && note.contains(".oma/tasks/t001/output.md")
+                && note.contains(".oma/tasks/t001/DONE"),
             "D12: agent-facing paths must sit under tasks/"
         );
         assert!(
-            !note.contains(".ohmyagents/t001/"),
-            "D12: a missing tasks/ segment drops output next to .ohmyagents/"
+            !note.contains(".oma/t001/"),
+            "D12: a missing tasks/ segment drops output next to .oma/"
         );
     }
 
