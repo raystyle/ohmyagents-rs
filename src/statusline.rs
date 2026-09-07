@@ -27,6 +27,8 @@ $ErrorActionPreference = 'SilentlyContinue'
 $raw = [Console]::In.ReadToEnd()
 $d = $null
 if (-not [string]::IsNullOrWhiteSpace($raw)) { try { $d = $raw | ConvertFrom-Json } catch {} }
+# Grok TUI 字体没有 Nerd 私用区字形，PUA 图标显示成替换符（M046）。
+$nerd = $AgentName -ne 'grok'
 
 function Seg([string]$text, [string]$code = '') {
     if ([string]::IsNullOrWhiteSpace($text)) { return $null }
@@ -100,8 +102,11 @@ if ($chain.Count -gt 0) {
 }
 if (-not $shellName -and $env:SHELL) { $shellName = (Split-Path -Leaf $env:SHELL) }
 if ($shellName) {
-    $shIcon = if ($shellName -match '^(pwsh|powershell)') { [char]::ConvertFromUtf32(0xEBC7) } else { [char]::ConvertFromUtf32(0xEA85) }
-    $sh = Seg "$shIcon $shellName" '38;5;245'
+    $shLabel = if ($nerd) {
+        $shIcon = if ($shellName -match '^(pwsh|powershell)') { [char]::ConvertFromUtf32(0xEBC7) } else { [char]::ConvertFromUtf32(0xEA85) }
+        "$shIcon $shellName"
+    } else { $shellName }
+    $sh = Seg $shLabel '38;5;245'
     if ($sh) { $parts.Add($sh) }
 }
 
@@ -138,7 +143,8 @@ $stateColor = switch ($state) {
     'blocked' { '38;5;203' }
     default { '38;5;245' }
 }
-$parts.Add((Seg "󰚩  ${agent}:$state" $stateColor))
+$omaTxt = if ($nerd) { "󰚩  ${agent}:$state" } else { "${agent}:$state" }
+$parts.Add((Seg $omaTxt $stateColor))
 
 # ── 模型（display_name 优先，回退 id）──
 $model = $null
@@ -146,7 +152,8 @@ if ($d.model) {
     $model = if ($d.model.display_name) { "$($d.model.display_name)" } else { "$($d.model.id)" }
 }
 if ($model) {
-    $m = Seg "✦ $model" '38;5;147'
+    $modelTxt = if ($nerd) { "✦ $model" } else { $model }
+    $m = Seg $modelTxt '38;5;147'
     if ($m) { $parts.Add($m) }
 }
 
@@ -162,7 +169,8 @@ if ($d.context_window) {
     }
     if ($null -ne $usedPct -and $win -gt 0) {
         $usedTok = [math]::Round($win * $usedPct / 100)
-        $c = Seg ("󰍛 ${usedPct}% ($(FmtTok $usedTok)/$(FmtTok $win))") '38;5;116'
+        $ctxTxt = if ($nerd) { "󰍛 ${usedPct}% ($(FmtTok $usedTok)/$(FmtTok $win))" } else { "${usedPct}% ctx" }
+        $c = Seg $ctxTxt '38;5;116'
         if ($c) { $parts.Add($c) }
     }
 }
@@ -170,7 +178,8 @@ if ($d.context_window) {
 # ── 会话累计：󰅐 时长（claude cost 段；无则省略。成本数字对网关计价不准，不展示）──
 if ($d.cost) {
     if ($null -ne $d.cost.total_duration_ms -and [double]$d.cost.total_duration_ms -ge 1000) {
-        $dur = Seg ("󰅐 " + (FmtDur ([double]$d.cost.total_duration_ms))) '38;5;245'
+        $durTxt = if ($nerd) { "󰅐 " + (FmtDur ([double]$d.cost.total_duration_ms)) } else { FmtDur ([double]$d.cost.total_duration_ms) }
+        $dur = Seg $durTxt '38;5;245'
         if ($dur) { $parts.Add($dur) }
     }
 }
@@ -178,6 +187,7 @@ if ($d.cost) {
 # ── Git：分支  + 状态旗标 [!?]（starship 符号语义，porcelain 单次调用）──
 $branch = $null
 if ($d.worktree -and $d.worktree.branch) { $branch = "$($d.worktree.branch)" }
+if (-not $branch -and $d.workspace -and $d.workspace.branch) { $branch = "$($d.workspace.branch)" }
 if (-not $branch -and $d.workspace -and $d.workspace.git_worktree -and $d.workspace.git_worktree.name) {
     $branch = "$($d.workspace.git_worktree.name)"
 }
@@ -192,8 +202,14 @@ if ($gs) {
     $conflicted = $staged = $modified = $untracked = $deleted = $renamed = $false
     foreach ($l in $gs) {
         if ($l -like '## *') {
-            if ($l -match 'ahead (\d+)') { $aheadBehind += [string][char]0x21E1 * [int]$Matches[1] }
-            if ($l -match 'behind (\d+)') { $aheadBehind += [string][char]0x21E3 * [int]$Matches[1] }
+            if ($l -match 'ahead (\d+)') {
+                $n = [int]$Matches[1]
+                $aheadBehind += if ($nerd) { [string][char]0x21E1 * $n } else { "+$n" }
+            }
+            if ($l -match 'behind (\d+)') {
+                $n = [int]$Matches[1]
+                $aheadBehind += if ($nerd) { [string][char]0x21E3 * $n } else { "-$n" }
+            }
             continue
         }
         if ($l.Length -lt 2) { continue }
@@ -237,14 +253,14 @@ for ($i = 0; $i -lt 4 -and $probe; $i++) {
                 if ($ln -match '^\s*version\s*=\s*"([^"]+)"') { $v = $Matches[1]; break }
             }
         }
-        if ($v) { $pkgTxt = "󰏗 v$v" }
+        if ($v) { $pkgTxt = if ($nerd) { "󰏗 v$v" } else { "v$v" } }
         $projKind = 'rust'
         break
     }
     if (Test-Path (Join-Path $probe 'package.json')) {
         try {
             $pj = Get-Content -Raw (Join-Path $probe 'package.json') | ConvertFrom-Json
-            if ($pj.version) { $pkgTxt = "󰏗 v$($pj.version)" }
+            if ($pj.version) { $pkgTxt = if ($nerd) { "󰏗 v$($pj.version)" } else { "v$($pj.version)" } }
         } catch {}
         $projKind = 'node'
         break
@@ -253,7 +269,7 @@ for ($i = 0; $i -lt 4 -and $probe; $i++) {
         (Test-Path (Join-Path $probe 'uv.lock')) -or
         (Test-Path (Join-Path $probe 'requirements.txt'))) {
         foreach ($ln in Get-Content (Join-Path $probe 'pyproject.toml') -ErrorAction SilentlyContinue) {
-            if ($ln -match '^\s*version\s*=\s*"([^"]+)"') { $pkgTxt = "󰏗 v$($Matches[1])"; break }
+            if ($ln -match '^\s*version\s*=\s*"([^"]+)"') { $pkgTxt = if ($nerd) { "󰏗 v$($Matches[1])" } else { "v$($Matches[1])" }; break }
         }
         $projKind = 'python'
         break
@@ -268,7 +284,8 @@ if ($pkgTxt) {
 }
 
 # ── Python 工具链 󰌠 vN.N.N（pyproject/uv.lock/requirements 项目）──
-if ($projKind -eq 'python') {
+# Grok TUI 跳过工具链子进程：慢且图标会豆腐（M046）。
+if ($nerd -and $projKind -eq 'python') {
     $pv = (& python --version 2>$null | Out-String).Trim()
     if ($pv -match 'Python\s+([\d.]+)') {
         $py = Seg "󰌠 v$($Matches[1])" '38;5;143'
@@ -278,7 +295,7 @@ if ($projKind -eq 'python') {
 
 # ── Rust 工具链 󱘗 vN.N.N（Cargo.toml 项目才探测——projKind 判，不再
 #    「有包版本就探测」：TS 项目曾因此误出 rust 段）──
-if ($projKind -eq 'rust') {
+if ($nerd -and $projKind -eq 'rust') {
     $rv = (& rustc --version 2>$null | Out-String).Trim()
     if ($rv -match 'rustc\s+([\d.]+)') {
         $r = Seg "󱘗 v$($Matches[1])" '38;5;180'
@@ -288,7 +305,7 @@ if ($projKind -eq 'rust') {
 
 # ── Node/TS 工具链 󰎙 vN.N.N（package.json 项目；TS 就绪再叠 󰛦 vM.M.M，
 #    typescript 版本就近读 node_modules 不起 tsc 子进程）──
-if ($projKind -eq 'node') {
+if ($nerd -and $projKind -eq 'node') {
     $nv = (& node --version 2>$null | Out-String).Trim()
     if ($nv -match 'v?([\d.]+)') {
         $n = Seg "󰎙 v$($Matches[1])" '38;5;078'
@@ -533,6 +550,10 @@ mod tests {
         assert!(
             STATUSLINE_PS1.contains("\u{f06a9}"),
             "oma segment robot glyph (md-robot, wide: two spaces survive one)"
+        );
+        assert!(
+            STATUSLINE_PS1.contains("$nerd = $AgentName -ne 'grok'"),
+            "Grok TUI has no Nerd PUA glyphs; script must take the ASCII path (M046)"
         );
     }
 

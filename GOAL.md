@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-07 | 热修 M046：Grok command 状态栏 Nerd 私用区字形在 pager 字体下显示成替换符；ps1 对 grok 走 ASCII 安全路径。D08 澄清：ome 只管软件部署，hook / 状态栏 / agent 配置检查留 oma |
 | 2026-09-07 | 热修 M045：Codex `[tui].status_line` 被写成 command argv，内置项解析静默跳空；写入面改 S016 推荐 ID，doctor 把 argv 形态标 warn |
 | 2026-09-07 | 热修 M044：P0027 后纯 Windows 项目 Codex `[hooks.state]` 空表（播种只认 `command`、doctor 被用户 store leftover 掩盖）。播种与 doctor 口径对齐；ohmycloud / ohmyenv-rs / ohmypwsh 各 7 条 trusted_hash 已重播 |
 | 2026-09-07 | D07 迁册批落地达成：agents install/update 入口 stderr 提示 `oma.deprecated` 指向 `ome install`（不删命令、stdout kv 面不动 R011，两条集成测试钉住）；`catalog\agents.toml` 头注记冻结历史锚；doctor 四类检查 R002 与 AGENTS 归 agents 域（二进制与版本、token 诊断归 ome doctor）；AGENTS 边界段 D07 改写、路由行 deprecated 标注、INDEX 两行、根 SKILL 重跑 init 再生；ome 侧部署滞后（本机 2026-09-02 旧版、ome install 报未知工具）以 issue 交底 ohmyenv-rs；归档 P0029 |
