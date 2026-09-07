@@ -300,40 +300,43 @@ pub fn plan_agents(wanted: Option<Vec<String>>, stub: bool) -> Result<SpawnPlan,
             profiles: Default::default(),
         });
     }
-    let names = match wanted {
+    // 一次探测记住 Hit，禁止「先 find 再 expect 再 find」：并发测试改
+    // OMA_*_BIN 时第二次 find 会 None，CI Linux/mac 曾 panic（D13 资产闸）。
+    let hits: Vec<(String, agents::Hit)> = match wanted {
         Some(list) => {
-            let missing: Vec<String> = list
-                .iter()
-                .filter(|n| agents::find(n).is_none())
-                .cloned()
-                .collect();
+            let mut missing = Vec::new();
+            let mut hits = Vec::new();
+            for n in list {
+                match agents::find(&n) {
+                    Some(h) => hits.push((n, h)),
+                    None => missing.push(n),
+                }
+            }
             if !missing.is_empty() {
                 return Err(format!(
                     "agent(s) not found: {}; see `oma agents` for detection details",
                     missing.join(", ")
                 ));
             }
-            list
+            hits
         }
         None => {
-            let found: Vec<String> = AGENTS
+            let hits: Vec<(String, agents::Hit)> = AGENTS
                 .iter()
-                .filter(|a| agents::find(a).is_some())
-                .map(|s| s.to_string())
+                .filter_map(|a| agents::find(a).map(|h| ((*a).to_string(), h)))
                 .collect();
-            if found.is_empty() {
+            if hits.is_empty() {
                 return Err(
                     "no supported agent installed; run `oma agents`, or use --stub for a stub session"
                         .into(),
                 );
             }
-            found
+            hits
         }
     };
-    let agents = names
+    let agents = hits
         .into_iter()
-        .map(|name| {
-            let hit = agents::find(&name).expect("validated above");
+        .map(|(name, hit)| {
             let mut argv = vec![hit.path.to_string_lossy().into_owned()];
             // claude 路固定 bypass flag（S029 实证）：settings 层
             // defaultMode=bypassPermissions 在 ANTHROPIC_BASE_URL（网关）下
@@ -1937,7 +1940,6 @@ mod tests {
     }
 
     #[test]
-    #[test]
     fn state_check_compares_hook_and_screen() {
         assert_eq!(state_check(Some("working"), Some("working")), "match");
         assert_eq!(state_check(Some("idle"), Some("working")), "mismatch");
@@ -1946,7 +1948,6 @@ mod tests {
         assert_eq!(state_check(None, None), "-");
     }
 
-    #[test]
     #[test]
     fn plan_agents_stub_shape_and_count_guard() {
         let plan = plan_agents(Some(vec!["claude".into(), "codex".into()]), true).unwrap();
@@ -1975,6 +1976,9 @@ mod tests {
     fn claude_argv_carries_bypass_flag_others_do_not() {
         // S029：settings 层 defaultMode 在项目层会被忽略（2.1.257+ changelog），
         // 命令面 flag 是文档钦点的强制通道——oma 裸起的 claude 路必须带。
+        // 与 profile_alias 共用 ENV_LOCK：那条也会写 OMA_*_BIN，只锁
+        // BIN_ENV_LOCK 挡不住，CI 并发下第二次 find 变 None。
+        let _e = crate::testenv::ENV_LOCK.lock().unwrap();
         let _g = BIN_ENV_LOCK.lock().unwrap();
         let exe = std::env::current_exe().unwrap();
         std::env::set_var("OMA_CLAUDE_BIN", &exe);

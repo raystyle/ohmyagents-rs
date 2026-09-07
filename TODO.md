@@ -21,4 +21,4 @@
 
 | 目标 | 状态 | 说明 |
 | --- | --- | --- |
-| D13 mac `--version` 一致性 | 排队 | 已澄清；源码已有 clap version。2026-09-07 已推 origin `7211df0`。待 CI 出资产后 mac `oma self update` |
+| D13 mac `--version` 一致性 | 排队 | 已澄清。已推 origin。CI Linux/mac 曾红（M049）；修 `plan_agents` 一次探测后再等滚动资产，mac `oma self update` |
