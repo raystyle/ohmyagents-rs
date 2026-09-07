@@ -7,14 +7,14 @@
 
 > 当前目标的起点：何时发起、为什么发起、要解决什么问题。
 
-- **日期**：无（下目标待立项）。
-- **起点**：D10 已于 2026-09-07 达成归档 P0031。排队 D11 状态栏 zig/go/cpp、D12 t006 孤儿、D13 mac --version（推远端待指示）。
+- **日期**：2026-09-07。
+- **起点**：用户点名 D11 至 D13。D11 已归档 P0032。当前 D12：根下 `.ohmyagents/t006/` 孤儿目录收敛。
 
 ## 锚点
 
 > 当前锚定的目标 + 推进时间线。
 
-- **锚定的目标**：无。排队见 `TODO.md`（D11 至 D13）。
+- **锚定的目标**：D12 根下 `.ohmyagents/t006/` 孤儿目录收敛。
 
 ### 推进时间线
 
@@ -22,6 +22,8 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-07 | D11 达成归档 P0032：projKind 加 zig/go/cpp；本机临时目录实跑（zig 0.16.0、go 1.27.0、cmake/meson 包版本、Grok 无工具链、Cargo.toml 先到先得）。切 D12 |
+| 2026-09-07 | D11 立项：projKind 加 build.zig / go.mod / CMakeLists / meson.build；图标 seti-zig E6A9、seti-go E627、seti-cpp E646（两字体 cmap 实证）。Grok 仍跳过工具链子进程 |
 | 2026-09-07 | D10 达成归档 P0031：SKIP_DIRS 外四类禁字 0，封闭清单已删，mdcharlint 零容忍 |
 | 2026-09-07 | D10 切片 3：DASH 472 处改冒号或半角范围符；误伤 `--target` 回改 |
 | 2026-09-07 | D10 切片 2：ARROW 72 处改写清零；余 DASH 472 |
@@ -97,7 +99,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：无（D10 G005 存量字符清理已于 2026-09-07 达成，归档 P0031）。
+- 当前目标：D12 `.ohmyagents/t006/` 孤儿目录收敛。
 
 ## 历史
 
@@ -105,6 +107,7 @@
 
 | 日期 | 目标 | 结果 |
 | --- | --- | --- |
+| 2026-09-07 | D11 状态栏工具链段扩展 zig / go / cpp | 达成：projKind 加 build.zig / go.mod / CMakeLists 或 meson；图标 cmap 实证；本机临时目录实跑。归档 P0032 |
 | 2026-09-07 | D10 G005 存量字符清理 | 达成：SKIP_DIRS 外四类禁字清零；封闭清单删除；mdcharlint 零容忍。diary/proven 仍不回改 |
 | 2026-09-07 | D08 doctor 检查面补形态 | 达成：Grok 状态栏 command 三态（Windows 只认 `.cmd` 单路径，`pwsh -File` 壳行 warn）；JSON hook args 数组 warn；141 单测绿；本机 doctor grok statusline ok。同日 D09：oma 不管种子。归档 P0030 |
 | 2026-09-07 | D07 oma 收窄配合迁册（ome 接管 agent 二进制下装部署） | 达成：install/update deprecated 指向 ome（保留兼容，stderr 提示不污染 R011 输出面，两条集成测试）；`catalog\agents.toml` 冻结历史锚；doctor 四类检查归 agents 域（R002 与 AGENTS 同步）；AGENTS 边界与路由、INDEX、根 SKILL 同步；ome 部署滞后 issue 交底 ohmyenv-rs。用户裁定不等 ome 切片 3 先清自身面（2026-09-07） |

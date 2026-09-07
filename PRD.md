@@ -27,8 +27,8 @@
 | D08 | ome只管软件部署；oma 要对 hook、状态栏和 agent 配置的检查 | 已交付 | 第 1 轮（2026-09-07 用户裁定，纠正「ome doctor 调用 oma」的误读）：检查面留 oma doctor，不收进 ome；触发项 Grok 状态栏显示错误。2026-09-07 用户实证 M048 修复后栏正常，立项补检查面缺口 | doctor 补 Grok 状态栏 command 三态（M048）与 hook args（M047）；归档 P0030 |
 | D09 | oma不管种子 只管诊断、配置、hook、状态栏和编排 | 已交付 | 第 1 轮（2026-09-07 用户裁定，纠正把 ohmycloud 镜像种子算进本仓 TODO）：种子归 ohmycloud，本机安装归 ome | AGENTS 边界、R001 四仓职责与分发通道；不立项新功能 |
 | D10 | G005 存量字符清理 | 已交付 | 第 0 轮（用户 2026-09-02 量化并定调清零后 mdcharlint 零容忍；2026-09-07 点名启动） | SKIP_DIRS 外清零并删封闭清单；归档 P0031 |
-| D11 | 状态栏工具链段扩展 zig/golang/cpp | 已澄清 | 第 1 轮（2026-09-02「以后」；2026-09-07 点名启动）：projKind 加 build.zig / go.mod / CMakeLists（或 meson），图标先 cmap 实证 | 排队，D10 后立项 |
-| D12 | 根下 `.ohmyagents/t006/` 孤儿目录收敛 | 已澄清 | 第 1 轮（diary 09-03 待接；2026-09-07 点名启动）：动前核对与 `tasks/t006/` 产物归属 | 排队，D10 后立项 |
+| D11 | 状态栏工具链段扩展 zig/golang/cpp | 已交付 | 第 1 轮（2026-09-02「以后」；2026-09-07 点名启动）：projKind 加 build.zig / go.mod / CMakeLists（或 meson），图标先 cmap 实证 | 共享 ps1 探测加三枚码位；本机临时目录实跑；归档 P0032 |
+| D12 | 根下 `.ohmyagents/t006/` 孤儿目录收敛 | 已采纳 | 第 1 轮（diary 09-03 待接；2026-09-07 点名启动）：动前核对与 `tasks/t006/` 产物归属 | GOAL / PLAN / TODO；孤儿是 t008 第二轮草稿误落 |
 | D13 | mac `--version` 一致性 | 已澄清 | 第 1 轮（D06 余量；2026-09-07 点名）：源码已有 clap `version`，mac 部署位为旧版；门槛为推 main 出 CI 资产后 `oma self update` | 排队；推远端仍待用户指示 |
 
 ## 状态机定义

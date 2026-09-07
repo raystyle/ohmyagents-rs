@@ -4,14 +4,19 @@
 
 ## 当前目标
 
-下目标待立项。D10 已达成归档 P0031。排队 D11 至 D13。
+D12 根下 `.ohmyagents/t006/` 孤儿目录收敛（2026-09-07 立项；方案见 `PLAN.md`，需求见 `PRD.md` D12）。
 
 ### 任务进度清单
 
-无。
+| 任务项 | 进度 | 说明 | 日期 |
+| --- | --- | --- | --- |
+| 对账归属 | 已完成 | 孤儿是 t008 第二轮草稿；`tasks/t006/` 是第一轮正本 | 2026-09-07 |
+| 删除孤儿目录 | 待做 | 只删 `.ohmyagents/t006/`，不动 tasks/ | 2026-09-07 |
+| 协议路径单测 | 待做 | 钉尾注含 `.ohmyagents/tasks/` | 2026-09-07 |
 
 ## 前目标清单
 
+> D11 状态栏 zig/go/cpp（2026-09-07 归档 P0032）：projKind 扩展；本机临时目录实跑；Grok 仍跳过工具链。
 > D10 G005 存量字符清理（2026-09-07 归档 P0031）：SKIP_DIRS 外四类禁字清零，封闭清单删除。
 > D08 doctor 检查面补形态（2026-09-07 归档 P0030）：Grok 状态栏 command 三态、JSON hook args 形态；用户实证栏正常。同日 D09：oma 不管种子。
 > D07 oma 收窄配合迁册（2026-09-07 归档 P0029）：agents install/update deprecated、agents.toml 冻结历史锚、doctor 四类归 agents 域；当日热修 M044 至 M048（Codex 信任空表、Codex 状态栏 argv、Grok 字形、Grok hook ParserError、Grok 状态栏 os error 123）。
@@ -24,6 +29,4 @@
 
 | 目标 | 状态 | 说明 |
 | --- | --- | --- |
-| D11 状态栏工具链段扩展 zig/golang/cpp | 排队 | 已澄清；projKind 加 build.zig / go.mod / CMakeLists（或 meson），图标先 cmap 实证 |
-| D12 根下 `.ohmyagents/t006/` 孤儿目录 | 排队 | 已澄清；孤儿 output 实为 t008 第二轮 review 误落，与 `tasks/t006/` 第一轮产物不同 |
 | D13 mac `--version` 一致性 | 排队 | 已澄清；源码已有 clap version；门槛推 main 出 CI 资产。推远端仍待用户指示 |

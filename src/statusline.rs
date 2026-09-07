@@ -274,6 +274,38 @@ for ($i = 0; $i -lt 4 -and $probe; $i++) {
         $projKind = 'python'
         break
     }
+    if (Test-Path (Join-Path $probe 'build.zig')) {
+        $v = $null
+        $zon = Join-Path $probe 'build.zig.zon'
+        if (Test-Path $zon) {
+            foreach ($ln in Get-Content $zon -ErrorAction SilentlyContinue) {
+                if ($ln -match '\.version\s*=\s*"([^"]+)"') { $v = $Matches[1]; break }
+            }
+            if ($v) { $pkgTxt = if ($nerd) { "󰏗 v$v" } else { "v$v" } }
+        }
+        $projKind = 'zig'
+        break
+    }
+    if (Test-Path (Join-Path $probe 'go.mod')) {
+        $projKind = 'go'
+        break
+    }
+    if ((Test-Path (Join-Path $probe 'CMakeLists.txt')) -or
+        (Test-Path (Join-Path $probe 'meson.build'))) {
+        $v = $null
+        foreach ($ln in Get-Content (Join-Path $probe 'CMakeLists.txt') -ErrorAction SilentlyContinue) {
+            if ($ln -match '(?i)project\s*\([^)]*VERSION\s+([\d.]+)') { $v = $Matches[1]; break }
+        }
+        if (-not $v) {
+            foreach ($ln in Get-Content (Join-Path $probe 'meson.build') -ErrorAction SilentlyContinue) {
+                if ($ln -match "version\s*:\s*'([^']+)'") { $v = $Matches[1]; break }
+                if (-not $v -and $ln -match 'version\s*:\s*"([^"]+)"') { $v = $Matches[1]; break }
+            }
+        }
+        if ($v) { $pkgTxt = if ($nerd) { "󰏗 v$v" } else { "v$v" } }
+        $projKind = 'cpp'
+        break
+    }
     $parent = Split-Path -Parent $probe
     if ($parent -eq $probe) { break }
     $probe = $parent
@@ -327,6 +359,35 @@ if ($nerd -and $projKind -eq 'node') {
         $p2 = Split-Path -Parent $tsProbe
         if ($p2 -eq $tsProbe) { break }
         $tsProbe = $p2
+    }
+}
+
+# ── Zig 工具链 seti-zig U+E6A9（cmap: CaskaydiaCove 与 0xProto 2026-09-07）──
+if ($nerd -and $projKind -eq 'zig') {
+    $zv = (& zig version 2>$null | Out-String).Trim()
+    if ($zv -match '^([\d.]+)') {
+        $z = Seg ("$([char]::ConvertFromUtf32(0xE6A9)) v$($Matches[1])") '38;5;178'
+        if ($z) { $parts.Add($z) }
+    }
+}
+
+# ── Go 工具链 seti-go U+E627 ──
+if ($nerd -and $projKind -eq 'go') {
+    $gv = (& go version 2>$null | Out-String).Trim()
+    if ($gv -match 'go([\d.]+)') {
+        $goSeg = Seg ("$([char]::ConvertFromUtf32(0xE627)) v$($Matches[1])") '38;5;080'
+        if ($goSeg) { $parts.Add($goSeg) }
+    }
+}
+
+# ── C/C++ 工具链 seti-cpp U+E646（c++/g++/clang++，静默失败）──
+if ($nerd -and $projKind -eq 'cpp') {
+    $cv = (& c++ --version 2>$null | Out-String).Trim()
+    if (-not $cv) { $cv = (& g++ --version 2>$null | Out-String).Trim() }
+    if (-not $cv) { $cv = (& clang++ --version 2>$null | Out-String).Trim() }
+    if ($cv -match '(\d+\.\d+(?:\.\d+)?)') {
+        $cx = Seg ("$([char]::ConvertFromUtf32(0xE646)) v$($Matches[1])") '38;5;110'
+        if ($cx) { $parts.Add($cx) }
     }
 }
 
@@ -582,6 +643,25 @@ mod tests {
         assert!(
             STATUSLINE_PS1.contains("$nerd = $AgentName -ne 'grok'"),
             "Grok TUI has no Nerd PUA glyphs; script must take the ASCII path (M046)"
+        );
+        assert!(
+            STATUSLINE_PS1.contains("build.zig")
+                && STATUSLINE_PS1.contains("go.mod")
+                && STATUSLINE_PS1.contains("CMakeLists.txt")
+                && STATUSLINE_PS1.contains("meson.build"),
+            "D11 projKind must probe zig / go / cpp markers"
+        );
+        let cargo = STATUSLINE_PS1.find("Cargo.toml").expect("rust probe");
+        let zig = STATUSLINE_PS1.find("build.zig").expect("zig probe");
+        assert!(
+            cargo < zig,
+            "D11 first-match: rust/node/python stay ahead of zig/go/cpp"
+        );
+        assert!(
+            STATUSLINE_PS1.contains("0xE6A9")
+                && STATUSLINE_PS1.contains("0xE627")
+                && STATUSLINE_PS1.contains("0xE646"),
+            "D11 icons: seti-zig E6A9, seti-go E627, seti-cpp E646 (CaskaydiaCove and 0xProto cmap 2026-09-07)"
         );
         assert!(
             STATUSLINE_PS1.contains("if ($nerd) { [string][char]0x2718 } else { 'x' }"),

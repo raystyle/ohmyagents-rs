@@ -43,7 +43,7 @@
 | `src\install.rs` | 自适应安装层（D07 deprecated：install/update 入口提示指向 ome）：多渠道下载、sha 信任锚、oma 自管根布局、update 取证与 pin 写回 |
 | `src\login.rs` | `oma agents login`：grok/kimi 设备码登录引导（子进程捕获、URL/code 转发、落盘凭据确认） |
 | `src\providers.rs` | `oma agents providers`：别名簿 providers.toml 读写与 `agent@alias` 注入形态（S027） |
-| `src\statusline.rs` | `oma agents statusline`：四家状态栏写入面幂等合并（S025 矩阵） |
+| `src\statusline.rs` | `oma agents statusline`：四家状态栏写入面幂等合并（S025 矩阵）；projKind 含 rust/node/python/zig/go/cpp（P0032） |
 | `src\task.rs` | `oma task`：任务目录协议（prompt.md/output.md/DONE）、阻塞等待与产物收取 |
 | `src\update.rs` | `oma self update`：dev 滚动源与正式版判新、sha256 取证、Windows rename 舞步（S028） |
 | `src\servectl.rs` | `oma serve start/stop/status`：后台守护拉起（CREATE_NO_WINDOW）、协议化停机与探活 |
@@ -100,6 +100,7 @@
 | P0029 | `P0029-D07迁册批-agents下装归ome.md` | D07 迁册批：agents install/update deprecated 指向 ome、agents.toml 冻结历史锚、doctor 四类归 agents 域 |
 | P0030 | `P0030-D08-doctor检查面补形态.md` | D08 doctor 检查面：Grok 状态栏 command 三态与 hook args 形态 |
 | P0031 | `P0031-D10-G005存量字符清理.md` | D10 G005：SKIP_DIRS 外四类禁字清零，封闭清单删除 |
+| P0032 | `P0032-D11-状态栏工具链段扩展-zig-go-cpp.md` | D11 状态栏 projKind 扩展 zig / go / cpp |
 
 （P0020 断号：编号已预留未使用，不复用。）
 
@@ -144,7 +145,7 @@
 | S022 | `S022-rust程序自带资源包的三路线与释放裁决.md` | include_bytes 对 rust-embed 对嵌入归档加释放；指纹目录口径（P0023 依据） |
 | S023 | `S023-rmux在windows的进程树与原语实测.md` | 活体进程树加源码核实；三纠偏与原语表 |
 | S024 | `S024-四环境部署自适应矩阵.md` | PATH bare 形态与 codex 字段所有权（P0027 依据）；状态栏 UTF-8、信任键双族共存 |
-| S025 | `S025-四家状态栏配置矩阵与机读标记.md` | 四家状态栏命令驱动矩阵；oma 机读标记 agent:state 与会话闸 |
+| S025 | `S025-四家状态栏配置矩阵与机读标记.md` | 四家状态栏命令驱动矩阵；oma 机读标记 agent:state 与会话闸；projKind zig/go/cpp cmap |
 | S026 | `S026-grok与kimi的OAuth登录流.md` | 两家设备码流取证、凭据落盘与登录态纯文件检测 |
 | S027 | `S027-提供商别名注入矩阵.md` | zhipu/deepseek x claude/codex 四格官方端点与注入形态；sops 托管密钥 |
 | S028 | `S028-oma自更新机制.md` | releases/latest 查询、资产约定、Windows rename 舞步自替换、封版前 --git 主路径 |
