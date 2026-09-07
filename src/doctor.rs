@@ -674,6 +674,11 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         .as_deref()
         .map(crate::statusline::script_path)
         .is_some_and(|p| p.is_file());
+    let sl_grok_ok = sl_script_ok
+        && oma_root
+            .as_deref()
+            .map(crate::statusline::grok_cmd_path)
+            .is_some_and(|p| p.is_file());
     let sl_pwsh_missing = !crate::statusline::pwsh_on_path();
     let now = OffsetDateTime::now_utc();
     let now_secs = SystemTime::now()
@@ -1268,7 +1273,7 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         "grok",
         grok_statusline_on(&home),
         &grok_cfg,
-        sl_script_ok,
+        sl_grok_ok,
         sl_pwsh_missing,
     );
 

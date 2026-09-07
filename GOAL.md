@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-07 | 热修 M048：Grok 状态栏 os error 123。grok-build `command.rs` 整串 `Command::new`，带引号的 `pwsh -File` 行是 ERROR_INVALID_NAME 不是 NotFound，shell 回落不发生。Windows 改写 `oma-statusline-grok.cmd` 单路径 |
 | 2026-09-07 | 热修 M047：Grok 每个事件 ParserError。Grok 加载项目 Claude exec 形态，PowerShell 把 `"oma" hook` 当语法错误；Claude/Grok 统一写成 `oma hook --agent <名>` |
 | 2026-09-07 | 热修 M046：Grok command 状态栏 Nerd 私用区字形在 pager 字体下显示成替换符；ps1 对 grok 走 ASCII 安全路径。D08 澄清：ome 只管软件部署，hook / 状态栏 / agent 配置检查留 oma |
 | 2026-09-07 | 热修 M045：Codex `[tui].status_line` 被写成 command argv，内置项解析静默跳空；写入面改 S016 推荐 ID，doctor 把 argv 形态标 warn |

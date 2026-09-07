@@ -223,8 +223,8 @@ if ($gs) {
     }
     $f = ''
     if ($conflicted) { $f += '=' }
-    if ($deleted) { $f += [string][char]0x2718 }
-    if ($renamed) { $f += [string][char]0x00BB }
+    if ($deleted) { $f += if ($nerd) { [string][char]0x2718 } else { 'x' } }
+    if ($renamed) { $f += if ($nerd) { [string][char]0x00BB } else { '>' } }
     if ($modified) { $f += '!' }
     if ($staged) { $f += '+' }
     if ($untracked) { $f += '?' }
@@ -338,6 +338,32 @@ pub(crate) fn script_path(home: &Path) -> PathBuf {
     home.join("statusline").join("oma-statusline.ps1")
 }
 
+pub(crate) fn grok_cmd_path(home: &Path) -> PathBuf {
+    home.join("statusline").join("oma-statusline-grok.cmd")
+}
+
+/// Windows Grok `[ui.status_line].command` must be a single spawnable path.
+/// grok-build `command.rs` does `Command::new(entire_string)` first and only
+/// falls back to a shell on `NotFound` (or Unix ENOEXEC). A `pwsh -File "..."`
+/// line contains quotes and slashes, so Windows returns ERROR_INVALID_NAME
+/// 123 and paints `[status line: could not start the script: ...]` (M048).
+const STATUSLINE_GROK_CMD: &str =
+    "@echo off\r\npwsh -NoProfile -File \"%~dp0oma-statusline.ps1\" grok\r\n";
+
+fn grok_command_line(script_str: &str) -> String {
+    #[cfg(windows)]
+    {
+        match script_str.rsplit_once('/') {
+            Some((dir, _)) => format!("{dir}/oma-statusline-grok.cmd"),
+            None => "oma-statusline-grok.cmd".into(),
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        format!("pwsh -NoProfile -File \"{script_str}\" grok")
+    }
+}
+
 /// pwsh is the statusline runtime on every platform. Advisory only: the
 /// script is deployed regardless; without pwsh the bar simply won't render
 /// in that environment.
@@ -352,6 +378,8 @@ pub fn deploy_script(home: &Path) -> Result<PathBuf, String> {
         std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     }
     std::fs::write(&p, STATUSLINE_PS1).map_err(|e| format!("{}: {e}", p.display()))?;
+    let cmd = grok_cmd_path(home);
+    std::fs::write(&cmd, STATUSLINE_GROK_CMD).map_err(|e| format!("{}: {e}", cmd.display()))?;
     Ok(p)
 }
 
@@ -417,9 +445,9 @@ fn apply_kimi_status_line(toml: &mut toml::Value, script_str: &str) -> Result<bo
     Ok(changed)
 }
 
-/// grok：`~/.grok/config.toml` `[ui.status_line]` 幂等合并（type=command；
-/// command 串先直接 spawn、失败回落 shell 解释，带参数命令行可用——S025
-/// command.rs 实证）。其它表保留。
+/// grok：`~/.grok/config.toml` `[ui.status_line]` 幂等合并（type=command）。
+/// Windows 写 `.cmd` 单路径（M048）；Unix 仍写 `pwsh -File` 命令行（NotFound
+/// 才回落 sh -c）。其它表保留。
 pub fn merge_grok(home: &Path) -> Result<String, String> {
     let script = deploy_script(home)?;
     let config = dirs::home_dir()
@@ -455,7 +483,7 @@ fn apply_grok_status_line(toml: &mut toml::Value, script_str: &str) -> Result<bo
         toml::Value::Table(t) => t,
         _ => return Err("grok [ui.status_line] is not a table".into()),
     };
-    let command = format!("pwsh -NoProfile -File \"{script_str}\" grok");
+    let command = grok_command_line(script_str);
     let changed = sl.get("command").and_then(|v| v.as_str()) != Some(command.as_str())
         || sl.get("type").and_then(|v| v.as_str()) != Some("command");
     if changed {
@@ -555,6 +583,70 @@ mod tests {
             STATUSLINE_PS1.contains("$nerd = $AgentName -ne 'grok'"),
             "Grok TUI has no Nerd PUA glyphs; script must take the ASCII path (M046)"
         );
+        assert!(
+            STATUSLINE_PS1.contains("if ($nerd) { [string][char]0x2718 } else { 'x' }"),
+            "deleted flag must not emit U+2718 on the Grok ASCII path"
+        );
+    }
+
+    #[test]
+    fn grok_cmd_wrapper_invokes_ps1_with_grok_agent() {
+        // Oracle: grok-build command.rs spawns the configured string as a
+        // program path; the wrapper bakes the agent name so the command
+        // value can stay a single path (M048).
+        assert!(STATUSLINE_GROK_CMD.contains("@echo off"));
+        assert!(STATUSLINE_GROK_CMD.contains("oma-statusline.ps1"));
+        assert!(STATUSLINE_GROK_CMD.contains(" grok"));
+        assert!(
+            !STATUSLINE_GROK_CMD.contains("claude") && !STATUSLINE_GROK_CMD.contains("kimi"),
+            "wrapper is Grok-only"
+        );
+    }
+
+    #[test]
+    fn grok_windows_command_is_bare_cmd_path() {
+        // Oracle: grok-build `Command::new(entire_string)`; a shell line with
+        // quotes is ERROR_INVALID_NAME 123, which is not NotFound, so the
+        // shell fallback never runs (M048).
+        let cmd = grok_command_line("C:/Users/ray/.ohmyagents/statusline/oma-statusline.ps1");
+        #[cfg(windows)]
+        {
+            assert_eq!(
+                cmd,
+                "C:/Users/ray/.ohmyagents/statusline/oma-statusline-grok.cmd"
+            );
+            assert!(
+                !cmd.contains('"'),
+                "quotes in the program name are 123: {cmd}"
+            );
+            assert!(
+                !cmd.contains("pwsh"),
+                "args after the path are not passed: {cmd}"
+            );
+        }
+        #[cfg(not(windows))]
+        {
+            assert_eq!(
+                cmd,
+                "pwsh -NoProfile -File \"C:/Users/ray/.ohmyagents/statusline/oma-statusline.ps1\" grok"
+            );
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn dies_windows_pwsh_shell_line_is_invalid_filename() {
+        // Independent oracle: Win32 ERROR_INVALID_NAME = 123. grok-build
+        // command.rs only shells out on NotFound, so this error is painted.
+        let cmd = r#"pwsh -NoProfile -File "C:/Users/ray/.ohmyagents/statusline/oma-statusline.ps1" grok"#;
+        let err = std::process::Command::new(cmd)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .expect_err("shell line must not be a valid program name");
+        assert_eq!(err.raw_os_error(), Some(123), "{err}");
+        assert_ne!(err.kind(), std::io::ErrorKind::NotFound, "{err:?}");
     }
 
     #[test]
@@ -592,12 +684,12 @@ mod tests {
         );
         let sl = ui.get("status_line").unwrap().as_table().unwrap();
         assert_eq!(sl.get("type").unwrap().as_str(), Some("command"));
-        assert!(sl
-            .get("command")
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .ends_with("\" grok"));
+        let grok_cmd = sl.get("command").unwrap().as_str().unwrap();
+        assert_eq!(grok_cmd, grok_command_line("C:/x/oma-statusline.ps1"));
+        #[cfg(windows)]
+        assert_eq!(grok_cmd, "C:/x/oma-statusline-grok.cmd");
+        #[cfg(not(windows))]
+        assert!(grok_cmd.ends_with("\" grok"));
     }
 
     #[test]
