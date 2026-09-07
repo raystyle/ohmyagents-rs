@@ -1059,7 +1059,7 @@ fn cmd_agents_secrets(cmd: Option<SecretsCmd>) -> Result<(), String> {
     }
 }
 
-/// `oma agents statusline [名]`：配置 claude/codex 状态栏（幂等）。
+/// `oma agents statusline [名]`：配置四家状态栏（幂等）。
 fn cmd_agents_statusline(names: Vec<String>) -> Result<(), String> {
     let home = install::oma_home()?;
     let supported = ["claude", "codex", "kimi", "grok"];

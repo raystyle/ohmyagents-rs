@@ -383,17 +383,89 @@ fn claude_statusline_on(home: &Path) -> bool {
         .is_some_and(|c| c.contains(STATUSLINE_MARKER))
 }
 
-fn codex_statusline_on(home: &Path) -> bool {
-    toml_file(&home.join(".codex").join("config.toml"))
+/// Codex `[tui].status_line` kinds. Command-argv is the oma 2026-09-01
+/// misfit: Codex only accepts built-in item IDs and skips the rest, so
+/// the bar goes empty (M045).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CodexStatusline {
+    Builtin,
+    CommandArgv,
+    Missing,
+}
+
+fn looks_like_codex_command_argv(s: &str) -> bool {
+    s.contains(STATUSLINE_MARKER)
+        || s == "pwsh"
+        || s == "-NoProfile"
+        || s == "-File"
+        || s == "command"
+}
+
+fn is_codex_builtin_status_item(s: &str) -> bool {
+    matches!(
+        s,
+        "run-state"
+            | "status"
+            | "model-name"
+            | "model-with-reasoning"
+            | "reasoning"
+            | "current-dir"
+            | "project-root"
+            | "project"
+            | "project-name"
+            | "git-branch"
+            | "pull-request-number"
+            | "branch-changes"
+            | "permissions"
+            | "approval-mode"
+            | "approval"
+            | "context-remaining"
+            | "context-used"
+            | "context-window-size"
+            | "used-tokens"
+            | "total-input-tokens"
+            | "total-output-tokens"
+            | "five-hour-limit"
+            | "weekly-limit"
+            | "codex-version"
+            | "thread-credits"
+            | "estimated-thread-cost"
+            | "session-id"
+            | "thread-id"
+            | "fast-mode"
+            | "raw-output"
+            | "thread-title"
+            | "workspace-headline"
+            | "task-progress"
+    )
+}
+
+fn codex_statusline_state(home: &Path) -> CodexStatusline {
+    let Some(parts) = toml_file(&home.join(".codex").join("config.toml"))
         .as_ref()
         .and_then(|t| t.get("tui"))
         .and_then(|tui| tui.get("status_line"))
         .and_then(|sl| sl.as_array())
-        .is_some_and(|parts| {
-            parts
-                .iter()
-                .any(|p| p.as_str().is_some_and(|s| s.contains(STATUSLINE_MARKER)))
-        })
+        .cloned()
+    else {
+        return CodexStatusline::Missing;
+    };
+    if parts.is_empty() {
+        return CodexStatusline::Missing;
+    }
+    if parts
+        .iter()
+        .any(|p| p.as_str().is_some_and(looks_like_codex_command_argv))
+    {
+        return CodexStatusline::CommandArgv;
+    }
+    if parts
+        .iter()
+        .any(|p| p.as_str().is_some_and(is_codex_builtin_status_item))
+    {
+        return CodexStatusline::Builtin;
+    }
+    CodexStatusline::Missing
 }
 
 fn kimi_statusline_on(home: &Path) -> bool {
@@ -939,14 +1011,35 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
             &root.join(".codex").join("hooks.json"),
         );
     }
-    push_statusline(
-        &mut findings,
-        "codex",
-        codex_statusline_on(&home),
-        &home.join(".codex").join("config.toml"),
-        sl_script_ok,
-        sl_pwsh_missing,
-    );
+    {
+        let cfg = home.join(".codex").join("config.toml");
+        match codex_statusline_state(&home) {
+            CodexStatusline::Builtin => push_status(
+                &mut findings,
+                "codex",
+                "statusline",
+                Status::Ok,
+                &cfg,
+                "oma bar configured (built-in item IDs)",
+            ),
+            CodexStatusline::CommandArgv => push_status(
+                &mut findings,
+                "codex",
+                "statusline",
+                Status::Warn,
+                &cfg,
+                "status_line is command-argv; Codex only accepts built-in item IDs (S016); oma agents statusline",
+            ),
+            CodexStatusline::Missing => push_statusline(
+                &mut findings,
+                "codex",
+                false,
+                &cfg,
+                sl_script_ok,
+                sl_pwsh_missing,
+            ),
+        }
+    }
 
     let kimi_proj = root.join(".kimi-code").join("config.toml");
     let kimi_user = home.join(".kimi-code").join("config.toml");
@@ -1479,6 +1572,26 @@ mod tests {
         ]}]}});
         assert_eq!(codex_hooks_sides(Some(&foreign)), (false, false));
         assert_eq!(codex_hooks_sides(None), (false, false));
+    }
+
+    #[test]
+    fn codex_statusline_state_classifies_argv_builtin_missing() {
+        let root = temp_root("codex-sl");
+        fs::create_dir_all(root.join(".codex")).unwrap();
+        assert_eq!(codex_statusline_state(&root), CodexStatusline::Missing);
+        fs::write(
+            root.join(".codex").join("config.toml"),
+            "[tui]\nstatus_line = [\"command\", \"pwsh\", \"-File\", \"C:/x/oma-statusline.ps1\"]\n",
+        )
+        .unwrap();
+        assert_eq!(codex_statusline_state(&root), CodexStatusline::CommandArgv);
+        fs::write(
+            root.join(".codex").join("config.toml"),
+            "[tui]\nstatus_line = [\"run-state\", \"git-branch\"]\n",
+        )
+        .unwrap();
+        assert_eq!(codex_statusline_state(&root), CodexStatusline::Builtin);
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]

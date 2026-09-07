@@ -2,7 +2,7 @@
 //! - claude code：`~/.claude/settings.json` 合并 `statusLine` 块（serde_json
 //!   读改写，保留 env/permissions 等，只覆盖 statusLine 键）
 //! - codex：`~/.codex/config.toml` 顶层 `[tui]` 段整段替换（幂等），
-//!   `status_line = ["command", "pwsh", ...]` 数组形态
+//!   `status_line` 为内置项 ID 数组（Codex 无外部命令面，S016）
 //! 状态栏脚本本体（pwsh）随 oma 释放到 `~/.ohmyagents/statusline/`。
 //! 用户定调 2026-09-02：渲染对齐用户 starship 配置风格（目录截断、git 旗标、
 //! 包与工具链版本段、nerdfont 图标、Catppuccin 系 256 色）；oma 段 = 当前
@@ -448,41 +448,72 @@ fn apply_grok_status_line(toml: &mut toml::Value, script_str: &str) -> Result<bo
     Ok(changed)
 }
 
-/// codex：config.toml 顶层 `[tui]` 段整段替换（幂等；ohmypwsh 同形态）。
-pub fn merge_codex(home: &Path) -> Result<String, String> {
-    let script = deploy_script(home)?;
+/// Codex `[tui].status_line` is an ordered list of built-in item IDs
+/// (ohmypwsh S016, openai/codex 0.148+). Unknown strings are silently
+/// skipped, so a command argv (`"command", "pwsh", "-File", ...`) empties
+/// the bar. oma cannot inject a custom script here.
+const CODEX_STATUS_LINE_ITEMS: &[&str] = &[
+    "run-state",
+    "model-with-reasoning",
+    "context-remaining",
+    "used-tokens",
+    "permissions",
+    "current-dir",
+    "git-branch",
+    "branch-changes",
+];
+
+fn render_codex_tui_section() -> String {
+    let mut lines = vec!["[tui]".to_string(), "status_line = [".to_string()];
+    let last = CODEX_STATUS_LINE_ITEMS.len().saturating_sub(1);
+    for (i, id) in CODEX_STATUS_LINE_ITEMS.iter().enumerate() {
+        let comma = if i == last { "" } else { "," };
+        lines.push(format!("  \"{id}\"{comma}"));
+    }
+    lines.push("]".into());
+    lines.push("status_line_use_colors = true".into());
+    lines.join("\n")
+}
+
+fn strip_tui_section(text: &str) -> String {
+    let mut lines: Vec<String> = Vec::new();
+    let mut in_tui = false;
+    for ln in text.lines() {
+        if ln.trim().starts_with('[') {
+            in_tui = ln.trim() == "[tui]";
+            if in_tui {
+                continue;
+            }
+        }
+        if !in_tui {
+            lines.push(ln.to_string());
+        }
+    }
+    lines.join("\n")
+}
+
+/// Codex: replace the `[tui]` table with built-in item IDs (ohmypwsh S016).
+/// Does not deploy the pwsh script; Codex has no command-backed status line.
+pub fn merge_codex(_home: &Path) -> Result<String, String> {
     let config = dirs::home_dir()
         .ok_or("no home")?
         .join(".codex")
         .join("config.toml");
-    let script_str = script.display().to_string().replace('\\', "/");
-    let mut lines: Vec<String> = Vec::new();
-    if config.exists() {
-        let text =
-            std::fs::read_to_string(&config).map_err(|e| format!("{}: {e}", config.display()))?;
-        let mut in_tui = false;
-        for ln in text.lines() {
-            if ln.trim().starts_with('[') {
-                in_tui = ln.trim() == "[tui]";
-                if in_tui {
-                    continue;
-                }
-            }
-            if !in_tui {
-                lines.push(ln.to_string());
-            }
-        }
+    let existing = if config.exists() {
+        std::fs::read_to_string(&config).map_err(|e| format!("{}: {e}", config.display()))?
+    } else {
+        String::new()
+    };
+    let kept = strip_tui_section(&existing);
+    let kept = kept.trim_end();
+    let body = if kept.is_empty() {
+        format!("{}\n", render_codex_tui_section())
+    } else {
+        format!("{kept}\n\n{}\n", render_codex_tui_section())
+    };
+    if let Some(dir) = config.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     }
-    lines.push(String::new());
-    lines.push("[tui]".into());
-    lines.push("status_line = [".into());
-    lines.push("  \"command\", ".into());
-    lines.push("  \"pwsh\", ".into());
-    lines.push("  \"-NoProfile\", ".into());
-    lines.push(format!("  \"-File\", \"{script_str}\", "));
-    lines.push("  \"codex\", ".into());
-    lines.push("]".into());
-    let body = lines.join("\n") + "\n";
     std::fs::write(&config, body).map_err(|e| format!("{}: {e}", config.display()))?;
     Ok(config.display().to_string())
 }
@@ -549,37 +580,32 @@ mod tests {
     }
 
     #[test]
-    fn codex_merge_is_idempotent_and_keeps_other_tables() {
-        let home = std::env::temp_dir().join(format!("oma-sl-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&home);
-        std::fs::create_dir_all(&home).unwrap();
-        let cfg = home.join(".codex");
-        std::fs::create_dir_all(&cfg).unwrap();
-        let f = cfg.join("config.toml");
-        std::fs::write(
-            &f,
-            "model = \"gpt\"\n[tui]\nstatus_line = [\"old\"]\n[sandbox]\nmode = \"rw\"\n",
-        )
-        .unwrap();
-        // home 目录重定向不可行（dirs::home_dir 全局），直接验证段替换逻辑：
-        let text = std::fs::read_to_string(&f).unwrap();
-        let mut lines: Vec<String> = Vec::new();
-        let mut in_tui = false;
-        for ln in text.lines() {
-            if ln.trim().starts_with('[') {
-                in_tui = ln.trim() == "[tui]";
-                if in_tui {
-                    continue;
-                }
-            }
-            if !in_tui {
-                lines.push(ln.to_string());
-            }
-        }
-        let out = lines.join("\n");
+    fn codex_tui_section_is_builtin_ids_not_command_argv() {
+        let tui = render_codex_tui_section();
+        assert!(tui.contains("run-state"));
+        assert!(tui.contains("git-branch"));
+        assert!(tui.contains("status_line_use_colors = true"));
+        assert!(
+            !tui.contains("pwsh") && !tui.contains("oma-statusline"),
+            "Codex silently skips unknown IDs; command argv empties the bar: {tui}"
+        );
+        let last = tui
+            .lines()
+            .find(|l| l.trim_start().starts_with('"') && l.contains("branch-changes"))
+            .unwrap();
+        assert!(
+            !last.trim().ends_with(','),
+            "TOML 1.0 rejects trailing commas: {last}"
+        );
+    }
+
+    #[test]
+    fn strip_tui_section_keeps_other_tables() {
+        let text = "model = \"gpt\"\n[tui]\nstatus_line = [\"old\"]\n[sandbox]\nmode = \"rw\"\n";
+        let out = strip_tui_section(text);
         assert!(out.contains("model = \"gpt\""));
         assert!(out.contains("[sandbox]"));
         assert!(!out.contains("\"old\""));
-        let _ = std::fs::remove_dir_all(&home);
+        assert!(!out.contains("[tui]"));
     }
 }
