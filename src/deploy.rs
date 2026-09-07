@@ -185,18 +185,28 @@ fn merge_hook_event(settings: &mut Json, event: &str, our_handler: Json) -> Resu
     Ok(changed)
 }
 
+/// Full command line for Claude/Grok hook runners (no `args` array).
+/// Grok also loads `.claude/settings.json` (harness compatibility) and
+/// runs `command` through PowerShell: `"oma" hook` (exec form + args
+/// concatenated) is `ParserError: Unexpected token 'hook'` on every event.
+fn shell_hook_command(agent: &str, form: HookCmdForm) -> String {
+    match form {
+        HookCmdForm::Bare => format!("oma hook --agent {agent}"),
+        HookCmdForm::Absolute => {
+            let exe = oma_exe();
+            if cfg!(windows) {
+                format!("& \"{}\" hook --agent {agent}", exe.display())
+            } else {
+                format!("\"{}\" hook --agent {agent}", exe.display())
+            }
+        }
+    }
+}
+
 fn claude_handler(form: HookCmdForm) -> Json {
-    // Exec form: command must be a real executable; args carry "hook".
-    // Bare "oma" is resolved through PATH by each OS consuming the file, so
-    // one registration serves every environment sharing the project dir.
-    let command = match form {
-        HookCmdForm::Bare => "oma".to_string(),
-        HookCmdForm::Absolute => oma_exe().display().to_string(),
-    };
     json!({
         "type": "command",
-        "command": command,
-        "args": ["hook", "--agent", "claude"],
+        "command": shell_hook_command("claude", form),
         "timeout": 10,
     })
 }
@@ -317,17 +327,9 @@ fn merge_codex_hook_event(
 }
 
 fn grok_handler(form: HookCmdForm) -> Json {
-    // Grok has a single command string (no args array); the runner has an
-    // sh -c branch. Absolute stays quoted; the bare name needs no quotes.
-    let command = match form {
-        HookCmdForm::Bare => "oma hook --agent grok".to_string(),
-        HookCmdForm::Absolute => {
-            format!("\"{}\" hook --agent grok", oma_exe().display())
-        }
-    };
     json!({
         "type": "command",
-        "command": command,
+        "command": shell_hook_command("grok", form),
         "timeout": 10,
     })
 }
@@ -897,10 +899,11 @@ mod tests {
             .iter()
             .find(|g| g["hooks"][0]["command"].as_str().unwrap().contains("oma"))
             .unwrap();
-        assert_eq!(
-            ours["hooks"][0]["args"],
-            json!(["hook", "--agent", "claude"])
-        );
+        assert!(ours["hooks"][0].get("args").is_none());
+        assert!(ours["hooks"][0]["command"]
+            .as_str()
+            .unwrap()
+            .contains("hook --agent claude"));
         assert!(v["hooks"]["PermissionRequest"].is_array());
 
         let codex: Json = serde_json::from_str(
@@ -1159,7 +1162,7 @@ mod tests {
         let v: Json = serde_json::from_str(&fs::read_to_string(&settings).unwrap()).unwrap();
         assert_eq!(
             v["hooks"]["Stop"][0]["hooks"][0]["command"].as_str(),
-            Some("oma")
+            Some("oma hook --agent claude")
         );
         let g: Json = serde_json::from_str(&fs::read_to_string(&grok).unwrap()).unwrap();
         assert_eq!(
@@ -1178,7 +1181,7 @@ mod tests {
         let v2: Json = serde_json::from_str(&fs::read_to_string(&settings).unwrap()).unwrap();
         assert_eq!(
             v2["hooks"]["Stop"][0]["hooks"][0]["command"].as_str(),
-            Some("oma")
+            Some("oma hook --agent claude")
         );
         let _ = fs::remove_dir_all(&root);
     }
@@ -1206,7 +1209,7 @@ mod tests {
             .filter_map(|h| h["command"].as_str())
             .collect();
         assert_eq!(commands.len(), 1, "healed to a single entry: {commands:?}");
-        assert_eq!(commands[0], "oma");
+        assert_eq!(commands[0], "oma hook --agent claude");
         let _ = fs::remove_dir_all(&root);
     }
 
@@ -1232,7 +1235,7 @@ mod tests {
             .filter_map(|h| h["command"].as_str())
             .collect();
         assert_eq!(commands.len(), 1, "bare must stay single: {commands:?}");
-        assert_eq!(commands[0], "oma");
+        assert_eq!(commands[0], "oma hook --agent claude");
         let _ = fs::remove_dir_all(&root);
     }
 

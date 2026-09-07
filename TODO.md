@@ -10,6 +10,7 @@ D07 oma 收窄配合迁册（2026-09-05 立项、2026-09-07 达成归档 P0029�
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
+| 热修：Grok hook ParserError 不停报错（M047） | 已完成 | Claude/Grok 统一 `oma hook --agent <名>`；本仓与三仓已重跑 init。Grok 需新开会话才加载新注册 | 2026-09-07 |
 | 热修：Grok 状态栏 Nerd 字形显示成替换符（M046） | 已完成 | Grok 走 ASCII 安全路径；脚本已重放，下一帧即生效（改脚本不用重启 Grok） | 2026-09-07 |
 | 热修：Codex 状态栏 command-argv 被静默跳空（M045） | 已完成 | 写入面改 S016 推荐内置项 ID；doctor 把 argv 形态标 warn；用户 `~/.codex/config.toml` 已重写，doctor statusline ok | 2026-09-07 |
 | 热修：Codex Windows-only hook 信任播种空表（M044） | 已完成 | 播种与 merge 同口径认 `commandWindows`；doctor 项目 hook 信任只读项目 `config.toml`；ohmycloud / ohmyenv-rs / ohmypwsh 各 7 条 trusted_hash 已重播 | 2026-09-07 |

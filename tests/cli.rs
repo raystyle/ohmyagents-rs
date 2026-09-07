@@ -129,9 +129,11 @@ fn init_full_deploys_hooks_skills_and_yolo() {
         .stdout(contains("init.scope=full"))
         .stdout(contains("init.hooks.wrote.count="))
         .stdout(contains("init.hooks.form="));
-    // claude registration shape: exactly one oma handler per event, argv
-    // form intact, and the command is bare or host-absolute — never a
-    // POSIX path left by another OS's writer (P0027 shared-dir guard).
+    // claude registration shape: exactly one oma handler per event, a
+    // single command-line string (Grok imports this file; exec form plus
+    // args is ParserError on Windows PowerShell, M047), and the command
+    // is bare or host-absolute — never a POSIX path left by another OS's
+    // writer (P0027 shared-dir guard).
     let settings: serde_json::Value = serde_json::from_str(
         &std::fs::read_to_string(tmp.join(".claude").join("settings.json")).unwrap(),
     )
@@ -145,10 +147,14 @@ fn init_full_deploys_hooks_skills_and_yolo() {
             .filter(|h| h["command"].as_str().is_some_and(|c| c.contains("oma")))
             .collect();
         assert_eq!(ours.len(), 1, "one oma handler per event");
-        assert_eq!(
-            ours[0]["args"],
-            serde_json::json!(["hook", "--agent", "claude"])
+        assert!(
+            ours[0].get("args").is_none(),
+            "Grok PowerShell ParserError if command is the exe and args follow"
         );
+        assert!(ours[0]["command"]
+            .as_str()
+            .unwrap()
+            .contains("hook --agent claude"));
         assert_eq!(ours[0]["timeout"], 10);
         let cmd = ours[0]["command"].as_str().unwrap();
         assert!(

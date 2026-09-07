@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-07 | 热修 M047：Grok 每个事件 ParserError。Grok 加载项目 Claude exec 形态，PowerShell 把 `"oma" hook` 当语法错误；Claude/Grok 统一写成 `oma hook --agent <名>` |
 | 2026-09-07 | 热修 M046：Grok command 状态栏 Nerd 私用区字形在 pager 字体下显示成替换符；ps1 对 grok 走 ASCII 安全路径。D08 澄清：ome 只管软件部署，hook / 状态栏 / agent 配置检查留 oma |
 | 2026-09-07 | 热修 M045：Codex `[tui].status_line` 被写成 command argv，内置项解析静默跳空；写入面改 S016 推荐 ID，doctor 把 argv 形态标 warn |
 | 2026-09-07 | 热修 M044：P0027 后纯 Windows 项目 Codex `[hooks.state]` 空表（播种只认 `command`、doctor 被用户 store leftover 掩盖）。播种与 doctor 口径对齐；ohmycloud / ohmyenv-rs / ohmypwsh 各 7 条 trusted_hash 已重播 |
