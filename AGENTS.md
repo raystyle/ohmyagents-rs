@@ -11,11 +11,11 @@
 
 2. **边界**
    - 编排钉在启动的项目目录；不替代 ohmypwsh 五端环境总台，不替代各 agent 本体。
-   - 四仓分工（2026-09-02 定调，细目见 R001 四仓生态节）：ohmyenv-rs（`ome`）管工具与运行时依赖、本仓（`oma`）管 code agent 部署配置与编排、ohmypwsh 管五端总台与密钥安全、ohmycloud 管云端二进制分发；跨仓协作互相发 issue。
-   - agent 二进制的下载、安装、部署（五端）归本仓：`oma agents install` 幂等检测安装是唯一权威通道（已装任何来源即跳过），存量原地纳管不迁移（D06 三裁，2026-09-05）；agent 配置域（settings、API key、MCP、statusline）不在二进制吸收范围，各配置面切片与 ohmypwsh 密钥域既有归属不变。
+   - 四仓分工（2026-09-02 定调，D07 修正 agent 二进制归属，细目见 R001 四仓生态节）：ohmyenv-rs（`ome`）管工具、运行时依赖与 agent 二进制下装部署、本仓（`oma`）管 code agent 配置与编排、ohmypwsh 管五端总台与密钥安全、ohmycloud 管云端二进制分发；跨仓协作互相发 issue。
+   - agent 二进制的下载、安装、部署（五端）归 ohmyenv-rs：`ome install` 幂等检测安装（已装任何来源即跳过，存量原地纳管），数据权威 ome `catalog\tools.toml` agent 四节（D07 方向反转 2026-09-05，ohmyagents#5；前 D06 三裁成果转过渡态）。本仓 `oma agents install` 与 `update` 已 deprecated 指向 ome（保留兼容），`catalog\agents.toml` 冻结为历史锚；oma 收窄为 agent 配置域（settings、API key、MCP、statusline、登录态）、hook 与编排，oma doctor 的登录态 / hook 形态 / 状态栏 / 会话健康四类检查归 agents 域（二进制在位与版本、token 诊断归 ome doctor）。
    - 编排操作三通道：CLI、HTTP API、MCP 接口（P0011）；网页做可视化编排。弹不出浏览器不是错误。
    - 运行时后端是 rmux，不引入 herdr 当宿主。
-   - hook、skill、状态文件只落启动目录；oma 自管应用数据根是 `~/.ohmyagents`（agent 安装与本地 pin，P0012），默认不改用户家目录 hook 注册。
+   - hook、skill、状态文件只落启动目录；oma 自管应用数据根是 `~/.ohmyagents`（agent 安装与本地 pin，P0012；D07 后安装域迁 ome，此根承载存量安装与配置数据），默认不改用户家目录 hook 注册。
 
 3. **管理对象**
    - 可注册的终端 agent（当前默认 claude / codex / grok / kimi，可扩展）。
@@ -121,11 +121,11 @@
 
 - **核对依赖**：`oma check`（rmux pin 版本加哈希；缺则安装）
 - **只诊断**：`oma check --no-install`（缺失或不符非 0，不下载）
-- **无阻塞诊断**：`oma doctor`（七面只读体检；warn 与 block 分层，block 才退出 1）
+- **无阻塞诊断**：`oma doctor`（七面只读体检；登录态、hook 形态、状态栏、会话健康四类归 agents 域，D07；warn 与 block 分层，block 才退出 1）
 - **检测已装 agent**：`oma agents`（PATH / 环境变量 / oma 自管根 / 默认目录四源）
-- **安装缺失 agent**：`oma agents install [名] [--force]`（自适应只补缺，pin 加 sha256 信任锚）
+- **安装缺失 agent（deprecated）**：`oma agents install [名] [--force]`（D07 迁册：请用 `ome install <名>`；本命令保留兼容，stderr 先打 `oma.deprecated` 提示）
 - **提供商别名注入**：`oma agents providers [--example]`（别名簿 providers.toml；`spawn --agents claude@zhipu` 注入 env/argv）
-- **升级与 pin 维护**：`oma agents update [名]`（最新版解析加取证写回用户本地 pin）
+- **升级与 pin 维护（deprecated）**：`oma agents update [名]`（D07 迁册：agent 升级归 ome，通道语义由 ome 裁决；本命令保留兼容）
 - **设备码登录引导**：`oma agents login <grok|kimi>`（URL 加 code 干净输出跨机完成，落盘凭据为判据）
 - **配置状态栏**：`oma agents statusline [名]`（四家写入面幂等）
 - **密钥管理**：`oma agents secrets init|set|env|inject|status`（一钥两密文存储加四 shell 懒注入）

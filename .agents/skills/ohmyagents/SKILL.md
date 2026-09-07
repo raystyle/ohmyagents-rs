@@ -23,7 +23,7 @@ description: oma 项目编排命令图：会话拉起、状态、委派、自愈
 | 作为 MCP server 跑 stdio（六操作加 trace 检索 tools） | `oma mcp` |
 | 只读诊断信任库、二进制、登录态、hook 形态、状态栏与会话健康 | `oma doctor` |
 | 设备码登录引导：转发 URL 加 code，等浏览器侧完成后以落盘凭据确认 | `oma agents login grok|kimi` |
-| 安装缺失 agent（oma 自管根 ~/.ohmyagents） | `oma agents install [名]` |
+| 已 deprecated（D07 迁册）：agent 安装归 ome，请用 ome install <名>（本命令保留兼容） | `oma agents install [名]` |
 
 ## 任务目录协议
 

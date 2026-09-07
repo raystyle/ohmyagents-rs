@@ -701,7 +701,7 @@ const COMMAND_MAP: &[(&str, &str)] = &[
     ),
     (
         "oma agents install [名]",
-        "安装缺失 agent（oma 自管根 ~/.ohmyagents）",
+        "已 deprecated（D07 迁册）：agent 安装归 ome，请用 ome install <名>（本命令保留兼容）",
     ),
 ];
 

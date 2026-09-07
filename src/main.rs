@@ -428,7 +428,7 @@ enum AgentsCmd {
         #[arg(long)]
         example: bool,
     },
-    /// 安装缺失的 agent（oma 自管根 ~/.ohmyagents；已装任何来源即跳过；github 主 CDN 兜底）
+    /// 安装缺失的 agent（已 deprecated，D07 迁册 ome：请用 ome install；oma 自管根 ~/.ohmyagents；已装任何来源即跳过）
     Install {
         /// agent 名列表；缺省 = catalog 全部的缺失者
         names: Vec<String>,
@@ -439,7 +439,7 @@ enum AgentsCmd {
         #[arg(long)]
         root: Option<PathBuf>,
     },
-    /// 解析最新版并升级 oma 自管安装，取证 sha256 后写回用户本地 pin
+    /// 解析最新版并升级 oma 自管安装（已 deprecated，D07 迁册 ome：agent 升级归 ome），取证 sha256 后写回用户本地 pin
     Update {
         /// agent 名列表；缺省 = catalog 全部
         names: Vec<String>,
@@ -1243,6 +1243,11 @@ fn cmd_agents_install(
     force: bool,
     root: Option<PathBuf>,
 ) -> Result<(), String> {
+    // D07 迁册（ohmyagents#5）：agent 二进制下装部署归 ome，本命令 deprecated
+    // 但保留兼容——提示走 stderr，不污染 stdout 的 kv/json 输出面（R011）。
+    eprintln!(
+        "oma.deprecated=agents install moved to ome (D07); use: ome install <agent>; this command still works"
+    );
     let home = root.map(Ok).unwrap_or_else(install::oma_home)?;
     let catalog = install::resolve_catalog(&home)?;
     let mut failed = 0u32;
@@ -1288,6 +1293,10 @@ fn cmd_agents_install(
 }
 
 fn cmd_agents_update(names: Vec<String>, force: bool, root: Option<PathBuf>) -> Result<(), String> {
+    // D07 迁册：升级通道语义由 ome 裁决（ohmyagents#2 余项），提示先指向 ome install。
+    eprintln!(
+        "oma.deprecated=agents update moved to ome (D07); use: ome install <agent> (update channel decided by ome); this command still works"
+    );
     let home = root.map(Ok).unwrap_or_else(install::oma_home)?;
     let catalog = install::resolve_catalog(&home)?;
     let wanted: Vec<String> = if names.is_empty() {

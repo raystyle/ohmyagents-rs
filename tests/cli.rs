@@ -305,6 +305,54 @@ fn agents_install_unknown_name_fails_fast() {
 }
 
 #[test]
+fn agents_install_prints_deprecation_notice_pointing_to_ome() {
+    // D07 迁册（ohmyagents#5）：install 入口先打 deprecated 提示指向 ome install；
+    // 提示走 stderr，stdout 的 kv 输出面（R011）不受污染。未知名触网前快败。
+    let tmp = std::env::temp_dir().join(format!(
+        "oma-cli-deprec-install-{}-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis(),
+        NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    std::fs::create_dir_all(&tmp).unwrap();
+    oma()
+        .args(["agents", "install", "nope", "--root"])
+        .arg(&tmp)
+        .assert()
+        .failure()
+        .stderr(contains("oma.deprecated"))
+        .stderr(contains("ome install"));
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn agents_update_prints_deprecation_notice_pointing_to_ome() {
+    // D07 迁册：update 入口同口径提示（升级通道语义由 ome 裁决）；
+    // 未知名在解析最新版前快败，不触网。
+    let tmp = std::env::temp_dir().join(format!(
+        "oma-cli-deprec-update-{}-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis(),
+        NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    std::fs::create_dir_all(&tmp).unwrap();
+    oma()
+        .args(["agents", "update", "nope", "--root"])
+        .arg(&tmp)
+        .assert()
+        .failure()
+        .stderr(contains("oma.deprecated"))
+        .stderr(contains("ome install"));
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
 fn dies_send_without_a_session_fails_fast() {
     if !rmux_ready() {
         eprintln!("skip: rmux not installed on this host (CI)");

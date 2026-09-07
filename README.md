@@ -12,7 +12,7 @@
 - **单键守卫**：`oma key` 发单键（codex 拒 `C-c`：一个 C-c 杀进程；打断 codex 用 Esc）
 - **可视化看板**：`oma serve` 主页即 web 镜像：打开就是多路窗格实时画面（fit-fill 字号自适应铺满），可打字可拖窗格（本地 operator）；资源包随二进制走，首启释放 oma 数据根
 - **联邦轨迹检索**：`oma trace` 查询时直读四家原生会话库，双意图（用户请求与 assistant 声明）加 operation_id 归组，可回溯 oma 出现之前的历史
-- **自适应安装**：`oma check` 装 rmux（pin + sha256 信任锚）；`oma agents install` 装缺的 agent（github 主 CDN 兜底）；`oma agents update` 取证升级并写回用户本地 pin
+- **自适应安装**：`oma check` 装 rmux（pin + sha256 信任锚）；agent 二进制的安装与升级已归 ome（`ome install <agent>`，D07 迁册 2026-09-07），本仓 `oma agents install` / `oma agents update` deprecated 保留兼容
 - **安全面**：serve 只绑 127.0.0.1 + 全局 Host 回环闸（防 DNS rebinding）；公网中继镜像（`oma web` 官方域）缺省 PIN，免 PIN 组合打显著警示
 - **自举工作流**：oma 编排的 agent 给 oma 自身做 review（`.tools\review-round.py` 轮询接力，FINDINGS 契约 + 已拍板不修清单收敛）
 
@@ -31,7 +31,7 @@ cargo build --features server,mcp      # release: cargo build --release --featur
 ```powershell
 .\target\debug\oma.exe check           # 装/校验 rmux（pin 在 catalog/rmux.toml，现役 0.10.0）
 .\target\debug\oma.exe agents          # 检测四家已装情况（缺装行带 hint）
-.\target\debug\oma.exe agents install  # 缺的按 catalog 装（oma 自管根 ~/.ohmyagents/agents）
+ome install claude                    # 缺的 agent 用 ome 装（D07 起 agent 下装归 ome；oma agents install 已 deprecated 保留兼容）
 ```
 
 进目标项目初始化并开会话（注意：不要在本仓库根跑 `init`：会写 `.claude` / `.codex` / `.kimi-code` 进项目）：
@@ -111,10 +111,10 @@ oma check                              # 核对 rmux pin（版本+sha256+布局�
 oma check --no-install                 # 只诊断不下载（不符则退出非 0）
 oma doctor                             # 只读诊断：yolo/信任/二进制/hook 形态/状态栏/登录态/会话健康 + CPU 指令集段
 oma agents                             # 列四家检测（source=path|env|oma|default + version）
-oma agents install                     # 自适应装缺（已装任何来源即跳过）
-oma agents install claude grok --force # 指定重装 oma 自管根
-oma agents update                      # 全部升到最新（取证 sha 后写回用户本地 pin）
-oma agents update kimi                 # 只升一家
+oma agents install                     # 已 deprecated（D07 迁册 ome，保留兼容）：自适应装缺
+oma agents install claude grok --force # 指定重装 oma 自管根（deprecated 同上）
+oma agents update                      # 已 deprecated（D07 迁册 ome，保留兼容）：全部升到最新
+oma agents update kimi                 # 只升一家（deprecated 同上）
 oma agents statusline                  # 配置 claude/codex 状态栏（幂等；脚本释放 oma 数据根）
 oma agents statusline codex            # 只配一家
 ```
