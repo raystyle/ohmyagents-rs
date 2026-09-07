@@ -477,14 +477,36 @@ fn kimi_statusline_on(home: &Path) -> bool {
         .is_some_and(|c| c.contains(STATUSLINE_MARKER))
 }
 
-fn grok_statusline_on(home: &Path) -> bool {
-    toml_file(&home.join(".grok").join("config.toml"))
+/// Grok `[ui.status_line].command` kinds. A `pwsh -File "..."` shell line
+/// contains quotes, so Windows `Command::new(entire_string)` returns
+/// ERROR_INVALID_NAME 123 and never falls back to a shell (M048).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum GrokStatusline {
+    CmdPath,
+    PwshFile,
+    Missing,
+}
+
+fn grok_statusline_state(home: &Path) -> GrokStatusline {
+    let toml = toml_file(&home.join(".grok").join("config.toml"));
+    let Some(cmd) = toml
         .as_ref()
         .and_then(|t| t.get("ui"))
         .and_then(|ui| ui.get("status_line"))
         .and_then(|sl| sl.get("command"))
         .and_then(|c| c.as_str())
-        .is_some_and(|c| c.contains(STATUSLINE_MARKER))
+        .map(str::trim)
+        .filter(|c| c.contains(STATUSLINE_MARKER))
+    else {
+        return GrokStatusline::Missing;
+    };
+    if cmd.ends_with("oma-statusline-grok.cmd") && !cmd.contains("pwsh") {
+        return GrokStatusline::CmdPath;
+    }
+    if cmd.contains("pwsh") && cmd.contains("-File") {
+        return GrokStatusline::PwshFile;
+    }
+    GrokStatusline::Missing
 }
 
 fn push_statusline(
@@ -524,6 +546,7 @@ fn json_hooks_form(v: Option<&Json>) -> &'static str {
     };
     let mut ours = false;
     let mut bare = false;
+    let mut has_args = false;
     for group in events.values().filter_map(|g| g.as_array()).flatten() {
         let Some(hooks) = group.get("hooks").and_then(|h| h.as_array()) else {
             continue;
@@ -534,13 +557,21 @@ fn json_hooks_form(v: Option<&Json>) -> &'static str {
             };
             if crate::deploy::is_ours(c) {
                 ours = true;
+                if h.get("args")
+                    .and_then(|a| a.as_array())
+                    .is_some_and(|a| !a.is_empty())
+                {
+                    has_args = true;
+                }
                 if !c.contains('/') && !c.contains('\\') {
                     bare = true;
                 }
             }
         }
     }
-    if bare {
+    if has_args {
+        "args"
+    } else if bare {
         "bare"
     } else if ours {
         "absolute"
@@ -589,6 +620,14 @@ fn push_hooks_form(out: &mut Vec<Finding>, agent: &str, form: &str, path: &Path)
             Status::Ok,
             path,
             "form=bare (PATH-resolved; one registration serves every environment)",
+        ),
+        "args" => push_status(
+            out,
+            agent,
+            "hooks.form",
+            Status::Warn,
+            path,
+            "command+args is PowerShell ParserError under Grok (M047); oma init",
         ),
         "absolute" => push_status(
             out,
@@ -1268,14 +1307,56 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         json_hooks_form(json_file(&grok_state_json).as_ref()),
         &grok_state_json,
     );
-    push_statusline(
-        &mut findings,
-        "grok",
-        grok_statusline_on(&home),
-        &grok_cfg,
-        sl_grok_ok,
-        sl_pwsh_missing,
-    );
+    match grok_statusline_state(&home) {
+        GrokStatusline::CmdPath => {
+            #[cfg(windows)]
+            push_statusline(
+                &mut findings,
+                "grok",
+                true,
+                &grok_cfg,
+                sl_grok_ok,
+                sl_pwsh_missing,
+            );
+            #[cfg(not(windows))]
+            push_status(
+                &mut findings,
+                "grok",
+                "statusline",
+                Status::Warn,
+                &grok_cfg,
+                "status_line is a Windows .cmd path; oma agents statusline grok",
+            );
+        }
+        GrokStatusline::PwshFile => {
+            #[cfg(windows)]
+            push_status(
+                &mut findings,
+                "grok",
+                "statusline",
+                Status::Warn,
+                &grok_cfg,
+                "status_line is pwsh -File shell line; Grok Command::new paints os error 123 (M048); oma agents statusline grok",
+            );
+            #[cfg(not(windows))]
+            push_statusline(
+                &mut findings,
+                "grok",
+                true,
+                &grok_cfg,
+                sl_script_ok,
+                sl_pwsh_missing,
+            );
+        }
+        GrokStatusline::Missing => push_statusline(
+            &mut findings,
+            "grok",
+            false,
+            &grok_cfg,
+            sl_grok_ok,
+            sl_pwsh_missing,
+        ),
+    }
 
     let state_dir = root.join(".ohmyagents").join("state");
     if state_dir.is_dir() {
@@ -1553,6 +1634,15 @@ mod tests {
         let foreign = json!({"hooks": {"SessionStart": [{"hooks": [{"command": "echo hi"}]}]}});
         assert_eq!(json_hooks_form(Some(&foreign)), "none");
         assert_eq!(json_hooks_form(None), "none");
+        let args = json!({"hooks": {"SessionStart": [{"hooks": [{
+            "command": "oma",
+            "args": ["hook", "--agent", "claude"]
+        }]}]}});
+        assert_eq!(
+            json_hooks_form(Some(&args)),
+            "args",
+            "Grok loads Claude settings; command+args is ParserError (M047)"
+        );
     }
 
     #[test]
@@ -1596,6 +1686,28 @@ mod tests {
         )
         .unwrap();
         assert_eq!(codex_statusline_state(&root), CodexStatusline::Builtin);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn grok_statusline_state_classifies_cmd_pwsh_missing() {
+        // Oracle: grok-build command.rs Command::new(entire string); Windows
+        // shell line with quotes is ERROR_INVALID_NAME 123 (M048).
+        let root = temp_root("grok-sl");
+        fs::create_dir_all(root.join(".grok")).unwrap();
+        assert_eq!(grok_statusline_state(&root), GrokStatusline::Missing);
+        fs::write(
+            root.join(".grok").join("config.toml"),
+            "[ui.status_line]\ntype = \"command\"\ncommand = \"pwsh -NoProfile -File \\\"C:/x/oma-statusline.ps1\\\" grok\"\n",
+        )
+        .unwrap();
+        assert_eq!(grok_statusline_state(&root), GrokStatusline::PwshFile);
+        fs::write(
+            root.join(".grok").join("config.toml"),
+            "[ui.status_line]\ntype = \"command\"\ncommand = \"C:/Users/ray/.ohmyagents/statusline/oma-statusline-grok.cmd\"\n",
+        )
+        .unwrap();
+        assert_eq!(grok_statusline_state(&root), GrokStatusline::CmdPath);
         let _ = fs::remove_dir_all(&root);
     }
 

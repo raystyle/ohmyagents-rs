@@ -7,14 +7,14 @@
 
 > 当前目标的起点：何时发起、为什么发起、要解决什么问题。
 
-- **日期**：2026-09-05（2026-09-07 执行）。
-- **起点**：D06 当日五端闭环后用户追问链三轮六裁**方向反转**：「oma 以后只管配置 agent 和 hook 和编排，不管 agent 的升级和安装」。agent 二进制下装部署回归 ohmyenv-rs（ome），oma 做迁册配合：install/update deprecated 指向 ome、`catalog\agents.toml` 数据权威注记转 ome、doctor 四类检查归 agents 域。2026-09-07 用户裁定不等 ome 仓 D07 切片 3 先清自身面，ome 侧以 issue 交底。
+- **日期**：2026-09-07。
+- **起点**：用户裁定「ome只管软件部署；oma 要对 hook、状态栏和 agent 配置的检查」（D08，纠正把 ome doctor 做成调用 oma 的误读）。触发项 Grok 状态栏显示错误。热修 M046 至 M048 后用户实证栏正常。盘点：doctor 已有登录态 / hook 形态 / 状态栏 / 会话健康四类，但把「写了配置」当 ok，漏掉 Windows 不可 spawn 的 command 串（M048）和 command+args（M047）。
 
 ## 锚点
 
 > 当前锚定的目标 + 推进时间线。
 
-- **锚定的目标**：D07 oma 收窄配合迁册（agents install/update deprecated 指向 ome、`catalog\agents.toml` 冻结历史锚、doctor 四类检查归 agents 域；配置 agent、hook、编排为本域）。
+- **锚定的目标**：D08 doctor 检查面补形态（Grok 状态栏 command 可 spawn、JSON hook 无 args 数组；配置写了不等于能跑）。
 
 ### 推进时间线
 
@@ -22,6 +22,8 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-07 | D08 切片落地：doctor Grok 状态栏三态（Windows 只认 .cmd 单路径）加 hook args 形态 warn；141 单测绿；本机 grok statusline ok、hooks.form=bare |
+| 2026-09-07 | 用户实证 M048 修复后 Grok 状态栏正常。D08 立项：doctor 补 Grok command 三态与 hook args 形态，堵住「写了配置仍 ok」 |
 | 2026-09-07 | 热修 M048：Grok 状态栏 os error 123。grok-build `command.rs` 整串 `Command::new`，带引号的 `pwsh -File` 行是 ERROR_INVALID_NAME 不是 NotFound，shell 回落不发生。Windows 改写 `oma-statusline-grok.cmd` 单路径 |
 | 2026-09-07 | 热修 M047：Grok 每个事件 ParserError。Grok 加载项目 Claude exec 形态，PowerShell 把 `"oma" hook` 当语法错误；Claude/Grok 统一写成 `oma hook --agent <名>` |
 | 2026-09-07 | 热修 M046：Grok command 状态栏 Nerd 私用区字形在 pager 字体下显示成替换符；ps1 对 grok 走 ASCII 安全路径。D08 澄清：ome 只管软件部署，hook / 状态栏 / agent 配置检查留 oma |

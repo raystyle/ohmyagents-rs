@@ -4,25 +4,19 @@
 
 ## 当前目标
 
-D07 oma 收窄配合迁册（2026-09-05 立项、2026-09-07 达成归档 P0029；方案见 `PLAN.md`，需求见 `PRD.md` D07）。下目标待立项，走 `PRD.md` 追问链。
+D08 doctor 检查面补形态（2026-09-07 立项；方案见 `PLAN.md`，需求见 `PRD.md` D08）。用户实证 Grok 状态栏已正常；本目标补 doctor 把「写了配置」当 ok 的漏检。
 
 ### 任务进度清单
 
 | 任务项 | 进度 | 说明 | 日期 |
 | --- | --- | --- | --- |
-| 热修：Grok 状态栏 os error 123（M048） | 已完成 | Windows command 改 `.cmd` 单路径（整串 Command::new 遇引号报 123 且不回落 shell）；用户配置已重写。改配置需重启 Grok | 2026-09-07 |
-| 热修：Grok hook ParserError 不停报错（M047） | 已完成 | Claude/Grok 统一 `oma hook --agent <名>`；本仓与三仓已重跑 init。Grok 需新开会话才加载新注册 | 2026-09-07 |
-| 热修：Grok 状态栏 Nerd 字形显示成替换符（M046） | 已完成 | Grok 走 ASCII 安全路径；脚本已重放，下一帧即生效（改脚本不用重启 Grok） | 2026-09-07 |
-| 热修：Codex 状态栏 command-argv 被静默跳空（M045） | 已完成 | 写入面改 S016 推荐内置项 ID；doctor 把 argv 形态标 warn；用户 `~/.codex/config.toml` 已重写，doctor statusline ok | 2026-09-07 |
-| 热修：Codex Windows-only hook 信任播种空表（M044） | 已完成 | 播种与 merge 同口径认 `commandWindows`；doctor 项目 hook 信任只读项目 `config.toml`；ohmycloud / ohmyenv-rs / ohmypwsh 各 7 条 trusted_hash 已重播 | 2026-09-07 |
-| 迁册批：agents install/update deprecated（D07） | 已完成 | 入口 stderr 打 `oma.deprecated` 指向 `ome install`（不删命令、stdout kv 与 json 面 R011 不动；update 注明通道语义由 ome 裁决）；clap 帮助与 COMMAND_MAP 同步；集成测试两条；R002 两行 deprecated 注、AGENTS 路由两行、INDEX 两行。原门槛「等 ome 仓 D07 切片 1 与 3 落地」，2026-09-07 用户裁定不等切片 3 先清自身面 | 2026-09-07 |
-| `catalog\agents.toml` 头注记数据权威转 ome | 已完成 | 文件头注记冻结历史锚（数据权威 ome `catalog\tools.toml` agent 四节，pin 与 sha 不再随上游滚动）；INDEX catalog 行同步 | 2026-09-07 |
-| doctor 四类检查归 agents 域 | 已完成 | R002 doctor 行重排（agents 域四类：登录态 / hook 形态 / 状态栏 / 会话健康；二进制在位与版本、token 诊断归 ome doctor）；AGENTS doctor 路由行同步；代码不动（ohmyagents#5「维持」口径，binary 在位探查保留作 spawn 前置） | 2026-09-07 |
-| 跨仓交底与回填 | 已完成 | ohmyenv-rs#6 发出：本机 ome 部署位与 catalog 停 2026-09-02 旧版、`ome install` 报未知工具，请部署含 D07 新版并实证四家幂等跳过；ohmyagents#5 回填迁册批落地并关闭 | 2026-09-07 |
-| 根 SKILL.md 命令图对账（队列转入顺带收口） | 已完成 | COMMAND_MAP 改 deprecated 文案并重跑 `oma init`：四端 SKILL 全部再生（marker 在位即覆写为生成版，与 COMMAND_MAP 同构，2026-09-03 登记的落后欠账随再生消除） | 2026-09-07 |
+| doctor：Grok 状态栏 command 三态（M048） | 已完成 | Windows 只认 `oma-statusline-grok.cmd` 单路径；`pwsh -File` 壳行标 warn。本机 doctor grok statusline ok | 2026-09-07 |
+| doctor：JSON hook args 数组标 warn（M047） | 已完成 | ours 且 args 非空则形态 args，指向 `oma init`；本机 claude/grok hooks.form=bare | 2026-09-07 |
+| R002 doctor 行补两形态 | 已完成 | hook args 与 Grok Windows .cmd 口径写入 R002 doctor 行 | 2026-09-07 |
 
 ## 前目标清单
 
+> D07 oma 收窄配合迁册（2026-09-07 归档 P0029）：agents install/update deprecated、agents.toml 冻结历史锚、doctor 四类归 agents 域；当日热修 M044 至 M048（Codex 信任空表、Codex 状态栏 argv、Grok 字形、Grok hook ParserError、Grok 状态栏 os error 123）。
 > 文档体系重构（D01 至 D05，2026-09-03）：全链已完成，PRD 引入（b948d67）、R002 扩容（61a3035）、AGENTS 重写（4147eff）、INDEX 收敛（03a6271）、TODO 清退（2e14434）、PLAN 与 GOAL 切目标（df362f5）、CHANGELOG 与 ROADMAP 补史（fd45180）、G002 CR 修复（8be0e4d）、R 系列六态整改（0bf7a5f）、豁免清单退出（2c0e67e）、标题修正（0e044bb）。
 > D06 agent 二进制下装部署五端全量收敛（2026-09-05）：当日闭环（--version 三端、lan 两端下发盘点、五端幂等验收、AGENTS 边界与跨仓 issue）后同日方向反转（D07），五端成果转过渡态；切片与验收明细见 GOAL 历史 2026-09-05 与提交 ad11a79。
 
