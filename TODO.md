@@ -13,7 +13,7 @@ D07 oma 收窄配合迁册（2026-09-05 立项、2026-09-07 达成归档 P0029�
 | 迁册批：agents install/update deprecated（D07） | 已完成 | 入口 stderr 打 `oma.deprecated` 指向 `ome install`（不删命令、stdout kv 与 json 面 R011 不动；update 注明通道语义由 ome 裁决）；clap 帮助与 COMMAND_MAP 同步；集成测试两条；R002 两行 deprecated 注、AGENTS 路由两行、INDEX 两行。原门槛「等 ome 仓 D07 切片 1 与 3 落地」，2026-09-07 用户裁定不等切片 3 先清自身面 | 2026-09-07 |
 | `catalog\agents.toml` 头注记数据权威转 ome | 已完成 | 文件头注记冻结历史锚（数据权威 ome `catalog\tools.toml` agent 四节，pin 与 sha 不再随上游滚动）；INDEX catalog 行同步 | 2026-09-07 |
 | doctor 四类检查归 agents 域 | 已完成 | R002 doctor 行重排（agents 域四类：登录态 / hook 形态 / 状态栏 / 会话健康；二进制在位与版本、token 诊断归 ome doctor）；AGENTS doctor 路由行同步；代码不动（ohmyagents#5「维持」口径，binary 在位探查保留作 spawn 前置） | 2026-09-07 |
-| 跨仓交底与回填 | 已完成 | ohmyenv-rs 发 issue：本机 ome 部署位与 catalog 停 2026-09-02 旧版、`ome install` 报未知工具，请部署含 D07 新版并实证四家幂等跳过；ohmyagents#5 回填迁册批落地 | 2026-09-07 |
+| 跨仓交底与回填 | 已完成 | ohmyenv-rs#6 发出：本机 ome 部署位与 catalog 停 2026-09-02 旧版、`ome install` 报未知工具，请部署含 D07 新版并实证四家幂等跳过；ohmyagents#5 回填迁册批落地并关闭 | 2026-09-07 |
 | 根 SKILL.md 命令图对账（队列转入顺带收口） | 已完成 | COMMAND_MAP 改 deprecated 文案并重跑 `oma init`：四端 SKILL 全部再生（marker 在位即覆写为生成版，与 COMMAND_MAP 同构，2026-09-03 登记的落后欠账随再生消除） | 2026-09-07 |
 
 ## 前目标清单

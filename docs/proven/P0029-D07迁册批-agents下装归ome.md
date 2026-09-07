@@ -38,7 +38,7 @@
 
 - 新增两条集成测试绿；全量 cargo test、fmt / clippy 零告警；md 三件套与 rumdl 触碰文件过。
 - `oma agents install nope --root <tmp>` 实跑：stderr 先出 `oma.deprecated` 再报未知 agent，退出非 0，stdout kv 面无提示混入。
-- 跨仓：ohmyenv-rs 发 issue 交底（本机 ome 部署位与 catalog 停 2026-09-02 旧版，`ome install claude` 报未知工具，请部署含 D07 新版并实证四家幂等跳过）；ohmyagents#5 回填。
+- 跨仓：ohmyenv-rs#6 交底（本机 ome 部署位与 catalog 停 2026-09-02 旧版，`ome install claude` 报未知工具，请部署含 D07 新版并实证四家幂等跳过）；ohmyagents#5 回填并关闭。
 
 ## 钩子
 
