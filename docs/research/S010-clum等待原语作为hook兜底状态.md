@@ -46,22 +46,22 @@ YouMind 对文件路径与主流程的描述，在 `68a90e4` 上成立；有一�
 
 > 下列断言均对照 `68a90e4` 文件，不再引用 YouMind 当实证。
 
-MCP 层确是薄转发。`clum-mcp/src/tools/output.rs` 的 `wait_for_text` / `wait_exit`：缺 `host` 报错；`session_name` 默认 `"clum"`；`timeout_ms` 默认 `DEFAULT_WAIT_TIMEOUT_MS = 30_000`（`clum-core/src/lib.rs` L24–25）；`send_json_frame` 后 `recv_json_frame`，再 `enrich_pane_response` 与 audit。无等待循环。[实证: output.rs L9–68]
+MCP 层确是薄转发。`clum-mcp/src/tools/output.rs` 的 `wait_for_text` / `wait_exit`：缺 `host` 报错；`session_name` 默认 `"clum"`；`timeout_ms` 默认 `DEFAULT_WAIT_TIMEOUT_MS = 30_000`（`clum-core/src/lib.rs` L24-25）；`send_json_frame` 后 `recv_json_frame`，再 `enrich_pane_response` 与 audit。无等待循环。[实证: output.rs L9-68]
 
-Bridge 等待在 `rmux-bridge/src/protocol/output.rs`。`ProtocolProxy` 两套连接：`rmux` 的 `default_timeout(30s)`，`rmux_long` 的 `default_timeout(Duration::MAX)`（`protocol/mod.rs` L35–44）。[实证: 该文件]
+Bridge 等待在 `rmux-bridge/src/protocol/output.rs`。`ProtocolProxy` 两套连接：`rmux` 的 `default_timeout(30s)`，`rmux_long` 的 `default_timeout(Duration::MAX)`（`protocol/mod.rs` L35-44）。[实证: 该文件]
 
 | 原语 | 核实结果 |
 | --- | --- |
-| `wait_for_text` | `expect_visible_text().to_contain(text).timeout(from_millis(timeout_ms))`。成功带 `terminal_state`+cursor；`RmuxError::WaitTimeout` 再 `snapshot()` 填 `partial_output`。注释写要避开 SDK 5s 假超时。L149–216 |
-| `wait_stable` | `stable_ms==0` 直接拒绝。`wait_until_stable_for(stable_ms).timeout(timeout_ms)`。L348–376 |
-| `wait_exit` | **未调用** `pane.wait_exit()`。100ms 轮询 `info()`；无 pane 返回 `exited:false`；有 `exit_state` 才 `exited:true`；`Exited` 无 exit_state 则 `exited:false`。L287–345 |
-| `wait_for_bytes` | 走 `rmux_long`；参数名 `_timeout_ms` 未使用。`only_new` 时 `has_capability("sdk.waits.armed")` 则 `wait_for_next` 否则 `wait_for`。TOOLS.md 与 schema 均写超时未强制。L219–284 |
-| `collect_until_exit` | 死窗格快路径；否则 `tokio::spawn` 收集 + 外层 `timeout`；超时 `abort.abort()` 再 snapshot。L415–530 |
+| `wait_for_text` | `expect_visible_text().to_contain(text).timeout(from_millis(timeout_ms))`。成功带 `terminal_state`+cursor；`RmuxError::WaitTimeout` 再 `snapshot()` 填 `partial_output`。注释写要避开 SDK 5s 假超时。L149-216 |
+| `wait_stable` | `stable_ms==0` 直接拒绝。`wait_until_stable_for(stable_ms).timeout(timeout_ms)`。L348-376 |
+| `wait_exit` | **未调用** `pane.wait_exit()`。100ms 轮询 `info()`；无 pane 返回 `exited:false`；有 `exit_state` 才 `exited:true`；`Exited` 无 exit_state 则 `exited:false`。L287-345 |
+| `wait_for_bytes` | 走 `rmux_long`；参数名 `_timeout_ms` 未使用。`only_new` 时 `has_capability("sdk.waits.armed")` 则 `wait_for_next` 否则 `wait_for`。TOOLS.md 与 schema 均写超时未强制。L219-284 |
+| `collect_until_exit` | 死窗格快路径；否则 `tokio::spawn` 收集 + 外层 `timeout`；超时 `abort.abort()` 再 snapshot。L415-530 |
 | `stream_pane` | MCP `stream.rs`：魔数 `0x02`，缓冲 10000，满则 **丢新留旧**，超时文案 `stream_pane again to continue`。空闲 300s / keepalive 30s |
 
-`detect_terminal_state`（`terminal_state.rs` L29–166）：去尾空行后最后 12 行；光标不可见先 editor/pager 否则 Running；password 关键词只扫 **tail**；confirm 次之；shell 提示符再加 col==0 则 Running。P0 单测：`[sudo] password` 且 col=0 仍是 Password（L235–239），因 password 规则在 shell 的 col 检查之前。英文关键词表属实，无中文「是否继续」。
+`detect_terminal_state`（`terminal_state.rs` L29-166）：去尾空行后最后 12 行；光标不可见先 editor/pager 否则 Running；password 关键词只扫 **tail**；confirm 次之；shell 提示符再加 col==0 则 Running。P0 单测：`[sudo] password` 且 col=0 仍是 Password（L235-239），因 password 规则在 shell 的 col 检查之前。英文关键词表属实，无中文「是否继续」。
 
-**订正 YouMind / clum 注释。** `handle_wait_exit` 写「`pane.wait_exit()` 受 SDK 默认 5s（`V1_DEFAULT_TIMEOUT`）限制」。本机 `rmux-sdk` 0.10.0：`V1_DEFAULT_TIMEOUT` 确是 5 秒（`discovery.rs` L29）；`Pane::wait_exit` **没有** per-op `.timeout()`，只用 facade 的 `configured_default_timeout`（`wait.rs` L180–187）。但 clum 的 `self.rmux` 已经是 **30s** 默认，不是 5s。轮询的真实理由是：调用方 `timeout_ms` 可以大于 facade 30s，而 `wait_exit()` 吃不到这次请求的超时。[实证: protocol/mod.rs L35–38；rmux-sdk wait.rs；clum output.rs L307–309 注释过时]
+**订正 YouMind / clum 注释。** `handle_wait_exit` 写「`pane.wait_exit()` 受 SDK 默认 5s（`V1_DEFAULT_TIMEOUT`）限制」。本机 `rmux-sdk` 0.10.0：`V1_DEFAULT_TIMEOUT` 确是 5 秒（`discovery.rs` L29）；`Pane::wait_exit` **没有** per-op `.timeout()`，只用 facade 的 `configured_default_timeout`（`wait.rs` L180-187）。但 clum 的 `self.rmux` 已经是 **30s** 默认，不是 5s。轮询的真实理由是：调用方 `timeout_ms` 可以大于 facade 30s，而 `wait_exit()` 吃不到这次请求的超时。[实证: protocol/mod.rs L35-38；rmux-sdk wait.rs；clum output.rs L307-309 注释过时]
 
 本仓 `rmuxpoc` builder `default_timeout(20s)` 同样盖过 5s；单次等待仍应再写 `.timeout()`，与 clum 的 per-op 覆写同策略。[实证: `src/rmuxpoc.rs`]
 
@@ -86,7 +86,7 @@ Bridge 等待在 `rmux-bridge/src/protocol/output.rs`。`ProtocolProxy` 两套�
 2. **超时即信息。** 失败分支立刻 `snapshot()`，带回 `partial_output` + `terminal_state` + `cursor`。禁止超时后空着手再 attach 猜。
 3. **文档与代码对齐缺陷。** `wait_for_bytes` 的 `_timeout_ms` 未用、属无限等；`collect_until_exit` 超时丢缓冲。本仓若用这两条必须自加看门狗。
 
-`terminal_state` 输入：可见文本、光标列、光标是否可见。窗口取最后 12 行。优先级：password > confirm > editor > pager > REPL > shell 提示符。P0：`[sudo] password` 且 col=0 仍是 Password。[实证: terminal_state.rs L29–166、L235–239]
+`terminal_state` 输入：可见文本、光标列、光标是否可见。窗口取最后 12 行。优先级：password > confirm > editor > pager > REPL > shell 提示符。P0：`[sudo] password` 且 col=0 仍是 Password。[实证: terminal_state.rs L29-166、L235-239]
 
 局限：规则按英文终端（`Password:`、`Are you sure`、`-- INSERT --`）。中文「是否继续？」「密码：」不在表里，会掉进 unknown 或误分类。[实证: password_keywords / confirm_patterns 无中文] 本仓假对话框用的是英文 `Allow this action?`，不能当成中文 TUI 已覆盖。[实证: poc-dialogs]
 

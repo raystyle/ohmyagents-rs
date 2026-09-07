@@ -1,12 +1,12 @@
 # S021：linux 预备检测：指令集 SIGILL 问题类与检测阶梯
 
 - 日期：2026-08-31
-- 关联：`P0012`（Linux/mac 接管，用户定调排后——本文是切换环境前的预备检测研究）；`S017`（四家 agent 渠道与制品形态）
+- 关联：`P0012`（Linux/mac 接管，用户定调排后：本文是切换环境前的预备检测研究）；`S017`（四家 agent 渠道与制品形态）
 - 研究法：用户提供问题类框架（机理与谱系），公开案例经 web 检索核实到 issue 级；检测阶梯的 shell 侧命令为 Linux 通用口径，oma 侧落点为设计口径（本机 Windows 无法实跑 Linux 面）
 
 ## 一、为什么研究
 
-P0012 切到 Linux 后最可能的「所有 agent 都跑不起来」形态：预编译原生二进制在编译期启用了 AVX-512（或 AVX2），目标机 CPU / 虚拟机 / 云主机并不真正具备，进程一启动就 SIGILL（非法指令）。rmux / herdr 这类 multiplexer 本身一般不要求 AVX-512——崩的是它挂进 pane 的各家 agent，于是症状表现为「编排器活着、所有路全灭」。切换环境前把检测与缓解钉死，P0012 验收时这个坑一次过。
+P0012 切到 Linux 后最可能的「所有 agent 都跑不起来」形态：预编译原生二进制在编译期启用了 AVX-512（或 AVX2），目标机 CPU / 虚拟机 / 云主机并不真正具备，进程一启动就 SIGILL（非法指令）。rmux / herdr 这类 multiplexer 本身一般不要求 AVX-512：崩的是它挂进 pane 的各家 agent，于是症状表现为「编排器活着、所有路全灭」。切换环境前把检测与缓解钉死，P0012 验收时这个坑一次过。
 
 ## 二、问题机理
 
@@ -15,8 +15,8 @@ P0012 切到 Linux 后最可能的「所有 agent 都跑不起来」形态：预
 - 预编译 native 二进制（Bun 运行时 / Rust 默认 target / C++ 推理库）直接含 EVEX / ZMM 指令；启动或加载模型走 SIMD 热路径，第一条非法指令即整个进程退出（SIGILL，signal 4）。
 - 三层不匹配：
   1. CPU 没有 avx2 / avx512f（老 CPU 或阉割虚拟 CPU）。
-  2. CPUID「看起来有 AVX-512」但 OS 未开放相应 xsave 状态（XCR0 未覆盖 opmask / ZMM）——云主机（Cloud Run、部分 KVM）常见：标志在、运行照崩。
-  3. hypervisor 层暴露标志但宿主实际关闭 ZMM——guest 内一切静态检查都可能被骗过。
+  2. CPUID「看起来有 AVX-512」但 OS 未开放相应 xsave 状态（XCR0 未覆盖 opmask / ZMM）：云主机（Cloud Run、部分 KVM）常见：标志在、运行照崩。
+  3. hypervisor 层暴露标志但宿主实际关闭 ZMM：guest 内一切静态检查都可能被骗过。
 - CPU 谱系：Intel 消费级自 Alder Lake 起基本关闭 AVX-512（13 代 Raptor Lake 同样无）；AMD 自 Zen 4 才原生完整支持，Zen 3 及更早没有；发布包按「新机器」编出且不做运行时降级，就命中上述三层之一。
 
 ## 三、公开案例
@@ -44,36 +44,36 @@ lscpu | grep -iE 'avx|flags'
 grep -m1 flags /proc/cpuinfo
 ```
 
-读法：有 `avx2` 无 `avx512f` 是常态（12 代后 Intel 消费级、Zen 3 及更早、不少云主机被关 ZMM）；连 `avx` 都没有则 Bun 系全灭。注意 guest 内核的 flags 视图通常已按自身 xstate 做过门控，但 hypervisor 层的谎报仍可能穿透——flags 只能排「肯定没有」，不能担保「真有」。[推断: 门控细节待 Linux 实机核]
+读法：有 `avx2` 无 `avx512f` 是常态（12 代后 Intel 消费级、Zen 3 及更早、不少云主机被关 ZMM）；连 `avx` 都没有则 Bun 系全灭。注意 guest 内核的 flags 视图通常已按自身 xstate 做过门控，但 hypervisor 层的谎报仍可能穿透：flags 只能排「肯定没有」，不能担保「真有」。[推断: 门控细节待 Linux 实机核]
 
 ```bash
 # 第 2 级：OS 使能面（OSXSAVE 与 XCR0）
 # 用户态无直接读 XCR0 的通用工具；x86info / 自编 xgetbv 探针（先 CPUID 验 OSXSAVE 再执行）
 ```
 
-第 3 级：**子进程实测指令**——起一个极小的 AVX-512（或 AVX2）指令探针子进程，收尸看信号。这是唯一不被 flags 谎报欺骗的面（第 2 类与第 3 类不匹配都在此现形）。
+第 3 级：**子进程实测指令**：起一个极小的 AVX-512（或 AVX2）指令探针子进程，收尸看信号。这是唯一不被 flags 谎报欺骗的面（第 2 类与第 3 类不匹配都在此现形）。
 
-第 4 级：**逐二进制 `--version` 探针**——oma 已有这个原生面（Windows 上 `oma agents` 装后探针、`oma check` 探 rmux `-V`）。Linux 下把退出形态记全：
+第 4 级：**逐二进制 `--version` 探针**：oma 已有这个原生面（Windows 上 `oma agents` 装后探针、`oma check` 探 rmux `-V`）。Linux 下把退出形态记全：
 
 ```bash
 <agent-bin> --version; echo "exit=$?"
 # exit=132（128+SIGILL=4）即命中本问题类；bash 惯例 128+N
 ```
 
-Rust 侧 `std::os::unix::process::ExitStatusExt::signal() == Some(4)`（`code()` 为 None）；Windows 对应形态是 `STATUS_ILLEGAL_INSTRUCTION`（0xC000001D）。**探针打到真二进制上，比任何 CPU 检查都权威**——它测的就是「这份制品在这台机器」的组合。
+Rust 侧 `std::os::unix::process::ExitStatusExt::signal() == Some(4)`（`code()` 为 None）；Windows 对应形态是 `STATUS_ILLEGAL_INSTRUCTION`（0xC000001D）。**探针打到真二进制上，比任何 CPU 检查都权威**：它测的就是「这份制品在这台机器」的组合。
 
 ## 五、oma 落点
 
 > P0012 预备件；以下均为设计口径。
 
-- `oma agents`：Linux 下探针退出形态记全——signal 4 单列报告行（如 `probe=sigill hint=cpu lacks AVX-512; try npm variant or older build`），与现有「校验产物不校验退出码」的装机探针合流。[设计口径]
-- `oma doctor`：Linux 加 CPU 能力段——`lscpu` flags 摘要（avx / avx2 / avx512f 三布尔）加各已装二进制探针结果；任一 sigill 则该路 `status=block`（doctor 现有语义）。[设计口径]
+- `oma agents`：Linux 下探针退出形态记全：signal 4 单列报告行（如 `probe=sigill hint=cpu lacks AVX-512; try npm variant or older build`），与现有「校验产物不校验退出码」的装机探针合流。[设计口径]
+- `oma doctor`：Linux 加 CPU 能力段：`lscpu` flags 摘要（avx / avx2 / avx512f 三布尔）加各已装二进制探针结果；任一 sigill 则该路 `status=block`（doctor 现有语义）。[设计口径]
 - `oma check`：rmux 二进制同探针口径（multiplexer 一般不要求 AVX-512，但同一报告面顺手覆盖）。[设计口径]
 - 缓解提示表（诊断输出带 hint）：claude 用 npm 版（Node 跑）；codex 降版或 npm 形态；Bun 系 opencode 换 Node 形态；本地推理库自编译关 native 优化。缓解有效性逐条属 [记忆: 文献转述]，Linux 实机验收时复核。
 
 ## 六、关键结论
 
-1. 这类「编排器活着、所有 agent SIGILL」的第一嫌疑就是指令集不匹配；检测入口应该挂在 oma 已有的逐二进制探针上，而不是另造 CPU 检查器——探针测的是制品与机器的组合，天然覆盖 flags 谎报面。[推断: 检测阶梯裁决]
+1. 这类「编排器活着、所有 agent SIGILL」的第一嫌疑就是指令集不匹配；检测入口应该挂在 oma 已有的逐二进制探针上，而不是另造 CPU 检查器：探针测的是制品与机器的组合，天然覆盖 flags 谎报面。[推断: 检测阶梯裁决]
 2. flags 筛查只能排除「肯定没有」；CPUID 有而 XCR0 无、hypervisor 谎报两类必须靠实测指令或真二进制探针兜底。[实证: 文献]
 3. P0012 的 Linux 验收清单应含一节「指令集预备检测」：先跑第 1 级与第 4 级（oma agents），有 sigill 再走缓解表，避免把环境问题误诊为 oma 接管缺陷。[设计口径]
 4. Windows 本机不受此问题类影响（本机四家已装机全绿）；本文全部 Linux 面断言待环境切换后按六态升级。[记忆: 待实机复核]
@@ -82,6 +82,6 @@ Rust 侧 `std::os::unix::process::ExitStatusExt::signal() == Some(4)`（`code()`
 
 > 2026-08-31，`P0018`。
 
-- 用户反问「Windows 要不要检测」——要：第三节两案（codex 17410 捆绑 `codex.exe`、25367 CLI `STATUS_ILLEGAL_INSTRUCTION`）本来就是 Windows 形态。
+- 用户反问「Windows 要不要检测」：要：第三节两案（codex 17410 捆绑 `codex.exe`、25367 CLI `STATUS_ILLEGAL_INSTRUCTION`）本来就是 Windows 形态。
 - 已落地（`src\caps.rs`）：`is_x86_feature_detected!` 检测（std 内部验 OSXSAVE/XCR0）进 `oma doctor` CPU 段；`--version` 探针失败路径的退出码分类（0xC000001D 即 illegal-instruction）进 `oma agents` 与装后探针，命中带缓解 hint。Unix signal 4 细分仍留 P0012。
-- 本机实测：`avx=true avx2=true avx512f=false`——消费级无 AVX-512 的谱系本机即中，若某 agent 制品改要求 AVX-512，本机会当场全灭，doctor CPU 段即第一诊断入口。[实证]
+- 本机实测：`avx=true avx2=true avx512f=false`：消费级无 AVX-512 的谱系本机即中，若某 agent 制品改要求 AVX-512，本机会当场全灭，doctor CPU 段即第一诊断入口。[实证]

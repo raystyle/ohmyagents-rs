@@ -4,7 +4,7 @@
 
 ## 背景
 
-rmux 能判「pane 活着、画面静了、进程换了」，判不了「agent 空闲、干活、卡框」——官方写明 foreground 是 best-effort、不分类 agent 名。herdr 把忙闲做成 pane 一等状态；本仓不引入 herdr 运行时，借语义：lifecycle hook 写状态文件，hook 沉默时用终端语义兜底。
+rmux 能判「pane 活着、画面静了、进程换了」，判不了「agent 空闲、干活、卡框」：官方写明 foreground 是 best-effort、不分类 agent 名。herdr 把忙闲做成 pane 一等状态；本仓不引入 herdr 运行时，借语义：lifecycle hook 写状态文件，hook 沉默时用终端语义兜底。
 
 ## 关键结论
 
@@ -28,7 +28,7 @@ rmux 能判「pane 活着、画面静了、进程换了」，判不了「agent �
 
 ### 2. 通道选型：项目内文件总线
 
-- 主通道：`<project>/.ohmyagents/state/<agent>.json`。spawn 注入 `OHMYAGENTS_PROJECT` / `OHMYAGENTS_AGENT` / `OHMYAGENTS_STATE_FILE`；各家项目 hook 的 `command` 调 `oma hook`（stdin 事件 JSON 或 `oma hook blocked`），原子写文件；缺环境变量或项目对不上则 exit 0——某家 agent 只肯加载用户级 hook 时也不污染别的仓库。[实证: 2026-08-29 poc-dialogs `oma hook` 写 blocked 再 idle]
+- 主通道：`<project>/.ohmyagents/state/<agent>.json`。spawn 注入 `OHMYAGENTS_PROJECT` / `OHMYAGENTS_AGENT` / `OHMYAGENTS_STATE_FILE`；各家项目 hook 的 `command` 调 `oma hook`（stdin 事件 JSON 或 `oma hook blocked`），原子写文件；缺环境变量或项目对不上则 exit 0：某家 agent 只肯加载用户级 hook 时也不污染别的仓库。[实证: 2026-08-29 poc-dialogs `oma hook` 写 blocked 再 idle]
 - 不用 `rmux set-environment` 当上报口（win-rmux 反例）：hook 短命子进程常找不到本会话专用 pipe；Windows 上 PATH、默认 socket、Job Object 一错状态就静默丢。[经验: win-rmux hooks.md 2026-08-21]
 - 不引入 herdr 运行时：没有 `HERDR_PANE_ID`，`report-agent` 无处可报；借的是四态语义与「有 hook 用 hook、无 hook 退屏幕」的分层思想。[经验: herdr.dev agents 状态表]
 - SDK `output_stream` / `state_events` 是观察 PTY 画面与 pane 生死，读不到 hook JSON，不当 blocked 权威。[实证: rmux-sdk 0.10.0 文档]

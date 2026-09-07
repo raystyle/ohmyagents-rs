@@ -14,17 +14,17 @@
 [实证: 浅克隆 crates/codegen/xai-grok-shell/src/auth/*，2026-09-02]
 
 - **流程**：OAuth 2.1，默认 loopback（授权码+PKCE+本地回调），可切 RFC 8628 设备码（`grok login --device-code`；旗标 > `GROK_LOGIN_DEVICE_FLOW` env > `[auth] login_device_flow` 配置）。issuer `https://auth.x.ai`。
-- **用户可见输出**（stderr）：`To sign in, open this URL in your browser: <url>` + `Then enter this code: <user_code>`——URL+code 可复制到任何机器的浏览器，**设备码流天生无头友好**。
+- **用户可见输出**（stderr）：`To sign in, open this URL in your browser: <url>` + `Then enter this code: <user_code>`：URL+code 可复制到任何机器的浏览器，**设备码流天生无头友好**。
 - **凭据落盘**：`~/.grok/auth.json`（`GROK_AUTH_PATH` 可覆盖）；scope 键对应 {key, refresh_token, expires_at(RFC3339), email,...} 的 map。无 `expires_at` 时按 `create_time + 30 天`兜底；提前 300s 视过期（env 可调）。
 - **刷新**：自动（AuthManager 静默 refresh，flock 防并发）；替代路径 `XAI_API_KEY` env。
-- **登录态检测**（doctor 可用）：文件存在 + 目标 scope 键存在 + 未过期——纯文件判断，无需起进程。
+- **登录态检测**（doctor 可用）：文件存在 + 目标 scope 键存在 + 未过期：纯文件判断，无需起进程。
 
 ### 2. kimi-code
 
 [实证: 浅克隆 packages/oauth/src/*、apps/kimi-code/src/cli/sub/login*.ts，2026-09-02]
 
 - **流程**：**仅设备码流**（RFC 8628，源码明言）；host 双区 `https://auth.kimi.com`（mainland-cn）/ `auth.kimi.ai`（global），client_id 两区共用。
-- **用户可见输出**（stderr，浏览器拉起前就打）：`Opening browser for Kimi device login: <url>` + `enter code: <userCode>`——无头安全（URL+code 先于浏览器打印）。
+- **用户可见输出**（stderr，浏览器拉起前就打）：`Opening browser for Kimi device login: <url>` + `enter code: <userCode>`：无头安全（URL+code 先于浏览器打印）。
 - **凭据落盘**：`~/.kimi-code/credentials/kimi-code.json`（0600）：{access_token, refresh_token, expires_at(Unix 秒), scope,...}。
 - **刷新**：自动（动态阈值 min(300s, expiresIn/2)，单飞合并 + 跨进程锁）；401/403 写空串墓碑（吊销态 ≠ 未登录）。
 - **登录态检测**：文件存在且 `access_token` 非空（`hasToken()` 不看过期，过期与否读 `expires_at` 自比）。
@@ -38,7 +38,7 @@
 ## 待办
 
 - doctor 登录态检查行（grok auth.json / kimi credentials json）：已落地（`oma doctor` 出 `check=login` 行，warn 不进 blocked 汇总，2026-09-02）
-- `oma agents login [名]`：已落地（2026-09-02，`src\login.rs`）——实现形态修正 S026 原推断：**子进程捕获**替代 pane 加扫屏（两家输出都是纯 eprintln / process.stderr.write、无 TTY 依赖，实证 device_code.rs 与 login-flow.ts）；转发 URL 加 code、扫成功标记、以落盘凭据为最终判据；WSL grok 真登录实机验收
+- `oma agents login [名]`：已落地（2026-09-02，`src\login.rs`）：实现形态修正 S026 原推断：**子进程捕获**替代 pane 加扫屏（两家输出都是纯 eprintln / process.stderr.write、无 TTY 依赖，实证 device_code.rs 与 login-flow.ts）；转发 URL 加 code、扫成功标记、以落盘凭据为最终判据；WSL grok 真登录实机验收
 
 ## 事实源
 

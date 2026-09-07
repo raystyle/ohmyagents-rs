@@ -13,7 +13,7 @@
 3. 书的实践在 2026 年的对应升级：`cargo test` 执行层升级为 cargo-nextest（进程隔离、超时、重试、JUnit）；黄金文件升级为 insta 快照 + review 流程；`time`/hyperfine 粗测之外补 criterion 微基准；门禁从「本地 cargo test」升级为 fmt / clippy -D warnings / test --locked / audit 的 CI 集合。[经验: 用户综述，未本机复核]
 4. 三源在原则上完全收敛：测行为不测实现（MS 的 M-INTEGRATION-TESTS 明说「能集成就不单元」）、一个测试一件事、覆盖错误路径、随机与外部状态要确定化、性能与正确性分离。这些不变，变的只是工具。[实证: 三源并列对照，rust-guidelines commit c1d2efc]
 5. MS 规范层补了两条前两源没有的硬规则：**测试设施必须 feature gate**（mock、安全检查旁路、假数据收进单一 `test-util` feature，M-TEST-UTIL）；**测试不得断言重言式**（M-TAUTOLOGICAL-TESTS：不得用被测同款逻辑复述期望值或镜像实现分支，否则按构造通过、纯噪声；点名这是 Agent 生成测试的高发病）。[实证: rust-guidelines 对应条目]
-6. mock 策略两说调和：社区「少 mock 多真替身」与 MS「做 IO/系统调用的类型必须可 mock」（M-MOCKABLE-SYSCALLS，含文件、网络、时钟、熵源）不冲突——真依赖做集成路径，mock 口留给难触发的边界（故障注入、不可复现环境）。[推断: 两条并列读]
+6. mock 策略两说调和：社区「少 mock 多真替身」与 MS「做 IO/系统调用的类型必须可 mock」（M-MOCKABLE-SYSCALLS，含文件、网络、时钟、熵源）不冲突：真依赖做集成路径，mock 口留给难触发的边界（故障注入、不可复现环境）。[推断: 两条并列读]
 7. 本仓落地：`oma` 的无 daemon 子命令（check/agents/hook/init）可直接套地基全套；有 rmux 依赖的 POC 需加闸门与隔离，这是三源都没有的场景；现代层按阶段引入，不一步到位（AGENTS 写 Rust 规则：最少依赖）。[推断: 对照本仓 POC 已证的 Job Object 与 label 端点坑]
 
 ## 现状或实测

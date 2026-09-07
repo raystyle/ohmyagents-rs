@@ -42,6 +42,7 @@
 - **迁册批**（P0029 / D07）：`oma agents install` / `update` deprecated 指向 `ome install`；`catalog\agents.toml` 冻结历史锚；doctor 四类检查归 agents 域。
 - **doctor 检查面**（P0030 / D08）：Grok 状态栏 command 三态（Windows 只认 `.cmd` 单路径）；JSON hook args 数组 warn。热修 M044 至 M048。
 - **边界**（D09）：oma 不管种子，只管诊断、配置、hook、状态栏和编排。
+- **G005 存量字符**（P0031 / D10）：SKIP_DIRS 外四类禁字清零；封闭清单删除；mdcharlint 零容忍。
 
 ### 排后
 

@@ -99,6 +99,7 @@
 | P0028 | `P0028-agent-doctor部署诊断与登录引导.md` | agent doctor 部署诊断与登录引导 |
 | P0029 | `P0029-D07迁册批-agents下装归ome.md` | D07 迁册批：agents install/update deprecated 指向 ome、agents.toml 冻结历史锚、doctor 四类归 agents 域 |
 | P0030 | `P0030-D08-doctor检查面补形态.md` | D08 doctor 检查面：Grok 状态栏 command 三态与 hook args 形态 |
+| P0031 | `P0031-D10-G005存量字符清理.md` | D10 G005：SKIP_DIRS 外四类禁字清零，封闭清单删除 |
 
 （P0020 断号：编号已预留未使用，不复用。）
 

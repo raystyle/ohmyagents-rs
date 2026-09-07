@@ -22,7 +22,7 @@ oma 是通用智能体多路复用任务编排器：rmux 后端上把 claude/cod
 3. **agent 四家 Linux 安装**：官方安装脚本形态（S017 已逐家实证过渠道反转），Linux 资产名/解包/安装目录在 `oma agents install` 的 leaf 找二进制逻辑待真机验收
 4. **后台进程形态**：serve daemon 的 `CREATE_NO_WINDOW` 是 Windows 分支；Linux 用 `setsid`/`nohup` 等价（`src\servectl.rs` 已有 `#[cfg]` 骨架）
 5. **探针与探活**：`pid_alive` 的 FFI OpenProcess 是 Windows；Linux 走 `kill -0`（分支已在）
-6. **终端分类器**：`detect_terminal_state` 的 marker 集合按四家 TUI 实测——Linux 下 TUI 输出可能有差（回车/颜色码），`oma status` 真机过一遍
+6. **终端分类器**：`detect_terminal_state` 的 marker 集合按四家 TUI 实测：Linux 下 TUI 输出可能有差（回车/颜色码），`oma status` 真机过一遍
 
 ## 四、关键文件与坑索引
 
@@ -37,7 +37,7 @@ oma 是通用智能体多路复用任务编排器：rmux 后端上把 claude/cod
 
 1. WSL 里 clone 本仓，再 `cargo test`（应绿：平台无关层），再 `cargo build --features server,mcp`
 2. `oma check`：Linux 资产下载与安装真机验收（第三节 2）
-3. `oma spawn --stub`：daemon 启动路径与 stub 判活（第三节 1）——单路全屏形态即可验证
+3. `oma spawn --stub`：daemon 启动路径与 stub 判活（第三节 1）：单路全屏形态即可验证
 4. `oma agents install` 四家 Linux 形态
 5. 四路真身 + settle 白名单真机过（信任屏 marker 可能差）
 6. 复用 `.tools\review-round.py` 接力 review（Linux 侧同样收敛到 FINDINGS=0）

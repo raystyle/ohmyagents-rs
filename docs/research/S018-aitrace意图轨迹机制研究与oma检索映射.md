@@ -2,7 +2,7 @@
 
 - 日期：2026-08-31
 - 关联：方案 `P0013`（agent 意图操作块与编辑轨迹检索）；蓝本仓 `D:\aitrace`（fork 自 omeedcs/vibetracer，0.7.0 起无头 daemon + CLI + MCP，约 13.9k 行 Rust）；oma 侧挂 `S009`（状态判断）、`S015`（hook 矩阵）
-- 研究法：子代理深读全仓源码 + 七条载荷性断言回源码抽查（EditEvent 字段、operation_id 构造、MAX_INTENT_CHARS、HOOK_GRACE、MCP 工具表、真实 edits.jsonl、project_path 空串——全部命中）
+- 研究法：子代理深读全仓源码 + 七条载荷性断言回源码抽查（EditEvent 字段、operation_id 构造、MAX_INTENT_CHARS、HOOK_GRACE、MCP 工具表、真实 edits.jsonl、project_path 空串：全部命中）
 
 ## 一、为什么研究
 
@@ -10,7 +10,7 @@
 
 ## 二、aitrace 是什么
 
-- 定位：AI 编程会话的可观测性驾驶舱——记录项目目录每一次文件编辑（真相源是磁盘），关联 Claude Code hook 元数据与 transcript 意图，经 MCP 把时间线喂回 agent 自纠。[实证: README.md:3]
+- 定位：AI 编程会话的可观测性驾驶舱：记录项目目录每一次文件编辑（真相源是磁盘），关联 Claude Code hook 元数据与 transcript 意图，经 MCP 把时间线喂回 agent 自纠。[实证: README.md:3]
 - agent 支持面：**只有 Claude Code 是一等集成**（PostToolUse hook + transcript 解析）；Cursor/Codex 只剩上游遗留的 `.agent-trace/` 目录导入且自称未验证。[实证: src\import\detect.rs:21-27、README.md:22]
 - 形态：无头 daemon（项目内 UDS `daemon.sock`，Windows 走 `uds_windows`）+ CLI + MCP（stdio JSON-RPC）；无 sqlite、无索引，检索全部查询时线性扫 JSONL。[实证: 源码结构与 mcp 模块]
 
@@ -23,13 +23,13 @@
 | transcript jsonl | `~/.claude/projects/<路径>/<session-uuid>.jsonl` 增量 tail（记 byte offset，半行留给下轮） | src\daemon\intent_index.rs:104-156 |
 | 自有存储 | 追加式 `edits.jsonl` + 内容寻址快照库 + 每会话 meta.json，全在 `<project>/.aitrace/sessions/<id>/` | 源码 |
 
-**hook 与 watcher 竞态**：PostToolUse 在落盘之后触发，watcher 事件先到——daemon 用 `HOOK_GRACE = 250ms` 忙等收 hook 元数据再归组。[实证: src\daemon\mod.rs:506、:339]
+**hook 与 watcher 竞态**：PostToolUse 在落盘之后触发，watcher 事件先到：daemon 用 `HOOK_GRACE = 250ms` 忙等收 hook 元数据再归组。[实证: src\daemon\mod.rs:506、:339]
 
 **路径归一化**：hook 报绝对路径、watcher 报相对路径，关联键统一「相对化 + 正斜杠 + Windows 小写」再进 FIFO；macOS FSEvents 前缀用 canonicalize 兜底。[实证: src\daemon\correlation.rs:13-39]
 
 ## 四、意图操作块的机制
 
-> aitrace 没有独立「块」实体——是 `EditEvent` 上的一组归组字段，查询时按 `operation_id` 聚合。
+> aitrace 没有独立「块」实体：是 `EditEvent` 上的一组归组字段，查询时按 `operation_id` 聚合。
 
 ### EditEvent 骨架
 
@@ -48,7 +48,7 @@ pub struct EditEvent {
 
 [实证: src\event.rs:39-53 及全结构；真实数据 `.aitrace/sessions/20260828-072234-773273/edits.jsonl` 尾行含 `"intent":"继续"` 与完整 operation_id]
 
-**`operation_id = "session_id:tool_use_id"` 一根线串起「hook 元数据、transcript 意图、编辑帧」——这是该项目最值钱的设计。** 无 tool_use_id 时退回 session_id。[实证: src\hook\send.rs:70-74]
+**`operation_id = "session_id:tool_use_id"` 一根线串起「hook 元数据、transcript 意图、编辑帧」：这是该项目最值钱的设计。** 无 tool_use_id 时退回 session_id。[实证: src\hook\send.rs:70-74]
 
 ### 意图切分算法
 
@@ -58,14 +58,14 @@ pub struct EditEvent {
 2. 沿 `parentUuid` 父链上溯：**最近一个 assistant text 块胜出；链上无 text 取最近 thinking**；ToolUse/UserText/Other 是游走边界。批量并行工具调用共享同一前置文本。[实证: intent_index.rs:268-290 与测试 :393-414]
 3. 截断 `MAX_INTENT_CHARS = 200` 按字符不按字节（按字节切中文会 panic 在 log 宏里杀死 daemon）。[实证: :23、:302-305；panic 坑有回归测试]
 4. 用户意图 `intent` 双源：`last-prompt` 标记 + 真实 user text entry，**文件里更靠后的赢**（标记滞后一轮）。[实证: :100-102、:158-194]
-5. **transcript 懒写坑**：父文本可能落在 tool_use 行之后数秒——所以查询时活走父链而非 absorb 时一次解析，配**补账队列**（intent 缺失的编辑进 backfill，每轮重试，跨重启持久化 `backfill.json`，上限 32 条）；补账写成**同 id 追加记录**，read_all 按 id 去重保最后一条且维持首见顺序，且必须写回 originating 会话（id 会话内唯一、跨会话撞号）。[实证: 模块头注释 :1-16、daemon\mod.rs:76-120/267-305、edit_log.rs:41-67]
-6. 无父链可走时 `operation_intent` 为 null——意图是尽力而为不是保证。[实证: 真实数据可见 null]
+5. **transcript 懒写坑**：父文本可能落在 tool_use 行之后数秒：所以查询时活走父链而非 absorb 时一次解析，配**补账队列**（intent 缺失的编辑进 backfill，每轮重试，跨重启持久化 `backfill.json`，上限 32 条）；补账写成**同 id 追加记录**，read_all 按 id 去重保最后一条且维持首见顺序，且必须写回 originating 会话（id 会话内唯一、跨会话撞号）。[实证: 模块头注释 :1-16、daemon\mod.rs:76-120/267-305、edit_log.rs:41-67]
+6. 无父链可走时 `operation_intent` 为 null：意图是尽力而为不是保证。[实证: 真实数据可见 null]
 
 ## 五、编辑轨迹与帧重建
 
 - **事件 + 内容双轨**：内容真变才记（新旧相同跳过），再 similar 算 unified diff 与 ±行数，再新内容按 SHA-256 进内容寻址库（`snapshots/<前2字符>/<后62字符>`，仿 Git 对象布局，天然去重），再事件追加 edits.jsonl。删除按空串读记 kind=Delete。[实证: recorder\mod.rs:140-170、store.rs:8-49]
-- **帧 = 编辑 id**：`get_frame` 重建任意时刻状态——每文件取 ≤frame_id 的最后一条编辑按 after_hash 从快照库取内容。[实证: mcp\handlers.rs:174-205]
-- **跨会话基线继承**：daemon 启动找最近真有 edits.jsonl 的前会话，继承 `file → after_hash` 表并复用其快照库作 diff 旧内容源——否则重启后所有文件都变 create。[实证: session.rs:139-149、recorder\mod.rs:71-107]
+- **帧 = 编辑 id**：`get_frame` 重建任意时刻状态：每文件取 ≤frame_id 的最后一条编辑按 after_hash 从快照库取内容。[实证: mcp\handlers.rs:174-205]
+- **跨会话基线继承**：daemon 启动找最近真有 edits.jsonl 的前会话，继承 `file → after_hash` 表并复用其快照库作 diff 旧内容源：否则重启后所有文件都变 create。[实证: session.rs:139-149、recorder\mod.rs:71-107]
 - 恢复动作预登记 `restore_id` 且优先于 hook 富化，避免把自己的恢复记成 agent 编辑。[实证: correlation.rs:128-147]
 - 会话目录名 `YYYYMMDD-HHMMSS-6f微秒` 单调即创建序；meta.json 含 agents[]（label 自增 `claude-code-N`、edit_count、failed_attempts 单独计 is_error 不进时间线）。[实证: session.rs:54-64、event.rs:92-104]
 
@@ -112,20 +112,20 @@ CLI：`sessions` / `replay`（文本表 + 每行 `op:`/`ask:` 双意图）/ `res
 
 > oma 直接设防。
 
-1. patch 全文内联 JSONL 体积（最大 583KB/会话）+空会话目录堆积（51 个目录约一半只有 127 字节 meta）——oma：daemon/采集启动即建会话目录改为**首事件才建**。[实证: 磁盘实测]
-2. 查询全量线性扫——oma：v1 JSONL 可接受，量大再 sqlite（R005 选型）。
-3. 写库路径反斜杠未归一化（`tests\\integration\\...`）而关联键是正斜杠——两条路必踩，oma 统一写库即归一化。[实证: recorder\mod.rs:134-137 vs correlation.rs:24]
-4. 非 UTF-8 读失败当空串——oma 按 lossy 或跳过并记标记。
-5. **并发按文件路径单 FIFO——两个 agent 同改一文件会张冠李戴**；oma 多路场景必须按 agent/operation 维度排队。[实证: correlation.rs 结构]
-6. 会话 meta 的 `project_path` 写死空串没人填（`project_path: String::new()`）——oma 要「指定项目检索」必须显式落库。[实证: src\session.rs:87、真实 meta.json]
+1. patch 全文内联 JSONL 体积（最大 583KB/会话）+空会话目录堆积（51 个目录约一半只有 127 字节 meta）：oma：daemon/采集启动即建会话目录改为**首事件才建**。[实证: 磁盘实测]
+2. 查询全量线性扫：oma：v1 JSONL 可接受，量大再 sqlite（R005 选型）。
+3. 写库路径反斜杠未归一化（`tests\\integration\\...`）而关联键是正斜杠：两条路必踩，oma 统一写库即归一化。[实证: recorder\mod.rs:134-137 vs correlation.rs:24]
+4. 非 UTF-8 读失败当空串：oma 按 lossy 或跳过并记标记。
+5. **并发按文件路径单 FIFO：两个 agent 同改一文件会张冠李戴**；oma 多路场景必须按 agent/operation 维度排队。[实证: correlation.rs 结构]
+6. 会话 meta 的 `project_path` 写死空串没人填（`project_path: String::new()`）：oma 要「指定项目检索」必须显式落库。[实证: src\session.rs:87、真实 meta.json]
 7. 部署耦合：daemon 从 target\debug 跑锁链接器（os error 5）；exe 被锁则改名 `.old`；workspace_root 上跳找 Cargo.toml 且不能 canonicalize（`\\?\` 前缀会断 UDS）。[实证: project.rs:13-22]
-8. 中文截断按字节 panic——按字符截。[实证: daemon\mod.rs:63-70 回归测试]
+8. 中文截断按字节 panic：按字符截。[实证: daemon\mod.rs:63-70 回归测试]
 
 ## 八、oma 映射
 
 > P0013 的依据。
 
-- oma 的「意图操作块」= operation_id 归组 + 双意图字段；oma 已有 hook 通道（`oma hook` 带四态）与 agent 身份（`OHMYAGENTS_AGENT`、层 2 状态文件），比 aitrace 多了**多路 agent 维度**——检索面天然要按 agent 过滤（aitrace 的缺口正是 oma 的主场）。
+- oma 的「意图操作块」= operation_id 归组 + 双意图字段；oma 已有 hook 通道（`oma hook` 带四态）与 agent 身份（`OHMYAGENTS_AGENT`、层 2 状态文件），比 aitrace 多了**多路 agent 维度**：检索面天然要按 agent 过滤（aitrace 的缺口正是 oma 的主场）。
 - oma 比 aitrace 难的点：四家 transcript 格式各异（Claude 已知 jsonl 结构；codex/grok/kimi 待研），一等集成不能只做 Claude。
 - oma 比 aitrace 易的点：agent 是 oma 自己拉起的（pane 清单在 manifest），身份关联不用猜。
 - v1 形态：项目级 `.ohmyagents\trace\`（边界内）；只检索不恢复（快照暂缓）；CLI 检索子命令 + 将来挂 P0011 的 MCP 面。

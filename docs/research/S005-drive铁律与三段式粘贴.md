@@ -8,7 +8,7 @@
 
 win-rmux 先写了两段式：文本 `-l` 一次，Enter 另一次；禁止对 Codex 发 `C-c`（`--no-alt-screen` 下一次 Ctrl-C 会把进程干掉）；locate 用 `pane_pid` 反查进程名，不信布局下标。(`D:\sourcecode\win-rmux\skills\win-rmux\SKILL.md` drive / locate 节)
 
-evo-harness 把这套搬到 Python，又叠了 herdr 研究里的 P8.1。(`D:\sourcecode\evo-harness\src\evo_harness\driver.py` 模块注释 L10–17，以及 `drive()` L240–280)
+evo-harness 把这套搬到 Python，又叠了 herdr 研究里的 P8.1。(`D:\sourcecode\evo-harness\src\evo_harness\driver.py` 模块注释 L10-17，以及 `drive()` L240-280)
 
 五条：
 
@@ -22,10 +22,10 @@ evo-harness 把这套搬到 Python，又叠了 herdr 研究里的 P8.1。(`D:\so
 
 `drive()` 不是 `send_text + Enter`。顺序是：
 
-1. **发前扫对话框**（`_sweep_dialogs`）。模态框在场会吞提交。marker 用各 agent 对话框并集，不按 pane 猜是谁。(`driver.py` L349–367；对话框表在 `config.py` `DIALOGS`)
-2. **bracketed-paste 感知注入**。`load-buffer` 把文本载入，`paste-buffer -p` 让 **daemon** 决定要不要包 `\x1b[200~…\x1b[201~`。发送侧自包壳会双重包裹。(`driver.py` `_send_paste` L370–403 注释「r10 研究 C3」)
+1. **发前扫对话框**（`_sweep_dialogs`）。模态框在场会吞提交。marker 用各 agent 对话框并集，不按 pane 猜是谁。(`driver.py` L349-367；对话框表在 `config.py` `DIALOGS`)
+2. **bracketed-paste 感知注入**。`load-buffer` 把文本载入，`paste-buffer -p` 让 **daemon** 决定要不要包 `\x1b[200~…\x1b[201~`。发送侧自包壳会双重包裹。(`driver.py` `_send_paste` L370-403 注释「r10 研究 C3」)
 3. 原生 `--quiet --stable-for` 同步。
-4. Enter 用 `send-keys -H 0d`（hex 字节）。老 daemon 没有 `-H` 再退 `send_keys("Enter")`。(`_send_enter` L405–418)
+4. Enter 用 `send-keys -H 0d`（hex 字节）。老 daemon 没有 `-H` 再退 `send_keys("Enter")`。(`_send_enter` L405-418)
 
 broadcast-demo 正好走了被否决的那条路：自己拼 `bracketed_paste()`，再 `PaneSet::broadcast(Input::text(...))`。(`broadcast-demo/src/main.rs` `bracketed_paste` / `send_prompt_to_agent`) Gemini 还要逐字慢打。那是演示竞速，不是会话工具该抄的 drive。
 
@@ -37,7 +37,7 @@ web-claude-demo 用 git 上的 `rmux-sdk`：`keyboard().type_text`、`press("Ent
 
 ## 确认失败时只补 Enter
 
-`--wait quiet` 超时不等于没发出去。win-rmux 写过：此时重发会排队执行两遍。(win-rmux SKILL drive 节) evo-harness 用 `_prompt_residual` 看输入行或 `queued`，只再发一次 Enter。(`driver.py` L276–278)
+`--wait quiet` 超时不等于没发出去。win-rmux 写过：此时重发会排队执行两遍。(win-rmux SKILL drive 节) evo-harness 用 `_prompt_residual` 看输入行或 `queued`，只再发一次 Enter。(`driver.py` L276-278)
 
 Codex 的 `Stop` hook 经常不触发，状态会卡在 `working`。(win-rmux `references/hooks.md`；evo-harness `install_hooks.py` 注释) judge 不能只信 hook，短头和输入行残留是回退。
 

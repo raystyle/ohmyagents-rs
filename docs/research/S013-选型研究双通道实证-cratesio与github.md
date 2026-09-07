@@ -22,9 +22,9 @@ AGENTS 写 Rust 规则要求「先查最流行、最稳定的库」。两通道�
 
 8. **`gh search repos` 是流行与活跃的一屏分辨器**：`--sort=stars --json fullName,stargazersCount,pushedAt,description` 一次拿齐；stars 高但 pushedAt 旧（tab-rs 684 星 2023 停更）与 stars 次但活跃（limux）立刻分开。[实证: 2026-08-31 搜 terminal multiplexer]
 9. **新秀筛法**：关键词加 `created:>YYYY-MM-DD` 内联加 `--sort=stars`；实测筛 2026 年 Rust terminal 类头名 40873 星、herdr 33710 星在列（与本仓研究交叉验证）。[实证: 2026-08-31]
-10. **单仓质量信号**：`gh repo view --json stargazerCount,pushedAt,licenseInfo,isArchived,issues,latestRelease,repositoryTopics`。rmux 实测 2606 星、latest v0.10.0；`license: null` 与 crates.io 标的 MIT OR Apache 不一致——仓库缺可识别 LICENSE 文件，定型前人工核。[实证: 2026-08-31]
+10. **单仓质量信号**：`gh repo view --json stargazerCount,pushedAt,licenseInfo,isArchived,issues,latestRelease,repositoryTopics`。rmux 实测 2606 星、latest v0.10.0；`license: null` 与 crates.io 标的 MIT OR Apache 不一致：仓库缺可识别 LICENSE 文件，定型前人工核。[实证: 2026-08-31]
 11. **发布节奏**：`gh api repos/<o>/<r>/releases`，rmux 实测 0.8 到 0.10 约两周一版。[实证: 2026-08-31]
-12. **code search 找真实用法**：对 rmux-sdk 搜签名片段返回空——新库无第三方公开用法，生态薄的采用风险信号。[实证: 2026-08-31；机制由 investigator CS 用例背书 经验]
+12. **code search 找真实用法**：对 rmux-sdk 搜签名片段返回空：新库无第三方公开用法，生态薄的采用风险信号。[实证: 2026-08-31；机制由 investigator CS 用例背书 经验]
 13. **文档搜索**：gh 2.97.0 无 docs 子命令；正解 `gh search code "<词> extension:md"` 内联（实测命中 fzf CHANGELOG 等），`--filename "*.md"` 通配空不可靠；官方文档定点 `--repo github/docs`（webhooks 命中 content 源文件；空结果 = 官方没写）。[实证: 2026-08-31 三组对照]
 14. **clone 两档**：`--depth 1` 拿当前代码（rust-guidelines、clum 两次旧实证）；`--filter=blob:none --no-checkout` 拿全历史不拿内容（1.9MB 可 `git log`）。clone 后接 investigator 六步（rg / ast-grep / git）。[实证: 2026-08-31 blob:none 对照；depth 1 旧实证]
 

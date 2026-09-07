@@ -12,7 +12,7 @@
 | CLI 条件搜索 | `Find-PSResource <名>`（7.4+ 首选，PSResourceGet 1.2.0 本机实证）；旧栈 `Find-Module -Name / -Tag / -Filter`（实证 ImportExcel 7.8.10 可查） |
 | 已知名字元数据 | `Find-PSResource <名>` 出版本与描述 |
 
-坑与稳妥做法：`Find-PSResource` 裸调偶发「could not be found in any registered repositories」（本机两次一败一成，冷查询抖动）；显式 `-Repository PSGallery` 可复现——ohmypwsh `psmodule.ps1` 即恒带显式仓。[实证: 2026-08-31 两轮对照]
+坑与稳妥做法：`Find-PSResource` 裸调偶发「could not be found in any registered repositories」（本机两次一败一成，冷查询抖动）；显式 `-Repository PSGallery` 可复现：ohmypwsh `psmodule.ps1` 即恒带显式仓。[实证: 2026-08-31 两轮对照]
 
 ## 二、稳度判据
 
@@ -41,9 +41,9 @@ pwsh -NoProfile -File D:\ohmypwsh\scripts\psmodule.ps1 update [all]           # 
 对齐说明（ohmypwsh 现状对指南的超集与偏离）：
 
 - **版本锁超出指南**：指南口径「生产钉 `-RequiredVersion`」；ohmypwsh 锁定清单 `modules.psd1` 记 Version 加 nupkg SHA256 双锁，安装前校验哈希。[实证: modules.psd1 Pester 5.7.1 与 Posh-SSH 3.2.7 均带 Sha256]
-- **安装走直连 nupkg 而非 Install-PSResource**：`api/v2/package/<名>/<版本>` 下载加哈希校验加手工部署——指南说「日常用 CLI 不必手写 HTTP」，此处是 S028 结论的有意偏离（规避 PSGallery 直连不稳），哈希锁兜住了完整性。[经验: ohmypwsh S028]
+- **安装走直连 nupkg 而非 Install-PSResource**：`api/v2/package/<名>/<版本>` 下载加哈希校验加手工部署：指南说「日常用 CLI 不必手写 HTTP」，此处是 S028 结论的有意偏离（规避 PSGallery 直连不稳），哈希锁兜住了完整性。[经验: ohmypwsh S028]
 - **5.1 的 PowerShellGet/TLS 老坑被架构绕开**：psmodule `#Requires 7.0`，安装由 pwsh7 执行，PS5 只作为部署目标目录、不跑安装；bootstrap 无 TLS 1.2 处理但不需要。[实证: psmodule 与 bootstrap 源码]
-- **Trusted 语义**：本机 PSGallery 在两套注册表均为 Untrusted，ohmypwsh 也不设 Trusted——与指南「Trusted 只减确认不代表安全」一致，且哈希校验比 Trusted 更强。[实证: Get-PSRepository / Get-PSResourceRepository]
+- **Trusted 语义**：本机 PSGallery 在两套注册表均为 Untrusted，ohmypwsh 也不设 Trusted：与指南「Trusted 只减确认不代表安全」一致，且哈希校验比 Trusted 更强。[实证: Get-PSRepository / Get-PSResourceRepository]
 - **注册表残留已清净**：S028 时点提过的 `OhMyClaude` 本地仓残留，现两表均只剩 PSGallery。[实证: 2026-08-31]
 
 ## 四、写与打包

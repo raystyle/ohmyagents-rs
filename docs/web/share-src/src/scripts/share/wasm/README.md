@@ -15,8 +15,8 @@ It provides:
 - web-share **text/binary "kind byte"** framing on top of opaque records;
 - browser WASM bindings behind `--features wasm`.
 
-It has no knowledge of WebSockets, TCP, JSON, or HTTP — those live in the
-rmux-server web module — and therefore does not depend on `rmux-server` (no
+It has no knowledge of WebSockets, TCP, JSON, or HTTP; those live in the
+rmux-server web module, and therefore does not depend on `rmux-server` (no
 circular dependency).
 
 Forward secrecy comes from per-connection X25519 and ML-KEM secrets.

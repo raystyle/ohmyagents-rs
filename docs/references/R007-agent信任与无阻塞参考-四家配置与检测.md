@@ -36,7 +36,7 @@ esearch\S006-信任阻塞门-四家种类与官方口径.md` 2026-08-31 裁决�
 | claude | `-p` | Manual | `--allowedTools` 或 `--permission-mode dontAsk\|acceptEdits`；校验产物不看 exit 0 |
 | grok | `-p` | Ask | `--always-approve` 或 `dontAsk`+`--allow`（加 `--no-auto-update`） |
 | kimi | `-p` | **即 auto** | **禁止**再叠 `--yolo`/`--auto`/`--plan`（`--yes`/`--auto-approve` 是隐藏别名） |
-| codex | — | — | 走 `.codex/config.toml`（不在 YouMind 范围） |
+| codex | - | - | 走 `.codex/config.toml`（不在 YouMind 范围） |
 
 [实证: 2026-08-29 官方 headless/permission-modes/kimi-command + 本机三家家 help]
 
@@ -51,7 +51,8 @@ esearch\S008-项目级hook与skill.md` 安全带节）
 4. hook 注册项目级：Claude settings `matcher:"*"`；Codex 须先信任再写 `hooks.state.trusted_hash`；Grok 项目 hooks 要 folder-trust；Kimi 暂用户 config 加项目脚本。[经验: 各家官方]
 5. hook 沉默不判 idle：走终端语义兜底（`terminal_state` 分类 password/confirm、`wait_for_text` 等执行证据）。Codex `Stop` 常不触发，working 超阈值标 stale。（依据 `docs
 esearch\S010-clum等待原语作为hook兜底状态.md`）
-6. 报阻塞（hook 写文件）与点阻塞（drive 发键）分路，不合成一条 pipe。（依据 `docsesearch\S009-agent状态判断-通道与分层.md` 分层模型）
+6. 报阻塞（hook 写文件）与点阻塞（drive 发键）分路，不合成一条 pipe。（依据 `docs
+esearch\S009-agent状态判断-通道与分层.md` 分层模型）
 
 ## 五、委派前检查清单
 

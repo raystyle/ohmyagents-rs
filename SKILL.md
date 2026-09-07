@@ -40,7 +40,7 @@ oma cleanup                           只杀本会话
 
 1. **读**：提示词全文在 `prompt.md`（send 文本只带尾注，文件才是权威）。
 2. **写**：产物写到同目录 `output.md`，先写完整内容。
-3. **完成标记**：最后创建空文件 `DONE`——oma 只认 DONE 不认 output 存在（防半写误判），顺序不能反。
+3. **完成标记**：最后创建空文件 `DONE`：oma 只认 DONE 不认 output 存在（防半写误判），顺序不能反。
 
 oma 等 DONE 出现后打印 `output.md` 全文退出；超时（缺省 600s，0 无限）任务目录保留，产物晚到可用 `oma task show <id>` 收取。
 
@@ -58,7 +58,7 @@ cat ".ohmyagents/tasks/<id>/output.md"      # 产物到手，继续处理或报�
 ## 输出契约
 
 - marker 行：`命令.键=值`（如 `spawn.attached=claude,codex`、`task.done=t001`），稳定可解析。
-- 告警行：`send.alert=` / `spawn.alert=` / `settle.<agent>.stalled=` 走 stderr——任务未启动、阻塞框、顽固屏需要人工跟进。
+- 告警行：`send.alert=` / `spawn.alert=` / `settle.<agent>.stalled=` 走 stderr：任务未启动、阻塞框、顽固屏需要人工跟进。
 - 退出码：0 成功；1 业务失败（含 task 等待超时、search 无命中语义）；2 参数错。
 
 ## 示例

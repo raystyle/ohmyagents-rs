@@ -21,7 +21,7 @@
 ## 进程模型与独有行为行
 
 - 进程三层：公开 `rmux.exe` 是 tiny 分发器；完整实现 `libexec\rmux\rmux.exe`；daemon 是 `libexec\rmux\rmux.exe --__internal-daemon <pipe>`。安装不能只拷一个 exe。[实证: win-rmux environment.md + 本仓 check 布局一致]
-- `show-environment` 只显示显式 set 的键，**看不见继承的 API key**——不要用它判断密钥是否在。[经验: win-rmux]
+- `show-environment` 只显示显式 set 的键，**看不见继承的 API key**：不要用它判断密钥是否在。[经验: win-rmux]
 - `stream-pane` 持续阻塞不自行退出（核验表 TIMEOUT）；`collect-pane-output` 缺 `--until-pane-exit` 则 ERR。勿前台裸跑。
 - `remain-on-exit` 默认 off：进程退即关 pane，spawn 要 keep-alive，agent 崩了格就没了。
 - `respawn-pane -k` 对 Codex 实测不稳、布局重排：不要靠 respawn 救 Codex pane。
@@ -53,7 +53,7 @@
 
 预期 ERR / TIMEOUT（不是 bug）：无 attach 时 `attach-session` / `display-menu` / `command-prompt`；`stream-pane --lines` TIMEOUT；`collect-pane-output` 缺旗标 ERR；`rmux claude` 无 Git Bash ERR；`setup tmux-shim` 仅 Unix。
 
-扩展命令 `wait-pane` / `find-panes` / `stream-pane` **不在 `list-commands` 里但可用**——不要用 `list-commands` 当扩展命令存在性的唯一判据。
+扩展命令 `wait-pane` / `find-panes` / `stream-pane` **不在 `list-commands` 里但可用**：不要用 `list-commands` 当扩展命令存在性的唯一判据。
 
 [实证: win-rmux command-verification.md 两轮；本仓 paste 路线 2026-08-31 复证实测]
 

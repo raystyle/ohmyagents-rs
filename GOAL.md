@@ -1,20 +1,20 @@
 # GOAL：任务目标管理
 
-> 角色：**工作任务管理**，四个部分——**起点**、**锚点**、**进程**、**历史**。随工作实时更新。
+> 角色：**工作任务管理**，四个部分：**起点**、**锚点**、**进程**、**历史**。随工作实时更新。
 > 与其它文档分工：`PRD.md`=需求清单（要什么）；`ROADMAP.md`=阶段路线；`CHANGELOG.md`=版本成果；`docs\diary\YYYY-MM-DD-*.md`=项目日记（当天做了什么）；`docs\proven\NNNN-*.md`=方案与过程经验；`TODO.md`=进度清单；`PLAN.md`=实施指导。
 
 ## 起点
 
 > 当前目标的起点：何时发起、为什么发起、要解决什么问题。
 
-- **日期**：2026-09-07。
-- **起点**：用户点名启动排队四项。当前目标 D10：G005 存量字符清理。2026-09-02 量化 3671 处（含 diary/proven）；现 SKIP_DIRS 外复测 555 处（DASH 476、ARROW 72、FULLWIDTH 6、EMOJI 1），46 文件封闭清单。清零后删清单，mdcharlint 零容忍。
+- **日期**：无（下目标待立项）。
+- **起点**：D10 已于 2026-09-07 达成归档 P0031。排队 D11 状态栏 zig/go/cpp、D12 t006 孤儿、D13 mac --version（推远端待指示）。
 
 ## 锚点
 
 > 当前锚定的目标 + 推进时间线。
 
-- **锚定的目标**：D10 G005 存量字符清理（FULLWIDTH 机械、DASH/ARROW 按语义、清零后删封闭清单）。
+- **锚定的目标**：无。排队见 `TODO.md`（D11 至 D13）。
 
 ### 推进时间线
 
@@ -22,6 +22,8 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-07 | D10 达成归档 P0031：SKIP_DIRS 外四类禁字 0，封闭清单已删，mdcharlint 零容忍 |
+| 2026-09-07 | D10 切片 3：DASH 472 处改冒号或半角范围符；误伤 `--target` 回改 |
 | 2026-09-07 | D10 切片 2：ARROW 72 处改写清零；余 DASH 472 |
 | 2026-09-07 | D10 切片 1：FULLWIDTH 与 EMOJI 清零（GOAL/S018 全角加号、S024 字形进行内代码） |
 | 2026-09-07 | D10 立项 G005 存量清理。复测 SKIP_DIRS 外 555 处（DASH 476、ARROW 72、FULLWIDTH 6、EMOJI 1）。D11 状态栏 zig/go/cpp、D12 t006 孤儿、D13 mac --version 已澄清排队；D13 推远端仍待指示 |
@@ -38,39 +40,39 @@
 | 2026-09-05 | D06 五端当日闭环：oma `--version` 三处实测 0.1.0（本机 / WSL / lan-linux 构建，部署位更新三端）；lan-win 下发 4/4 纳管；lan-linux 首装三家（claude 2.1.251、codex 0.151.0、grok 1.0.13，kimi default 位纳管）二连跑幂等；五端 install 全 skipped 验收绿（mac 用旧版 oma，agents 语义未变）；AGENTS 边界行、ohmypwsh#9、#2 回填；余量 mac --version 走 CI 新资产待推 |
 | 2026-09-05 | D06 立项：基线盘点（本机 Windows `oma agents` 四家 installed=4 source=path、install 全 skipped 幂等纳管已在工作 [实证： 当日实跑]；oma `--version` 不支持，ome catalog 集成条件缺口之一 [实证： 当日实跑]；P0012 已收口本机三台，五端真实缺口为 lan-win 加 lan-linux [推断： 待盘点]）；PRD D06 登记、GOAL 起点锚点切换、PLAN 四切片、TODO 清单建行 |
 | 2026-09-03 | 文档体系重构当日闭环（PRD D01 至 D05，参考 reader_rs 形态）：仓库清理与工具清单对账（0497dac/2914164）；PRD 四原语引入（b948d67）；R002 扩容命令面唯一权威补七缺命令面（61a3035）；AGENTS 重写工作规则加文档对齐义务表并瘦身意图路由、8 处下游段名同步（4147eff）；INDEX 收敛九节修复登记缺陷（03a6271，补 9 件代码文件登记，M043 记档）；TODO 残表清退（2e14434）；PLAN 与 GOAL 切目标（df362f5）；CHANGELOG 与 ROADMAP 补 09-01/09-02 里程碑（fd45180）；G002 CR 修复（8be704d）；R 系列八行六态越级整改（0bf7a5f）；根级五文件禁字合规退出豁免清单（2c0e67e）；11+2 提交全绿 |
-| 2026-09-02 | `oma agents login` 设备码引导落地并**全链闭环**：子进程捕获形态（两家输出纯 stderr 无 TTY 依赖，源码实证修正 S026 pane 扫屏原推断）、`login.url=`/`login.code=` 机读标记、超时杀进程、落盘凭据为最终判据；110+12 全绿。WSL 实机双半程：失败路径（TLS 断连：失败行捕获、login_state 转、exit 1）加成功路径（用户定调跨机 UX——只给 code URL 与 code 不转发原始 stderr，在另一台机器完成授权，`login.ok=true` 带    scope 与 expires_at，doctor 登录态翻绿） |
+| 2026-09-02 | `oma agents login` 设备码引导落地并**全链闭环**：子进程捕获形态（两家输出纯 stderr 无 TTY 依赖，源码实证修正 S026 pane 扫屏原推断）、`login.url=`/`login.code=` 机读标记、超时杀进程、落盘凭据为最终判据；110+12 全绿。WSL 实机双半程：失败路径（TLS 断连：失败行捕获、login_state 转、exit 1）加成功路径（用户定调跨机 UX：只给 code URL 与 code 不转发原始 stderr，在另一台机器完成授权，`login.ok=true` 带    scope 与 expires_at，doctor 登录态翻绿） |
 | 2026-09-02 | agent doctor 部署诊断切片落地：doctor 加 warn 层与四类新检查（登录态 S026 判据、hook 形态 P0027 口径、状态栏 S025 落位、会话健康无会话不误报）；根修 deploy `is_ours` 对 codex Windows 调用操作符形态 `& "exe" hook` 的盲区（跨环境漏检加潜在重复追加）；测试 105+12 全绿，Windows/WSL 双侧实机验收（WSL 如实报 grok 未登录 warn）。余 `oma agents login` 引导切片排队 |
 | 2026-09-02 | 仓库更名 ohmyagents-rs 五步收口：GitHub 更名（用户）、remote set-url 新地址、双环境重跑 init 加 --pretrust（双侧 doctor.blocked=false）、旧名引用清扫（Cargo.toml/README/main.rs/S028；diary 存档不改）。四仓生态定调落 R001（ome 工具运行时 / oma agent 与编排 / ohmypwsh 总台密钥 / ohmycloud 云端分发，互相发 issue）。S026 OAuth 登录研究结项（双流取证已落档）；agent doctor 部署诊断立项接续 |
-| 2026-09-02 | P0027 当日闭环：Windows 侧 ENOENT 每提示弹噪音与状态栏 `??` 双报修——根因取证（WSL init 把 `.claude/settings.json` 与 codex 双字段全写成 `/mnt/d` 绝对路径，跨环境 see-saw；CP936 控制台吃 emoji）。落地：PATH 探针加 bare 形态（claude/grok，粘性不降级）、codex 字段所有权合并（各侧只写本侧、异侧逐字节保留）、statusline 强制 UTF-8；渲染按用户定调对齐 ohmypwsh Codex 风格段再对齐 starship（目录截断 3 段、git 旗标 [!?]、󰏗 包版本、󱘗 rust 工具链、󰅐 时长与 $ 成本）。双环境实机收敛：双侧 init 后三注册文件字节不变、`doctor.blocked=false`；Windows `init --pretrust` 清 kimi 家目录信任残留。测试 88+12 全绿；全仓 rustfmt 漂移就地清零并进门禁（用户定调）；M042 记档。追加（同日定调）：hook `--agent` 参数令用户手拉会话状态通道也活（本会话 PreToolUse 实时写）、状态记录带 session 加状态栏会话闸；状态栏多轮收敛为 starship 风格 + Catppuccin 配色 + `agent:state` 机读标记 + shell 段（mac 走 ps 兜底）；S025 四家状态栏矩阵一手取证（kimi tui.toml 300ms 约束、grok [ui.status_line] 仅用户级）——后续切片：kimi/grok 写入面与 rmux 扫屏消费 |
+| 2026-09-02 | P0027 当日闭环：Windows 侧 ENOENT 每提示弹噪音与状态栏 `??` 双报修：根因取证（WSL init 把 `.claude/settings.json` 与 codex 双字段全写成 `/mnt/d` 绝对路径，跨环境 see-saw；CP936 控制台吃 emoji）。落地：PATH 探针加 bare 形态（claude/grok，粘性不降级）、codex 字段所有权合并（各侧只写本侧、异侧逐字节保留）、statusline 强制 UTF-8；渲染按用户定调对齐 ohmypwsh Codex 风格段再对齐 starship（目录截断 3 段、git 旗标 [!?]、󰏗 包版本、󱘗 rust 工具链、󰅐 时长与 $ 成本）。双环境实机收敛：双侧 init 后三注册文件字节不变、`doctor.blocked=false`；Windows `init --pretrust` 清 kimi 家目录信任残留。测试 88+12 全绿；全仓 rustfmt 漂移就地清零并进门禁（用户定调）；M042 记档。追加（同日定调）：hook `--agent` 参数令用户手拉会话状态通道也活（本会话 PreToolUse 实时写）、状态记录带 session 加状态栏会话闸；状态栏多轮收敛为 starship 风格 + Catppuccin 配色 + `agent:state` 机读标记 + shell 段（mac 走 ps 兜底）；S025 四家状态栏矩阵一手取证（kimi tui.toml 300ms 约束、grok [ui.status_line] 仅用户级）：后续切片：kimi/grok 写入面与 rmux 扫屏消费 |
 | 2026-09-01 | P0012 WSL 补尾收口：拉取 mac 侧变更后基线 80+10 / 83+10 全绿；四家 `--force` Linux 安装全链绿（codex 嵌套 bin 布局、grok CDN 裸二进制、探针全过、双源检测正常）；真身四路 + settle Linux 实拍命中（codex 数字菜单、kimi don't trust），grok 家目录阻塞以 `oma init --pretrust` 清零、`doctor.blocked=false`；`oma task` t026 真任务产物精确；cleanup 零残留。P0012 三平台（Windows / mac / WSL Linux）全链绿，待归档 |
 | 2026-09-01 | P0012 mac 阶段当日收口：测试基线 79+10 / 82+10 全绿；`oma check` arm64 全绿；stub 全链复验绿；四家 darwin 安装 `--force` 全链验收（抓到 grok 双 CDN 无 macos pin，实测推翻 S017「待出资产」假设，自算 sha 补双 CDN pin）；真身四路 + settle 全链绿（三路信任屏措辞漂移修复 + codex hooks 屏数字菜单新形态 + 黄金行回归测试）；`oma task` 真任务产物精确 + hook 流通；门禁全绿两提交（47b1ddd / 7211d41） |
 | 2026-09-01 | P0012 阶段切换：WSL Linux 第一棒收口（「目前只到 wsl linux 就可以了」），mac 接管开发启动（「准备让 mac 接管开发」）；变更推远程供 mac 侧拉取接续 |
 | 2026-09-01 | P0012 第一棒（WSL）：hook 路径报错修复（oma init 幂等改写）；测试基线 5 败清零（M041 记档 pid_alive 的 kill -0 双语义 + 4 处测试平台假设）；R010 六欠账清四（daemon 拉起、分类器、serve 进程组、pid 守卫）；stub 全链与 serve/doctor/HTTP 验收绿；基线 78+10、81+10 全绿零警告 |
 | 2026-09-01 | Windows 侧总收口：四 agent 轮询 review 接力工作流（7 棒收敛至功能性缺陷清零，60+ 修复含 6 件修复自身回归）；oma task 带产物等待的任务目录协议（端到端双验）；任务开始确认与阻塞告警；精确集合与布局自适应；oma key 守卫；agents statusline（claude/codex 幂等）；R010 交接清单落档、P0012 Linux 接管启动 |
 | 2026-09-01 | P0026 切片 1 达成：codex review 结果 trace 收取（15 条，高 5 核实 4 真 1 部分真）后立项三切片；看板默认 spectator 只读（用户定调）+Host 回环校验（高5）+cleanup 僵局解除（高2）+死路杀旧 pane 不堆积（高3）+manifest 原子写（高1a）；计划外抓到并修 serve daemon DETACHED 零控制台下 rmux CLI 卡死（改 CREATE_NO_WINDOW） |
-| 2026-09-01 | serve stop 协议化补齐：核对三原语时发现 `serve_stop` 实际只有 taskkill（P0025/R002 口径超写）——补 `DELETE /shutdown` 优先（ureq 复用）加轮询退出加超时强杀兜底，实测日志见 draining；顺手清三处未用导入；README/AGENTS 对齐 start/stop/status 形态 |
+| 2026-09-01 | serve stop 协议化补齐：核对三原语时发现 `serve_stop` 实际只有 taskkill（P0025/R002 口径超写）：补 `DELETE /shutdown` 优先（ureq 复用）加轮询退出加超时强杀兜底，实测日志见 draining；顺手清三处未用导入；README/AGENTS 对齐 start/stop/status 形态 |
 | 2026-09-01 | 规则体系收口：G004 经验沉淀细则（proven/references 双链、mistakes 当场记加二犯升格）挂 AGENTS 工作节奏强规则位；M035 记档（python 替换吃 `\r` 劈行，修复过程又踩同型两次）；README 重写为介绍/安装部署/完整命令示例三段 |
-| 2026-09-01 | P0025 达成：serve 守护化——`serve start` 即调即退（DETACHED 孤儿化、端口就绪等待、状态文件）、协议化停机端点（DELETE /shutdown 到 AtomicBool 到优雅排空，rmux kill-server 同构）、FFI OpenProcess 探活（tasklist 在 Job Object 内管道死锁） |
-| 2026-09-01 | P0024 达成：agent 实例和解式编排——spawn 三态（新开/附加/死路重开，`attached`/`respawned` marker）+ `oma respawn` 强制单路重开（kill-pane 单窗格）；命令面只见 agent 实例，六级原语绑在背后；S023 实测纠偏三处（internal-daemon 形态、conhost 兄弟、pane 无 shell 层） |
-| 2026-09-01 | P0023 达成：看板资源包化——build.rs 打 tar.gz 嵌二进制、首启释放 `~/.ohmyagents/web/<指纹>/`（一次一份），serve 从释放位托管；单 exe 自带看板 JS 资源，产品化收口 |
-| 2026-08-31 | P0022 达成：web 镜像本地化与主页化——前端源码仓发现（rmux-web-share/rmux-typescript）并 npm 构建本地托管（四挫四根因：尾斜杠、e 参数、WASM、ACAO）；session 镜像缺省加免 PIN；`oma serve` 主页即 web-mirror-server（打开即四路窗格），dashboard 删除、编排回归 CLI/API/MCP |
-| 2026-08-31 | P0021 达成：官方 web 镜像集成——`oma web` 三面接管 rmux web-share（operator 真 attach、PIN、TTL、断开管理）；自建 xterm 桥下线（用户两次纠偏：要 TUI 镜像、用平台原生 webshare） |
-| 2026-08-31 | P0019 达成：产品完备收口——SSE 终端镜像（render_stream 加首帧）、README/CHANGELOG/ROADMAP 对齐、**四家真 agent 全链验收全绿**（claude hook 流加编辑 trace、codex settle Skip、grok 干净项目直通、kimi Up+Enter 信任）；揪修四缺陷：status 逐路降级、spawn 清 CHILD_SESSION、settle 全屏三态、镜像首帧 |
-| 2026-08-31 | P0018 达成：Windows 侧指令集检测落地（用户反问触发）——caps 模块（std 检测加退出码分类）进 doctor CPU 段与 agents 探针失败路径；本机实测 avx=true avx2=true avx512f=false；S021 追记 |
-| 2026-08-31 | S021 落档：linux 预备检测研究——指令集 SIGILL 问题类（Bun 踩 AVX/AVX2、Rust 原生踩 AVX-512，两案核实到 issue 级）、四级检测阶梯、oma 探针落点 |
-| 2026-08-31 | P0017 达成：Windows 全量收口——send 间隔产品化（等回显再 Enter，S005 铁律进产品路径）、HTTP trace 三端点加网页面板（三传输对齐）、SKILL.md 命令图生成（S016 末件）、grok 无头实跑（S007 回填，联邦 trace 同场检出）、`oma mcp --print-config` |
-| 2026-08-31 | P0016 达成：REPL 落地——裸 `oma` 重连或拉起会话、编排面内嵌（7900 顺延 7909、--no-web/--open）、行循环分派（all/agent/status/web/quit）；stdin 线程喂 mpsc 保 serve 同活；顺手删 mcp 冗余 tool_router 字段并回归冒烟 |
-| 2026-08-31 | P0015 达成：S016 吸收件收口——api::envelope 上提三传输共用、六会话命令 `--json`、status TTY 对齐表（非 TTY 恒 marker 保测试契约）、`oma completions`（clap_complete）、R002 输出规范节 |
-| 2026-08-31 | P0014 达成：grok loader 主源切 updates.jsonl（S020 分类学先行——两流职责、hideFromScrollback 闸门、kind 判写族、信封秒逐事件真实时间）；chat_history 留旧会话兜底；本仓 8-29 历史 ts 逐秒散开验收 |
-| 2026-08-31 | P0011 达成：三传输编排面当日闭环——切片 3 `oma mcp` stdio（六操作 + trace 三 tools、信封同形、orch 进度迁 stderr 保 stdout 纯协议）+ 切片 4 三通道共测（同 stub 项目 CLI/HTTP/MCP 各走 spawn、status、send、cleanup 全绿） |
+| 2026-09-01 | P0025 达成：serve 守护化：`serve start` 即调即退（DETACHED 孤儿化、端口就绪等待、状态文件）、协议化停机端点（DELETE /shutdown 到 AtomicBool 到优雅排空，rmux kill-server 同构）、FFI OpenProcess 探活（tasklist 在 Job Object 内管道死锁） |
+| 2026-09-01 | P0024 达成：agent 实例和解式编排：spawn 三态（新开/附加/死路重开，`attached`/`respawned` marker）+ `oma respawn` 强制单路重开（kill-pane 单窗格）；命令面只见 agent 实例，六级原语绑在背后；S023 实测纠偏三处（internal-daemon 形态、conhost 兄弟、pane 无 shell 层） |
+| 2026-09-01 | P0023 达成：看板资源包化：build.rs 打 tar.gz 嵌二进制、首启释放 `~/.ohmyagents/web/<指纹>/`（一次一份），serve 从释放位托管；单 exe 自带看板 JS 资源，产品化收口 |
+| 2026-08-31 | P0022 达成：web 镜像本地化与主页化：前端源码仓发现（rmux-web-share/rmux-typescript）并 npm 构建本地托管（四挫四根因：尾斜杠、e 参数、WASM、ACAO）；session 镜像缺省加免 PIN；`oma serve` 主页即 web-mirror-server（打开即四路窗格），dashboard 删除、编排回归 CLI/API/MCP |
+| 2026-08-31 | P0021 达成：官方 web 镜像集成：`oma web` 三面接管 rmux web-share（operator 真 attach、PIN、TTL、断开管理）；自建 xterm 桥下线（用户两次纠偏：要 TUI 镜像、用平台原生 webshare） |
+| 2026-08-31 | P0019 达成：产品完备收口：SSE 终端镜像（render_stream 加首帧）、README/CHANGELOG/ROADMAP 对齐、**四家真 agent 全链验收全绿**（claude hook 流加编辑 trace、codex settle Skip、grok 干净项目直通、kimi Up+Enter 信任）；揪修四缺陷：status 逐路降级、spawn 清 CHILD_SESSION、settle 全屏三态、镜像首帧 |
+| 2026-08-31 | P0018 达成：Windows 侧指令集检测落地（用户反问触发）：caps 模块（std 检测加退出码分类）进 doctor CPU 段与 agents 探针失败路径；本机实测 avx=true avx2=true avx512f=false；S021 追记 |
+| 2026-08-31 | S021 落档：linux 预备检测研究：指令集 SIGILL 问题类（Bun 踩 AVX/AVX2、Rust 原生踩 AVX-512，两案核实到 issue 级）、四级检测阶梯、oma 探针落点 |
+| 2026-08-31 | P0017 达成：Windows 全量收口：send 间隔产品化（等回显再 Enter，S005 铁律进产品路径）、HTTP trace 三端点加网页面板（三传输对齐）、SKILL.md 命令图生成（S016 末件）、grok 无头实跑（S007 回填，联邦 trace 同场检出）、`oma mcp --print-config` |
+| 2026-08-31 | P0016 达成：REPL 落地：裸 `oma` 重连或拉起会话、编排面内嵌（7900 顺延 7909、--no-web/--open）、行循环分派（all/agent/status/web/quit）；stdin 线程喂 mpsc 保 serve 同活；顺手删 mcp 冗余 tool_router 字段并回归冒烟 |
+| 2026-08-31 | P0015 达成：S016 吸收件收口：api::envelope 上提三传输共用、六会话命令 `--json`、status TTY 对齐表（非 TTY 恒 marker 保测试契约）、`oma completions`（clap_complete）、R002 输出规范节 |
+| 2026-08-31 | P0014 达成：grok loader 主源切 updates.jsonl（S020 分类学先行：两流职责、hideFromScrollback 闸门、kind 判写族、信封秒逐事件真实时间）；chat_history 留旧会话兜底；本仓 8-29 历史 ts 逐秒散开验收 |
+| 2026-08-31 | P0011 达成：三传输编排面当日闭环：切片 3 `oma mcp` stdio（六操作 + trace 三 tools、信封同形、orch 进度迁 stderr 保 stdout 纯协议）+ 切片 4 三通道共测（同 stub 项目 CLI/HTTP/MCP 各走 spawn、status、send、cleanup 全绿） |
 | 2026-08-31 | P0011 切片 2 完成：网页可视化单页直出（状态卡、委派、SSE 画面）+ `/stream/{agent}` SSE 桥（tokio-stream 组合不自写 poll）；oldest 回放与未知路负例验收过 |
-| 2026-08-31 | P0011 切片 1 完成：HTTP 编排面落地——api 传输无关层 + axum server（feature 隔离）、六操作 JSON 信封、会话锁串行；stub curl 全绿（含 400 与 ok:false 负例）；选型核实订正 rmcp 为 stable 3.1.4 |
-| 2026-08-31 | P0013 达成：四家联邦检索全落地——grok/kimi loader 接完（源码核实纠三处偏）、codex 升 FileChange 双源、时间 epoch ms 归一；grok/kimi 真实历史检索命中；S019 落档；M034 记档 |
+| 2026-08-31 | P0011 切片 1 完成：HTTP 编排面落地：api 传输无关层 + axum server（feature 隔离）、六操作 JSON 信封、会话锁串行；stub curl 全绿（含 400 与 ok:false 负例）；选型核实订正 rmcp 为 stable 3.1.4 |
+| 2026-08-31 | P0013 达成：四家联邦检索全落地：grok/kimi loader 接完（源码核实纠三处偏）、codex 升 FileChange 双源、时间 epoch ms 归一；grok/kimi 真实历史检索命中；S019 落档；M034 记档 |
 | 2026-08-31 | P0013 架构定案查询时联邦并首落 claude/codex：S019 本地实证四家会话库全破、`src\trace.rs` + `oma trace sessions\|timeline\|search` 活体验证（双意图自证、历史轮次回溯）；S007 无头缺口由 ohmypwsh 同机实测回填 |
 | 2026-08-31 | 目标切到 P0013：S018 aitrace 研究落档（operation_id 归组、双意图、补账、裁决表八坑，七条断言抽查全中）；P0013 立项（五切片，补 agent 过滤与项目路径两缺口） |
-| 2026-08-31 | P0012 达成：oma 自适应安装部署——catalog 两层 pin（出厂锚 + `~/.ohmyagents` 用户本地层写回）、渠道序 github 主 CDN 兜底、四家 Windows 装机全绿、update 取证闭环；S017 落档（含四家官方安装脚本逐家实证的渠道反转） |
+| 2026-08-31 | P0012 达成：oma 自适应安装部署：catalog 两层 pin（出厂锚 + `~/.ohmyagents` 用户本地层写回）、渠道序 github 主 CDN 兜底、四家 Windows 装机全绿、update 取证闭环；S017 落档（含四家官方安装脚本逐家实证的渠道反转） |
 | 2026-08-31 | S016 incurs 双层源码研究落档（吸收裁决表，三传输模式升核心）；P0011 立项（三通道编排加网页可视化，axum/rmcp 可选 feature 选型） |
-| 2026-08-31 | P0009 达成：真四路拉通——claude 路全通（hook 事件流实时迁移、真任务执行）；spawn cwd 缺陷修复（M031）；三路保守拦截符合设计 |
+| 2026-08-31 | P0009 达成：真四路拉通：claude 路全通（hook 事件流实时迁移、真任务执行）；spawn cwd 缺陷修复（M031）；三路保守拦截符合设计 |
 | 2026-08-31 | P0008 达成：oma run 状态门分派（一路忙/blocked 跳过不堵其它路）加层 3 任务文件；cargo test 41 过。附 init 接 deploy 层收尾 |
 | 2026-08-31 | P0007 达成：label 端点融合（CLI 起 daemon、`#{socket_path}` 桥 SDK）、send 多行三段式粘贴（中文验收）、stale pipe 自愈；boot 前缀坑记 M029 |
 | 2026-08-31 | label-bridge 实证绿：CLI 起 label daemon 后 `#{socket_path}` 桥出实际 pipe，SDK 直连同一 daemon（poc-label-bridge）；P0007 立项 |
@@ -95,7 +97,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：D10 G005 存量字符清理（切片 2 ARROW 已清；余 DASH 472）。
+- 当前目标：无（D10 G005 存量字符清理已于 2026-09-07 达成，归档 P0031）。
 
 ## 历史
 
@@ -103,6 +105,7 @@
 
 | 日期 | 目标 | 结果 |
 | --- | --- | --- |
+| 2026-09-07 | D10 G005 存量字符清理 | 达成：SKIP_DIRS 外四类禁字清零；封闭清单删除；mdcharlint 零容忍。diary/proven 仍不回改 |
 | 2026-09-07 | D08 doctor 检查面补形态 | 达成：Grok 状态栏 command 三态（Windows 只认 `.cmd` 单路径，`pwsh -File` 壳行 warn）；JSON hook args 数组 warn；141 单测绿；本机 doctor grok statusline ok。同日 D09：oma 不管种子。归档 P0030 |
 | 2026-09-07 | D07 oma 收窄配合迁册（ome 接管 agent 二进制下装部署） | 达成：install/update deprecated 指向 ome（保留兼容，stderr 提示不污染 R011 输出面，两条集成测试）；`catalog\agents.toml` 冻结历史锚；doctor 四类检查归 agents 域（R002 与 AGENTS 同步）；AGENTS 边界与路由、INDEX、根 SKILL 同步；ome 部署滞后 issue 交底 ohmyenv-rs。用户裁定不等 ome 切片 3 先清自身面（2026-09-07） |
 | 2026-09-05 | D06 吸收合并 agent 二进制下装部署（五端全量） | 达成：oma `--version` 三处实测部署位更新；lan-win 下发 4/4 纳管、lan-linux 首装三家加 kimi default 位纳管二连跑幂等；五端 install 全 skipped 验收绿；AGENTS 边界行、ohmypwsh#9、#2 回填。同日方向反转（用户追问链三轮六裁）：agent 二进制安装域回归 ome 承载，oma 收窄为配置 agent、hook、编排；本目标五端成果转为过渡态，迁册见 D07 |

@@ -4,10 +4,10 @@
 
 ## 需求
 
-- 核实：四家 hook 的注册文件落点、JSON/TOML 形态、事件全集、stdin/exit 语义、信任门——为 `poc-init` 与 `oma init` 提供权威 schema。
+- 核实：四家 hook 的注册文件落点、JSON/TOML 形态、事件全集、stdin/exit 语义、信任门：为 `poc-init` 与 `oma init` 提供权威 schema。
 - 仓库定位（gh 检索，R005 双通道之 GitHub 法）：
   - Codex：`openai/codex`（120k stars，2026-08-31 仍有 push）[实证: gh repo view]
-  - Grok：`xai-org/grok-build`——xAI 官方 "coding agent harness and TUI"（本仓四路里的 grok 即它）[实证: gh repo list xai-org]
+  - Grok：`xai-org/grok-build`：xAI 官方 "coding agent harness and TUI"（本仓四路里的 grok 即它）[实证: gh repo list xai-org]
   - Kimi：`MoonshotAI/kimi-code`（TS 本尊；`MoonshotAI/kimi-cli` 是 Python 版，用户点名不采用）[实证: gh search + 用户定调]
   - Claude Code：闭源；官方 `code.claude.com/docs/llms.txt` 定位到 `docs/en/hooks.md` 参考页 [实证: 2026-08-31 抓取]
 
@@ -27,7 +27,7 @@
 ]}]}}
 ```
 
-- **exec form（command+args）最稳**：args 存在时 command 按 PATH 解析为可执行文件直接 spawn，无 shell、无引号问题；路径占位符 `${CLAUDE_PROJECT_DIR}` 明文替换进 command 与每个 args。Windows 下 command 必须是真 exe（`.cmd`/`.bat` shim 不行）——`oma.exe 绝对路径 + args:["hook"]` 是理想形态。shell form 才有 `shell: "powershell"`。
+- **exec form（command+args）最稳**：args 存在时 command 按 PATH 解析为可执行文件直接 spawn，无 shell、无引号问题；路径占位符 `${CLAUDE_PROJECT_DIR}` 明文替换进 command 与每个 args。Windows 下 command 必须是真 exe（`.cmd`/`.bat` shim 不行）：`oma.exe 绝对路径 + args:["hook"]` 是理想形态。shell form 才有 `shell: "powershell"`。
 - 事件 30+（参考页全集）。oma 关心的：SessionStart、SessionEnd、UserPromptSubmit、PreToolUse、PostToolUse、Stop、Notification、SubagentStart/Stop、PreCompact、**PermissionRequest**。
 - **重大订正 S009 旧口径**：Claude 现在有标准 `PermissionRequest` 事件（"about to ask you for permission"），且支持 hook 程序化裁决 `hookSpecificOutput.decision.behavior: allow|deny`（allow 还可带 updatedInput/updatedPermissions）。旧结论「Claude 无 PermissionRequest、Notification 顶替归 unknown」过时。
 - Notification 有 matcher 细分（`permission_prompt`、`idle_prompt` 等）；`permission_prompt` 在提示等待约 6 秒后才发，即时信号用 PermissionRequest。
@@ -51,7 +51,7 @@
 ]}]}}
 ```
 
-- handler 四型：command（含 **commandWindows** 平台专用命令字段——oma 部署可直接用）、mcp_tool、prompt、agent。**2026-08-31 本机 0.149.1 偏差注记**：Windows 实测 codex 经 PowerShell 执行 command 串，`"exe" hook` 是 PS 语法错，需 `& "exe" hook` 调用操作符；hook 执行环境不继承调用方 PATH，command 必须绝对路径。S015 系 HEAD 源码，落地以本机版本实测为准。[实证: P0010]
+- handler 四型：command（含 **commandWindows** 平台专用命令字段：oma 部署可直接用）、mcp_tool、prompt、agent。**2026-08-31 本机 0.149.1 偏差注记**：Windows 实测 codex 经 PowerShell 执行 command 串，`"exe" hook` 是 PS 语法错，需 `& "exe" hook` 调用操作符；hook 执行环境不继承调用方 PATH，command 必须绝对路径。S015 系 HEAD 源码，落地以本机版本实测为准。[实证: P0010]
 - 层序（discovery）：managed requirements，再 config layers low-to-high（用户 `~/.codex`、项目 `.codex`，每层先读层目录 hooks.json 再读 config.toml `[hooks]`），再 plugin 源。插件 env 注入 `PLUGIN_ROOT`/`CLAUDE_PLUGIN_ROOT`/`PLUGIN_DATA`/`CLAUDE_PLUGIN_DATA`（对 Claude 插件生态 OOTB 兼容）。
 - 信任持久化：`[hooks.state."<source>:<event>[i].hooks[j]"] {enabled, trusted_hash}`（S006 的 trusted_hash 口径一手确认）；`bypass_hook_trust` 旗标跳过。
 - 事件 12 个：PreToolUse、PermissionRequest、PostToolUse、PreCompact、PostCompact、SessionStart、SessionEnd、UserPromptSubmit、SubagentStart、SubagentStop、Stop、**Interrupt**（无 Notification）。stdin snake_case 加 Codex 扩展 `turn_id`、`permission_mode`；输出 wire camelCase，注释明言兼容 Claude 语义（"Claude requires reason when decision is block"）。
@@ -70,7 +70,7 @@
 ]}]}}
 ```
 
-- 源两种（workspace config.rs `HookSourceConfig`）：`SettingsFile`（可直接指 `~/.claude/settings.json`——grok 兼容读 Claude 配置）与 `Directory`（`~/.grok/hooks/*.json`、项目 `<project>/.grok/hooks/*.json`）。TOML 层 `[[hooks.<Event>]]` 写 `.grok/config.toml`（项目层从 cwd 向上走到 git root 逐层叠加）。
+- 源两种（workspace config.rs `HookSourceConfig`）：`SettingsFile`（可直接指 `~/.claude/settings.json`：grok 兼容读 Claude 配置）与 `Directory`（`~/.grok/hooks/*.json`、项目 `<project>/.grok/hooks/*.json`）。TOML 层 `[[hooks.<Event>]]` 写 `.grok/config.toml`（项目层从 cwd 向上走到 git root 逐层叠加）。
 - handler 两型：command、http（无 prompt/agent/mcp_tool）；`env` map 注入 hook 进程；command/url 支持 `$VAR` 环境展开（matcher 不展开）。
 - 事件集（event.rs 宏）：SessionStart、PreToolUse、PostToolUse、PostToolUseFailure、SessionEnd、Stop、StopFailure、StopCancelled、Notification、UserPromptSubmit、**PermissionDenied**、SubagentStart、SubagentStop、SubagentEnd、PreCompact、PostCompact，另有 legacy 别名（beforeShellExecution 对应 PreToolUse 等）。**无 PermissionRequest**：Claude settings 里的 PermissionRequest 段被 lenient skip（未知事件跳过不报错）。oma 的 grok 路 blocked 信号只能靠 PermissionDenied（已拒，非等待）与 Notification，等待审批态走 1b 画面兜底。
 - matcher 是正则（invalid regex 报错）；Stop 等 MatcherPolicy::Ignored 事件带 matcher 只警告不生效。超时默认 5s，Stop 门 600s，prompt 门 30s。
@@ -95,7 +95,7 @@ timeout = 10            # 1–600，默认 30
 ```
 
 - schema `.strict()`：只许这四字段，多写一个字段整个 config 加载失败。`HookDef` 接口另有 cwd/env 但配置 schema 不收（程序内构造用）。
-- **项目级裁决（S008 悬案关闭）**：项目内只有 `.kimi-code/local.toml`，其 schema 仅 `workspace.additional_dir` 一项——**项目级 hook 注册不存在**。oma 对 kimi 的退路：hook 命令自带环境守卫（无 `OHMYAGENTS_STATE_FILE` 即 exit 0），或经用户同意写用户级。
+- **项目级裁决（S008 悬案关闭）**：项目内只有 `.kimi-code/local.toml`，其 schema 仅 `workspace.additional_dir` 一项：**项目级 hook 注册不存在**。oma 对 kimi 的退路：hook 命令自带环境守卫（无 `OHMYAGENTS_STATE_FILE` 即 exit 0），或经用户同意写用户级。
 - 事件约 20 个（文档表）：UserPromptSubmit、UserPromptQueued、PreToolUse、Stop、TurnStarted、PostToolUse、PostToolUseFailure、PermissionRequest、PermissionResult、SessionStart、SessionEnd、SessionHeartbeat、SubagentStart/Stop、TaskStarted、StopFailure、Interrupt、Pre/PostCompact、Notification。**可阻断仅 PreToolUse/Stop/UserPromptSubmit**，其余观察型（返回值不影响主流程）。
 - stdin snake_case：hook_event_name/session_id/session_title/client_type/cwd 加事件字段；退出码 0 放行（stdout 可附加上下文）、2 阻断（stderr 回 LLM）、其他 fail-open；JSON `hookSpecificOutput.permissionDecision: deny` 同 Claude。
 - 同事件多 hook 并行、同 command 去重；Stop 防循环（stop_hook_active 只再触发一次）。
