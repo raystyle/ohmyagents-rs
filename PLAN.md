@@ -1,35 +1,31 @@
 # PLAN：当前目标实施计划
 
-## 当前目标：D06 agent 二进制下装部署五端全量收敛
+## 当前目标：D07 oma 收窄配合迁册
 
-> 回指 `PRD.md` D06。用户 2026-09-05 裁决三边界：安装行为不动（保持幂等检测安装）、存量原地纳管（不重装不删）、五端全量；配置域（settings、API key、MCP、statusline 等）除外。
+> 已达成 2026-09-07，归档 P0029。回指 `PRD.md` D07。用户 2026-09-05 追问链三轮六裁方向反转：agent 二进制下装部署回归 ohmyenv-rs（ome），oma 收窄为配置 agent、hook、编排。2026-09-07 用户裁定不等 ome 仓 D07 切片 3 先清自身面，ome 侧以 issue 交底。下目标立项时本文件重写。
 
 ### 事实基线
 
-> 2026-09-05 立项盘点。
+> 2026-09-07 迁册批开工盘点。
 
-- 本机 Windows：`oma agents` 四家 installed=4、全 source=path（原地纳管探测在工作）；`oma agents install` 四家全 skipped（幂等）[实证： 当日实跑]
-- P0012 已收口本机三台（Windows / WSL / lan-mac 同机开发位）四家安装全链 [实证： GOAL 历史 2026-09-01]
-- 五端真实缺口：lan-win 与 lan-linux 两端的 oma 可达性、agent 盘点与幂等验收均未做 [推断： 立项时判断；切片 2 实测修正为 lan-linux 三家缺（claude / codex / grok），kimi 在 default 位 0.38.0 被探测纳管]
-- oma `--version` 不支持（clap 未挂版本参数）；ome catalog 的 oma 条目集成条件为此加发布通道裁决（见 ohmyagents issue #2 #3）[实证： 当日实跑与 ome catalog 注释]
-- 存量越界物 `D:\ohmyenv\claude\claude.exe`（ohmyenv.ps1 时代遗产）：按「原地纳管」裁决 oma 仅探测不迁移；EnvRoot 清理归 ome 域另议，本批不发
+- ome 仓源码已含 D07 切片 1 与 2：四家入册 `catalog\tools.toml`、`ome install` 幂等（PATH 在位即跳过，与 oma 判定同口径）、doctor 三层 [实证： ohmyenv-rs 461a178 / 9179893 与 ohmyagents#5]
+- 本机 ome 部署位（`%LOCALAPPDATA%\Programs\ome`）与 catalog 同步层停 2026-09-02 旧版，`ome install claude` 报「未知工具」[实证： 2026-09-07 本机实跑]
+- oma 侧 agents install / update 行为面稳定：P0012 三平台全链与 D06 五端验收基线 [实证： GOAL 历史 2026-09-01 / 2026-09-05]
 
 ### 方案骨架
 
-> 四切片，1 与 2 可并行。
+> 迁册批三件（ohmyagents#5 请求），oma 自身面。
 
-1. **切片 1：oma --version 支持**：clap `version` 挂 Cargo.toml 版本（build.rs 嵌资源口径对齐）；SKILL.md / R002 / README 命令面同步；解开 ome catalog 集成条件之一。
-2. **切片 2：lan-win 与 lan-linux 下发加盘点**：oma 二进制下发（sha 对比按需传，sync 脚本固化 `.tools\`，对齐 ome 的 sync-ome-lanwin 模式）；两端 `oma agents` 探测盘点（来源 / 版本 / 路径矩阵落 TODO）。
-3. **切片 3：五端幂等验收**：五端各跑 `oma agents` 加 `oma agents install`（存量 skipped 纳管、缺失补装），install 二连跑零变更；mac 加 WSL 复验一次（P0012 后回归）。
-4. **切片 4：边界收口与跨仓 ISSUE**：AGENTS 一、边界段加一行（agent 二进制下装部署归 oma，配置域除外口径）；ohmypwsh 发 agent 域退役配合 ISSUE；ohmyagents #2 #3 复核 ome 集成条件进度（--version 已解、发布通道待裁）。
+1. **deprecated 提示**：`cmd_agents_install` / `cmd_agents_update` 入口 stderr 打 `oma.deprecated` 指向 `ome install`（不删命令、stdout kv 与 json 面 R011 不动）；clap 帮助与 COMMAND_MAP 同步；集成测试两条钉 stderr 提示与退出码。
+2. **`catalog\agents.toml` 头注记**：数据权威转 ome `catalog\tools.toml` agent 四节，本文件冻结历史锚（pin 与 sha 不再随上游滚动）。
+3. **doctor 四类检查归 agents 域**：R002 与 AGENTS 归类重排（登录态 / hook 形态 / 状态栏 / 会话健康归 agents 域；二进制在位与版本、token 诊断归 ome doctor）；oma doctor 代码不动（binary 在位探查保留作 spawn 前置，ohmyagents#5「维持」口径）。
 
 ### 验收口径
 
-- 五端 `oma agents` 四家每端 installed（存量纳管或补装后）
-- 五端 `oma agents install` 幂等：二连跑输出与退出码一致、零文件变更
-- `oma --version` 可用且与 Cargo.toml 一致
-- 边界声明落 AGENTS；跨仓 ISSUE 两件发出
-- 每提交门禁全绿
+- 两条新集成测试绿（stderr 提示含 `oma.deprecated` 与 `ome install`，未知名快败不触网）
+- 既有测试全绿、fmt / clippy 零告警、md 三件套过（触碰文件）
+- 四原语与 AGENTS / R002 / INDEX 同步；根 SKILL 重跑 `oma init` 再生
+- 跨仓：ohmyenv-rs issue 交底部署滞后；ohmyagents#5 回填
 
 ### 门禁
 

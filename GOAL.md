@@ -7,14 +7,14 @@
 
 > 当前目标的起点：何时发起、为什么发起、要解决什么问题。
 
-- **日期**：2026-09-05。
-- **起点**：用户裁决「D:\ohmyagents-rs 吸收合并 agent 二进制的下载、安装、部署，不包括配置」：四兄弟分工（2026-09-02 终版「部署执行器归 ome（工具与运行时）与 oma（agent）」）的落地收口。追问链第 1 轮三裁：安装行为不动（保持幂等检测安装）、存量原地纳管（不重装不删）、五端全量（本机 / WSL / lan-win / lan-linux / lan-mac）；配置域（settings、API key、MCP、statusline 等）明确除外。
+- **日期**：2026-09-05（2026-09-07 执行）。
+- **起点**：D06 当日五端闭环后用户追问链三轮六裁**方向反转**：「oma 以后只管配置 agent 和 hook 和编排，不管 agent 的升级和安装」。agent 二进制下装部署回归 ohmyenv-rs（ome），oma 做迁册配合：install/update deprecated 指向 ome、`catalog\agents.toml` 数据权威注记转 ome、doctor 四类检查归 agents 域。2026-09-07 用户裁定不等 ome 仓 D07 切片 3 先清自身面，ome 侧以 issue 交底。
 
 ## 锚点
 
 > 当前锚定的目标 + 推进时间线。
 
-- **锚定的目标**：D06 agent 二进制下装部署五端全量收敛（oma 幂等检测安装为唯一权威通道，存量原地纳管，配置域除外）。
+- **锚定的目标**：D07 oma 收窄配合迁册（agents install/update deprecated 指向 ome、`catalog\agents.toml` 冻结历史锚、doctor 四类检查归 agents 域；配置 agent、hook、编排为本域）。
 
 ### 推进时间线
 
@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-07 | D07 迁册批落地达成：agents install/update 入口 stderr 提示 `oma.deprecated` 指向 `ome install`（不删命令、stdout kv 面不动 R011，两条集成测试钉住）；`catalog\agents.toml` 头注记冻结历史锚；doctor 四类检查 R002 与 AGENTS 归 agents 域（二进制与版本、token 诊断归 ome doctor）；AGENTS 边界段 D07 改写、路由行 deprecated 标注、INDEX 两行、根 SKILL 重跑 init 再生；ome 侧部署滞后（本机 2026-09-02 旧版、ome install 报未知工具）以 issue 交底 ohmyenv-rs；归档 P0029 |
 | 2026-09-05 | D06 五端当日闭环：oma `--version` 三处实测 0.1.0（本机 / WSL / lan-linux 构建，部署位更新三端）；lan-win 下发 4/4 纳管；lan-linux 首装三家（claude 2.1.251、codex 0.151.0、grok 1.0.13，kimi default 位纳管）二连跑幂等；五端 install 全 skipped 验收绿（mac 用旧版 oma，agents 语义未变）；AGENTS 边界行、ohmypwsh#9、#2 回填；余量 mac --version 走 CI 新资产待推 |
 | 2026-09-05 | D06 立项：基线盘点（本机 Windows `oma agents` 四家 installed=4 source=path、install 全 skipped 幂等纳管已在工作 [实证： 当日实跑]；oma `--version` 不支持，ome catalog 集成条件缺口之一 [实证： 当日实跑]；P0012 已收口本机三台，五端真实缺口为 lan-win 加 lan-linux [推断： 待盘点]）；PRD D06 登记、GOAL 起点锚点切换、PLAN 四切片、TODO 清单建行 |
 | 2026-09-03 | 文档体系重构当日闭环（PRD D01 至 D05，参考 reader_rs 形态）：仓库清理与工具清单对账（0497dac/2914164）；PRD 四原语引入（b948d67）；R002 扩容命令面唯一权威补七缺命令面（61a3035）；AGENTS 重写工作规则加文档对齐义务表并瘦身意图路由、8 处下游段名同步（4147eff）；INDEX 收敛九节修复登记缺陷（03a6271，补 9 件代码文件登记，M043 记档）；TODO 残表清退（2e14434）；PLAN 与 GOAL 切目标（df362f5）；CHANGELOG 与 ROADMAP 补 09-01/09-02 里程碑（fd45180）；G002 CR 修复（8be704d）；R 系列八行六态越级整改（0bf7a5f）；根级五文件禁字合规退出豁免清单（2c0e67e）；11+2 提交全绿 |
@@ -82,7 +83,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：D07 oma 收窄配合（配置 agent、hook、编排为本域；agents install/update 迁册 ome 的 deprecated 与数据源注记、doctor 四类检查归 agents 域重排；等 ome D07 切片落地后执行）。
+- 当前目标：无（D07 oma 收窄配合已于 2026-09-07 达成，归档 P0029；下目标立项走 `PRD.md` 追问链）。
 
 ## 历史
 
@@ -90,6 +91,7 @@
 
 | 日期 | 目标 | 结果 |
 | --- | --- | --- |
+| 2026-09-07 | D07 oma 收窄配合迁册（ome 接管 agent 二进制下装部署） | 达成：install/update deprecated 指向 ome（保留兼容，stderr 提示不污染 R011 输出面，两条集成测试）；`catalog\agents.toml` 冻结历史锚；doctor 四类检查归 agents 域（R002 与 AGENTS 同步）；AGENTS 边界与路由、INDEX、根 SKILL 同步；ome 部署滞后 issue 交底 ohmyenv-rs。用户裁定不等 ome 切片 3 先清自身面（2026-09-07） |
 | 2026-09-05 | D06 吸收合并 agent 二进制下装部署（五端全量） | 达成：oma `--version` 三处实测部署位更新；lan-win 下发 4/4 纳管、lan-linux 首装三家加 kimi default 位纳管二连跑幂等；五端 install 全 skipped 验收绿；AGENTS 边界行、ohmypwsh#9、#2 回填。同日方向反转（用户追问链三轮六裁）：agent 二进制安装域回归 ome 承载，oma 收窄为配置 agent、hook、编排；本目标五端成果转为过渡态，迁册见 D07 |
 | 2026-09-03 | 文档体系重构（PRD D01 至 D05，参考 reader_rs） | 达成：PRD 四原语引入、AGENTS 工作规则重组加文档对齐义务表、R002 命令面唯一权威、INDEX 九节收敛修复登记缺陷、TODO 残表清退、CHANGELOG 与 ROADMAP 补史、G002 CR 修复、R 系列六态整改、根级五文件退出豁免清单；13 提交门禁全绿 |
 | 2026-09-02 | agent doctor 部署诊断与登录引导（P0028） | 达成：doctor warn 层四类部署检查、`oma agents login` 跨机引导（失败成功双半程实证）、is_ours 调用操作符根修、四端验收（grok 登录态四分支活体实证）；同日 rust 1.98 零改动适配、更名收口、四仓生态定调 |

@@ -40,7 +40,7 @@
 | `src\yolo.rs` | `oma init --yolo`：四家配置落盘与 pretrust |
 | `src\deploy.rs` | `oma init` hook/skill 部署层：按 S015 矩阵落项目文件，幂等合并；SKILL.md 由 COMMAND_MAP 命令图生成（标记覆写三态） |
 | `src\orch.rs` | 产品编排层：项目 slug 会话、spawn/status/send/cleanup、pane 清单 |
-| `src\install.rs` | 自适应安装层：多渠道下载、sha 信任锚、oma 自管根布局、update 取证与 pin 写回 |
+| `src\install.rs` | 自适应安装层（D07 deprecated：install/update 入口提示指向 ome）：多渠道下载、sha 信任锚、oma 自管根布局、update 取证与 pin 写回 |
 | `src\login.rs` | `oma agents login`：grok/kimi 设备码登录引导（子进程捕获、URL/code 转发、落盘凭据确认） |
 | `src\providers.rs` | `oma agents providers`：别名簿 providers.toml 读写与 `agent@alias` 注入形态（S027） |
 | `src\statusline.rs` | `oma agents statusline`：四家状态栏写入面幂等合并（S025 矩阵） |
@@ -62,7 +62,7 @@
 | `tests\cli.rs` | CLI 集成冒烟（assert_cmd；check/agents/hook/doctor/send 快败） |
 | `examples\poc-*.rs` | 十四个 POC（Windows 范围全表绿；命令清单与逐件说明见 R002 一节） |
 | `catalog\rmux.toml` | rmux tag 与各平台 SHA256（`oma check` 信任锚） |
-| `catalog\agents.toml` | 四家 agent pin：渠道序（github 主 CDN 兜底）、per-OS+arch 资产 SHA256、官方校验清单线索（信任锚） |
+| `catalog\agents.toml` | 四家 agent pin：渠道序（github 主 CDN 兜底）、per-OS+arch 资产 SHA256、官方校验清单线索（D07 起冻结为历史锚，数据权威转 ome `catalog\tools.toml` agent 四节） |
 
 ## 三、方案归档
 
@@ -97,6 +97,7 @@
 | P0026 | `P0026-code-review修复-并发安全与健壮性.md` | code review 修复 |
 | P0027 | `P0027-四环境部署自适应-hook形态与状态栏.md` | 四环境部署自适应 |
 | P0028 | `P0028-agent-doctor部署诊断与登录引导.md` | agent doctor 部署诊断与登录引导 |
+| P0029 | `P0029-D07迁册批-agents下装归ome.md` | D07 迁册批：agents install/update deprecated 指向 ome、agents.toml 冻结历史锚、doctor 四类归 agents 域 |
 
 （P0020 断号：编号已预留未使用，不复用。）
 
