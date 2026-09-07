@@ -4,18 +4,15 @@
 
 ## 当前目标
 
-D08 doctor 检查面补形态（2026-09-07 立项；方案见 `PLAN.md`，需求见 `PRD.md` D08）。用户实证 Grok 状态栏已正常；本目标补 doctor 把「写了配置」当 ok 的漏检。
+下目标待立项，走 `PRD.md` 追问链。D08 已达成归档 P0030；D09 边界同日交付。
 
 ### 任务进度清单
 
-| 任务项 | 进度 | 说明 | 日期 |
-| --- | --- | --- | --- |
-| doctor：Grok 状态栏 command 三态（M048） | 已完成 | Windows 只认 `oma-statusline-grok.cmd` 单路径；`pwsh -File` 壳行标 warn。本机 doctor grok statusline ok | 2026-09-07 |
-| doctor：JSON hook args 数组标 warn（M047） | 已完成 | ours 且 args 非空则形态 args，指向 `oma init`；本机 claude/grok hooks.form=bare | 2026-09-07 |
-| R002 doctor 行补两形态 | 已完成 | hook args 与 Grok Windows .cmd 口径写入 R002 doctor 行 | 2026-09-07 |
+无。
 
 ## 前目标清单
 
+> D08 doctor 检查面补形态（2026-09-07 归档 P0030）：Grok 状态栏 command 三态、JSON hook args 形态；用户实证栏正常。同日 D09：oma 不管种子。
 > D07 oma 收窄配合迁册（2026-09-07 归档 P0029）：agents install/update deprecated、agents.toml 冻结历史锚、doctor 四类归 agents 域；当日热修 M044 至 M048（Codex 信任空表、Codex 状态栏 argv、Grok 字形、Grok hook ParserError、Grok 状态栏 os error 123）。
 > 文档体系重构（D01 至 D05，2026-09-03）：全链已完成，PRD 引入（b948d67）、R002 扩容（61a3035）、AGENTS 重写（4147eff）、INDEX 收敛（03a6271）、TODO 清退（2e14434）、PLAN 与 GOAL 切目标（df362f5）、CHANGELOG 与 ROADMAP 补史（fd45180）、G002 CR 修复（8be0e4d）、R 系列六态整改（0bf7a5f）、豁免清单退出（2c0e67e）、标题修正（0e044bb）。
 > D06 agent 二进制下装部署五端全量收敛（2026-09-05）：当日闭环（--version 三端、lan 两端下发盘点、五端幂等验收、AGENTS 边界与跨仓 issue）后同日方向反转（D07），五端成果转过渡态；切片与验收明细见 GOAL 历史 2026-09-05 与提交 ad11a79。

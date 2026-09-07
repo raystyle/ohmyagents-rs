@@ -37,6 +37,12 @@
 - **三平台验收**：Windows、macOS、WSL Linux 四家 agent 安装与真身四路全链绿（P0012 收口）。
 - **流程件（2026-09-03）**：参考 reader_rs 文档体系重构：PRD 四原语引入、AGENTS 工作规则重组加文档对齐义务表、R002 升命令面唯一权威、INDEX 收敛九节修复登记缺陷、TODO 残表清退、根级五文件禁字合规退出豁免清单。
 
+### 里程碑 2026-09-07
+
+- **迁册批**（P0029 / D07）：`oma agents install` / `update` deprecated 指向 `ome install`；`catalog\agents.toml` 冻结历史锚；doctor 四类检查归 agents 域。
+- **doctor 检查面**（P0030 / D08）：Grok 状态栏 command 三态（Windows 只认 `.cmd` 单路径）；JSON hook args 数组 warn。热修 M044 至 M048。
+- **边界**（D09）：oma 不管种子，只管诊断、配置、hook、状态栏和编排。
+
 ### 排后
 
 - Linux/mac 接管（P0012 跨平台面）：资产与代码路径就绪；指令集 SIGILL 预备检测研究已备（S021）。

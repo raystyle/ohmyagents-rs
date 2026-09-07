@@ -7,14 +7,14 @@
 
 > 当前目标的起点：何时发起、为什么发起、要解决什么问题。
 
-- **日期**：2026-09-07。
-- **起点**：用户裁定「ome只管软件部署；oma 要对 hook、状态栏和 agent 配置的检查」（D08，纠正把 ome doctor 做成调用 oma 的误读）。触发项 Grok 状态栏显示错误。热修 M046 至 M048 后用户实证栏正常。盘点：doctor 已有登录态 / hook 形态 / 状态栏 / 会话健康四类，但把「写了配置」当 ok，漏掉 Windows 不可 spawn 的 command 串（M048）和 command+args（M047）。
+- **日期**：无（下目标待立项）。
+- **起点**：D08 已于 2026-09-07 达成归档 P0030；D09 边界同日交付。下目标走 `PRD.md` 追问链。
 
 ## 锚点
 
 > 当前锚定的目标 + 推进时间线。
 
-- **锚定的目标**：D08 doctor 检查面补形态（Grok 状态栏 command 可 spawn、JSON hook 无 args 数组；配置写了不等于能跑）。
+- **锚定的目标**：无。排队项见 `TODO.md` 队列（启动时先入 PRD）。
 
 ### 推进时间线
 
@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-07 | D08 达成归档 P0030：doctor Grok 状态栏三态与 hook args 形态；用户实证栏正常；同日 D09 边界交付 |
 | 2026-09-07 | D09 用户裁定：oma 不管种子，只管诊断、配置、hook、状态栏和编排。种子归 ohmycloud，本机安装归 ome。AGENTS 边界与 R001 四仓 / 分发通道同步；R001 旧「安装归本仓」行删除 |
 | 2026-09-07 | D08 切片落地：doctor Grok 状态栏三态（Windows 只认 .cmd 单路径）加 hook args 形态 warn；141 单测绿；本机 grok statusline ok、hooks.form=bare |
 | 2026-09-07 | 用户实证 M048 修复后 Grok 状态栏正常。D08 立项：doctor 补 Grok command 三态与 hook args 形态，堵住「写了配置仍 ok」 |
@@ -91,7 +92,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：无（D07 oma 收窄配合已于 2026-09-07 达成，归档 P0029；下目标立项走 `PRD.md` 追问链）。
+- 当前目标：无（D08 doctor 检查面补形态已于 2026-09-07 达成，归档 P0030；下目标立项走 `PRD.md` 追问链）。
 
 ## 历史
 
@@ -99,6 +100,7 @@
 
 | 日期 | 目标 | 结果 |
 | --- | --- | --- |
+| 2026-09-07 | D08 doctor 检查面补形态 | 达成：Grok 状态栏 command 三态（Windows 只认 `.cmd` 单路径，`pwsh -File` 壳行 warn）；JSON hook args 数组 warn；141 单测绿；本机 doctor grok statusline ok。同日 D09：oma 不管种子。归档 P0030 |
 | 2026-09-07 | D07 oma 收窄配合迁册（ome 接管 agent 二进制下装部署） | 达成：install/update deprecated 指向 ome（保留兼容，stderr 提示不污染 R011 输出面，两条集成测试）；`catalog\agents.toml` 冻结历史锚；doctor 四类检查归 agents 域（R002 与 AGENTS 同步）；AGENTS 边界与路由、INDEX、根 SKILL 同步；ome 部署滞后 issue 交底 ohmyenv-rs。用户裁定不等 ome 切片 3 先清自身面（2026-09-07） |
 | 2026-09-05 | D06 吸收合并 agent 二进制下装部署（五端全量） | 达成：oma `--version` 三处实测部署位更新；lan-win 下发 4/4 纳管、lan-linux 首装三家加 kimi default 位纳管二连跑幂等；五端 install 全 skipped 验收绿；AGENTS 边界行、ohmypwsh#9、#2 回填。同日方向反转（用户追问链三轮六裁）：agent 二进制安装域回归 ome 承载，oma 收窄为配置 agent、hook、编排；本目标五端成果转为过渡态，迁册见 D07 |
 | 2026-09-03 | 文档体系重构（PRD D01 至 D05，参考 reader_rs） | 达成：PRD 四原语引入、AGENTS 工作规则重组加文档对齐义务表、R002 命令面唯一权威、INDEX 九节收敛修复登记缺陷、TODO 残表清退、CHANGELOG 与 ROADMAP 补史、G002 CR 修复、R 系列六态整改、根级五文件退出豁免清单；13 提交门禁全绿 |
