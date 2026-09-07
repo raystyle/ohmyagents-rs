@@ -7,14 +7,14 @@
 
 > 当前目标的起点：何时发起、为什么发起、要解决什么问题。
 
-- **日期**：无（下目标待立项）。
-- **起点**：D08 已于 2026-09-07 达成归档 P0030；D09 边界同日交付。下目标走 `PRD.md` 追问链。
+- **日期**：2026-09-07。
+- **起点**：用户点名启动排队四项。当前目标 D10：G005 存量字符清理。2026-09-02 量化 3671 处（含 diary/proven）；现 SKIP_DIRS 外复测 555 处（DASH 476、ARROW 72、FULLWIDTH 6、EMOJI 1），46 文件封闭清单。清零后删清单，mdcharlint 零容忍。
 
 ## 锚点
 
 > 当前锚定的目标 + 推进时间线。
 
-- **锚定的目标**：无。排队项见 `TODO.md` 队列（启动时先入 PRD）。
+- **锚定的目标**：D10 G005 存量字符清理（FULLWIDTH 机械、DASH/ARROW 按语义、清零后删封闭清单）。
 
 ### 推进时间线
 
@@ -22,6 +22,8 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-07 | D10 切片 1：FULLWIDTH 与 EMOJI 清零（GOAL/S018 全角加号、S024 字形进行内代码） |
+| 2026-09-07 | D10 立项 G005 存量清理。复测 SKIP_DIRS 外 555 处（DASH 476、ARROW 72、FULLWIDTH 6、EMOJI 1）。D11 状态栏 zig/go/cpp、D12 t006 孤儿、D13 mac --version 已澄清排队；D13 推远端仍待指示 |
 | 2026-09-07 | D08 达成归档 P0030：doctor Grok 状态栏三态与 hook args 形态；用户实证栏正常；同日 D09 边界交付 |
 | 2026-09-07 | D09 用户裁定：oma 不管种子，只管诊断、配置、hook、状态栏和编排。种子归 ohmycloud，本机安装归 ome。AGENTS 边界与 R001 四仓 / 分发通道同步；R001 旧「安装归本仓」行删除 |
 | 2026-09-07 | D08 切片落地：doctor Grok 状态栏三态（Windows 只认 .cmd 单路径）加 hook args 形态 warn；141 单测绿；本机 grok statusline ok、hooks.form=bare |
@@ -44,11 +46,11 @@
 | 2026-09-01 | P0012 阶段切换：WSL Linux 第一棒收口（「目前只到 wsl linux 就可以了」），mac 接管开发启动（「准备让 mac 接管开发」）；变更推远程供 mac 侧拉取接续 |
 | 2026-09-01 | P0012 第一棒（WSL）：hook 路径报错修复（oma init 幂等改写）；测试基线 5 败清零（M041 记档 pid_alive 的 kill -0 双语义 + 4 处测试平台假设）；R010 六欠账清四（daemon 拉起、分类器、serve 进程组、pid 守卫）；stub 全链与 serve/doctor/HTTP 验收绿；基线 78+10、81+10 全绿零警告 |
 | 2026-09-01 | Windows 侧总收口：四 agent 轮询 review 接力工作流（7 棒收敛至功能性缺陷清零，60+ 修复含 6 件修复自身回归）；oma task 带产物等待的任务目录协议（端到端双验）；任务开始确认与阻塞告警；精确集合与布局自适应；oma key 守卫；agents statusline（claude/codex 幂等）；R010 交接清单落档、P0012 Linux 接管启动 |
-| 2026-09-01 | P0026 切片 1 达成：codex review 结果 trace 收取（15 条，高 5 核实 4 真 1 部分真）后立项三切片；看板默认 spectator 只读（用户定调）＋Host 回环校验（高5）＋cleanup 僵局解除（高2）＋死路杀旧 pane 不堆积（高3）＋manifest 原子写（高1a）；计划外抓到并修 serve daemon DETACHED 零控制台下 rmux CLI 卡死（改 CREATE_NO_WINDOW） |
+| 2026-09-01 | P0026 切片 1 达成：codex review 结果 trace 收取（15 条，高 5 核实 4 真 1 部分真）后立项三切片；看板默认 spectator 只读（用户定调）+Host 回环校验（高5）+cleanup 僵局解除（高2）+死路杀旧 pane 不堆积（高3）+manifest 原子写（高1a）；计划外抓到并修 serve daemon DETACHED 零控制台下 rmux CLI 卡死（改 CREATE_NO_WINDOW） |
 | 2026-09-01 | serve stop 协议化补齐：核对三原语时发现 `serve_stop` 实际只有 taskkill（P0025/R002 口径超写）——补 `DELETE /shutdown` 优先（ureq 复用）加轮询退出加超时强杀兜底，实测日志见 draining；顺手清三处未用导入；README/AGENTS 对齐 start/stop/status 形态 |
 | 2026-09-01 | 规则体系收口：G004 经验沉淀细则（proven/references 双链、mistakes 当场记加二犯升格）挂 AGENTS 工作节奏强规则位；M035 记档（python 替换吃 `\r` 劈行，修复过程又踩同型两次）；README 重写为介绍/安装部署/完整命令示例三段 |
 | 2026-09-01 | P0025 达成：serve 守护化——`serve start` 即调即退（DETACHED 孤儿化、端口就绪等待、状态文件）、协议化停机端点（DELETE /shutdown → AtomicBool → 优雅排空，rmux kill-server 同构）、FFI OpenProcess 探活（tasklist 在 Job Object 内管道死锁） |
-| 2026-09-01 | P0024 达成：agent 实例和解式编排——spawn 三态（新开/附加/死路重开，`attached`/`respawned` marker）＋ `oma respawn` 强制单路重开（kill-pane 单窗格）；命令面只见 agent 实例，六级原语绑在背后；S023 实测纠偏三处（internal-daemon 形态、conhost 兄弟、pane 无 shell 层） |
+| 2026-09-01 | P0024 达成：agent 实例和解式编排——spawn 三态（新开/附加/死路重开，`attached`/`respawned` marker）+ `oma respawn` 强制单路重开（kill-pane 单窗格）；命令面只见 agent 实例，六级原语绑在背后；S023 实测纠偏三处（internal-daemon 形态、conhost 兄弟、pane 无 shell 层） |
 | 2026-09-01 | P0023 达成：看板资源包化——build.rs 打 tar.gz 嵌二进制、首启释放 `~/.ohmyagents/web/<指纹>/`（一次一份），serve 从释放位托管；单 exe 自带看板 JS 资源，产品化收口 |
 | 2026-08-31 | P0022 达成：web 镜像本地化与主页化——前端源码仓发现（rmux-web-share/rmux-typescript）并 npm 构建本地托管（四挫四根因：尾斜杠、e 参数、WASM、ACAO）；session 镜像缺省加免 PIN；`oma serve` 主页即 web-mirror-server（打开即四路窗格），dashboard 删除、编排回归 CLI/API/MCP |
 | 2026-08-31 | P0021 达成：官方 web 镜像集成——`oma web` 三面接管 rmux web-share（operator 真 attach、PIN、TTL、断开管理）；自建 xterm 桥下线（用户两次纠偏：要 TUI 镜像、用平台原生 webshare） |
@@ -92,7 +94,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：无（D08 doctor 检查面补形态已于 2026-09-07 达成，归档 P0030；下目标立项走 `PRD.md` 追问链）。
+- 当前目标：D10 G005 存量字符清理（切片 1 FULLWIDTH 与 EMOJI）。
 
 ## 历史
 

@@ -112,7 +112,7 @@ CLI：`sessions` / `replay`（文本表 + 每行 `op:`/`ask:` 双意图）/ `res
 
 > oma 直接设防。
 
-1. patch 全文内联 JSONL 体积（最大 583KB/会话）＋空会话目录堆积（51 个目录约一半只有 127 字节 meta）——oma：daemon/采集启动即建会话目录改为**首事件才建**。[实证: 磁盘实测]
+1. patch 全文内联 JSONL 体积（最大 583KB/会话）+空会话目录堆积（51 个目录约一半只有 127 字节 meta）——oma：daemon/采集启动即建会话目录改为**首事件才建**。[实证: 磁盘实测]
 2. 查询全量线性扫——oma：v1 JSONL 可接受，量大再 sqlite（R005 选型）。
 3. 写库路径反斜杠未归一化（`tests\\integration\\...`）而关联键是正斜杠——两条路必踩，oma 统一写库即归一化。[实证: recorder\mod.rs:134-137 vs correlation.rs:24]
 4. 非 UTF-8 读失败当空串——oma 按 lossy 或跳过并记标记。

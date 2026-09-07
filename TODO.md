@@ -4,11 +4,17 @@
 
 ## 当前目标
 
-下目标待立项，走 `PRD.md` 追问链。D08 已达成归档 P0030；D09 边界同日交付。
+D10 G005 存量字符清理（2026-09-07 立项；方案见 `PLAN.md`，需求见 `PRD.md` D10）。SKIP_DIRS 外 555 处，封闭清单 46 文件。
 
 ### 任务进度清单
 
-无。
+| 任务项 | 进度 | 说明 | 日期 |
+| --- | --- | --- | --- |
+| 复测计数 | 已完成 | SKIP_DIRS 外 DASH 476、ARROW 72、FULLWIDTH 6、EMOJI 1，合计 555；清单 46 文件 | 2026-09-07 |
+| 切片 1：FULLWIDTH 与 EMOJI | 已完成 | 5 处 GOAL 加 1 处 S018 全角加号改半角；S024 海绵字形改行内代码 | 2026-09-07 |
+| 切片 2：ARROW 按语义改写 | 待做 | 72 处 | 2026-09-07 |
+| 切片 3：DASH 按语义改写 | 待做 | 476 处 | 2026-09-07 |
+| 删封闭清单并门禁零容忍 | 待做 | 文件清零即删清单行 | 2026-09-07 |
 
 ## 前目标清单
 
@@ -23,7 +29,6 @@
 
 | 目标 | 状态 | 说明 |
 | --- | --- | --- |
-| G005 存量字符清理 | 排队 | 3671 处四类禁字（DASH 2142、ARROW 255、EMOJI 892、FULLWIDTH 382，2026-09-02 量化）：FULLWIDTH 可机械替换，DASH/ARROW 按语义改写；清零后 mdcharlint.py 进验证链零容忍 |
-| 状态栏工具链段扩展 zig/golang/cpp | 排队 | 用户定调 2026-09-02「以后」：projKind 探测加 build.zig / go.mod / CMakeLists（或 meson），图标先 cmap 实证；现役 rust/node+ts/python 三态 |
-| 根下 `.ohmyagents/t006/` 孤儿目录收敛 | 排队 | 早期 task 布局遗留，与 tasks/t006/ 内容不同；动前先核对两轮产物归属（diary 09-03 待接） |
-| mac --version 一致性（D06 余量转入） | 排队 | mac 现 oma 为旧版（无 --version）；待推 main 触发 CI 出新资产后走 oma self update 收口（推远端待用户指示） |
+| D11 状态栏工具链段扩展 zig/golang/cpp | 排队 | 已澄清；projKind 加 build.zig / go.mod / CMakeLists（或 meson），图标先 cmap 实证 |
+| D12 根下 `.ohmyagents/t006/` 孤儿目录 | 排队 | 已澄清；孤儿 output 实为 t008 第二轮 review 误落，与 `tasks/t006/` 第一轮产物不同 |
+| D13 mac `--version` 一致性 | 排队 | 已澄清；源码已有 clap version；门槛推 main 出 CI 资产。推远端仍待用户指示 |
