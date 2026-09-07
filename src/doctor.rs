@@ -854,20 +854,16 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
             .and_then(|t| t.get("hooks"))
             .and_then(|h| h.as_table())
             .is_some_and(|h| h.keys().any(|k| k != "state"));
-    let hook_hash = user_toml
-        .as_ref()
-        .map(|t| hook_state_trusted(t))
-        .unwrap_or(false)
-        || proj_toml
-            .as_ref()
-            .map(|t| hook_state_trusted(t))
-            .unwrap_or(false);
+    // Project hooks.json is trusted by hashes in the *project* config.toml.
+    // User-store hashes belong to ~/.codex/hooks.json and must not mask an
+    // empty project [hooks.state] (P0027 Windows-only commandWindows hole).
+    let hook_hash = proj_toml.as_ref().map(hook_state_trusted).unwrap_or(false);
     push(
         &mut findings,
         "codex",
         "trust.hooks",
         if codex_hooks_files { hook_hash } else { true },
-        &codex_user,
+        &codex_proj,
         if !codex_hooks_files {
             "n/a no hooks.json / [hooks] (yolo does not bypass hook trust)"
         } else if hook_hash {
@@ -1474,11 +1470,48 @@ mod tests {
             {"type": "command", "command": "\"/home/ray/.cargo/bin/oma\" hook --agent codex"}
         ]}]}});
         assert_eq!(codex_hooks_sides(Some(&unix_only)), (true, false));
+        let win_only = json!({"hooks": {"PreToolUse": [{"hooks": [
+            {"type": "command", "commandWindows": "& \"D:\\cargo\\oma.exe\" hook --agent codex"}
+        ]}]}});
+        assert_eq!(codex_hooks_sides(Some(&win_only)), (false, true));
         let foreign = json!({"hooks": {"PreToolUse": [{"hooks": [
             {"type": "command", "command": "echo hi"}
         ]}]}});
         assert_eq!(codex_hooks_sides(Some(&foreign)), (false, false));
         assert_eq!(codex_hooks_sides(None), (false, false));
+    }
+
+    #[test]
+    fn codex_empty_project_hook_state_is_block_not_user_store() {
+        let root = temp_root("codex-empty-state");
+        fs::create_dir_all(root.join(".codex")).unwrap();
+        fs::write(
+            root.join(".codex").join("hooks.json"),
+            r#"{"hooks":{"PreToolUse":[{"matcher":"*","hooks":[{"type":"command","commandWindows":"& \"D:\\oma.exe\" hook --agent codex","timeout":10}]}]}}"#,
+        )
+        .unwrap();
+        fs::write(
+            root.join(".codex").join("config.toml"),
+            "approval_policy = \"never\"\nsandbox_mode = \"danger-full-access\"\n\n[features]\nhooks = true\n\n[hooks.state]\n",
+        )
+        .unwrap();
+        let d = diagnose(&root).expect("diagnose");
+        assert_eq!(
+            d.status("codex", "trust.hooks"),
+            Some(Status::Block),
+            "empty project [hooks.state] must not be masked by user-store hashes"
+        );
+        let finding = d
+            .findings
+            .iter()
+            .find(|f| f.agent == "codex" && f.check == "trust.hooks")
+            .expect("trust.hooks row");
+        assert!(
+            finding.path.contains(".codex") && finding.path.contains("config.toml"),
+            "path should be the project config, got {}",
+            finding.path
+        );
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]

@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-07 | 热修 M044：P0027 后纯 Windows 项目 Codex `[hooks.state]` 空表（播种只认 `command`、doctor 被用户 store leftover 掩盖）。播种与 doctor 口径对齐；ohmycloud / ohmyenv-rs / ohmypwsh 各 7 条 trusted_hash 已重播 |
 | 2026-09-07 | D07 迁册批落地达成：agents install/update 入口 stderr 提示 `oma.deprecated` 指向 `ome install`（不删命令、stdout kv 面不动 R011，两条集成测试钉住）；`catalog\agents.toml` 头注记冻结历史锚；doctor 四类检查 R002 与 AGENTS 归 agents 域（二进制与版本、token 诊断归 ome doctor）；AGENTS 边界段 D07 改写、路由行 deprecated 标注、INDEX 两行、根 SKILL 重跑 init 再生；ome 侧部署滞后（本机 2026-09-02 旧版、ome install 报未知工具）以 issue 交底 ohmyenv-rs；归档 P0029 |
 | 2026-09-05 | D06 五端当日闭环：oma `--version` 三处实测 0.1.0（本机 / WSL / lan-linux 构建，部署位更新三端）；lan-win 下发 4/4 纳管；lan-linux 首装三家（claude 2.1.251、codex 0.151.0、grok 1.0.13，kimi default 位纳管）二连跑幂等；五端 install 全 skipped 验收绿（mac 用旧版 oma，agents 语义未变）；AGENTS 边界行、ohmypwsh#9、#2 回填；余量 mac --version 走 CI 新资产待推 |
 | 2026-09-05 | D06 立项：基线盘点（本机 Windows `oma agents` 四家 installed=4 source=path、install 全 skipped 幂等纳管已在工作 [实证： 当日实跑]；oma `--version` 不支持，ome catalog 集成条件缺口之一 [实证： 当日实跑]；P0012 已收口本机三台，五端真实缺口为 lan-win 加 lan-linux [推断： 待盘点]）；PRD D06 登记、GOAL 起点锚点切换、PLAN 四切片、TODO 清单建行 |

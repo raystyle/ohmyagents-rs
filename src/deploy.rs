@@ -284,11 +284,6 @@ fn merge_codex_hook_event(
         .as_array_mut()
         .ok_or_else(|| "event groups is not an array".to_string())?;
     let exe = oma_exe().display().to_string();
-    let ours_of = |h: &Json| -> bool {
-        ["command", "commandWindows"]
-            .iter()
-            .any(|k| h.get(*k).and_then(|c| c.as_str()).is_some_and(is_ours))
-    };
     let mut changed = false;
     let mut replaced = false;
     for group in arr.iter_mut() {
@@ -300,7 +295,7 @@ fn merge_codex_hook_event(
             continue;
         };
         for handler in hooks.iter_mut() {
-            if !ours_of(handler) {
+            if !handler_is_ours(handler) {
                 continue;
             }
             let next = codex_handler_value(handler, &exe, session_end, side);
@@ -525,20 +520,38 @@ fn canonical_json(value: &Json) -> Json {
     }
 }
 
+/// oma-owned if either per-OS field names us. Merge already used both;
+/// trust seeding must match, or a Windows-only `commandWindows` handler
+/// (P0027 field ownership on a fresh deploy) is skipped and `[hooks.state]`
+/// is written empty.
+fn handler_is_ours(handler: &Json) -> bool {
+    ["command", "commandWindows"].iter().any(|k| {
+        handler
+            .get(*k)
+            .and_then(|c| c.as_str())
+            .is_some_and(is_ours)
+    })
+}
+
+/// Command string Codex on this OS actually runs: Windows prefers
+/// `commandWindows`, Unix prefers `command`, each falling back to the
+/// other so a single-field handler still hashes.
+fn effective_codex_command(handler: &Json) -> Result<&str, String> {
+    let unix = handler.get("command").and_then(|c| c.as_str());
+    let windows = handler.get("commandWindows").and_then(|c| c.as_str());
+    let picked = if cfg!(windows) {
+        windows.or(unix)
+    } else {
+        unix.or(windows)
+    };
+    picked.ok_or_else(|| "handler missing command and commandWindows".into())
+}
+
 /// Replicate codex `hook_hash` (S015 source): identity over the normalized
 /// handler (commandWindows dropped, timeout clamped per event), serialized
 /// as canonical key-sorted JSON, sha256, `sha256:<hex>`.
 fn codex_hook_hash(event: &str, matcher: Option<&str>, handler: &Json) -> Result<String, String> {
-    let command = handler
-        .get("command")
-        .and_then(|c| c.as_str())
-        .ok_or("handler missing command")?;
-    let windows_cmd = handler.get("commandWindows").and_then(|c| c.as_str());
-    let effective = if cfg!(windows) {
-        windows_cmd.unwrap_or(command)
-    } else {
-        command
-    };
+    let effective = effective_codex_command(handler)?;
     let timeout = handler.get("timeout").and_then(|t| t.as_u64());
     let timeout = match event {
         "SessionEnd" | "Interrupt" => timeout.unwrap_or(1).clamp(1, 3),
@@ -598,11 +611,7 @@ fn codex_trust_entries(
                 continue;
             };
             for (hi, handler) in handlers.iter().enumerate() {
-                let command = handler
-                    .get("command")
-                    .and_then(|c| c.as_str())
-                    .unwrap_or("");
-                if !is_ours(command) {
+                if !handler_is_ours(handler) {
                     continue;
                 }
                 let hash = codex_hook_hash(event, matcher, handler)?;
@@ -914,6 +923,10 @@ mod tests {
         assert!(codex["hooks"].get("Notification").is_none());
         let codex_toml = fs::read_to_string(root.join(".codex").join("config.toml")).unwrap();
         assert!(codex_toml.contains("hooks = true"));
+        assert!(
+            codex_toml.contains("trusted_hash"),
+            "host-side-only field must still seed [hooks.state]: {codex_toml}"
+        );
 
         let grok: Json = serde_json::from_str(
             &fs::read_to_string(
@@ -1052,6 +1065,36 @@ mod tests {
         );
         assert!(key.starts_with("D:"), "key_source is the plain config path");
         assert!(hash.starts_with("sha256:"));
+    }
+
+    #[test]
+    fn codex_trust_entries_seed_windows_only_commandwindows() {
+        // P0027 fresh Windows deploy writes commandWindows and omits command.
+        // Seeding must still emit a hash or [hooks.state] stays empty.
+        let hooks = serde_json::json!({
+            "hooks": {
+                "PreToolUse": [
+                    {"matcher": "*", "hooks": [
+                        {"type": "command",
+                         "commandWindows": "& \"D:\\ohmyenv\\cargo\\bin\\oma.exe\" hook --agent codex",
+                         "timeout": 10}
+                    ]}
+                ]
+            }
+        });
+        let cfg = Path::new(r"D:\proj\.codex\config.toml");
+        let entries = codex_trust_entries(&hooks, cfg).unwrap();
+        assert_eq!(
+            entries.len(),
+            1,
+            "commandWindows-only oma handler must be seeded: {entries:?}"
+        );
+        assert!(
+            entries[0].0.ends_with(":pre_tool_use:0:0"),
+            "got {}",
+            entries[0].0
+        );
+        assert!(entries[0].1.starts_with("sha256:"));
     }
 
     #[test]
