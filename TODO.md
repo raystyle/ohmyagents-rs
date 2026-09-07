@@ -21,4 +21,4 @@
 
 | 目标 | 状态 | 说明 |
 | --- | --- | --- |
-| D13 mac `--version` 一致性 | 排队 | 已澄清；源码已有 clap version；门槛推 main 出 CI 资产。推远端仍待用户指示 |
+| D13 mac `--version` 一致性 | 排队 | 已澄清；源码已有 clap version。2026-09-07 已推 origin `7211df0`。待 CI 出资产后 mac `oma self update` |
