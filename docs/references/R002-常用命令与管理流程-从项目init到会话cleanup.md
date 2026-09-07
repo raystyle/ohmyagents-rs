@@ -62,7 +62,7 @@ cargo run --example poc-dump          # 备屏诊断
 
 | 意图 | 命令 | 行为细则 |
 | --- | --- | --- |
-| 密钥管理 | `oma agents secrets init\|set <KEY>\|env --shell <pwsh\|bash\|zsh\|nu>\|inject\|status` | 一钥两密文加四 shell 懒注入（S031，对齐 ohmycloud D20 与 ohmypwsh 懒注入）。oma 自管根落 `app.key`（32B、0600 原子写）、`identity.enc`（AES-256-GCM 包裹 SOPS 标准 age 身份，`oma:v1:` 标记）、`secrets.yaml`（SOPS 制密文，sops 二进制加工、值 base64）。解密链全程内存 app.key 到 identity.enc 到 SOPS_AGE_KEY 到 vault；`inject` 向四 shell profile 写标志行包裹的懒注入块（幂等），交互 shell 启动现场解密只写会话 env，明文不常驻注册表。秘密不进 argv（set 走 stdin）、输出 redacted |
+| 密钥管理 | `oma agents secrets init\|set <KEY>\|env --shell <pwsh\|bash\|zsh\|nu>\|inject\|status` | 一钥两密文加四 shell 懒注入（S031，对齐 ohmycloud D20 与 ohmypwsh 懒注入）。oma 自管根落 `app.key`（32B、0600 原子写）、`identity.enc`（AES-256-GCM 包裹 SOPS 标准 age 身份，`oma:v1:` 标记）、`secrets.yaml`（SOPS 制密文，sops 二进制加工、值 base64）。解密链全程内存 app.key 到 identity.enc 到 SOPS_AGE_KEY 到 vault；`inject` 向四 shell profile 写标志行包裹的懒注入块（幂等；Windows 上 zsh/bash 另写 WSL `$HOME` 对应文件，块内无 `oma` 则回退 `oma.exe`，M050），交互 shell 启动现场解密只写会话 env，明文不常驻注册表。秘密不进 argv（set 走 stdin）、输出 redacted。`env` 金库空时出 noop 注释（pwsh 空串会让 IEX 炸） |
 | hook 写状态加密钥拦截 | `oma hook [event]` | 双职责。其一状态落盘：各家 hook 的 `command`，读 stdin JSON（`hook_event_name` / `hookEventName`）或参数，写 `OHMYAGENTS_STATE_FILE`；缺该环境变量则 exit 0；不连 rmux。其二密钥拦截闸（S030）：PreToolUse / UserPromptSubmit 命中 block 级密钥则 exit 2 拒工具调用（stderr 掩码原因回给模型），PostToolUse 只观察。八层防误报：精确前缀、实值比对（env 加 providers.toml 明文）、熵值门、stopwords、语料拼接豁免、password warn-only、日志掩码、fail-open |
 
 ### 2.4 项目部署

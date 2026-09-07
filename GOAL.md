@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-07 | 热修 M050：secrets env 空串撑爆 pwsh IEX；PATH oma 改读 `~/.oma`；inject zsh 补 WSL `~/.zshrc` 并回退 oma.exe |
 | 2026-09-07 | 同步：本地已对齐 origin `ff8a94a`。CI Linux/mac 测红（M049），滚动资产停在 09-02。修 `plan_agents` 一次探测 |
 | 2026-09-07 | 用户指示推：`main` 17 提交到 origin `7211df0`。D13 门槛过，待 CI 资产与 mac `oma self update` |
 | 2026-09-07 | D14 达成归档 P0034：项目与家目录改 `.oma`；statusline 四家路径已重写。切空，D13 仍待推远端指示 |

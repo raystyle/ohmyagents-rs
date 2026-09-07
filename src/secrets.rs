@@ -355,7 +355,14 @@ pub fn env_lines(root: &Path, shell: &str) -> Result<String, String> {
     let sops = sops_bin()?;
     let values = read_all_inner(root, &sops)?;
     if values.is_empty() {
-        return Ok(String::new());
+        // 空串会让 pwsh `Invoke-Expression` 直接炸（M050）；nu `from json`
+        // 也吃不了空输入。给各 shell 一条无操作语句。
+        return Ok(match shell {
+            "nu" => "{}".into(),
+            "pwsh" => "# oma.secrets.empty\n".into(),
+            "bash" | "zsh" => "# oma.secrets.empty\n".into(),
+            _ => String::new(),
+        });
     }
     match shell {
         "bash" | "zsh" => Ok(values
@@ -412,11 +419,9 @@ const BLOCK_END: &str = "# END ohmyagents: secrets";
 fn block_for(shell: &str) -> String {
     match shell {
         "pwsh" => format!(
-            "{BLOCK_BEGIN}\noma agents secrets env --shell pwsh | Out-String | Invoke-Expression\n{BLOCK_END}"
+            "{BLOCK_BEGIN}\n$__omaSecrets = oma agents secrets env --shell pwsh 2>$null | Out-String\nif (-not [string]::IsNullOrWhiteSpace($__omaSecrets)) {{ Invoke-Expression $__omaSecrets }}\n{BLOCK_END}"
         ),
-        "bash" | "zsh" => format!(
-            "{BLOCK_BEGIN}\neval \"$(oma agents secrets env --shell {shell})\"\n{BLOCK_END}"
-        ),
+        "bash" | "zsh" => posix_block(shell, None),
         "nu" => format!(
             "{BLOCK_BEGIN}\nload-env (oma agents secrets env --shell nu | from json)\n{BLOCK_END}"
         ),
@@ -426,16 +431,68 @@ fn block_for(shell: &str) -> String {
 
 /// `inject`：四 shell profile 写标志行包裹的加载块，幂等（已有块整段
 /// 替换，无则追加）；文件不存在则创建（0600 不必——profile 本就用户态）。
+/// Windows 上 zsh/bash 额外写 WSL `$HOME` 对应文件（本机 zsh 在 WSL，
+/// 只写 `%USERPROFILE%\.zshrc` 等于没注入）。
 pub fn inject(shell: &str) -> Result<Vec<String>, String> {
-    let path = profile_paths(shell)?;
     let block = block_for(shell);
     if block.is_empty() {
         return Err(format!("未知 shell：{shell}"));
     }
-    let existing = std::fs::read_to_string(&path).unwrap_or_default();
+    let native = profile_paths(shell)?;
+    apply_block(&native, &block)?;
+    let mut out = vec![format!(
+        "secrets.inject={shell} -> {}",
+        native.display()
+    )];
+    if let Some(wsl) = wsl_profile(shell) {
+        if wsl != native {
+            let wsl_block = match shell {
+                "bash" | "zsh" => posix_block(shell, wsl_oma_bin().as_deref()),
+                _ => block.clone(),
+            };
+            apply_block(&wsl, &wsl_block)?;
+            out.push(format!("secrets.inject={shell} -> {}", wsl.display()));
+        }
+    }
+    Ok(out)
+}
+
+fn posix_block(shell: &str, wsl_oma: Option<&str>) -> String {
+    match wsl_oma {
+        Some(exe) => format!(
+            "{BLOCK_BEGIN}\n_oma=$(command -v oma 2>/dev/null || command -v oma.exe 2>/dev/null || echo {exe})\neval \"$(\"$_oma\" agents secrets env --shell {shell} 2>/dev/null || true)\"\nunset _oma\n{BLOCK_END}"
+        ),
+        None => format!(
+            "{BLOCK_BEGIN}\neval \"$(oma agents secrets env --shell {shell} 2>/dev/null || true)\"\n{BLOCK_END}"
+        ),
+    }
+}
+
+fn wsl_oma_bin() -> Option<String> {
+    if !cfg!(windows) {
+        return None;
+    }
+    let exe = std::env::current_exe().ok()?;
+    let out = std::process::Command::new("wsl")
+        .args(["-e", "wslpath", "-u"])
+        .arg(&exe)
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if s.is_empty() {
+        None
+    } else {
+        Some(s)
+    }
+}
+
+fn apply_block(path: &Path, block: &str) -> Result<(), String> {
+    let existing = std::fs::read_to_string(path).unwrap_or_default();
     let updated = match (existing.find(BLOCK_BEGIN), existing.find(BLOCK_END)) {
         (Some(a), Some(b)) if b > a => {
-            // 幂等替换：旧块整段换新（含过期的块内容）。
             format!(
                 "{}{}{}",
                 &existing[..a],
@@ -455,11 +512,33 @@ pub fn inject(shell: &str) -> Result<Vec<String>, String> {
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     }
-    std::fs::write(&path, &updated).map_err(|e| format!("{}: {e}", path.display()))?;
-    Ok(vec![format!(
-        "secrets.inject={shell} -> {}",
-        path.display()
-    )])
+    std::fs::write(path, &updated).map_err(|e| format!("{}: {e}", path.display()))
+}
+
+/// Windows 下把 WSL 家目录的 `.zshrc` / `.bashrc` 转成本机路径。无 WSL 则
+/// 静默跳过，不让 inject 失败。
+fn wsl_profile(shell: &str) -> Option<PathBuf> {
+    if !cfg!(windows) {
+        return None;
+    }
+    let rel = match shell {
+        "zsh" => ".zshrc",
+        "bash" => ".bashrc",
+        _ => return None,
+    };
+    let script = format!("wslpath -w \"$HOME/{rel}\"");
+    let out = std::process::Command::new("wsl")
+        .args(["-e", "sh", "-c", &script])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if s.is_empty() {
+        return None;
+    }
+    Some(PathBuf::from(s))
 }
 
 /// CLI stdin 读取（不回显，无 tty 探测——管道与重定向都收）。
@@ -595,7 +674,7 @@ mod tests {
             old.find(BLOCK_END).unwrap() + BLOCK_END.len(),
         );
         let updated = format!("{}{}{}", &old[..a], block, &old[b..]);
-        assert!(updated.contains("eval \"$(oma agents secrets env --shell bash)\""));
+        assert!(updated.contains("oma agents secrets env --shell bash"));
         assert!(!updated.contains("STALE CONTENT"));
         assert!(updated.starts_with("header\n"));
         assert!(updated.ends_with("\ntail\n"));
@@ -611,5 +690,28 @@ mod tests {
             );
             assert!(b.contains("oma agents secrets env"), "{shell}");
         }
+        let pwsh = block_for("pwsh");
+        assert!(
+            pwsh.contains("IsNullOrWhiteSpace"),
+            "pwsh block must skip IEX on empty env (M050)"
+        );
+        assert!(
+            block_for("zsh").contains("--shell zsh"),
+            "zsh inject must call env --shell zsh"
+        );
+    }
+
+    #[test]
+    fn env_lines_empty_vault_is_shell_noop() {
+        let home = tmp_root("empty-env");
+        let Ok(_) = sops_bin() else {
+            let _ = std::fs::remove_dir_all(&home);
+            return;
+        };
+        assert_eq!(env_lines(&home, "pwsh").unwrap(), "# oma.secrets.empty\n");
+        assert_eq!(env_lines(&home, "bash").unwrap(), "# oma.secrets.empty\n");
+        assert_eq!(env_lines(&home, "zsh").unwrap(), "# oma.secrets.empty\n");
+        assert_eq!(env_lines(&home, "nu").unwrap(), "{}");
+        let _ = std::fs::remove_dir_all(&home);
     }
 }
