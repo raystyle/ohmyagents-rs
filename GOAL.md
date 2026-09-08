@@ -8,7 +8,7 @@
 > 当前目标的起点：何时发起、为什么发起、要解决什么问题。
 
 - **日期**：2026-09-08。
-- **起点**：D41 立项。ohmycloud 交付单：双仓自维护 S3 种子，本仓承 A 路线——release 工作流加 mirror job，rclone 直传 R2，滚动即到货，「我滚你播」接力退役。
+- **起点**：D41 立项。ohmycloud 交付单：双仓自维护 S3 种子，本仓承 A 路线，release 工作流加 mirror job，rclone 直传 R2，滚动即到货，「我滚你播」接力退役。
 
 ## 锚点
 
@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-08 | D41 mirror job 落地并实证：`dev-release.yml` 加 mirror 段（rclone env 远程直推 R2，NO_CHECK_BUCKET 必带），dev 滚动自动传 oma/dev；两修（白名单过滤解包目录、copy 改 sync 才删段内遗留，M052）后 oma/dev 段精确六件；「我滚你播」退役，stable 段随下次 v* tag 自动到货，待 ohmycloud 双段验收关账 |
 | 2026-09-08 | v0.2.0 封版（trace 恢复后新版本）：版本号 0.1.0 升 0.2.0，main 加 tag 推 origin，CI 两轮绿、正式 release 六资产齐；oma/stable 段待 ohmycloud 重播 |
 | 2026-09-08 | D19 达成归档 P0037：trace 六视图全量恢复（自 `eeead00^` 原样带回 1387 行，main.rs 重接，glob 重接）；116 单元加 18 集成与四门禁全绿；本仓真数据六视图冒烟实证；文档六处同步 |
 | 2026-09-08 | v0.1.0 封版：尾巴修三处提交（fix `a0dc383` 加 docs 两笔）后打 tag 推 origin；CI 两轮全绿（main 重滚 dev 带缓存击穿、tag 出正式 release）；v0.1.0 六资产齐（三平台 zip/tar.gz 加 .sha256 边车，同 dev 形态）；用户裁镜像分发与四端测试验收归 ohmycloud，四问已答 |
@@ -117,7 +118,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：D41 release 工作流镜像自动同步（进行中）。
+- 当前目标：无（D41 实现面闭环，dev 段实证到货；stable 段随下次 v* tag 自动，待 ohmycloud 双段验收关账）。
 
 ## 历史
 
