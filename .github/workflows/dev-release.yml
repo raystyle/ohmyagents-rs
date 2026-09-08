@@ -114,9 +114,9 @@ jobs:
         run: |
           seg="dev"
           [[ "$GITHUB_REF" == refs/tags/v* ]] && seg="stable"
-          # 段内只留压缩包加边车（dist/ 还含解包目录，勿传）；
-          # --delete-excluded 顺带清掉段内不在白名单的遗留对象。
-          rclone copy dist/ "r2:${R2_BUCKET}/oma/${seg}/" \
+          # 段内只留压缩包加边车（dist/ 还含解包目录，勿传）；sync 加
+          # --delete-excluded 把段内不在白名单的遗留对象一并清掉（copy 不删）。
+          rclone sync dist/ "r2:${R2_BUCKET}/oma/${seg}/" \
             --include "*.zip" --include "*.tar.gz" --include "*.sha256" \
             --delete-excluded \
             --header-upload "Cache-Control: public, max-age=60" \
