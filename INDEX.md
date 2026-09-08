@@ -147,6 +147,7 @@
 | S030 | `S030-密钥hook安全拦截接管与同类Rust实现.md` | ohmypwsh secret-guard 语义、kingfisher/rtk 取证、oma 零依赖接管落点 |
 | S031 | `S031-密钥一钥两密文存储与四shell懒注入接管.md` | ohmycloud D20 keystore 与 ohmypwsh 懒注入取证；oma secrets 子树设计 |
 | S032 | `S032-GitHub发版与分支合并标准流程调研.md` | 三分支模型、合并三式、分支保护与发版自动化选型；本仓适用结论 |
+| S033 | `S033-四家agent无头模式hook触发与状态栏渲染矩阵.md` | D17 前置：无头入口、hook 触发、状态栏渲染四行矩阵；状态栏无头四家均不可验，判据须两层分离 |
 
 ## 六、开发测试参考
 
