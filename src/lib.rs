@@ -13,6 +13,7 @@ pub mod providers;
 pub mod secretguard;
 pub mod secrets;
 pub mod statusline;
+pub mod trace;
 pub mod update;
 pub mod yolo;
 

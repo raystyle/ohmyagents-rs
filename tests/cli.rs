@@ -1,7 +1,8 @@
 //! CLI smoke tests for the read-only / deploy commands (R004 layer: integration).
 //! Assertions stick to stable surfaces only: exit codes and marker lines.
-//! D15 后本仓是纯部署配置工具：编排面（spawn/status/send/serve/mcp/trace）
-//! 与其 rmux 闸门测试已随删除面一并移除。
+//! D15 后本仓是纯部署配置工具：编排面（spawn/status/send/serve/mcp）
+//! 与其 rmux 闸门测试已随删除面一并移除；trace（只读检索，与 rmux 无耦合）
+//! 经 D19 全量恢复。
 
 use assert_cmd::Command;
 use predicates::str::contains;
@@ -16,7 +17,7 @@ fn oma() -> Command {
 
 #[test]
 fn help_lists_the_deploy_surface() {
-    // 命令面契约（D15）：帮助里只剩部署配置面命令。
+    // 命令面契约（D15 收窄、D19 恢复 trace）：帮助里是部署配置面加只读检索面。
     let out = oma()
         .args(["--help"])
         .assert()
@@ -25,9 +26,38 @@ fn help_lists_the_deploy_surface() {
         .stdout
         .clone();
     let s = String::from_utf8_lossy(&out);
-    for cmd in ["init", "doctor", "agents", "hook", "self", "completions"] {
+    for cmd in ["init", "doctor", "agents", "hook", "self", "completions", "trace"] {
         assert!(s.contains(cmd), "help must list {cmd}");
     }
+}
+
+#[test]
+fn trace_sessions_on_empty_project_is_zero() {
+    // A fresh temp project has no agent sessions: trace must exit 0 with a
+    // zero count (read-only federation over the native session stores).
+    let tmp = std::env::temp_dir().join(format!(
+        "oma-cli-trace-{}-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis(),
+        NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    std::fs::create_dir_all(&tmp).unwrap();
+    oma()
+        .args(["trace", "sessions", "--project"])
+        .arg(&tmp)
+        .assert()
+        .success()
+        .stdout(contains("trace.sessions.count=0"));
+    oma()
+        .args(["trace", "timeline", "--project"])
+        .arg(&tmp)
+        .assert()
+        .success()
+        .stdout(contains("trace.edits.count=0"));
+    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 #[test]

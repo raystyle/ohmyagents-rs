@@ -19,5 +19,6 @@ description: oma 部署配置命令图：init、诊断、状态栏、token、hoo
 | 设备码登录引导：转发 URL 加 code，等浏览器侧完成后以落盘凭据确认 | `oma agents login grok|kimi` |
 | 已 deprecated（D07 迁册）：agent 安装归 ome，请用 ome install <名>（本命令保留兼容） | `oma agents install [名]` |
 | oma 自更新（缺省 dev 滚动源，按资产 sha256 判新） | `oma self update` |
+| 项目内四家 agent 对话历史检索（六视图联邦读原生会话库，只读） | `oma trace sessions|timeline|blocks|agent|file|search` |
 
 全部命令加 `--json` 出信封。细则见仓库 `docs\references\R002`。
