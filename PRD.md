@@ -36,6 +36,7 @@
 | D17 | hook 和状态栏全平台无头 agent 运行测试验收（用户 2026-09-08 提出）：四家 agent 无头模式真跑，验收 oma init 部署的 hook 事件流与状态栏在各平台实际生效 | 待澄清 | 第 1 轮发起（2026-09-08），四问待裁：1) 形态：oma 子命令（如 `oma agents verify`）还是 CI matrix 工作流还是两者；2) 四家无头入口与 hook 事件覆盖需先研究（无头模式 PreToolUse 是否触发、状态栏是否渲染）；3) 验收判据：hook 押 state 落盘、状态栏押直调写入命令脚本断言输出，还是必须经 agent TUI；4) 平台范围与 token 供给（五端还是 CI 三平台，验收用 key 走 secrets 还是环境变量） | 待定 |
 | D18 | 状态栏用户级定制（用户 2026-09-08「能定制状态栏么」引出）：`oma-statusline.ps1` 唯一权威是 oma 二进制内嵌 `STATUSLINE_PS1`，每次 `oma agents statusline` 整文件重释放，手改落盘必被重盖；定制能力只能在 oma 生成时做 | 待澄清 | 第 1 轮发起（2026-09-08），三问待裁：1) 定制粒度：段落开关（`~/.oma/statusline.toml` 控段落显隐与顺序）/ 模板变量（格式串加图标映射）/ 整脚本替换（`--script <路径>` 部署用户自备脚本并跳过内嵌覆盖）；2) 重跑语义：用户配置与内嵌默认的合并优先级，缺省键回落内嵌还是报错；3) codex 面：codex 只有内置项 ID 数组（M045）无外部命令面，定制是否豁免 codex 只管 claude/kimi/grok 三家脚本路 | 待定 |
 | D19 | trace 六视图全量恢复（用户 2026-09-08「oma应该有针对项目的agent对话历史trace功能为什么不在了」引出）：D15 去编排时 trace 被归类观察面连坐删除（`eeead00`），但其直读四家原生会话库、与 rmux 零耦合 | 已交付 | 第 1 轮（2026-09-08 用户「全量恢复」裁定）：1) 范围六视图全量（sessions/timeline/blocks/agent/file/search）；2) 定位口径：trace 以只读检索面回归，定位文补「对话历史检索」一域；3) 依赖面：代码自 `eeead00^` 原样带回，`glob` crate 重接，适配现 main.rs 结构 | 归档 P0037；116 单元加 18 集成与四门禁全绿；本仓真数据六视图冒烟实证；文档六处同步 |
+| D41 | 双仓自维护 S3 种子（ohmycloud 交付单，用户裁你仓承 A 路线）：release 工作流加 mirror job，rclone 直传 R2（env 桶），dev 滚动产物传 oma/dev、正式 tag 产物传 oma/stable，「我滚你播」接力退役 | 已采纳 | 第 1 轮（2026-09-08 ohmycloud D41 交付单加用户裁定采纳）：1) 路线 A 自产产物镜像，rclone provider=Cloudflare 加 endpoint 走 Secrets；2) 必带 NO_CHECK_BUCKET=true（受限 token 无建桶权）；3) 可选 Cache-Control max-age=60（消费侧已有 ?v=/?t= 击穿双保险）；边车 sha256sum 原生格式（hex 空两格加资产名） | 待定 |
 
 ## 状态机定义
 
