@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-08 | v0.1.0 封版：尾巴修三处提交（fix `a0dc383` 加 docs 两笔）后打 tag 推 origin；CI 两轮全绿（main 重滚 dev 带缓存击穿、tag 出正式 release）；v0.1.0 六资产齐（三平台 zip/tar.gz 加 .sha256 边车，同 dev 形态）；用户裁镜像分发与四端测试验收归 ohmycloud，四问已答 |
 | 2026-09-08 | D16 尾巴修加正式判据全过：边车 `?t=` 加资产 `?v=<边车锚>` 缓存击穿（ohmycloud 建议）；修前实证边缘缓存「边车新资产旧」窗口超 3 分钟、校验闸按设计硬拒；修后 e2e 判据绿（ok=true 加 --version 活加 already-latest） |
 | 2026-09-08 | 二轮对账回执：OMA_MIRROR 是基址非布尔（=1 会回落 GitHub）、仅 self update dev 通道、联调用一次性副本防回盖；用户指示推至 origin，CI 滚出带 OMA_MIRROR 的新 dev 产物后 ohmycloud 重播镜像 |
 | 2026-09-08 | D16 镜像 e2e 实证（Windows）：ohmycloud 播 oma/dev 段后实跑三分支全绿（镜像下载校验替换、边车判新 already-latest、 bogus 镜像回落 GitHub）；一次性副本运行不伤工作二进制 |
