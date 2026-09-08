@@ -4,7 +4,7 @@
 > 边界：协作规则在 AGENTS 二；文件与模块定位在 INDEX；规范禁令在 `docs\guide\`；输出冻结面见 `docs\references\R011-Agent友好IO契约-format三态信封退出码与冻结面.md`。
 > 显示名 Oh My Agents；仓库 `ohmyagents-rs`；CLI 二进制 `oma`。运行时数据目录是 `.oma`（D14；旧名 `.ohmyagents` 仅旧在则改名迁过去）。
 
-已落地命令全表（D15 收窄 2026-09-08）：`oma init`（全套）、`oma doctor`、`oma agents`（检测 / install / update / login / statusline / providers / secrets）、`oma hook`（状态落盘加密钥拦截闸）、`oma self update`、`oma completions`、全局 `--format` 加 `--json`。编排命令（`oma check` / `spawn` / `respawn` / `status` / `send` / `key` / `run` / `task` / `settle` / `cleanup` / REPL / `web` / `serve` / `mcp` / `trace`）已随 D15 移除，历史口径见归档 P0001 至 P0034 与 git 历史。
+已落地命令全表（D15 收窄 2026-09-08，D19 恢复 trace）：`oma init`（全套）、`oma doctor`、`oma agents`（检测 / install / update / login / statusline / providers / secrets）、`oma hook`（状态落盘加密钥拦截闸）、`oma self update`、`oma completions`、`oma trace` 六视图（只读检索，与 rmux 无耦合）、全局 `--format` 加 `--json`。编排命令（`oma check` / `spawn` / `respawn` / `status` / `send` / `key` / `run` / `task` / `settle` / `cleanup` / REPL / `web` / `serve` / `mcp`）已随 D15 移除，历史口径见归档 P0001 至 P0034 与 git 历史。
 
 ## 一、环境与依赖
 
@@ -57,6 +57,12 @@ $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Env
 | --- | --- | --- |
 | oma 自更新 | `oma self update [--stable] [--repo owner/name] [--git] [--force]` | 缺省 dev 滚动源：CI 每推 main 构建测试后覆盖发布的 prerelease，按资产 sha256 判新；`--stable` 走正式版（v* tag 触发构建）；Windows rename 舞步自替换；无 release 体面降级 `--git` 源码安装。机制见 S028。镜像通道（D16）：设 `OMA_MIRROR=<基址>`（如 `https://env.ohmygh.com`）后 dev 通道改走 `<基址>/oma/dev/<资产>`，sha256 边车判新（免 manifest，边车裸哈希与 GitHub digest 归一互认）、下载后强制 sha256 校验（不符报错不回落）、网络类失败打 warning 回落 GitHub；stable 通道不吃镜像 |
 | 生成补全 | `oma completions <shell>` | clap_complete 出 bash / zsh / fish / powershell 等补全脚本到 stdout（如 `oma completions powershell >> $PROFILE` 用法自取） |
+| 检索会话 | `oma trace sessions [--project PATH]` | 查询时联邦读四家原生会话库（claude projects 目录、codex rollout、grok sessions、kimi session_index），列项目内各 agent 会话。只读，与 rmux 无耦合（D19 恢复） |
+| 检索编辑轨迹 | `oma trace timeline [--agent A] [--file GLOB] [--limit N] [--project PATH]` | 意图操作块元素视图：每条编辑事件带 operation_id（session:call）、kind、tool、ts 与双意图（intent=用户请求、op_intent=assistant 声明）；分页 clamp 1-1000。四家全量：claude（Edit / Write）、codex（FileChange 主源加 apply_patch 兜底）、grok（updates.jsonl 权威主源加 chat_history 兜底，S020，逐事件真实时间）、kimi（loop tool.call） |
+| 检索操作块 | `oma trace blocks [--agent A] [--limit N] [--project PATH]` | 一个 operation_id 一块（一次工具调用可能多文件），时间正序取最新 N 块，聚合 edits / files / kinds / 双意图 |
+| 检索 agent 轨迹 | `oma trace agent <名> [--limit N] [--project PATH]` | 某家 agent 的操作块时间线（名不在四家内退出非 0） |
+| 检索单文件轨迹 | `oma trace file <相对路径\|glob> [--agent A] [--limit N] [--project PATH]` | 文件维度：该文件被哪些 agent、何时、基于什么意图改过（创建 / 修改 / 删除），时间正序 |
+| 检索关键词 | `oma trace search <query> [--agent A] [--limit N] [--project PATH]` | 正则匹配 patch、file、双意图四域，非法正则退字面子串；先全量匹配后截断；输出元素命中数与匹配块数两个粒度 |
 
 ## 三、输出契约
 

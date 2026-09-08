@@ -40,13 +40,14 @@
 | `src\login.rs` | `oma agents login`：grok/kimi 设备码登录引导（子进程捕获、URL/code 转发、落盘凭据确认） |
 | `src\providers.rs` | `oma agents providers`：别名簿 providers.toml 读写与 `agent@alias` 注入形态（S027；spawn 消费面随 D15 移除，别名簿保留为配置面） |
 | `src\statusline.rs` | `oma agents statusline`：四家状态栏写入面幂等合并（S025 矩阵）；projKind 含 rust/node/python/zig/go/cpp（P0032） |
-| `src\update.rs` | `oma self update`：dev 滚动源与正式版判新、sha256 取证、Windows rename 舞步（S028） |
+| `src\update.rs` | `oma self update`：dev 滚动源与正式版判新、sha256 取证、Windows rename 舞步（S028）；OMA_MIRROR 镜像通道加缓存击穿（D16） |
+| `src\trace.rs` | `oma trace` 六视图：联邦读四家原生会话库归一检索（P0013/P0014，S018/S019/S020；D15 连坐删除，D19 全量恢复） |
 | `src\secretguard.rs` | `oma hook` 密钥拦截闸（S030）：模式表八层防误报、实值比对通道、PreToolUse/UserPromptSubmit 阻断 exit 2 |
 | `src\fmtio.rs` | 全局输出三态（kv/json/jsonl）与结构化错误出口（issue #1 契约，R011）；JSON 信封函数（D15 自 api.rs 迁入） |
 | `src\secrets.rs` | `oma agents secrets`：一钥两密文存储（app.key/identity.enc/secrets.yaml）与四 shell 懒注入块（S031） |
 | `src\caps.rs` | CPU 指令集能力与探针退出形态分类（S021/P0018：is_x86_feature_detected 加 0xC000001D 识别） |
 | `src\pathutil.rs` | 路径工具；项目/家目录 `.oma`（旧 `.ohmyagents` 改名迁，D14） |
-| `tests\cli.rs` | CLI 集成冒烟（assert_cmd；agents/hook/doctor/init/statusline/secrets 部署配置面） |
+| `tests\cli.rs` | CLI 集成冒烟（assert_cmd；agents/hook/doctor/init/statusline/secrets 部署配置面加 trace 只读检索面，D19） |
 | `catalog\agents.toml` | 四家 agent pin：渠道序（github 主 CDN 兜底）、per-OS+arch 资产 SHA256、官方校验清单线索（D07 起冻结为历史锚，数据权威转 ome `catalog\tools.toml` agent 四节） |
 
 （D15 移除：`src\rmux.rs` / `rmuxpoc.rs` / `orch.rs` / `task.rs` / `servectl.rs` / `trace.rs` / `api.rs` / `mcp.rs` / `server.rs` / `repl.rs` / `webassets.rs`、`build.rs`、`catalog\rmux.toml`、`examples\poc-*.rs` 十四件、`.tools\share-view-probe.py`、`.tools\review-round.py`；历史见 git。）
@@ -92,6 +93,7 @@
 | P0034 | `P0034-D14-数据目录改名为oma.md` | D14 项目与家目录 `.ohmyagents` 改 `.oma` |
 | P0035 | `P0035-项目重新定位-Agent全平台部署配置工具.md` | D15 去编排：oma 退化为 Agent 全平台 token、hook 与状态栏部署配置工具 |
 | P0036 | `P0036-D16-self-update镜像通道.md` | D16 `OMA_MIRROR` 镜像通道：dev 段边车判新、sha256 强制校验、网络失败回落 GitHub |
+| P0037 | `P0037-D19-trace六视图全量恢复.md` | D19 trace 六视图全量恢复：只读检索面回归，与 rmux 零耦合 |
 
 （P0020 断号：编号已预留未使用，不复用。）
 

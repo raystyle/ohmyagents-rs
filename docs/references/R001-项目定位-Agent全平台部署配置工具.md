@@ -8,6 +8,7 @@ Oh My Agents（仓库名 `ohmyagents-rs`，更名自 OhMyAgents，2026-09-02；C
 
 - **部署配置**：按各家规则在启动的项目目录部署 hook、skill、状态栏、yolo 键与信任预写，幂等合并，不把配置写成用户家目录全局默认。
 - **token 管理**：`oma agents secrets` 一钥两密文存储加四 shell 懒注入（S031），是 token 部署配置主面；`oma agents providers` 别名簿承载提供商端点配置（S027）。
+- **对话历史检索**：`oma trace` 六视图联邦读四家原生会话库（P0013/P0014），只读、与 rmux 零耦合；D15 曾连坐删除，D19（2026-09-08 用户裁定）全量恢复为只读检索面。
 - **诊断**：`oma doctor` 只读体检（yolo / 信任 / 二进制 / state / 登录态 / hook 形态 / 状态栏 / CPU 能力），warn 与 block 分层。
 - **全平台**：Windows / macOS / Linux（含 WSL）同一命令面；四环境自适应（P0027，矩阵见 S024）。
 - **通用**：智能体集合可扩展。当前默认适配 Claude、Codex、Grok、Kimi，不是产品上限。
