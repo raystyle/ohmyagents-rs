@@ -2,6 +2,9 @@
 //! releases 为空时走 `--git` 源码安装路径）。
 //! 机制见 S028：releases/latest API、资产命名约定 `oma-<triple>.(zip|tar.gz)`、
 //! Windows 运行中自替换（rename 舞步）、Unix 原子 rename 覆盖。
+//! D16：`OMA_MIRROR=<基址>` 镜像通道只覆盖 dev（镜像无 manifest，判新走
+//! `<基址>/oma/dev/<资产名>.sha256` 边车）；stable 与未设置时行为不变。
+//! 镜像侧仅网络类失败回落 GitHub；哈希不符是安全问题，报错不回落。
 
 use std::path::{Path, PathBuf};
 
@@ -181,6 +184,124 @@ fn dev_is_current(release: &Release) -> bool {
     digest_matches(read_record_digest().as_deref(), asset.digest.as_deref())
 }
 
+// ===== D16 镜像通道（OMA_MIRROR，只覆盖 dev） =====
+
+/// 镜像开关：`OMA_MIRROR=<基址>`（去空白与尾斜杠）；未设/空 = None（行为与现状一致）。
+fn mirror_base() -> Option<String> {
+    let v = std::env::var("OMA_MIRROR").ok()?;
+    let v = v.trim().trim_end_matches('/');
+    if v.is_empty() {
+        None
+    } else {
+        Some(v.to_string())
+    }
+}
+
+/// 本机 host 三元组的确定性资产名（与 dev-release.yml 命名约定一致：
+/// 资产名即编译目标三元组，windows 用 zip、其余 tar.gz）。
+fn host_asset_name() -> String {
+    let arch = if cfg!(target_arch = "aarch64") {
+        "aarch64"
+    } else {
+        "x86_64"
+    };
+    if cfg!(target_os = "windows") {
+        format!("oma-{arch}-pc-windows-msvc.zip")
+    } else if cfg!(target_os = "macos") {
+        format!("oma-{arch}-apple-darwin.tar.gz")
+    } else {
+        format!("oma-{arch}-unknown-linux-gnu.tar.gz")
+    }
+}
+
+/// 镜像侧 URL 对：边车（判新与校验）与资产本体。基址已去尾斜杠。
+fn mirror_asset_urls(base: &str, name: &str) -> (String, String) {
+    let b = base.trim_end_matches('/');
+    (format!("{b}/oma/dev/{name}.sha256"), format!("{b}/oma/dev/{name}"))
+}
+
+/// sha256sum 边车解析：首字段即哈希（标准双空格、单空格均可），容错
+/// `sha256:` 前缀；归一为 `sha256:<hex>` 小写。脏输入报错（数据面失败，
+/// 不归网络回落）。
+fn parse_sidecar(text: &str) -> Result<String, String> {
+    let first = text
+        .split_whitespace()
+        .next()
+        .ok_or_else(|| "empty sidecar".to_string())?;
+    let lower = first.to_ascii_lowercase();
+    let hex = lower.strip_prefix("sha256:").unwrap_or(&lower);
+    if hex.len() != 64 || !hex.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err(format!("sidecar first field is not a sha256 hex: {first}"));
+    }
+    Ok(format!("sha256:{hex}"))
+}
+
+fn http_get_string(url: &str) -> Result<String, String> {
+    ureq::get(url)
+        .set("User-Agent", UA)
+        .call()
+        .map_err(|e| format!("{e}"))?
+        .into_string()
+        .map_err(|e| format!("read body: {e}"))
+}
+
+enum MirrorStep {
+    /// 镜像路径走完（已最新或已替换），记录已写。
+    Done,
+    /// 网络类失败（边车/下载连不上、404、超时）：回落 GitHub dev 路径。
+    Fallback(String),
+}
+
+/// dev 镜像路径：边车判新（免 manifest）→ 下载 → sha256 校验（不符即报错，
+/// 安全问题不回落）→ 解包安装复用现状。
+fn dev_via_mirror(base: &str, force: bool) -> Result<MirrorStep, String> {
+    let name = host_asset_name();
+    let (sidecar_url, asset_url) = mirror_asset_urls(base, &name);
+    let sidecar = match http_get_string(&sidecar_url) {
+        Ok(t) => t,
+        Err(e) => return Ok(MirrorStep::Fallback(format!("sidecar {sidecar_url}: {e}"))),
+    };
+    let digest = parse_sidecar(&sidecar)
+        .map_err(|e| format!("mirror sidecar {sidecar_url}: {e}"))?;
+    if !force && digest_matches(read_record_digest().as_deref(), Some(&digest)) {
+        println!("update.source=mirror");
+        println!("update.ok=already-latest");
+        return Ok(MirrorStep::Done);
+    }
+    println!("update.asset={name}");
+    let tmp = std::env::temp_dir().join(format!(
+        "oma-update-{}-{}",
+        std::process::id(),
+        name.replace('/', "_")
+    ));
+    if let Err(e) = crate::install::download_asset(&asset_url, &tmp) {
+        return Ok(MirrorStep::Fallback(format!("download {asset_url}: {e}")));
+    }
+    // 安全闸：下载件必须与边车一致，不符拒绝安装且不回落（回落等于绕过校验）。
+    let got = format!("sha256:{}", crate::archive::sha256_file(&tmp)?);
+    if !got.eq_ignore_ascii_case(&digest) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(format!(
+            "mirror asset sha256 mismatch: sidecar {digest} got {got}; refusing install"
+        ));
+    }
+    let extracted = if name.ends_with(".zip") {
+        let out = tmp.with_extension("unpacked");
+        crate::archive::extract_zip(&tmp, &out)?;
+        find_oma_bin(&out).ok_or("oma binary not found in archive")?
+    } else {
+        let out = tmp.with_extension("unpacked");
+        crate::archive::extract_tar_gz(&tmp, &out)?;
+        find_oma_bin(&out).ok_or("oma binary not found in archive")?
+    };
+    let final_path = self_replace(&extracted)?;
+    println!("update.replaced={}", final_path.display());
+    write_record(&digest, "dev-mirror");
+    println!("update.source=mirror");
+    println!("update.ok=true");
+    Ok(MirrorStep::Done)
+}
+
 /// Atomic-ish self replace: write the new binary beside the current exe, then
 /// swap. Windows cannot overwrite a running exe but CAN rename it away.
 pub fn self_replace(new_bin: &Path) -> Result<PathBuf, String> {
@@ -234,9 +355,25 @@ pub fn git_install(repo: &str) -> Result<(), String> {
 pub fn run(repo: &str, channel: Channel, git_mode: bool, force: bool) -> Result<(), String> {
     println!("update.current={}", env!("CARGO_PKG_VERSION"));
     println!("update.channel={}", channel.as_str());
+    let mirror = mirror_base();
+    println!("update.mirror={}", mirror.as_deref().unwrap_or("off"));
     if git_mode {
         return git_install(repo);
     }
+    if let Some(base) = mirror.as_deref() {
+        match channel {
+            // 镜像无 manifest，只覆盖 dev；stable 直连 GitHub（说明后走原路径）。
+            Channel::Latest => println!("update.mirror=skipped channel=stable"),
+            Channel::Dev => match dev_via_mirror(base, force)? {
+                MirrorStep::Done => return Ok(()),
+                MirrorStep::Fallback(detail) => {
+                    println!("update.mirror=failed detail={detail}");
+                    println!("update.fallback=github");
+                }
+            },
+        }
+    }
+    println!("update.source=github");
     let release = match fetch_release(repo, channel) {
         Ok(r) => r,
         Err(e) => {
@@ -375,5 +512,88 @@ mod tests {
         let fb_assets = mk(&["oma-any.bin", "x.txt"]);
         let fallback = pick_asset(&fb_assets).unwrap();
         assert_eq!(fallback.name, "oma-any.bin");
+    }
+
+    // ===== D16 镜像通道纯函数 =====
+
+    #[test]
+    fn host_asset_name_matches_release_convention() {
+        // 期望值来自 dev-release.yml 命名约定（资产名即编译目标三元组，
+        // windows 用 zip、其余 tar.gz），字面量断言本机期望。
+        let name = host_asset_name();
+        if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
+            assert_eq!(name, "oma-x86_64-pc-windows-msvc.zip");
+        } else if cfg!(all(target_os = "windows", target_arch = "aarch64")) {
+            assert_eq!(name, "oma-aarch64-pc-windows-msvc.zip");
+        } else if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
+            assert_eq!(name, "oma-aarch64-apple-darwin.tar.gz");
+        } else if cfg!(all(target_os = "macos", target_arch = "x86_64")) {
+            assert_eq!(name, "oma-x86_64-apple-darwin.tar.gz");
+        } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
+            assert_eq!(name, "oma-x86_64-unknown-linux-gnu.tar.gz");
+        } else if cfg!(all(target_os = "linux", target_arch = "aarch64")) {
+            assert_eq!(name, "oma-aarch64-unknown-linux-gnu.tar.gz");
+        } else {
+            panic!("untested host target: {name}");
+        }
+    }
+
+    #[test]
+    fn mirror_urls_trim_trailing_slash() {
+        let (s, a) = mirror_asset_urls("https://env.ohmygh.com/", "oma-x.zip");
+        assert_eq!(s, "https://env.ohmygh.com/oma/dev/oma-x.zip.sha256");
+        assert_eq!(a, "https://env.ohmygh.com/oma/dev/oma-x.zip");
+        let (s2, _) = mirror_asset_urls("https://env.ohmygh.com", "oma-x.zip");
+        assert_eq!(s2, s);
+    }
+
+    #[test]
+    fn sidecar_parses_sha256sum_formats() {
+        // Oracle：sha256sum 输出格式——哈希、两个空格、文件名（POSIX 文本模式）。
+        let hex = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+        let want = format!("sha256:{hex}");
+        // 标准双空格加文件名
+        assert_eq!(
+            parse_sidecar(&format!("{hex}  oma-x86_64-pc-windows-msvc.zip\n")).unwrap(),
+            want
+        );
+        // 单空格容错
+        assert_eq!(
+            parse_sidecar(&format!("{hex} oma.zip")).unwrap(),
+            want
+        );
+        // 大写哈希归一小写
+        assert_eq!(
+            parse_sidecar(&hex.to_ascii_uppercase()).unwrap(),
+            want
+        );
+        // sha256: 前缀容错（大小写均收）
+        assert_eq!(parse_sidecar(&format!("sha256:{hex}")).unwrap(), want);
+        assert_eq!(parse_sidecar(&format!("SHA256:{hex}")).unwrap(), want);
+    }
+
+    #[test]
+    fn dies_sidecar_rejects_dirty_input() {
+        // 空、非 hex、长度不符都报错（数据面失败，不走网络回落）。
+        assert!(parse_sidecar("").is_err());
+        assert!(parse_sidecar("   \n").is_err());
+        assert!(parse_sidecar("not-a-hash  oma.zip").is_err());
+        assert!(parse_sidecar("abcd  oma.zip").is_err());
+        assert!(parse_sidecar(
+            "zz7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad  oma.zip"
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn mirror_digest_interops_with_github_record() {
+        // GitHub 记录形如 sha256:ABC（大写），边车小写 hex：digest_matches
+        // 口径下互认为同一版本。
+        let hex = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+        let parsed = parse_sidecar(&format!("{hex}  oma.zip")).unwrap();
+        assert!(digest_matches(
+            Some(&format!("sha256:{}", hex.to_ascii_uppercase())),
+            Some(&parsed)
+        ));
     }
 }
