@@ -1,6 +1,6 @@
 [package]
 name = "oma"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Oh My Agents：Agent 全平台 token、hook 与状态栏部署配置工具"
 license = "MIT"

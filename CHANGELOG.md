@@ -53,6 +53,7 @@
 - **self update 镜像通道**（P0036 / D16）：`OMA_MIRROR=<基址>` 只覆盖 dev 通道；边车 sha256 判新免 manifest、下载强制校验（不符报错不回落）、网络失败回落 GitHub；尾巴修缓存击穿（边车 `?t=` 时间戳、资产 `?v=` 边车锚，每滚天然新键）。e2e 一次性副本实证三分支全绿。
 - **首个正式版 v0.1.0**：整理清理后封版，v* tag 触发正式 release（三平台 zip / tar.gz 加 .sha256 边车，同 dev 形态）；`oma self update --stable` 走 releases/latest 吃到。镜像分发与四端测试验收归 ohmycloud。
 - **trace 六视图全量恢复**（P0037 / D19）：D15 连坐删除的对话历史检索以只读检索面回归（与 rmux 零耦合）；代码自 git 历史原样带回，定位文补「对话历史检索」域。
+- **v0.2.0 封版**：trace 恢复后第二正式版（v* tag 触发，三平台资产加边车同形态）；`oma self update --stable` 吃 releases/latest 即到此版。
 
 ### 排后
 
