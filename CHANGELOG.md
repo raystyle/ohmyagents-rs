@@ -47,6 +47,10 @@
 - **任务目录孤儿**（P0033 / D12）：删除误落 `.ohmyagents/t006/`；协议尾注路径显式 `tasks/`。
 - **数据目录**（P0034 / D14）：项目与家目录 `.ohmyagents` 改名为 `.oma`；旧目录仅旧在则改名迁过去。不是 `.omc`（ohmycloud）。
 
+### 里程碑 2026-09-08
+
+- **重新定位**（P0035 / D15）：oma 去编排，退化为 Agent 全平台 token、hook 与状态栏部署配置工具。编排命令（check / spawn / respawn / status / send / key / run / task / settle / cleanup / REPL / web / serve / mcp / trace）与 rmux 后端整体移除；保留 init / doctor / agents（检测 / login / providers / statusline / secrets 加 deprecated install / update）/ hook / self update / completions。
+
 ### 排后
 
 - Linux/mac 接管（P0012 跨平台面）：资产与代码路径就绪；指令集 SIGILL 预备检测研究已备（S021）。

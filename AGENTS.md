@@ -7,25 +7,23 @@
 > 本项目的本质与边界。根为定位，下分本质、边界、管理对象、方案索引。
 
 1. **本质**
-   - Oh My Agents 是通用智能体多路复用任务编排器：在 rmux 上把多路终端智能体编进一个项目会话，按目录自动配置并编排任务。
+   - Oh My Agents 是 Agent 全平台 token、hook 与状态栏部署配置工具（D15，2026-09-08 用户裁定）：按目录为可注册的终端 agent 部署配置并诊断，不做编排。
 
 2. **边界**
-   - 编排钉在启动的项目目录；不替代 ohmypwsh 五端环境总台，不替代各 agent 本体。
-   - 四仓分工（2026-09-02 定调，D07 修正 agent 二进制归属，D09 钉种子不归 oma，细目见 R001 四仓生态节）：ohmyenv-rs（`ome`）管工具、运行时依赖与 agent 二进制下装部署、本仓（`oma`）管诊断、配置、hook、状态栏与编排、ohmypwsh 管五端总台与密钥安全、ohmycloud 管云端二进制分发与镜像种子；跨仓协作互相发 issue。
-   - oma 不管种子、不管 agent 二进制下装（D09，2026-09-07）：只管诊断、配置、hook、状态栏和编排。下载、安装、部署（五端）归 ohmyenv-rs：`ome install` 幂等检测安装（已装任何来源即跳过，存量原地纳管），数据权威 ome `catalog\tools.toml` agent 四节（D07 方向反转 2026-09-05，ohmyagents#5；前 D06 三裁成果转过渡态）。本仓 `oma agents install` 与 `update` 已 deprecated 指向 ome（保留兼容），`catalog\agents.toml` 冻结为历史锚。配置域含 settings、API key、MCP、statusline、登录态；oma doctor 的登录态 / hook 形态 / 状态栏 / 会话健康四类检查归 agents 域（二进制在位与版本、token 诊断归 ome doctor）。
-   - 编排操作三通道：CLI、HTTP API、MCP 接口（P0011）；网页做可视化编排。弹不出浏览器不是错误。
-   - 运行时后端是 rmux，不引入 herdr 当宿主。
+   - 配置钉在启动的项目目录；不替代 ohmypwsh 五端环境总台，不替代各 agent 本体。
+   - 不做编排（D15，2026-09-08）：spawn / send / status / serve / mcp / trace 等编排命令与 rmux 运行时后端整体移除；原编排定位归档 P0004，本裁定归档 P0035。
+   - 四仓分工（2026-09-02 定调，D07 修正 agent 二进制归属，D09 钉种子不归 oma，D15 去编排，细目见 R001 四仓生态节）：ohmyenv-rs（`ome`）管工具、运行时依赖与 agent 二进制下装部署、本仓（`oma`）管诊断、配置、hook、状态栏与 token、ohmypwsh 管五端总台与密钥安全、ohmycloud 管云端二进制分发与镜像种子；跨仓协作互相发 issue。
+   - oma 不管种子、不管 agent 二进制下装（D09，2026-09-07）：只管诊断、配置、hook、状态栏与 token。下载、安装、部署（五端）归 ohmyenv-rs：`ome install` 幂等检测安装（已装任何来源即跳过，存量原地纳管），数据权威 ome `catalog\tools.toml` agent 四节（D07 方向反转 2026-09-05，ohmyagents#5；前 D06 三裁成果转过渡态）。本仓 `oma agents install` 与 `update` 已 deprecated 指向 ome（保留兼容），`catalog\agents.toml` 冻结为历史锚。配置域含 settings、API key、MCP、statusline、登录态；oma doctor 的登录态 / hook 形态 / 状态栏三类检查归 agents 域（二进制在位与版本、token 诊断归 ome doctor）。
    - hook、skill、状态文件只落启动目录；oma 自管应用数据根是 `~/.oma`（D14；旧 `~/.ohmyagents` 仅旧在则改名迁过去。agent 安装与本地 pin，P0012；D07 后安装域迁 ome，此根承载存量安装与配置数据），默认不改用户家目录 hook 注册。
 
 3. **管理对象**
    - 可注册的终端 agent（当前默认 claude / codex / grok / kimi，可扩展）。
    - 目标项目目录（cwd 或 `--project`）。
-   - rmux 任务会话（专用 pipe 或 unix socket）+ 可选 HTTP 镜像。
 
 4. **方案索引**
    - 需求入口：`PRD.md`（新需求先入 PRD 走追问链，禁止静默假设）。
-   - 定位：`docs\references\R001-项目定位-通用智能体多路复用任务编排器.md`
-   - 定位变更：`docs\proven\P0004-项目重新定位-通用智能体多路复用任务编排器.md`；上一版 `docs\proven\P0002-项目重新定位-通用多Agents自动配置和任务编排器.md`
+   - 定位：`docs\references\R001-项目定位-Agent全平台部署配置工具.md`
+   - 定位变更：`docs\proven\P0035-项目重新定位-Agent全平台部署配置工具.md`；上一版 `docs\proven\P0004-项目重新定位-通用智能体多路复用任务编排器.md`
    - 首期切面：`docs\proven\P0001-四路会话工具-CLI控制面与网页观察面.md`
    - 研究：`docs\research\`（文件名即标题，按关键词搜）
 
@@ -117,40 +115,24 @@
 
 ## 三、意图路由
 
-> 需求意图到命令的映射（摘要层）。每条命令的行为细则、机理出处、marker 行、退出码与落地状态的唯一权威见 `docs\references\R002-常用命令与管理流程-从项目init到会话cleanup.md`。
+> 需求意图到命令的映射（摘要层）。每条命令的行为细则、机理出处、marker 行、退出码与落地状态的唯一权威见 `docs\references\R002-常用命令与管理流程-从项目init到部署诊断.md`。
 
-- **核对依赖**：`oma check`（rmux pin 版本加哈希；缺则安装）
-- **只诊断**：`oma check --no-install`（缺失或不符非 0，不下载）
-- **无阻塞诊断**：`oma doctor`（七面只读体检；登录态、hook 形态、状态栏、会话健康四类归 agents 域，D07；warn 与 block 分层，block 才退出 1）
+- **无阻塞诊断**：`oma doctor`（只读体检；登录态、hook 形态、状态栏三类归 agents 域，D07；warn 与 block 分层，block 才退出 1）
 - **检测已装 agent**：`oma agents`（PATH / 环境变量 / oma 自管根 / 默认目录四源）
 - **安装缺失 agent（deprecated）**：`oma agents install [名] [--force]`（D07 迁册：请用 `ome install <名>`；本命令保留兼容，stderr 先打 `oma.deprecated` 提示）
-- **提供商别名注入**：`oma agents providers [--example]`（别名簿 providers.toml；`spawn --agents claude@zhipu` 注入 env/argv）
+- **提供商别名注入**：`oma agents providers [--example]`（别名簿 providers.toml；注入消费面 spawn 已随 D15 移除，别名簿保留为配置面）
 - **升级与 pin 维护（deprecated）**：`oma agents update [名]`（D07 迁册：agent 升级归 ome，通道语义由 ome 裁决；本命令保留兼容）
 - **设备码登录引导**：`oma agents login <grok|kimi>`（URL 加 code 干净输出跨机完成，落盘凭据为判据）
 - **配置状态栏**：`oma agents statusline [名]`（四家写入面幂等）
-- **密钥管理**：`oma agents secrets init|set|env|inject|status`（一钥两密文存储加四 shell 懒注入）
+- **密钥管理**：`oma agents secrets init|set|env|inject|status`（一钥两密文存储加四 shell 懒注入；token 部署配置主面）
 - **hook 写状态加密钥拦截**：`oma hook`（状态落盘；block 级密钥 exit 2 拒调用）
 - **部署项目全套**：`oma init [--project PATH]`（yolo 加 hook/skill，四环境自适应，幂等）
 - **部署项目级 yolo**：`oma init --yolo`（仅无阻塞键）；`--pretrust` 追加家目录信任库
-- **和解拉起**：`oma spawn [--agents a,b] [--stub]`（不在新开、在则附加、死路重开；精确集合与布局自适应）
-- **重开一路**：`oma respawn <agent>`（kill-pane 单窗格，不动会话与其它路）
-- **看状态**：`oma status`（pid / 终端态 / hook 态 / 扫屏四层，marker 与 TTY 双读者）
-- **发任务**：`oma send <agent> "<文本>"`（单行两段式、多行三段式；`--confirm` 短头确认）
-- **发单键**：`oma key <agent> <KEY>`（守卫入口；codex 拒 C-c）
-- **委派任务**：`oma run "<文本>" [--assign a,b]`（状态门分派多路）
-- **带产物等待的任务**：`oma task <agent> "<文本>" [--timeout N]`（建任务目录、阻塞等 DONE、打产物）
-- **自愈信任**：`oma settle [--wait N]`（信任/审查框自动确认，密码类永不）
-- **收尾**：`oma cleanup`（只杀本 session）
-- **开会话（REPL）**：裸 `oma`（重连或拉起，内嵌编排面，行命令 all/agent/status/web/quit）
-- **起 web 镜像**：`oma web [agent]`（缺省整会话镜像；官方域中继 E2EE 加 PIN）
-- **起 HTTP 编排面**：`oma serve start|stop|status`（即调即退守护；主页即 web 镜像；需 `--features server`）
-- **起 MCP server**：`oma mcp`（stdio 九 tools，信封同形；`--print-config` 出注册片段；需 `--features mcp`）
 - **oma 自更新**：`oma self update [--stable] [--git]`（缺省 dev 滚动源，Windows rename 舞步）
-- **检索轨迹**：`oma trace sessions|timeline|blocks|agent|file|search`（六视图，四家联邦读）
 - **生成补全**：`oma completions <shell>`
-- **输出格式契约**：全局 `--format kv|json|jsonl` 加 `--json` 简写（信封三传输同形，冻结面见 R011）
+- **输出格式契约**：全局 `--format kv|json|jsonl` 加 `--json` 简写（信封冻结面见 R011）
 
-设计命令全部落地（2026-08-31）；新想法走 G003 五步再立项，禁止把未验收口径写成已可跑。
+编排命令（check / spawn / respawn / status / send / key / run / task / settle / cleanup / REPL / web / serve / mcp / trace）已随 D15 移除；历史口径见归档 P0001 至 P0034。新想法走 G003 五步再立项，禁止把未验收口径写成已可跑。
 
 ## 四、资源索引
 
@@ -188,4 +170,4 @@ ast-grep run -p 'fn $NAME($$$) -> Result<$RET, String> $$$' -l rs --json  # 签�
 
 坑速查：mq 的 `.h.1` 是层级值不是文本（节点用 `.h`/`.h1`）；无 `.s` 选择器（用 section 模块）；ast-grep 的 fn 模式必须带 body 通配 `$$$`、可见性要写进模式、JSON 变量取 `metaVariables.single.<VAR>.text`。详见 M107。
 
-**分析路径**：改产品行为先读 `docs\references\R006/R007`（怎么做）再回 `docs\research\S00x`（为什么）；踩坑查 `docs\mistakes\M1xx`；写码选库走 R005；测试规范 R004；新想法走 G003 五步；定位代码先 INDEX 模块表再 ast-grep 符号；抽文档节用 mq section。
+**分析路径**：改产品行为先读 `docs\references\R007`（怎么做）再回 `docs\research\S00x`（为什么）；踩坑查 `docs\mistakes\M1xx`；写码选库走 R005；测试规范 R004；新想法走 G003 五步；定位代码先 INDEX 模块表再 ast-grep 符号；抽文档节用 mq section。

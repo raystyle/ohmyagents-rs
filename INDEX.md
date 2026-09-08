@@ -6,7 +6,7 @@
 
 **前缀定位**：`D`（PRD 需求清单，2 位）；`P`（proven，已完成 plan 归档，4 位）；`S`（research，研究原型过程，3 位）；`R`（references，开发测试参考，3 位）；`G`（guide，元规范，3 位）；`M`（mistakes，分类文件 M1xx、行级错误 M0xx 全局递增不复用）。根目录四原语：`PRD`（需求清单）/ `GOAL`（目标轨迹）/ `PLAN`（当前目标方案，基于研究与参考）/ `TODO`（进度清单）。
 
-**目录职能**：`proven` 已完成 plan 归档；`diary` 一天一篇总结与自省；`research` 研究原型过程（为什么，六态对齐，规范见 G002）；`references` 开发测试参考（要做什么怎么做，六态溯源）；`guide` 元规范（含 `template.md`）；`mistakes` 出错怎么纠（与 references 是经验教训的两面）；`web` 前端资源包输入区（`share-src\` Astro 源码、`kanban\` 构建产物；`build.rs` 打 tar.gz 嵌二进制，P0023；内部文件不按本仓文档规范整改）。
+**目录职能**：`proven` 已完成 plan 归档；`diary` 一天一篇总结与自省；`research` 研究原型过程（为什么，六态对齐，规范见 G002）；`references` 开发测试参考（要做什么怎么做，六态溯源）；`guide` 元规范（含 `template.md`）；`mistakes` 出错怎么纠（与 references 是经验教训的两面）；`web` 前端资源包输入区（D15 起退役：消费者 build.rs 与 webassets 已删，目录留作历史资产，不再维护）。
 
 新文档按类别落位，编号接当前最大号，登记进本索引对应节；编号退役或断号留注记（见 R003 与 P0020 先例），不复用。
 
@@ -15,8 +15,8 @@
 | 类别 | 目录 | 说明 |
 | --- | --- | --- |
 | 文档 | `docs\`（proven/diary/research/guide/references/mistakes/web）+ 根目录 PRD/GOAL/PLAN/TODO/INDEX/AGENTS/README/CHANGELOG/ROADMAP | 见上节职能 |
-| 代码 | `src\` + `catalog\` | Rust CLI `oma`；rmux 与四家 agent 的 pin（信任锚）在 catalog |
-| 运行时产物 | 目标项目下 `.oma\`；本机工具 `%LOCALAPPDATA%\ohmyagents\rmux\<ver>\` | gitignore 项目态；工具前缀不进仓 |
+| 代码 | `src\` + `catalog\` | Rust CLI `oma`；四家 agent 的 pin（冻结历史锚）在 catalog |
+| 运行时产物 | 目标项目下 `.oma\` | gitignore 项目态；工具前缀不进仓 |
 
 **代码文件位置**：
 
@@ -27,42 +27,29 @@
 | `.tools\md-replace.py` | 中文与反斜杠路径安全的字面批量替换（规避 sed 坑 M023） |
 | `.tools\md-heading-scan.py` | 标题括号规范扫描（G001 标题干净的机检项；代码围栏内的注释不计） |
 | `.tools\mdcharlint.py` | 四类禁用字符检查（G005：破折号、箭头、emoji、非法全角；掩豁免区后逐字符扫） |
-| `.tools\review-round.py` | agent 轮换接力 review 工作流（不并行，FINDINGS=0 终止；产物归 `.oma/reviews/relay/`） |
-| `.tools\share-view-probe.py` | 连本地 rmux web-share 网关抓 spectator 视角 session view 数据（排查前端布局数据源） |
-| `src\main.rs` | CLI 入口与全部子命令分发（check/init/doctor/agents/hook/spawn/status/send/cleanup/run/settle/trace/serve/mcp/completions）；`--json` 信封出口与 status TTY 表格 |
+| `src\main.rs` | CLI 入口与子命令分发（init/doctor/agents/hook/self/completions）；`--json` 信封出口 |
 | `src\lib.rs` | 模块声明 |
-| `src\catalog.rs` | `catalog\rmux.toml` 与 `catalog\agents.toml` pin 读取与加载期校验 |
-| `src\rmux.rs` | `oma check`：布局探测、归档下载安装、哈希校验 |
-| `src\rmuxpoc.rs` | POC 共用层：专用端点、闸门、Job Object WMI 退路、桩 argv |
+| `src\catalog.rs` | `catalog\agents.toml` pin 读取与加载期校验（rmux pin 随 D15 移除） |
+| `src\archive.rs` | 通用归档工具：sha256 校验、zip / tar.gz 解包、目录复制、host os/arch（D15 自 rmux.rs 剥离） |
 | `src\hook.rs` | `oma hook`：事件到四态映射与 state 落盘，加密钥拦截分流 |
 | `src\agents.rs` | `oma agents`：PATH / 环境变量 / 默认目录探测 |
-| `src\doctor.rs` | `oma doctor`：只读诊断（yolo / 信任 / 二进制 / state / 登录态 / hook 形态 / 状态栏 / 会话健康） |
+| `src\doctor.rs` | `oma doctor`：只读诊断（yolo / 信任 / 二进制 / state / 登录态 / hook 形态 / 状态栏；会话健康随 D15 移除） |
 | `src\yolo.rs` | `oma init --yolo`：四家配置落盘与 pretrust |
 | `src\deploy.rs` | `oma init` hook/skill 部署层：按 S015 矩阵落项目文件，幂等合并；SKILL.md 由 COMMAND_MAP 命令图生成（标记覆写三态） |
-| `src\orch.rs` | 产品编排层：项目 slug 会话、spawn/status/send/cleanup、pane 清单 |
 | `src\install.rs` | 自适应安装层（D07 deprecated：install/update 入口提示指向 ome）：多渠道下载、sha 信任锚、oma 自管根布局、update 取证与 pin 写回 |
 | `src\login.rs` | `oma agents login`：grok/kimi 设备码登录引导（子进程捕获、URL/code 转发、落盘凭据确认） |
-| `src\providers.rs` | `oma agents providers`：别名簿 providers.toml 读写与 `agent@alias` 注入形态（S027） |
+| `src\providers.rs` | `oma agents providers`：别名簿 providers.toml 读写与 `agent@alias` 注入形态（S027；spawn 消费面随 D15 移除，别名簿保留为配置面） |
 | `src\statusline.rs` | `oma agents statusline`：四家状态栏写入面幂等合并（S025 矩阵）；projKind 含 rust/node/python/zig/go/cpp（P0032） |
-| `src\task.rs` | `oma task`：任务目录协议（prompt.md/output.md/DONE）、阻塞等待与产物收取；send 尾注路径显式 `tasks/`（P0033） |
 | `src\update.rs` | `oma self update`：dev 滚动源与正式版判新、sha256 取证、Windows rename 舞步（S028） |
-| `src\servectl.rs` | `oma serve start/stop/status`：后台守护拉起（CREATE_NO_WINDOW）、协议化停机与探活 |
 | `src\secretguard.rs` | `oma hook` 密钥拦截闸（S030）：模式表八层防误报、实值比对通道、PreToolUse/UserPromptSubmit 阻断 exit 2 |
-| `src\fmtio.rs` | 全局输出三态（kv/json/jsonl）与结构化错误出口（issue #1 契约，R011） |
+| `src\fmtio.rs` | 全局输出三态（kv/json/jsonl）与结构化错误出口（issue #1 契约，R011）；JSON 信封函数（D15 自 api.rs 迁入） |
 | `src\secrets.rs` | `oma agents secrets`：一钥两密文存储（app.key/identity.enc/secrets.yaml）与四 shell 懒注入块（S031） |
-| `src\trace.rs` | 意图轨迹检索层：四家会话发现 + 四家联邦 loader（codex FileChange 主源、grok updates 权威日志加 chat_history 兜底、注入过滤、epoch ms 归一）+ 块聚合与过滤分页检索 |
-| `src\api.rs` | 传输无关编排操作层（P0011）：六操作加 trace 检索三件返回结构化 JSON，HTTP 与 MCP 共用 |
-| `src\mcp.rs` | MCP 适配层（feature `mcp`，P0011）：rmcp 3.1.4 stdio 九 tools，信封同形，stdout 纯协议 |
-| `src\server.rs` | HTTP 适配层（feature `server`，P0011/P0019）：axum 六操作 RESTish + JSON 信封 + 会话写串行化 + 网页直出 + 行日志 SSE + 终端镜像 SSE（render_stream 加首帧）+ trace 三端点；`serve_in_background` 供 REPL 内嵌 |
-| `src\repl.rs` | REPL 交互层（P0016）：裸 `oma` 进；stdin 线程喂 mpsc、行命令分派、编排面内嵌、状态表格渲染（CLI 共用） |
-| `src\webassets.rs` | 资源包嵌入与首启释放（`~/.oma/web/<指纹>/`，一次一份，P0023） |
 | `src\caps.rs` | CPU 指令集能力与探针退出形态分类（S021/P0018：is_x86_feature_detected 加 0xC000001D 识别） |
 | `src\pathutil.rs` | 路径工具；项目/家目录 `.oma`（旧 `.ohmyagents` 改名迁，D14） |
-| `build.rs` | kanban 资源包打包（tar.gz 加 sha256 指纹进 OUT_DIR；rerun-if-changed 挂资产目录） |
-| `tests\cli.rs` | CLI 集成冒烟（assert_cmd；check/agents/hook/doctor/send 快败） |
-| `examples\poc-*.rs` | 十四个 POC（Windows 范围全表绿；命令清单与逐件说明见 R002 一节） |
-| `catalog\rmux.toml` | rmux tag 与各平台 SHA256（`oma check` 信任锚） |
+| `tests\cli.rs` | CLI 集成冒烟（assert_cmd；agents/hook/doctor/init/statusline/secrets 部署配置面） |
 | `catalog\agents.toml` | 四家 agent pin：渠道序（github 主 CDN 兜底）、per-OS+arch 资产 SHA256、官方校验清单线索（D07 起冻结为历史锚，数据权威转 ome `catalog\tools.toml` agent 四节） |
+
+（D15 移除：`src\rmux.rs` / `rmuxpoc.rs` / `orch.rs` / `task.rs` / `servectl.rs` / `trace.rs` / `api.rs` / `mcp.rs` / `server.rs` / `repl.rs` / `webassets.rs`、`build.rs`、`catalog\rmux.toml`、`examples\poc-*.rs` 十四件、`.tools\share-view-probe.py`、`.tools\review-round.py`；历史见 git。）
 
 ## 三、方案归档
 
@@ -103,6 +90,7 @@
 | P0032 | `P0032-D11-状态栏工具链段扩展-zig-go-cpp.md` | D11 状态栏 projKind 扩展 zig / go / cpp |
 | P0033 | `P0033-D12-任务目录孤儿收敛.md` | D12 删除误落 `.ohmyagents/t006/`；协议尾注路径显式 tasks/ |
 | P0034 | `P0034-D14-数据目录改名为oma.md` | D14 项目与家目录 `.ohmyagents` 改 `.oma` |
+| P0035 | `P0035-项目重新定位-Agent全平台部署配置工具.md` | D15 去编排：oma 退化为 Agent 全平台 token、hook 与状态栏部署配置工具 |
 
 （P0020 断号：编号已预留未使用，不复用。）
 
@@ -161,15 +149,15 @@
 
 | 编号 | 文件 | 用途 |
 | --- | --- | --- |
-| R001 | `R001-项目定位-通用智能体多路复用任务编排器.md` | 现役定位展开（D09：oma 不管种子，只管诊断、配置、hook、状态栏、编排） |
-| R002 | `R002-常用命令与管理流程-从项目init到会话cleanup.md` | oma 命令手册（命令面唯一权威） |
+| R001 | `R001-项目定位-Agent全平台部署配置工具.md` | 现役定位展开（D15：oma 去编排，只管诊断、配置、hook、状态栏、token） |
+| R002 | `R002-常用命令与管理流程-从项目init到部署诊断.md` | oma 命令手册（命令面唯一权威） |
 | R004 | `R004-测试标准细则-分层断言与门禁流程.md` | 测试分层、断言、闸门 |
 | R005 | `R005-选型研究细则-cratesio与github双通道.md` | 选库检索双通道 |
-| R006 | `R006-rmux开发参考-连接会话布局与驱动.md` | 写 rmux 相关代码时查 |
+| R006 | `R006-rmux开发参考-连接会话布局与驱动.md` | 退役（D15 移除 rmux 后端；留作历史参考） |
 | R007 | `R007-agent信任与无阻塞参考-四家配置与检测.md` | 写 init/doctor/hook 时查 |
 | R008 | `R008-项目工具Python库选型细则-pypi与uv.md` | py 工具选库与 uv 工作流 |
 | R009 | `R009-项目工具PowerShell模块选型细则-psgallery与psresourceget.md` | ps 模块选型与 ohmypwsh 统一管理 |
-| R010 | `R010-Windows到Linux交接清单.md` | WSL/Linux 开工读本：现状、已平台化项、Linux 欠账、坑索引、开工顺序 |
+| R010 | `R010-Windows到Linux交接清单.md` | 退役（D15 去编排后 Linux 欠账口径失效；留作历史参考） |
 | R011 | `R011-Agent友好IO契约-format三态信封退出码与冻结面.md` | --format 三态、信封与双通道错误、退出码表、冻结面（issue #1） |
 
 （R003 退役：原全量清单并入本索引，编号不复用。）

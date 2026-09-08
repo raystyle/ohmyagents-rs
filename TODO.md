@@ -4,10 +4,11 @@
 
 ## 当前目标
 
-无。D14 当日闭环。下一项 D13 排队。
+无。D15 当日闭环。下一项 D13 排队。
 
 ## 前目标清单
 
+> D15 oma 去编排收窄为纯部署配置工具（2026-09-08 归档 P0035）：编排命令与 rmux 后端移除；保留 init / doctor / agents / hook / self update / completions；文档八面同步。
 > D14 数据目录改名为 `.oma`（2026-09-07 归档 P0034）：项目与家目录两根同改；旧 `.ohmyagents` 仅旧在则迁；不是 `.omc`。
 > D12 任务目录孤儿（2026-09-07 归档 P0033）：`.ohmyagents/t006/` 是 t008 第二轮草稿误落，已删；协议尾注路径显式 `tasks/`。
 > D11 状态栏 zig/go/cpp（2026-09-07 归档 P0032）：projKind 扩展；本机临时目录实跑；Grok 仍跳过工具链。
@@ -21,4 +22,4 @@
 
 | 目标 | 状态 | 说明 |
 | --- | --- | --- |
-| D13 mac `--version` 一致性 | 排队 | 已澄清。已推 origin。CI Linux/mac 曾红（M049）；修 `plan_agents` 一次探测后再等滚动资产，mac `oma self update` |
+| D13 mac `--version` 一致性 | 排队 | 已澄清。已推 origin。CI Linux/mac 曾红（M049）；修 `plan_agents` 一次探测后再等滚动资产，mac `oma self update`。D15 后仍需新 CI 资产 |
