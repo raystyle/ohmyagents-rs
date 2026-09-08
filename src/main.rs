@@ -233,6 +233,14 @@ enum AgentsCmd {
         #[arg(long)]
         root: Option<PathBuf>,
     },
+    /// 四家 hook 与状态栏全平台无头验收（D17）：状态栏脚本直跑加 hook 无头落盘，任一非跳过项失败退出 1
+    Verify {
+        /// 指定 agent（claude/codex/grok/kimi）；缺省四家全验
+        names: Vec<String>,
+        /// 单家无头会话最长秒数（超时杀进程不算失败，判据只看 state 落盘）
+        #[arg(long)]
+        timeout: Option<u64>,
+    },
     /// 解析最新版并升级 oma 自管安装（已 deprecated，D07 迁册 ome：agent 升级归 ome），取证 sha256 后写回用户本地 pin
     Update {
         /// agent 名列表；缺省 = catalog 全部
@@ -298,6 +306,7 @@ fn run() -> Result<(), String> {
             }
             Some(AgentsCmd::Update { names, force, root }) => cmd_agents_update(names, force, root),
             Some(AgentsCmd::Statusline { names }) => cmd_agents_statusline(names),
+            Some(AgentsCmd::Verify { names, timeout }) => cmd_agents_verify(names, timeout),
             Some(AgentsCmd::Login { names, timeout }) => cmd_agents_login(names, timeout),
             Some(AgentsCmd::Secrets { cmd }) => cmd_agents_secrets(cmd),
             Some(AgentsCmd::Providers { example }) => cmd_agents_providers(example),
@@ -450,6 +459,19 @@ fn cmd_agents_statusline(names: Vec<String>) -> Result<(), String> {
         println!("statusline.warn=pwsh-not-on-path-statusline-will-not-run");
     }
     println!("statusline.ok=true");
+    Ok(())
+}
+
+/// `oma agents verify [名...] [--timeout N]`：四家 hook 与状态栏无头验收（D17）。
+/// 缺省四家全验；skip（未装）不算失败，任一非跳过项失败退出 1。
+fn cmd_agents_verify(names: Vec<String>, timeout: Option<u64>) -> Result<(), String> {
+    let outcomes = oma::verify::run(&names, timeout.unwrap_or(oma::verify::DEFAULT_TIMEOUT_SECS))?;
+    for line in oma::verify::render(&outcomes) {
+        println!("{line}");
+    }
+    if oma::verify::any_fail(&outcomes) {
+        std::process::exit(1);
+    }
     Ok(())
 }
 

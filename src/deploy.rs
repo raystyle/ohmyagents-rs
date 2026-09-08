@@ -704,6 +704,10 @@ const COMMAND_MAP: &[(&str, &str)] = &[
         "oma trace sessions|timeline|blocks|agent|file|search",
         "项目内四家 agent 对话历史检索（六视图联邦读原生会话库，只读）",
     ),
+    (
+        "oma agents verify [名] [--timeout N]",
+        "无头验收四家 agent：状态栏脚本 mock 直跑加 hook 无头落盘（S033 两层判据）",
+    ),
 ];
 
 /// 生成标记：只有带它的 SKILL.md 才允许 oma 覆写（用户手改过的跳过）。

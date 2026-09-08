@@ -451,6 +451,104 @@ fn json_shorthand_works_after_subcommand() {
     let _ = std::fs::remove_dir_all(&tmp);
 }
 
+// ===== `oma agents verify`（D17 无头验收）=====
+
+#[test]
+fn dies_verify_unknown_agent() {
+    // 未知名在任何验收动作前快败，报支持面。
+    oma()
+        .args(["agents", "verify", "no-such-agent"])
+        .assert()
+        .failure()
+        .stderr(contains("claude/codex/grok/kimi"));
+}
+
+/// 全 skip 环境的 env 罩子：PATH 空目录加 OMA_HOME 空目录，摘掉全部 agent 指引
+/// 环境变量。默认目录源（~/.local/bin 等）无法罩住（dirs 走系统 API 不看
+/// env），所以调用方要先自检仍检出 installed 就 skip。
+fn verify_empty_env(cmd: &mut Command, sandbox: &std::path::Path) {
+    cmd.env("PATH", sandbox.join("empty-path"))
+        .env("OMA_HOME", sandbox.join("empty-oma-home"));
+    for key in [
+        "OMA_AGENT_PATH",
+        "CODEX_HOME",
+        "OMA_CLAUDE_BIN",
+        "CLAUDE_BIN",
+        "OMA_CODEX_BIN",
+        "CODEX_BIN",
+        "OMA_GROK_BIN",
+        "GROK_BIN",
+        "OMA_KIMI_BIN",
+        "KIMI_BIN",
+        "KIMI_CODE_BIN",
+    ] {
+        cmd.env_remove(key);
+    }
+}
+
+#[test]
+fn verify_all_skip_exits_zero_when_no_agents_detected() {
+    let tmp = std::env::temp_dir().join(format!(
+        "oma-cli-verify-skip-{}-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis(),
+        NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    std::fs::create_dir_all(tmp.join("empty-path")).unwrap();
+    std::fs::create_dir_all(tmp.join("empty-oma-home")).unwrap();
+    // 自检：罩子下仍有 agent 检出（默认目录源），本机造不出全缺，skip。
+    let mut probe = oma();
+    verify_empty_env(&mut probe, &tmp);
+    let out = probe.args(["agents"]).assert().success().get_output().stdout.clone();
+    if String::from_utf8_lossy(&out).contains("status=installed") {
+        eprintln!("skip: default-dir agent installs survive the env sandbox on this host");
+        let _ = std::fs::remove_dir_all(&tmp);
+        return;
+    }
+    let mut cmd = oma();
+    verify_empty_env(&mut cmd, &tmp);
+    cmd.args(["agents", "verify"])
+        .assert()
+        .success()
+        .stdout(contains("verify.claude=skip"))
+        .stdout(contains("verify.codex=skip"))
+        .stdout(contains("verify.grok=skip"))
+        .stdout(contains("verify.kimi=skip"))
+        .stdout(contains("verify.ok=true"));
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn verify_live_headless_acceptance_for_installed_agents() {
+    // 闸门（R004）：依赖真 agent 二进制与登录态，消耗极少量真实 token；
+    // binary 不在则 eprintln skip 并 return。判据只押 hook state 落盘
+    // （SessionStart/UserPromptSubmit 先于模型调用，S033）。
+    let out = oma().args(["agents"]).assert().success().get_output().stdout.clone();
+    let text = String::from_utf8_lossy(&out).into_owned();
+    let mut ran = 0;
+    for name in ["claude", "codex", "grok", "kimi"] {
+        let installed = text
+            .lines()
+            .any(|l| l.starts_with(&format!("agent={name} ")) && l.contains("status=installed"));
+        if !installed {
+            eprintln!("skip: {name} not installed");
+            continue;
+        }
+        ran += 1;
+        oma()
+            .args(["agents", "verify", name, "--timeout", "90"])
+            .assert()
+            .success()
+            .stdout(contains(format!("verify.{name}.hook=ok")));
+    }
+    if ran == 0 {
+        eprintln!("skip: no agent binaries on this host");
+    }
+}
+
 #[test]
 fn json_and_format_are_mutually_exclusive() {
     oma()

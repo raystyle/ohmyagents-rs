@@ -15,6 +15,7 @@ pub mod secrets;
 pub mod statusline;
 pub mod trace;
 pub mod update;
+pub mod verify;
 pub mod yolo;
 
 /// 测试共享 env 互斥：动 OMA_HOME / SOPS_AGE_KEY_FILE 的测试跨模块也要
