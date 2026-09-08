@@ -22,7 +22,8 @@
 
 | 日期 | 进展 |
 | --- | --- |
-| 2026-09-08 | 二轮对账回执：OMA_MIRROR 是基址非布尔（=1 会回落 GitHub）、仅 self update dev 通道、联调用一次性副本防回盖；用户指示推，至 origin，CI 滚出带 OMA_MIRROR 的新 dev 产物后 ohmycloud 重播镜像 |
+| 2026-09-08 | D16 尾巴修加正式判据全过：边车 `?t=` 加资产 `?v=<边车锚>` 缓存击穿（ohmycloud 建议）；修前实证边缘缓存「边车新资产旧」窗口超 3 分钟、校验闸按设计硬拒；修后 e2e 判据绿（ok=true 加 --version 活加 already-latest） |
+| 2026-09-08 | 二轮对账回执：OMA_MIRROR 是基址非布尔（=1 会回落 GitHub）、仅 self update dev 通道、联调用一次性副本防回盖；用户指示推至 origin，CI 滚出带 OMA_MIRROR 的新 dev 产物后 ohmycloud 重播镜像 |
 | 2026-09-08 | D16 镜像 e2e 实证（Windows）：ohmycloud 播 oma/dev 段后实跑三分支全绿（镜像下载校验替换、边车判新 already-latest、 bogus 镜像回落 GitHub）；一次性副本运行不伤工作二进制 |
 | 2026-09-08 | D16 达成归档 P0036：OMA_MIRROR 镜像通道落地 update.rs 一节（边车判新、sha256 强制校验、网络失败回落）；102 单元加 17 集成、四门禁全绿 |
 | 2026-09-08 | D16 立项：OMA_MIRROR 基址开关、只覆盖 dev 通道、边车 sha256 判新免 manifest、失败回落 GitHub |

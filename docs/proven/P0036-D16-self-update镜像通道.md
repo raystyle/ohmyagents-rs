@@ -18,9 +18,11 @@ ohmycloud 对账五点第 5 问：oma 有无 ome 同款 OME_MIRROR 类开关。�
 - marker 只增不改（R011 冻结面）：新增 `update.mirror` / `update.source` / `update.fallback`，既有键语义不动。
 - 新增 5 个纯函数单测（三元组资产名 oracle 取 dev-release.yml 命名约定字面量、sha256sum 格式解析、digest 跨源互认）；102 单元加 17 集成全绿 [实证： 2026-09-08 本机 cargo test]；四门禁绿。
 - 镜像端到端 [实证： 2026-09-08 本机 Windows，ohmycloud 播种后]：一次性副本跑 `OMA_MIRROR=https://env.ohmygh.com oma.exe self update` 三分支全绿：镜像下载加 sha256 校验加 rename 替换加 `dev-mirror` 记录；二跑边车判新 `already-latest`；bogus 基址打 `update.mirror=failed` 加 `update.fallback=github` 回落成功。一次性副本用法保护工作二进制不被旧资产回盖。
+- 尾巴修（同日缓存坑，ohmycloud 建议）：边车 URL 加 `?t=<unix>` 击穿取 origin 现值，资产 URL 加 `?v=<边车锚>`（CF 缓存键含 query、R2 取对象只看 path，每滚天然新键）。修前实证到「边车新、资产旧」边缘缓存窗口超 3 分钟、校验闸按设计硬拒 [实证： 2026-09-08 本机]；修后缓存未收敛即 e2e 判据全过（`update.ok=true` 加 `--version` 活加落地副本 already-latest）。
 
 ## 经验
 
 - 判新键跨源互认要先归一：GitHub digest 是 `sha256:<hex>`、sha256sum 边车是裸 hex，归一到同形再比对，否则换源必触发一次误更新 [实证： 本轮 digest_matches 互认单测]。
-- 「网络失败回落、校验失败不回落」是镜像通道的安全分界：可用性问题可以降级，完整性问题不行。
+- 「网络失败回落、校验失败不回落」是镜像通道的安全分界：可用性问题可以降级，完整性问题不行。该闸在本轮真实缓存事故中按设计硬拒 [实证： 2026-09-08 边缘缓存窗口]。
+- CDN 镜像消费要缓存击穿：边车 `?t=` 取现值、资产 `?v=<边车锚>` 锚定缓存键；「边车新、资产旧」不同步窗口足以让所有按边车校验的客户端失败 [实证： 同日实锤，ohmycloud 侧 omc 同款方案]。
 - 初版单测把实现同款 cfg 分支抄进断言（重言式，R004 点名高发），oracle 改用工作流命名约定字面量后才算数。
