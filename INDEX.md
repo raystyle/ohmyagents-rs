@@ -42,6 +42,7 @@
 | `src\statusline.rs` | `oma agents statusline`：四家状态栏写入面幂等合并（S025 矩阵）；projKind 含 rust/node/python/zig/go/cpp（P0032） |
 | `src\update.rs` | `oma self update`：dev 滚动源与正式版判新、sha256 取证、Windows rename 舞步（S028）；OMA_MIRROR 镜像通道加缓存击穿（D16） |
 | `src\trace.rs` | `oma trace` 六视图：联邦读四家原生会话库归一检索（P0013/P0014，S018/S019/S020；D15 连坐删除，D19 全量恢复） |
+| `src\verify.rs` | `oma agents verify`：四家无头验收两层判据（D17，S033）；状态栏 mock 直跑加 hook 临时 git 项目无头落盘；grok trusted_folders 种子加 Drop 摘除 |
 | `src\secretguard.rs` | `oma hook` 密钥拦截闸（S030）：模式表八层防误报、实值比对通道、PreToolUse/UserPromptSubmit 阻断 exit 2 |
 | `src\fmtio.rs` | 全局输出三态（kv/json/jsonl）与结构化错误出口（issue #1 契约，R011）；JSON 信封函数（D15 自 api.rs 迁入） |
 | `src\secrets.rs` | `oma agents secrets`：一钥两密文存储（app.key/identity.enc/secrets.yaml）与四 shell 懒注入块（S031） |
@@ -50,7 +51,7 @@
 | `tests\cli.rs` | CLI 集成冒烟（assert_cmd；agents/hook/doctor/init/statusline/secrets 部署配置面加 trace 只读检索面，D19） |
 | `catalog\agents.toml` | 四家 agent pin：渠道序（github 主 CDN 兜底）、per-OS+arch 资产 SHA256、官方校验清单线索（D07 起冻结为历史锚，数据权威转 ome `catalog\tools.toml` agent 四节） |
 
-（D15 移除：`src\rmux.rs` / `rmuxpoc.rs` / `orch.rs` / `task.rs` / `servectl.rs` / `trace.rs` / `api.rs` / `mcp.rs` / `server.rs` / `repl.rs` / `webassets.rs`、`build.rs`、`catalog\rmux.toml`、`examples\poc-*.rs` 十四件、`.tools\share-view-probe.py`、`.tools\review-round.py`；历史见 git。）
+（D15 移除：`src\rmux.rs` / `rmuxpoc.rs` / `orch.rs` / `task.rs` / `servectl.rs` / `api.rs` / `mcp.rs` / `server.rs` / `repl.rs` / `webassets.rs`、`build.rs`、`catalog\rmux.toml`、`examples\poc-*.rs` 十四件、`.tools\share-view-probe.py`、`.tools\review-round.py`；`trace.rs` 后经 D19 恢复；历史见 git。）
 
 ## 三、方案归档
 
@@ -94,6 +95,7 @@
 | P0035 | `P0035-项目重新定位-Agent全平台部署配置工具.md` | D15 去编排：oma 退化为 Agent 全平台 token、hook 与状态栏部署配置工具 |
 | P0036 | `P0036-D16-self-update镜像通道.md` | D16 `OMA_MIRROR` 镜像通道：dev 段边车判新、sha256 强制校验、网络失败回落 GitHub |
 | P0037 | `P0037-D19-trace六视图全量恢复.md` | D19 trace 六视图全量恢复：只读检索面回归，与 rmux 零耦合 |
+| P0038 | `P0038-D17-agents-verify无头验收.md` | D17 `oma agents verify`：状态栏 mock 直跑加 hook 无头落盘两层判据；本机四家全绿 |
 
 （P0020 断号：编号已预留未使用，不复用。）
 
@@ -193,7 +195,7 @@
 | M104 | `M104-rmux安装与CLI调用错误.md` | 安装、`-V`、`-S`、`-L`、`cmd()`、`-t` 前缀匹配 | M006-M007、M016、M020、M029 |
 | M105 | `M105-agent检测与状态判断错误.md` | PATH、which、idle、Quiet、CPU | M012、M018-M019、M040 |
 | M106 | `M106-Windows进程与daemon启动错误.md` | os error 5、Job Object、WMI、exit-empty、pane cwd | M015、M017、M021-M022、M031、M041 |
-| M107 | `M107-工具链与脚本错误.md` | sed、grep、PowerShell、中文路径、测试临时目录 | M023-M026、M028、M032-M037、M049-M050、M052 |
+| M107 | `M107-工具链与脚本错误.md` | sed、grep、PowerShell、中文路径、测试临时目录 | M023-M026、M028、M032-M037、M049-M050、M052-M053 |
 
 迭代规则：踩坑按当前最大号接编 MNNN 进对应分类文件（M0xx 行级、新分类用 M1xx 接编）；一行一事；同根因或同型坑**可合并聚合**进已有条目（保留最早编号与首踩日期，聚合后的正解写全），避免同型条目无限线性追加；反复踩落 `docs\research\`；改「正确处理」不删历史行；新分类文件登记本节。**分类文件新增行级条目时，本表该行「行级编号段」当轮同步延长，漏延长即登记债（见 M043）。**
 

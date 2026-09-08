@@ -48,18 +48,24 @@
 2. hook 面无头可验三家（claude / grok / kimi）；codex 须先过信任闸（bypass 旗标）并钉住无派发 bug 的版本。
 3. 「状态栏必须经 agent TUI 渲染才算数」这条判据路线在无头验收里不成立，若坚持 TUI 渲染，D17 就不能叫无头验收，二者互斥需用户裁定。
 
-## 源码补强（2026-09-08，用户点拨三家开源可读源码）
+## 源码补强
+
+> 2026-09-08，用户点拨三家开源可读源码后的源码级取证。
 
 > 浅克隆 main 逐文件取证，三路并行子代理执行；claude 闭源维持文档层结论。行号对应当日 main。
 
-### codex（openai/codex，Rust）
+### codex 源码
+
+> 仓 openai/codex（Rust），main。
 
 - exec 与 TUI 共享 core turn 循环（exec 起 in-process app-server）：`exec/src/lib.rs:1127` [实证]。逐事件派发点：SessionStart `core/src/session/turn.rs:287`、UserPromptSubmit `turn.rs:693`、PreToolUse `core/src/tools/registry.rs:568`、PostToolUse `registry.rs:684`、Stop `turn.rs:554`、SessionEnd `core/src/session/handlers.rs:431`（root-only）、Interrupt `hook_runtime.rs:486` [实证]。exec e2e 只钉 SessionStart（`exec/tests/suite/hooks.rs:8`），其余事件由同环路推出 [推断]。
 - 信任闸单点 `hooks/src/engine/discovery.rs:713`：enabled 加（bypass 或 Managed/Trusted）才进 handlers；未信任 hook 静默跳过且 exec 无任何用户可见提示 [实证]。第二道闸：项目目录信任，未信任层 config loaded but disabled（`config/src/loader/mod.rs:118`）[实证]。
 - bypass 丢失 bug 已修：PR #26434（commit d007b0852 在 main），exec 重建 thread 时转发 override（`exec/src/lib.rs:1400`）；#26383 / #30835 / #32491 仍 OPEN [实证： gh API]。
 - `tui.status_line` 是 30 个内置项封闭枚举（`tui/src/bottom_pane/status_line_setup.rs:56-158`），无外部命令 variant，非法 ID 仅告警一次 [实证]。
 
-### kimi（MoonshotAI/kimi-code，TypeScript）
+### kimi 源码
+
+> 仓 MoonshotAI/kimi-code（TypeScript），main @ 0.41.0 后。
 
 - print 与 TUI 共用 agent-core-v2 DI app（`apps/kimi-code/src/cli/v2/run-v2-print.ts:166` bootstrap nonInteractive），ExternalHooksFeature 模块副作用注册、两入口同载 [实证]。
 - 逐事件 [实证]：SessionStart（`features/externalHooks/app/sessionExternalHooksService.ts:63`）、UserPromptSubmit（`agentExternalHooksService.ts:196`，可 block）、PreToolUse/PostToolUse/PostToolUseFailure（`:163-178`）、Stop（`:238`，可续跑）、Notification/PreCompact/PostCompact/SubagentStart/SubagentStop 等同链路；SessionHeartbeat 60s unref 定时器，`-p` 超 60s 才触发。
@@ -69,7 +75,9 @@
 - `-p` 自动批准：`run-v2-print.ts:482` 强制 setMode('auto') 加 nonInteractive 剔除危险命令询问策略（`permissionPolicyService.ts:42`）[实证]。
 - 状态栏纯 TUI footer 第 1 行 [实证]：loadTuiConfig 调用点仅 TUI 入口；执行器 `tui/utils/status-line-command.ts:30-115`（sh/cmd -c 起、stdin 10 字段 JSON、stdout 首行、300ms 超时、1s 节流、失败回落内置布局）；渲染点唯一 `tui/components/chrome/footer.ts:238-314`；print 链路零引用。
 
-### grok（xai-org/grok-build，Rust，rev a549186d）
+### grok 源码
+
+> 仓 xai-org/grok-build（Rust），rev a549186d。
 
 - ACP 双进程结构，headless 进程内拉起同一 agent（`xai-grok-pager/src/headless.rs:863`），hook 派发全在 agent 侧会话 actor，与 headless 无关 [实证]。
 - 全部 13 事件 headless 与 TUI 完全同路、无 headless 门禁 [实证]：spawn 无条件 discover_hooks（`xai-grok-shell/src/session/acp_session_impl/spawn.rs:1321`）；SessionStart 在 mark_headless 之前发出（`agent_ops.rs:4922`）；SessionEnd `run_loop.rs:54`；PreToolUse `tool_calls.rs:1242`；PostToolUse/Failure `hook_dispatch.rs:291/375`；Stop/SubagentStop `stop_gate.rs:260`；PreCompact/PostCompact `compaction.rs:957/1861` 等。headless 命中逐条核对无一处 hook 短路。
