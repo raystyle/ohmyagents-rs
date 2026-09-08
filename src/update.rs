@@ -214,10 +214,26 @@ fn host_asset_name() -> String {
     }
 }
 
-/// 镜像侧 URL 对：边车（判新与校验）与资产本体。基址已去尾斜杠。
-fn mirror_asset_urls(base: &str, name: &str) -> (String, String) {
-    let b = base.trim_end_matches('/');
-    (format!("{b}/oma/dev/{name}.sha256"), format!("{b}/oma/dev/{name}"))
+/// 镜像边车 URL（判新与校验）。`?t=<unix>` 缓存击穿取 origin 现值
+/// （ohmycloud 2026-09-08 建议，CF 缓存键含 query；D16 尾巴修）。
+fn mirror_sidecar_url(base: &str, name: &str) -> String {
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    format!(
+        "{}/oma/dev/{name}.sha256?t={ts}",
+        base.trim_end_matches('/')
+    )
+}
+
+/// 镜像资产 URL。`?v=<边车锚>` 以边车哈希为缓存键：每滚天然新键，
+/// 永久免疫「边车新、资产旧」的陈旧缓存窗口（R2 取对象只看 path）。
+fn mirror_asset_url(base: &str, name: &str, anchor: &str) -> String {
+    format!(
+        "{}/oma/dev/{name}?v={anchor}",
+        base.trim_end_matches('/')
+    )
 }
 
 /// sha256sum 边车解析：首字段即哈希（标准双空格、单空格均可），容错
@@ -256,7 +272,7 @@ enum MirrorStep {
 /// 安全问题不回落）→ 解包安装复用现状。
 fn dev_via_mirror(base: &str, force: bool) -> Result<MirrorStep, String> {
     let name = host_asset_name();
-    let (sidecar_url, asset_url) = mirror_asset_urls(base, &name);
+    let sidecar_url = mirror_sidecar_url(base, &name);
     let sidecar = match http_get_string(&sidecar_url) {
         Ok(t) => t,
         Err(e) => return Ok(MirrorStep::Fallback(format!("sidecar {sidecar_url}: {e}"))),
@@ -268,6 +284,9 @@ fn dev_via_mirror(base: &str, force: bool) -> Result<MirrorStep, String> {
         println!("update.ok=already-latest");
         return Ok(MirrorStep::Done);
     }
+    // 资产缓存键锚定边车哈希（裸 hex），消边车与资产的缓存不同步窗口。
+    let anchor = digest.strip_prefix("sha256:").unwrap_or(&digest);
+    let asset_url = mirror_asset_url(base, &name, anchor);
     println!("update.asset={name}");
     let tmp = std::env::temp_dir().join(format!(
         "oma-update-{}-{}",
@@ -540,11 +559,20 @@ mod tests {
 
     #[test]
     fn mirror_urls_trim_trailing_slash() {
-        let (s, a) = mirror_asset_urls("https://env.ohmygh.com/", "oma-x.zip");
-        assert_eq!(s, "https://env.ohmygh.com/oma/dev/oma-x.zip.sha256");
-        assert_eq!(a, "https://env.ohmygh.com/oma/dev/oma-x.zip");
-        let (s2, _) = mirror_asset_urls("https://env.ohmygh.com", "oma-x.zip");
-        assert_eq!(s2, s);
+        // 缓存击穿约定（ohmycloud 2026-09-08）：边车带 ?t= 时间戳、资产带
+        // ?v=<边车锚>；两者基址尾斜杠归一。
+        let s = mirror_sidecar_url("https://env.ohmygh.com/", "oma-x.zip");
+        assert!(
+            s.starts_with("https://env.ohmygh.com/oma/dev/oma-x.zip.sha256?t="),
+            "sidecar url: {s}"
+        );
+        assert!(s["https://env.ohmygh.com/oma/dev/oma-x.zip.sha256?t=".len()..]
+            .chars()
+            .all(|c| c.is_ascii_digit()));
+        let a = mirror_asset_url("https://env.ohmygh.com/", "oma-x.zip", "abc123");
+        assert_eq!(a, "https://env.ohmygh.com/oma/dev/oma-x.zip?v=abc123");
+        let s2 = mirror_sidecar_url("https://env.ohmygh.com", "oma-x.zip");
+        assert!(s2.starts_with("https://env.ohmygh.com/oma/dev/oma-x.zip.sha256?t="));
     }
 
     #[test]
