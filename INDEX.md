@@ -146,6 +146,7 @@
 | S029 | `S029-bypassPermissions会话层失效与命令面注入.md` | 模式取值顺序与 2.1.257 项目层忽略；oma 命令面 argv 注入与 respawn 口径 |
 | S030 | `S030-密钥hook安全拦截接管与同类Rust实现.md` | ohmypwsh secret-guard 语义、kingfisher/rtk 取证、oma 零依赖接管落点 |
 | S031 | `S031-密钥一钥两密文存储与四shell懒注入接管.md` | ohmycloud D20 keystore 与 ohmypwsh 懒注入取证；oma secrets 子树设计 |
+| S032 | `S032-GitHub发版与分支合并标准流程调研.md` | 三分支模型、合并三式、分支保护与发版自动化选型；本仓适用结论 |
 
 ## 六、开发测试参考
 
