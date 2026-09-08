@@ -10,7 +10,7 @@ use std::time::Duration;
 use crate::catalog::{
     AgentAsset, AgentKind, AgentPin, AgentsCatalog, CdnStyle, PinSource, SumsMode,
 };
-use crate::rmux::{copy_dir, extract_tar_gz, extract_zip, sha256_file};
+use crate::archive::{copy_dir, extract_tar_gz, extract_zip, sha256_file};
 
 const UA: &str = "ohmyagents-oma";
 const MANIFEST_NAME: &str = ".oma-agent-manifest.toml";
@@ -116,7 +116,7 @@ pub fn install_pin(pin: &AgentPin, home: &Path, force: bool) -> Result<InstallOu
             });
         }
     }
-    let (os, arch) = crate::rmux::host_os_arch();
+    let (os, arch) = crate::archive::host_os_arch();
     let mut last_err = String::new();
     for (idx, src) in pin.sources.iter().enumerate() {
         let Some(asset) = pin.asset_for(idx, os, arch) else {
@@ -158,7 +158,7 @@ fn install_from_source(
         let url = asset_url(pin, src, asset)?;
         eprintln!("oma: downloading {url}");
         download(&url, &archive)?;
-        let actual = sha256_file(&archive).map_err(|e| e.to_string())?;
+        let actual = sha256_file(&archive)?;
         if actual != asset.sha256 {
             return Err(format!(
                 "checksum mismatch for {}: expected {}, got {}",
@@ -174,8 +174,8 @@ fn install_from_source(
                 fs::copy(&archive, pkg.join(&binary_file))
                     .map_err(|e| format!("copy single binary: {e}"))?;
             }
-            AgentKind::Zip => extract_zip(&archive, &pkg).map_err(|e| e.to_string())?,
-            AgentKind::TarGz => extract_tar_gz(&archive, &pkg).map_err(|e| e.to_string())?,
+            AgentKind::Zip => extract_zip(&archive, &pkg)?,
+            AgentKind::TarGz => extract_tar_gz(&archive, &pkg)?,
         }
         let bin = find_binary(&pkg, &pin.binary)
             .ok_or_else(|| format!("{} not found inside package", binary_file))?;
@@ -282,7 +282,7 @@ fn write_manifest(
     bin: &Path,
 ) -> Result<(), String> {
     let rel = bin.strip_prefix(dir).unwrap_or(bin);
-    let bin_sha = sha256_file(bin).map_err(|e| e.to_string())?;
+    let bin_sha = sha256_file(bin)?;
     let body = format!(
         "name = \"{}\"\ntag = \"{}\"\nversion = \"{}\"\nasset = \"{}\"\narchive_sha256 = \"{}\"\nbinary_rel = \"{}\"\nbinary_sha256 = \"{}\"\n",
         pin.name,
@@ -565,7 +565,7 @@ fn refresh_pin(pin: &AgentPin, latest: &Latest) -> Result<AgentPin, String> {
                             name.replace('/', "_")
                         ));
                         download(&url, &tmp)?;
-                        let sha = sha256_file(&tmp).map_err(|e| e.to_string())?;
+                        let sha = sha256_file(&tmp)?;
                         fs::remove_file(&tmp).ok();
                         new_assets.push(AgentAsset {
                             os: a.os.clone(),

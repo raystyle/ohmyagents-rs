@@ -672,39 +672,24 @@ fn deploy_kimi(root: &Path, report: &mut DeployReport) -> Result<(), String> {
 /// 新增子命令在此补一行，`oma init` 重跑即同步（带生成标记才覆写）。
 const COMMAND_MAP: &[(&str, &str)] = &[
     (
-        "oma spawn [--agents a,b] [--stub]",
-        "拉起或重连本项目多路 agent 会话（1-4 路；缺省已装交集）",
-    ),
-    ("oma status", "看各路 pid、进程名、终端态、hook 态"),
-    (
-        "oma send <agent> \"<文本>\"",
-        "向某路发任务（多行自动三段式粘贴）",
-    ),
-    (
-        "oma task <agent> \"<文本>\"",
-        "带产物等待的任务委派：oma 阻塞等 DONE，产物在任务目录 output.md",
-    ),
-    (
-        "oma run \"<文本>\" [--assign a,b]",
-        "状态门分派：闲路才发，忙路跳过不堵其它路",
-    ),
-    ("oma settle [--wait N]", "自检测并自动确认信任/审查框"),
-    ("oma cleanup", "只杀本会话（不动 daemon 与其它会话）"),
-    (
-        "oma trace sessions|timeline|blocks|agent|file|search",
-        "检索本项目各 agent 的意图操作块与编辑轨迹（四家原生会话库联邦读）",
-    ),
-    (
-        "oma serve [--port N]",
-        "起 HTTP 编排面（GET / 直出可视化网页）",
-    ),
-    (
-        "oma mcp",
-        "作为 MCP server 跑 stdio（六操作加 trace 检索 tools）",
+        "oma init [--project PATH]",
+        "部署本项目 hook/skill/yolo 键（幂等，四环境自适应）",
     ),
     (
         "oma doctor",
-        "只读诊断信任库、二进制、登录态、hook 形态、状态栏与会话健康",
+        "只读诊断信任库、二进制、登录态、hook 形态与状态栏",
+    ),
+    (
+        "oma agents",
+        "检测四家 agent 已装情况（PATH/环境变量/oma 自管根/默认目录四源）",
+    ),
+    (
+        "oma agents statusline [名]",
+        "配置四家状态栏（写入面幂等；状态由 hook 落盘供给）",
+    ),
+    (
+        "oma agents secrets init|set|env|inject|status",
+        "token 金库：一钥两密文存储加四 shell 懒注入",
     ),
     (
         "oma agents login grok|kimi",
@@ -714,6 +699,7 @@ const COMMAND_MAP: &[(&str, &str)] = &[
         "oma agents install [名]",
         "已 deprecated（D07 迁册）：agent 安装归 ome，请用 ome install <名>（本命令保留兼容）",
     ),
+    ("oma self update", "oma 自更新（缺省 dev 滚动源，按资产 sha256 判新）"),
 ];
 
 /// 生成标记：只有带它的 SKILL.md 才允许 oma 覆写（用户手改过的跳过）。
@@ -724,15 +710,15 @@ const LEGACY_SKILL_MD: &str = "---\nname: ohmyagents\ndescription: Oh My Agents 
 
 fn skill_md() -> String {
     let mut s = String::new();
-    s.push_str("---\nname: ohmyagents\ndescription: oma 项目编排命令图：会话拉起、状态、委派、自愈、轨迹检索\n---\n\n");
+    s.push_str("---\nname: ohmyagents\ndescription: oma 部署配置命令图：init、诊断、状态栏、token、hook\n---\n\n");
     s.push_str("# Oh My Agents 命令图\n\n");
     s.push_str(SKILL_MARKER);
-    s.push_str("\n\n本项目会话由 oma 编排：agent 状态写 `.oma/state/`，会话清单在 `.oma/session.json`。\n\n");
+    s.push_str("\n\n本项目由 oma 部署配置：hook 状态写 `.oma/state/`，供状态栏 `agent:state` 机读标记消费。\n\n");
     s.push_str("| 意图 | 命令 |\n| --- | --- |\n");
     for (cmd, intent) in COMMAND_MAP {
         s.push_str(&format!("| {intent} | `{cmd}` |\n"));
     }
-    s.push_str("\n## 任务目录协议\n\n收到带「任务协议」尾注的委派时，按 `.oma/tasks/<id>/` 目录操作：\n\n1. 提示词全文在 `prompt.md`（可随时重读）；\n2. 产物写到 `output.md`（先写全内容）；\n3. **最后**创建空文件 `DONE` 表示完成（oma 只认 DONE 不认 output 存在，顺序不能反）。\n\n等另一个 agent 的任务产物时用**收件人模式**（不前台死等）：\n\n```bash\nwhile [ ! -f \".oma/tasks/<id>/DONE\" ]; do sleep 15; done\ncat \".oma/tasks/<id>/output.md\"\n```\n\n裸 `oma` 进 REPL；六会话命令加 `--json` 出信封。细则见仓库 `docs\\references\\R002`。\n");
+    s.push_str("\n全部命令加 `--json` 出信封。细则见仓库 `docs\\references\\R002`。\n");
     s
 }
 

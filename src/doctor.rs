@@ -15,7 +15,7 @@ use crate::yolo::kimi_workspace_key;
 pub enum Status {
     Ok,
     /// Deploy-diagnosis gap that does not block an interactive run (login
-    /// missing, statusline off, stale session): surfaced for `oma doctor`,
+    /// missing, statusline off): surfaced for `oma doctor`,
     /// never counted by `blocked()`.
     Warn,
     Block,
@@ -646,58 +646,6 @@ fn push_hooks_form(out: &mut Vec<Finding>, agent: &str, form: &str, path: &Path)
             "no oma hooks; oma init deploys",
         ),
     }
-}
-
-// ===== 会话健康 =====
-
-/// 会话清单态：无 manifest 是合法部署前态（不误报）；有则列路数，活性由
-/// 调用方探测注入（None = 未探，测试注入口）。
-fn session_finding(root: &Path, alive: Option<bool>) -> Finding {
-    let path = crate::pathutil::project_dir(root).join("session.json");
-    match crate::orch::read_manifest_for(root) {
-        None => Finding {
-            agent: "oma".into(),
-            check: "session",
-            status: Status::Ok,
-            path: path.display().to_string(),
-            detail: "no session manifest; oma spawn creates one".into(),
-        },
-        Some(m) => {
-            let routes: Vec<&str> = m.agents.iter().map(|a| a.name.as_str()).collect();
-            let (status, detail) = match alive {
-                Some(true) => (
-                    Status::Ok,
-                    format!("daemon answering; routes={}", routes.join(",")),
-                ),
-                Some(false) => (
-                    Status::Warn,
-                    "daemon not answering (stale manifest); oma spawn reconciles".into(),
-                ),
-                None => (
-                    Status::Ok,
-                    format!("manifest present; routes={}", routes.join(",")),
-                ),
-            };
-            Finding {
-                agent: "oma".into(),
-                check: "session",
-                status,
-                path: path.display().to_string(),
-                detail,
-            }
-        }
-    }
-}
-
-/// rmux 只读探活：manifest 在时才调（`list-sessions` 不 attach）；rmux 未
-/// 检出返回 None（部署诊断不替 `oma check` 装运行时）。
-fn daemon_alive(root: &Path) -> Option<bool> {
-    let pin = crate::catalog::RmuxPin::load().ok()?;
-    let report = crate::rmux::detect(&pin).ok()?;
-    Some(crate::rmuxpoc::label_alive(
-        &report.layout.dispatcher,
-        &crate::orch::label(root),
-    ))
 }
 
 /// Read-only. Does not attach, send-keys, or wait on TUI.
@@ -1387,14 +1335,6 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         }
     }
 
-    let manifest_present = crate::orch::read_manifest_for(&root).is_some();
-    let alive = if manifest_present {
-        daemon_alive(&root)
-    } else {
-        None
-    };
-    findings.push(session_finding(&root, alive));
-
     Ok(Diagnosis { findings })
 }
 
@@ -1745,41 +1685,14 @@ mod tests {
     }
 
     #[test]
-    fn session_finding_without_manifest_is_info_not_block() {
-        let root = temp_root("session");
-        fs::create_dir_all(&root).unwrap();
-        let f = session_finding(&root, None);
-        assert_eq!(
-            (f.agent.as_str(), f.check, f.status),
-            ("oma", "session", Status::Ok)
-        );
-        fs::create_dir_all(crate::pathutil::project_dir(&root)).unwrap();
-        fs::write(
-            crate::pathutil::project_dir(&root).join("session.json"),
-            r#"{"stub":true,"agents":[{"name":"claude","pane_id":3}]}"#,
-        )
-        .unwrap();
-        let dead = session_finding(&root, Some(false));
-        assert_eq!(dead.status, Status::Warn);
-        assert!(dead.detail.contains("stale"));
-        let live = session_finding(&root, Some(true));
-        assert_eq!(live.status, Status::Ok);
-        assert!(live.detail.contains("claude"));
-        let unprobed = session_finding(&root, None);
-        assert_eq!(unprobed.status, Status::Ok);
-        assert!(unprobed.detail.contains("claude"));
-        let _ = fs::remove_dir_all(&root);
-    }
-
-    #[test]
     fn deploy_diagnosis_rows_never_block() {
-        // 契约：登录态/状态栏/hook 形态/会话行是部署诊断面，只 ok|warn，
+        // 契约：登录态/状态栏/hook 形态行是部署诊断面，只 ok|warn，
         // 不得混入 block——blocked() 语义仍只对交互阻塞负责。
         let root = temp_root("warn");
         fs::create_dir_all(&root).unwrap();
         let d = diagnose(&root).expect("diagnose");
         for f in &d.findings {
-            if matches!(f.check, "login" | "statusline" | "hooks.form" | "session") {
+            if matches!(f.check, "login" | "statusline" | "hooks.form") {
                 assert_ne!(
                     f.status,
                     Status::Block,

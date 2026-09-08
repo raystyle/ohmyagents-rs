@@ -11,6 +11,24 @@
 
 use serde_json::Value;
 
+/// 响应信封（S016 吸收，原 api.rs；P0011 删除后归位本模块）：CLI `--json`
+/// 吐它。形：`{ok, data|error, meta:{command, project}}`。
+pub fn envelope(
+    command: &str,
+    root: &std::path::Path,
+    outcome: Result<Value, String>,
+) -> Value {
+    let mut v = serde_json::json!({
+        "ok": outcome.is_ok(),
+        "meta": { "command": command, "project": root.display().to_string() },
+    });
+    match outcome {
+        Ok(d) => v["data"] = d,
+        Err(e) => v["error"] = Value::String(e),
+    }
+    v
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Format {
     Kv,

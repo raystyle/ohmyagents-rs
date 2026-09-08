@@ -276,11 +276,11 @@ pub fn run(repo: &str, channel: Channel, git_mode: bool, force: bool) -> Result<
     // 压缩包解开找 oma 本体；裸二进制资产直接用。
     let extracted = if asset.name.ends_with(".zip") {
         let out = tmp.with_extension("unpacked");
-        crate::rmux::extract_zip(&tmp, &out).map_err(|e| e.to_string())?;
+        crate::archive::extract_zip(&tmp, &out)?;
         find_oma_bin(&out).ok_or("oma binary not found in archive")?
     } else if asset.name.ends_with(".tar.gz") {
         let out = tmp.with_extension("unpacked");
-        crate::rmux::extract_tar_gz(&tmp, &out).map_err(|e| e.to_string())?;
+        crate::archive::extract_tar_gz(&tmp, &out)?;
         find_oma_bin(&out).ok_or("oma binary not found in archive")?
     } else {
         tmp.clone()

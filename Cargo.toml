@@ -2,19 +2,13 @@
 name = "oma"
 version = "0.1.0"
 edition = "2021"
-description = "Oh My Agents：通用智能体多路复用任务编排器"
+description = "Oh My Agents：Agent 全平台 token、hook 与状态栏部署配置工具"
 license = "MIT"
 repository = "https://github.com/raystyle/ohmyagents-rs"
 
 [[bin]]
 name = "oma"
 path = "src/main.rs"
-
-[features]
-default = []
-# P0011 三传输：适配层依赖走可选 feature，核心构建不背 axum/rmcp。
-server = ["dep:axum", "dep:tokio-stream"]
-mcp = ["dep:rmcp"]
 
 [dependencies]
 # 密钥一钥两密文（S031，对齐 ohmycloud D20）：AES-256-GCM 包裹 age 身份用
@@ -28,7 +22,6 @@ clap = { version = "4", features = ["derive"] }
 clap_complete = "4"
 dirs = "5"
 flate2 = "1"
-glob = "0.3"
 regex = "1"
 serde = { version = "1", features = ["derive"] }
 # preserve_order：JSON 字段序与 kv 行序一致（issue #1 契约；ome S003 实证
@@ -43,17 +36,6 @@ toml = "0.8"
 ureq = { version = "2", features = ["tls"] }
 which = "6"
 zip = { version = "2", default-features = false, features = ["deflate"] }
-rmux-sdk = "=0.10.0"
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }
-axum = { version = "0.8", optional = true }
-tokio-stream = { version = "0.1", optional = true }
-rmcp = { version = "3.1", optional = true, features = ["transport-io", "schemars"] }
-
-[build-dependencies]
-# build.rs 打包 kanban 资源包（tar.gz + sha256 指纹）用；与运行时依赖同版本。
-tar = "0.4"
-flate2 = "1"
-sha2 = "0.10"
 
 [dev-dependencies]
 # assert_cmd 与 predicates 为 clap 官方生态标准 CLI 测试件（R005 选型：
