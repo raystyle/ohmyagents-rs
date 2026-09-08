@@ -91,6 +91,7 @@
 | P0033 | `P0033-D12-任务目录孤儿收敛.md` | D12 删除误落 `.ohmyagents/t006/`；协议尾注路径显式 tasks/ |
 | P0034 | `P0034-D14-数据目录改名为oma.md` | D14 项目与家目录 `.ohmyagents` 改 `.oma` |
 | P0035 | `P0035-项目重新定位-Agent全平台部署配置工具.md` | D15 去编排：oma 退化为 Agent 全平台 token、hook 与状态栏部署配置工具 |
+| P0036 | `P0036-D16-self-update镜像通道.md` | D16 `OMA_MIRROR` 镜像通道：dev 段边车判新、sha256 强制校验、网络失败回落 GitHub |
 
 （P0020 断号：编号已预留未使用，不复用。）
 

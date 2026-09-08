@@ -4,10 +4,11 @@
 
 ## 当前目标
 
-无。D15 当日闭环。下一项 D13 排队。
+无。D16 当日闭环。
 
 ## 前目标清单
 
+> D16 oma self update 镜像通道（2026-09-08 归档 P0036）：OMA_MIRROR dev 段边车判新、sha256 强制校验、网络失败回落 GitHub。
 > D15 oma 去编排收窄为纯部署配置工具（2026-09-08 归档 P0035）：编排命令与 rmux 后端移除；保留 init / doctor / agents / hook / self update / completions；文档八面同步。
 > D14 数据目录改名为 `.oma`（2026-09-07 归档 P0034）：项目与家目录两根同改；旧 `.ohmyagents` 仅旧在则迁；不是 `.omc`。
 > D12 任务目录孤儿（2026-09-07 归档 P0033）：`.ohmyagents/t006/` 是 t008 第二轮草稿误落，已删；协议尾注路径显式 `tasks/`。
@@ -22,4 +23,5 @@
 
 | 目标 | 状态 | 说明 |
 | --- | --- | --- |
-| D13 mac `--version` 一致性 | 排队 | 已澄清。已推 origin。CI Linux/mac 曾红（M049）；修 `plan_agents` 一次探测后再等滚动资产，mac `oma self update`。D15 后仍需新 CI 资产 |
+| D13 mac `--version` 一致性 | 排队 | CI 资产已出（2026-09-08 04:41Z 三平台）；待 mac 上 `oma self update` 实收（可走 OMA_MIRROR 镜像通道，D16） |
+| D16 镜像 e2e 实证 | 排队 | 待 ohmycloud 播 oma/dev 段后，设 `OMA_MIRROR=https://env.ohmygh.com` 实跑一次 self update 验证判新、校验与回落 |

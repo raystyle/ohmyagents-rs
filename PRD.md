@@ -32,6 +32,7 @@
 | D13 | mac `--version` 一致性 | 已澄清 | 第 1 轮（D06 余量；2026-09-07 点名）：源码已有 clap `version`，mac 部署位为旧版；门槛为推 main 出 CI 资产后 `oma self update`。2026-09-07 用户指示推，`main` 已到 origin `7211df0` | 排队；待 CI 出资产后 mac `oma self update` |
 | D14 | .ohmyagents 改名为 .oma 目录 | 已交付 | 第 2 轮（2026-09-07）：用户纠错「失误 我们的目录应该是oma」。不是 `.omc`（ohmycloud CLI `omc` / `~/.omc` 金库，其仓 D24）。两根同改：项目 `<cwd>/.oma` 与家目录 `~/.oma`。旧 `.ohmyagents` 在、新目录不在则改名迁过去。技能名 / hook 文件名 `ohmyagents*` 不动。M004 数据目录行被本裁定覆盖 | 归档 P0034 |
 | D15 | omg去掉编排，专注于Agent的全平台token、hook和状态栏部署配置（用户原话 2026-09-08） | 已交付 | 第 2 轮（2026-09-08 用户两裁）：1)「还是oma」不改名；2)「oma 退化为纯部署配置工具」编排面全删（spawn/respawn/status/send/key/run/task/settle/cleanup/REPL/web/serve/mcp/trace 与 rmux 依赖），3)「和HOOK和状态栏工具」确认保留面为 token（secrets 域）、hook、状态栏部署配置加诊断（doctor/agents/login/providers/init/self/completions）；四仓边界不动（token 即现有 secrets 域主面，ohmypwsh 密钥安全不冲突） | 归档 P0035；AGENTS / R001 / R002 / INDEX / README / CHANGELOG / ROADMAP / SKILL 同步；97 单元加 17 集成与四门禁全绿 |
+| D16 | oma self update 镜像通道（ohmycloud 对账五点引出，用户 2026-09-08「要做」）：OMA_MIRROR 环境变量指向镜像基址（env.ohmygh.com），dev 滚动段按 `<基址>/oma/dev/<资产>` 加 `.sha256` 边车判新下载，校验后走原安装路径 | 已交付 | 第 1 轮（2026-09-08 用户「要做」裁定采纳提案四点）：1) 开关形态 `OMA_MIRROR=<基址>` 对齐 ome OME_MIRROR；2) 只覆盖 dev 通道（镜像无 manifest，stable 段留 GitHub 直连）；3) 镜像判新靠 sha256 边车与安装记录比对（免 manifest），边车裸哈希归一为 `sha256:<hex>` 与 GitHub digest 同形互认；4) 镜像网络失败回落 GitHub 并打 warning | 归档 P0036；R002 / AGENTS / R011 / S028 追记同步；102 单元加 17 集成与四门禁全绿；镜像端到端待 ohmycloud 播种后实证 |
 
 ## 状态机定义
 

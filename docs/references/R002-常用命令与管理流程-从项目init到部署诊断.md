@@ -55,7 +55,7 @@ $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Env
 
 | 意图 | 命令 | 行为细则 |
 | --- | --- | --- |
-| oma 自更新 | `oma self update [--stable] [--repo owner/name] [--git] [--force]` | 缺省 dev 滚动源：CI 每推 main 构建测试后覆盖发布的 prerelease，按资产 sha256 判新；`--stable` 走正式版（v* tag 触发构建）；Windows rename 舞步自替换；无 release 体面降级 `--git` 源码安装。机制见 S028 |
+| oma 自更新 | `oma self update [--stable] [--repo owner/name] [--git] [--force]` | 缺省 dev 滚动源：CI 每推 main 构建测试后覆盖发布的 prerelease，按资产 sha256 判新；`--stable` 走正式版（v* tag 触发构建）；Windows rename 舞步自替换；无 release 体面降级 `--git` 源码安装。机制见 S028。镜像通道（D16）：设 `OMA_MIRROR=<基址>`（如 `https://env.ohmygh.com`）后 dev 通道改走 `<基址>/oma/dev/<资产>`，sha256 边车判新（免 manifest，边车裸哈希与 GitHub digest 归一互认）、下载后强制 sha256 校验（不符报错不回落）、网络类失败打 warning 回落 GitHub；stable 通道不吃镜像 |
 | 生成补全 | `oma completions <shell>` | clap_complete 出 bash / zsh / fish / powershell 等补全脚本到 stdout（如 `oma completions powershell >> $PROFILE` 用法自取） |
 
 ## 三、输出契约

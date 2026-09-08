@@ -128,7 +128,7 @@
 - **hook 写状态加密钥拦截**：`oma hook`（状态落盘；block 级密钥 exit 2 拒调用）
 - **部署项目全套**：`oma init [--project PATH]`（yolo 加 hook/skill，四环境自适应，幂等）
 - **部署项目级 yolo**：`oma init --yolo`（仅无阻塞键）；`--pretrust` 追加家目录信任库
-- **oma 自更新**：`oma self update [--stable] [--git]`（缺省 dev 滚动源，Windows rename 舞步）
+- **oma 自更新**：`oma self update [--stable] [--git]`（缺省 dev 滚动源，Windows rename 舞步；设 `OMA_MIRROR=<基址>` 走镜像 dev 段，边车 sha256 判新，网络失败回落 GitHub，D16）
 - **生成补全**：`oma completions <shell>`
 - **输出格式契约**：全局 `--format kv|json|jsonl` 加 `--json` 简写（信封冻结面见 R011）
 
