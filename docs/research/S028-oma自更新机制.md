@@ -51,6 +51,6 @@ D16，2026-09-08。
 [实证： 2026-09-08 本机 cargo test]
 
 - `OMA_MIRROR=<基址>` 环境变量接入 dev 通道：资产名按 host 三元组确定性构造（与 dev-release.yml 命名约定同表），取 `<基址>/oma/dev/<资产>.sha256` 边车判新（免 manifest；边车裸哈希归一 `sha256:<hex>`，与 GitHub digest 记录互认）。
-- 下载后强制 sha256 校验：不符属安全问题，报错不回落 [实证： 单测覆盖解析与判等，网络分支走查未端到端]。
+- 下载后强制 sha256 校验：不符属安全问题，报错不回落 [实证： 单测覆盖解析与判等；2026-09-08 镜像三分支端到端绿]。
 - 网络类失败（边车或下载）打 `update.mirror=failed` 加 `update.fallback=github` 回落 GitHub dev 路径；stable 通道不吃镜像（`update.mirror=skipped channel=stable`）。
 - 镜像契约来自 ohmycloud 对账（2026-09-08 五点回执）：路径 `<tool>/<version>/<asset>` 加 `.sha256` 边车即锚，无 manifest；oma 段分 dev 与 stable 两段各回各段（ome #8/#9 教训），stable 段待首个 v* tag。

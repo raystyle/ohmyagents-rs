@@ -24,7 +24,8 @@
 | --- | --- |
 | 2026-09-08 | D16 达成归档 P0036：OMA_MIRROR 镜像通道落地 update.rs 一节（边车判新、sha256 强制校验、网络失败回落）；102 单元加 17 集成、四门禁全绿；镜像 e2e 待 ohmycloud 播种。切空 |
 | 2026-09-08 | D16 立项：OMA_MIRROR 基址开关、只覆盖 dev 通道、边车 sha256 判新免 manifest、失败回落 GitHub |
-| 2026-09-08 | 跨仓回执 ohmycloud#6：五点已答（入镜点头、dev 与 stable 各回各段、资产名确认、rmux 真源归 ome catalog、oma 无镜像开关）；D38① 挂账待 ohmycloud 执行 |
+| 2026-09-08 | D16 镜像 e2e 实证（Windows）：ohmycloud 播 oma/dev 段后实跑三分支全绿（镜像下载校验替换、边车判新 already-latest、 bogus 镜像回落 GitHub）；一次性副本运行不伤工作二进制 |
+| 2026-09-08 | 跨仓回执 ohmycloud#6：五点已答（入镜点头、dev 与 stable 各回各段、资产名确认、rmux 真源归 ome catalog、oma 无镜像开关）；D38① 已交付（oma/dev 三资产加边车入镜验收，回执 issuecomment-5580376169） |
 | 2026-09-08 | D15 达成归档 P0035：编排面整体移除（11 模块加 build.rs 加 rmux.toml 加 14 件 POC 加两编排工具）；保留面六命令；97 单元加 17 集成、四门禁全绿；文档八面同步。切空，D13 仍排队 |
 | 2026-09-08 | D15 立项：PRD 第 2 轮三裁（不改名、退化纯部署配置工具、token 加 hook 加状态栏）；GOAL/PLAN/TODO 切目标 |
 | 2026-09-07 | 跨仓：ohmycloud#6 请对齐 oma 与四家 agent 的分发、更新、安装。本仓不立项，等回执 |

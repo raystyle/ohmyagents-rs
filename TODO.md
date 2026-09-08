@@ -24,4 +24,3 @@
 | 目标 | 状态 | 说明 |
 | --- | --- | --- |
 | D13 mac `--version` 一致性 | 排队 | CI 资产已出（2026-09-08 04:41Z 三平台）；待 mac 上 `oma self update` 实收（可走 OMA_MIRROR 镜像通道，D16） |
-| D16 镜像 e2e 实证 | 排队 | 待 ohmycloud 播 oma/dev 段后，设 `OMA_MIRROR=https://env.ohmygh.com` 实跑一次 self update 验证判新、校验与回落 |
