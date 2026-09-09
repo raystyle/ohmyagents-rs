@@ -15,12 +15,10 @@ use serde_json::json;
 
 use crate::yolo::{read_toml, toml_write};
 
-/// 状态栏脚本：读 stdin JSON（claude code 供给 model/context_window/cost 等；
-/// codex 无 stdin 数据时退化为 agent + 目录 + git 段）。单行输出。
-/// 渲染对齐用户 starship 配置（2026-09-02 定调）：目录截断 3 段、git 分支
-/// 图标与状态旗标、package/rust 版本段、nerdfont 图标；oma 段在最前。
-/// 首行强制 UTF-8：CP936 控制台下 emoji 会被替换成字面 `??`（S024）。
-pub const STATUSLINE_PS1: &str = r#"
+/// 状态栏脚本 HEAD：param、首行强制 UTF-8（CP936 控制台下 emoji 会被替换成
+/// 字面 `??`，S024）、stdin JSON 解析（claude code 供给 model 等；codex 无
+/// stdin 数据时退化）、Seg 与 FmtTok、FmtDur 助手、`$parts` 收集器。
+const PS1_HEAD: &str = r#"
 param([string]$AgentName = 'agent')
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $ErrorActionPreference = 'SilentlyContinue'
@@ -50,14 +48,21 @@ function FmtDur([double]$ms) {
 }
 
 $parts = [System.Collections.Generic.List[string]]::new()
+"#;
 
+/// COMMON：工作目录与仓库根发现（目录段与 oma 段共用）。段序含 dir 或 oma
+/// 才拼入：rev-parse 是子进程，无人消费时省掉（kimi 300ms 预算，S025）。
+const PS1_COMMON: &str = r#"
 # ── 工作目录与仓库根（oma 段与目录段共用）──
 $dir = $null
 if ($d.workspace) { $dir = "$($d.workspace.current_dir)" }
 if (-not $dir -or $dir -eq '.') { $dir = "$($d.cwd)" }
 if (-not $dir -or $dir -eq '.') { $dir = "$(Get-Location)" }
 $root = (& git -C $dir rev-parse --show-toplevel 2>$null | Out-String).Trim()
+"#;
 
+/// shell 段：agent 宿主 shell（祖先链跳过 agent 本体，向上找最近 shell）。
+const SEG_SHELL: &str = r#"
 # ── Shell 段：agent 宿主 shell（祖先链跳过 agent 本体，向上找最近 shell）──
 $shellName = $null
 $shells = '^(pwsh|powershell|bash|zsh|sh|fish|cmd|nu|elvish|xonsh)'
@@ -109,13 +114,19 @@ if ($shellName) {
     $sh = Seg $shLabel '38;5;245'
     if ($sh) { $parts.Add($sh) }
 }
+"#;
 
+/// dir 段：完整路径（用户定调 2026-09-02）。
+const SEG_DIR: &str = r#"
 # ── 目录：完整路径（用户定调 2026-09-02）──
 if ($dir) {
     $p = Seg $dir '38;5;39'
     if ($p) { $parts.Add($p) }
 }
+"#;
 
+/// oma 段：当前 agent 名 + 实时四态（hook 状态通道 + 会话闸，机读标记 S025）。
+const SEG_OMA: &str = r#"
 # ── oma 段：当前 agent 名 + 实时状态（hook 状态通道；机读标记见 S025）──
 # agent 名：oma 会话 env 优先，部署参数次之（每家配置注入自家名字）。
 $agent = if ($env:OMA_AGENT) { $env:OMA_AGENT } else { $AgentName }
@@ -149,7 +160,10 @@ $stateColor = switch ($state) {
 }
 $omaTxt = if ($nerd) { "󰚩  ${agent}:$state" } else { "${agent}:$state" }
 $parts.Add((Seg $omaTxt $stateColor))
+"#;
 
+/// model 段：display_name 优先，回退 id。
+const SEG_MODEL: &str = r#"
 # ── 模型（display_name 优先，回退 id）──
 $model = $null
 if ($d.model) {
@@ -160,7 +174,10 @@ if ($model) {
     $m = Seg $modelTxt '38;5;147'
     if ($m) { $parts.Add($m) }
 }
+"#;
 
+/// context 段：已用百分比（已用/窗口），对齐 Codex 语义。
+const SEG_CONTEXT: &str = r#"
 # ── 上下文：󰍛 N% (已用/窗口)，对齐 Codex 语义 ──
 if ($d.context_window) {
     $cw = $d.context_window
@@ -178,7 +195,10 @@ if ($d.context_window) {
         if ($c) { $parts.Add($c) }
     }
 }
+"#;
 
+/// duration 段：会话累计时长（claude cost 段；无则省略）。
+const SEG_DURATION: &str = r#"
 # ── 会话累计：󰅐 时长（claude cost 段；无则省略。成本数字对网关计价不准，不展示）──
 if ($d.cost) {
     if ($null -ne $d.cost.total_duration_ms -and [double]$d.cost.total_duration_ms -ge 1000) {
@@ -187,7 +207,10 @@ if ($d.cost) {
         if ($dur) { $parts.Add($dur) }
     }
 }
+"#;
 
+/// git 段：分支与状态旗标 [!?]（starship 符号语义，porcelain 单次调用）。
+const SEG_GIT: &str = r#"
 # ── Git：分支  + 状态旗标 [!?]（starship 符号语义，porcelain 单次调用）──
 $branch = $null
 if ($d.worktree -and $d.worktree.branch) { $branch = "$($d.worktree.branch)" }
@@ -243,7 +266,12 @@ if ($branch) {
     $g = Seg "[$flags]" '38;5;176'
     if ($g) { $parts.Add($g) }
 }
+"#;
 
+/// PROBE：projKind 与包版本文本探测（包版本与七个工具链段共享 `$projKind`；
+/// D11 first-match 序 rust / node / python 先于 zig / go / cpp）。段序含
+/// package 或任一工具链段才拼入（文件读加 git 子进程，无人消费时省掉）。
+const PS1_PROBE: &str = r#"
 # ── 包版本 󰏗 vN.N.N（Cargo.toml / package.json，就近向上找）──
 $projDir = if ($d.workspace -and $d.workspace.current_dir) { "$($d.workspace.current_dir)" } else { "$(Get-Location)" }
 $probe = $projDir
@@ -314,11 +342,18 @@ for ($i = 0; $i -lt 4 -and $probe; $i++) {
     if ($parent -eq $probe) { break }
     $probe = $parent
 }
+"#;
+
+/// package 段：包版本渲染（文本来自 PROBE）。
+const SEG_PACKAGE: &str = r#"
 if ($pkgTxt) {
     $pk = Seg $pkgTxt '38;5;208'
     if ($pk) { $parts.Add($pk) }
 }
+"#;
 
+/// python 段：Python 工具链（Grok ASCII 路径跳过工具链子进程，M046）。
+const SEG_PYTHON: &str = r#"
 # ── Python 工具链 󰌠 vN.N.N（pyproject/uv.lock/requirements 项目）──
 # Grok TUI 跳过工具链子进程：慢且图标会豆腐（M046）。
 if ($nerd -and $projKind -eq 'python') {
@@ -328,7 +363,10 @@ if ($nerd -and $projKind -eq 'python') {
         if ($py) { $parts.Add($py) }
     }
 }
+"#;
 
+/// rust 段：Rust 工具链（projKind 判型才探测）。
+const SEG_RUST: &str = r#"
 # ── Rust 工具链 󱘗 vN.N.N（Cargo.toml 项目才探测——projKind 判，不再
 #    「有包版本就探测」：TS 项目曾因此误出 rust 段）──
 if ($nerd -and $projKind -eq 'rust') {
@@ -338,7 +376,10 @@ if ($nerd -and $projKind -eq 'rust') {
         if ($r) { $parts.Add($r) }
     }
 }
+"#;
 
+/// node 段：Node/TS 工具链（TS 就绪再叠 ts 版本，不起 tsc 子进程）。
+const SEG_NODE: &str = r#"
 # ── Node/TS 工具链 󰎙 vN.N.N（package.json 项目；TS 就绪再叠 󰛦 vM.M.M，
 #    typescript 版本就近读 node_modules 不起 tsc 子进程）──
 if ($nerd -and $projKind -eq 'node') {
@@ -365,7 +406,10 @@ if ($nerd -and $projKind -eq 'node') {
         $tsProbe = $p2
     }
 }
+"#;
 
+/// zig 段：Zig 工具链 seti-zig U+E6A9（D11）。
+const SEG_ZIG: &str = r#"
 # ── Zig 工具链 seti-zig U+E6A9（cmap: CaskaydiaCove 与 0xProto 2026-09-07）──
 if ($nerd -and $projKind -eq 'zig') {
     $zv = (& zig version 2>$null | Out-String).Trim()
@@ -374,7 +418,10 @@ if ($nerd -and $projKind -eq 'zig') {
         if ($z) { $parts.Add($z) }
     }
 }
+"#;
 
+/// go 段：Go 工具链 seti-go U+E627（D11）。
+const SEG_GO: &str = r#"
 # ── Go 工具链 seti-go U+E627 ──
 if ($nerd -and $projKind -eq 'go') {
     $gv = (& go version 2>$null | Out-String).Trim()
@@ -383,7 +430,10 @@ if ($nerd -and $projKind -eq 'go') {
         if ($goSeg) { $parts.Add($goSeg) }
     }
 }
+"#;
 
+/// cpp 段：C/C++ 工具链 seti-cpp U+E646（c++/g++/clang++，静默失败）。
+const SEG_CPP: &str = r#"
 # ── C/C++ 工具链 seti-cpp U+E646（c++/g++/clang++，静默失败）──
 if ($nerd -and $projKind -eq 'cpp') {
     $cv = (& c++ --version 2>$null | Out-String).Trim()
@@ -394,10 +444,71 @@ if ($nerd -and $projKind -eq 'cpp') {
         if ($cx) { $parts.Add($cx) }
     }
 }
-
-Write-Output ($parts -join ' | ')
-exit 0
 "#;
+
+/// TAIL：单行收口输出。
+const PS1_TAIL: &str = "\nWrite-Output ($parts -join ' | ')\nexit 0\n";
+
+/// 段 id 到脚本块查表。未知 id 报错：拼装无法命中段块。
+fn segment_block(id: &str) -> Result<&'static str, String> {
+    Ok(match id {
+        "shell" => SEG_SHELL,
+        "dir" => SEG_DIR,
+        "oma" => SEG_OMA,
+        "model" => SEG_MODEL,
+        "context" => SEG_CONTEXT,
+        "duration" => SEG_DURATION,
+        "git" => SEG_GIT,
+        "package" => SEG_PACKAGE,
+        "python" => SEG_PYTHON,
+        "rust" => SEG_RUST,
+        "node" => SEG_NODE,
+        "zig" => SEG_ZIG,
+        "go" => SEG_GO,
+        "cpp" => SEG_CPP,
+        _ => return Err(format!("unknown statusline segment: {id}")),
+    })
+}
+
+/// 默认段序：等于拆段前脚本顺序（D18 定制面 segments 键缺省回落此序）。
+pub(crate) const DEFAULT_SEGMENTS: &[&str] = &[
+    "shell", "dir", "oma", "model", "context", "duration", "git", "package", "python", "rust",
+    "node", "zig", "go", "cpp",
+];
+
+/// 按段序拼装状态栏脚本：HEAD 加（按需）COMMON / PROBE 加段块加 TAIL。
+/// COMMON 只在段序含 dir / oma 时拼入（rev-parse 子进程无人消费时省掉）；
+/// PROBE 只在段序含 package 或任一工具链段时拼入。重复段 id 报错；
+/// 段序为空产出空栏（用户显式所为）。
+pub(crate) fn assemble_statusline_ps1(order: &[&str]) -> Result<String, String> {
+    let mut seen = std::collections::HashSet::new();
+    let mut out = String::with_capacity(14 * 1024);
+    out.push_str(PS1_HEAD);
+    if order.iter().any(|id| *id == "dir" || *id == "oma") {
+        out.push_str(PS1_COMMON);
+    }
+    if order.iter().any(|id| {
+        matches!(
+            *id,
+            "package" | "python" | "rust" | "node" | "zig" | "go" | "cpp"
+        )
+    }) {
+        out.push_str(PS1_PROBE);
+    }
+    for id in order {
+        if !seen.insert(id) {
+            return Err(format!("duplicate statusline segment: {id}"));
+        }
+        out.push_str(segment_block(id)?);
+    }
+    out.push_str(PS1_TAIL);
+    Ok(out)
+}
+
+/// 默认脚本：默认段序拼装（静态合法，失败即程序性 bug）。
+pub(crate) fn default_statusline_ps1() -> String {
+    assemble_statusline_ps1(DEFAULT_SEGMENTS).expect("default segment order is valid")
+}
 
 pub(crate) fn script_path(home: &Path) -> PathBuf {
     home.join("statusline").join("oma-statusline.ps1")
@@ -436,13 +547,13 @@ pub fn pwsh_on_path() -> bool {
     crate::pathutil::find_on_path("pwsh").is_some()
 }
 
-/// 释放状态栏脚本（幂等覆写）。
+/// 释放状态栏脚本（幂等覆写；默认段序拼装，定制面在 D18 切片 2 接入）。
 pub fn deploy_script(home: &Path) -> Result<PathBuf, String> {
     let p = script_path(home);
     if let Some(dir) = p.parent() {
         std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     }
-    std::fs::write(&p, STATUSLINE_PS1).map_err(|e| format!("{}: {e}", p.display()))?;
+    std::fs::write(&p, default_statusline_ps1()).map_err(|e| format!("{}: {e}", p.display()))?;
     let cmd = grok_cmd_path(home);
     std::fs::write(&cmd, STATUSLINE_GROK_CMD).map_err(|e| format!("{}: {e}", cmd.display()))?;
     Ok(p)
@@ -637,45 +748,113 @@ mod tests {
         // Regression guard for the CP936 `??` corruption (P0027): the
         // encoding line must precede any output statement — the nerdfont
         // glyphs are literal UTF-8 in the script.
-        let enc = STATUSLINE_PS1.find("[Console]::OutputEncoding").unwrap();
-        let out = STATUSLINE_PS1.find("Write-Output").unwrap();
+        let ps1 = default_statusline_ps1();
+        let enc = ps1.find("[Console]::OutputEncoding").unwrap();
+        let out = ps1.find("Write-Output").unwrap();
         assert!(enc < out);
         assert!(
-            STATUSLINE_PS1.contains("\u{f06a9}"),
+            ps1.contains("\u{f06a9}"),
             "oma segment robot glyph (md-robot, wide: two spaces survive one)"
         );
         assert!(
-            STATUSLINE_PS1.contains("$nerd = $AgentName -ne 'grok'"),
+            ps1.contains("$nerd = $AgentName -ne 'grok'"),
             "Grok TUI has no Nerd PUA glyphs; script must take the ASCII path (M046)"
         );
         assert!(
-            STATUSLINE_PS1.contains("Join-Path $base '.oma'")
-                && STATUSLINE_PS1.contains("Join-Path $base '.ohmyagents'"),
+            ps1.contains("Join-Path $base '.oma'") && ps1.contains("Join-Path $base '.ohmyagents'"),
             "D14: statusline dual-reads .oma then legacy .ohmyagents"
         );
         assert!(
-            STATUSLINE_PS1.contains("build.zig")
-                && STATUSLINE_PS1.contains("go.mod")
-                && STATUSLINE_PS1.contains("CMakeLists.txt")
-                && STATUSLINE_PS1.contains("meson.build"),
+            ps1.contains("build.zig")
+                && ps1.contains("go.mod")
+                && ps1.contains("CMakeLists.txt")
+                && ps1.contains("meson.build"),
             "D11 projKind must probe zig / go / cpp markers"
         );
-        let cargo = STATUSLINE_PS1.find("Cargo.toml").expect("rust probe");
-        let zig = STATUSLINE_PS1.find("build.zig").expect("zig probe");
+        let cargo = ps1.find("Cargo.toml").expect("rust probe");
+        let zig = ps1.find("build.zig").expect("zig probe");
         assert!(
             cargo < zig,
             "D11 first-match: rust/node/python stay ahead of zig/go/cpp"
         );
         assert!(
-            STATUSLINE_PS1.contains("0xE6A9")
-                && STATUSLINE_PS1.contains("0xE627")
-                && STATUSLINE_PS1.contains("0xE646"),
+            ps1.contains("0xE6A9") && ps1.contains("0xE627") && ps1.contains("0xE646"),
             "D11 icons: seti-zig E6A9, seti-go E627, seti-cpp E646 (CaskaydiaCove and 0xProto cmap 2026-09-07)"
         );
         assert!(
-            STATUSLINE_PS1.contains("if ($nerd) { [string][char]0x2718 } else { 'x' }"),
+            ps1.contains("if ($nerd) { [string][char]0x2718 } else { 'x' }"),
             "deleted flag must not emit U+2718 on the Grok ASCII path"
         );
+    }
+
+    #[test]
+    fn assemble_keeps_default_segment_order() {
+        // 期望值来自段块的注释标记（源内容，独立于拼装逻辑）。
+        let ps1 = default_statusline_ps1();
+        let mut last = 0usize;
+        for marker in [
+            "# ── Shell 段",
+            "# ── 目录：",
+            "# ── oma 段",
+            "# ── 模型（",
+            "# ── 上下文：",
+            "# ── 会话累计：",
+            "# ── Git：",
+            "if ($pkgTxt) {",
+            "# ── Python 工具链",
+            "# ── Rust 工具链",
+            "# ── Node/TS 工具链",
+            "# ── Zig 工具链",
+            "# ── Go 工具链",
+            "# ── C/C++ 工具链",
+        ] {
+            let at = ps1
+                .find(marker)
+                .unwrap_or_else(|| panic!("missing {marker}"));
+            assert!(at > last, "{marker} out of order at {at} (prev {last})");
+            last = at;
+        }
+    }
+
+    #[test]
+    fn assemble_reorders_and_drops_segments() {
+        let ps1 = assemble_statusline_ps1(&["git", "oma"]).unwrap();
+        let g = ps1.find("# ── Git：").unwrap();
+        let o = ps1.find("# ── oma 段").unwrap();
+        assert!(o > g, "git must render before oma in this order");
+        assert!(!ps1.contains("# ── Shell 段"), "shell dropped");
+        assert!(!ps1.contains("# ── Python 工具链"), "python dropped");
+    }
+
+    #[test]
+    fn assemble_gates_common_and_probe_on_consumers() {
+        let bare = assemble_statusline_ps1(&["model"]).unwrap();
+        assert!(
+            !bare.contains("rev-parse"),
+            "COMMON skipped without dir/oma consumers"
+        );
+        assert!(
+            !bare.contains("Cargo.toml"),
+            "PROBE skipped without package/toolchain consumers"
+        );
+        let probe_only = assemble_statusline_ps1(&["package"]).unwrap();
+        assert!(probe_only.contains("Cargo.toml"), "PROBE in for package");
+        assert!(probe_only.contains("if ($pkgTxt) {"));
+        let common_only = assemble_statusline_ps1(&["oma"]).unwrap();
+        assert!(common_only.contains("rev-parse"), "COMMON in for oma");
+        assert!(!common_only.contains("Cargo.toml"));
+    }
+
+    #[test]
+    fn dies_assemble_rejects_unknown_segment() {
+        let err = assemble_statusline_ps1(&["model", "nope"]).unwrap_err();
+        assert!(err.contains("unknown statusline segment"), "{err}");
+    }
+
+    #[test]
+    fn dies_assemble_rejects_duplicate_segment() {
+        let err = assemble_statusline_ps1(&["git", "git"]).unwrap_err();
+        assert!(err.contains("duplicate statusline segment"), "{err}");
     }
 
     #[test]
