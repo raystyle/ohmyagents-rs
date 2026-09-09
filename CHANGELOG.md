@@ -56,6 +56,10 @@
 - **无头验收**（P0038 / D17）：`oma agents verify` 四家 agent 无头验收（状态栏 mock 直跑加 hook 无头落盘两层判据，S033 取证底座）；本机四家全绿。
 - **v0.2.0 封版**：trace 恢复后第二正式版（v* tag 触发，三平台资产加边车同形态）；`oma self update --stable` 吃 releases/latest 即到此版。
 
+### 里程碑 2026-09-09
+
+- **状态栏用户级定制**（D18）：脚本拆段拼装（HEAD 加 COMMON 加 PROBE 加 14 段块加 TAIL，行为等价迁移）；`~/.oma/statusline.toml` 三层定制（`segments` 段落显隐与序、`[template]` 段内模板加 `[icons]` 图标映射、`[codex] items` 内置项子集），键级缺省回落内嵌默认、坏文件硬错；`oma agents statusline --script <路径>` 整脚本替换（marker 跳过内嵌覆盖）加 `--builtin` 还原；`--example` 模板打印。README 精练为人类面向（三平台预编译安装加使用示例）。
+
 ### 排后
 
 - Linux/mac 接管（P0012 跨平台面）：资产与代码路径就绪；指令集 SIGILL 预备检测研究已备（S021）。

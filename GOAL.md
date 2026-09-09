@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-09 | D18 达成归档 P0039：状态栏用户级定制（拆段拼装加生成时烘焙，三层键加 --script 整替换加 --example）；等价判据四路 mock 逐字节一致；145 单元加 24 集成与四门禁全绿；本机部署实跑与四家 verify 全绿；M054 记 JSON 反斜杠坑。同日 README 精练为人类面向（三平台安装加使用示例） |
 | 2026-09-09 | D18 立项开工：PRD 第 2 轮三裁记档转已采纳，GOAL/PLAN/TODO 切目标。同日 D17 四笔推 origin（`e01db5f..2c5412a`），CI dev 滚动触发 |
 | 2026-09-08 | D17 达成归档 P0038：`oma agents verify` 无头验收子命令（状态栏 mock 直跑加 hook 无头落盘两层判据，S033 取证底座）；本机四家实跑全绿；125 单元加 21 集成与四门禁全绿；M053 记 Git Bash 链接环境坑 |
 | 2026-09-08 | D41 mirror job 落地并实证：`dev-release.yml` 加 mirror 段（rclone env 远程直推 R2，NO_CHECK_BUCKET 必带），dev 滚动自动传 oma/dev；两修（白名单过滤解包目录、copy 改 sync 才删段内遗留，M052）后 oma/dev 段精确六件；「我滚你播」退役，stable 段随下次 v* tag 自动到货，待 ohmycloud 双段验收关账 |
@@ -120,7 +121,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：D18 状态栏用户级定制。进行中（切片 1 重构拆段起步）。挂账：D13 mac 实收（CI 资产已出新）、D41 ohmycloud 双段验收。
+- 当前目标：无。（D18 归档 P0039。挂账：D13 mac 实收、D41 ohmycloud 双段验收。）
 
 ## 历史
 
@@ -128,6 +129,7 @@
 
 | 日期 | 目标 | 结果 |
 | --- | --- | --- |
+| 2026-09-09 | D18 状态栏用户级定制 | 达成：拆段拼装加生成时烘焙（segments / template / icons / codex items 键级回落、--script 整替换、--example）；等价判据 mock 逐字节一致；145 单元加 24 集成与四门禁全绿。归档 P0039 |
 | 2026-09-08 | D16 oma self update 镜像通道 | 达成：OMA_MIRROR dev 段边车判新、sha256 强制校验、网络失败回落 GitHub；102 单元加 17 集成与四门禁全绿；镜像 e2e 待 ohmycloud 播种。归档 P0036 |
 | 2026-09-08 | D15 oma 去编排收窄为纯部署配置工具 | 达成：编排命令与 rmux 后端整体移除；保留 init / doctor / agents / hook / self update / completions；97 单元加 17 集成与四门禁全绿；文档八面同步。归档 P0035 |
 | 2026-09-07 | D14 数据目录改名为 `.oma` | 达成：两根同改；旧在则迁；本仓与家目录已迁；statusline 重放。归档 P0034 |

@@ -4,16 +4,11 @@
 
 ## 当前目标
 
-D18 状态栏用户级定制（2026-09-09 立项；方案与依据见 `PLAN.md`）。
-
-- [ ] 切片 1：`STATUSLINE_PS1` 重构拆段（HEAD / COMMON / 14 段块 / TAIL），默认序拼装与现行为语义等价，`oma agents verify` mock 直跑回归
-- [ ] 切片 2：`~/.oma/statusline.toml` 段落开关（`segments` 键控显隐与顺序，缺省回落内嵌默认序；坏文件硬错）；`--example` 示例配置打印
-- [ ] 切片 3：模板变量与图标映射（`[template]` / `[icons]` 键级缺省回落，ps1 内 `{var}` 占位替换）
-- [ ] 切片 4：整脚本替换（`oma agents statusline [名] --script <路径>` 部署自备脚本并跳过内嵌覆盖，`--builtin` 还原；调用契约进 R002）
-- [ ] 切片 5：codex 内置项子集（`[codex] items` 键，写入面按用户清单渲染）
-- [ ] 收尾：测试（单元加集成，R004 分层）、四门禁、文档同步（R002 命令面 / COMMAND_MAP / SKILL 重生 / R011 / AGENTS 路由 / INDEX / CHANGELOG）、diary
+无。D18 当日闭环（归档 P0039）。
 
 ## 前目标清单
+
+> D18 状态栏用户级定制（2026-09-09 归档 P0039）：拆段拼装加生成时烘焙，segments / template / icons / codex items 三层键加 --script 整替换；145 单元加 24 集成与四门禁全绿。
 
 > D17 oma agents verify 无头验收（2026-09-08 归档 P0038）：状态栏 mock 直跑加 hook 无头落盘两层判据；本机四家全绿。
 

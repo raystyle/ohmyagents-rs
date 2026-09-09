@@ -31,7 +31,7 @@
 
 ## 冻结面
 
-> 本批机器可读命令。D15 收窄后仅余两行（`oma check` / `oma status` / 七会话命令随编排面移除）；self update 的 marker 键只增不改（D16 增 `update.mirror` / `update.source` / `update.fallback`）。
+> 本批机器可读命令。D15 收窄后仅余两行（`oma check` / `oma status` / 七会话命令随编排面移除）；self update 的 marker 键只增不改（D16 增 `update.mirror` / `update.source` / `update.fallback`）；statusline 的 marker 键同理只增（D18 增 `statusline.custom` / `statusline.script`，自备脚本在场或刚部署时才打）。
 
 | 命令 | json 数据形 | jsonl 行形 |
 | --- | --- | --- |

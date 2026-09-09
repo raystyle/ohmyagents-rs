@@ -39,7 +39,7 @@
 | `src\install.rs` | 自适应安装层（D07 deprecated：install/update 入口提示指向 ome）：多渠道下载、sha 信任锚、oma 自管根布局、update 取证与 pin 写回 |
 | `src\login.rs` | `oma agents login`：grok/kimi 设备码登录引导（子进程捕获、URL/code 转发、落盘凭据确认） |
 | `src\providers.rs` | `oma agents providers`：别名簿 providers.toml 读写与 `agent@alias` 注入形态（S027；spawn 消费面随 D15 移除，别名簿保留为配置面） |
-| `src\statusline.rs` | `oma agents statusline`：四家状态栏写入面幂等合并（S025 矩阵）；projKind 含 rust/node/python/zig/go/cpp（P0032） |
+| `src\statusline.rs` | `oma agents statusline`：四家状态栏写入面幂等合并（S025 矩阵）；projKind 含 rust/node/python/zig/go/cpp（P0032）；脚本拆段拼装加用户级定制烘焙（~/.oma/statusline.toml 三层键加 --script 整替换，D18） |
 | `src\update.rs` | `oma self update`：dev 滚动源与正式版判新、sha256 取证、Windows rename 舞步（S028）；OMA_MIRROR 镜像通道加缓存击穿（D16） |
 | `src\trace.rs` | `oma trace` 六视图：联邦读四家原生会话库归一检索（P0013/P0014，S018/S019/S020；D15 连坐删除，D19 全量恢复） |
 | `src\verify.rs` | `oma agents verify`：四家无头验收两层判据（D17，S033）；状态栏 mock 直跑加 hook 临时 git 项目无头落盘；grok trusted_folders 种子加 Drop 摘除 |
@@ -96,6 +96,7 @@
 | P0036 | `P0036-D16-self-update镜像通道.md` | D16 `OMA_MIRROR` 镜像通道：dev 段边车判新、sha256 强制校验、网络失败回落 GitHub |
 | P0037 | `P0037-D19-trace六视图全量恢复.md` | D19 trace 六视图全量恢复：只读检索面回归，与 rmux 零耦合 |
 | P0038 | `P0038-D17-agents-verify无头验收.md` | D17 `oma agents verify`：状态栏 mock 直跑加 hook 无头落盘两层判据；本机四家全绿 |
+| P0039 | `P0039-D18-状态栏用户级定制.md` | D18 状态栏用户级定制：拆段拼装加生成时烘焙（segments / template / icons / codex items 三层键、--script 整替换） |
 
 （P0020 断号：编号已预留未使用，不复用。）
 
@@ -110,6 +111,7 @@
 - `2026-09-03-仓库清理与文档体系重构.md`
 - `2026-09-05-D06吸收合并agent二进制下装部署.md`
 - `2026-09-08-D15去编排oma退化为纯部署配置工具.md`
+- `2026-09-09-D18状态栏用户级定制.md`
 
 ## 五、研究文档
 
@@ -195,7 +197,7 @@
 | M104 | `M104-rmux安装与CLI调用错误.md` | 安装、`-V`、`-S`、`-L`、`cmd()`、`-t` 前缀匹配 | M006-M007、M016、M020、M029 |
 | M105 | `M105-agent检测与状态判断错误.md` | PATH、which、idle、Quiet、CPU | M012、M018-M019、M040 |
 | M106 | `M106-Windows进程与daemon启动错误.md` | os error 5、Job Object、WMI、exit-empty、pane cwd | M015、M017、M021-M022、M031、M041 |
-| M107 | `M107-工具链与脚本错误.md` | sed、grep、PowerShell、中文路径、测试临时目录 | M023-M026、M028、M032-M037、M049-M050、M052-M053 |
+| M107 | `M107-工具链与脚本错误.md` | sed、grep、PowerShell、中文路径、测试临时目录 | M023-M026、M028、M032-M037、M049-M050、M052-M054 |
 
 迭代规则：踩坑按当前最大号接编 MNNN 进对应分类文件（M0xx 行级、新分类用 M1xx 接编）；一行一事；同根因或同型坑**可合并聚合**进已有条目（保留最早编号与首踩日期，聚合后的正解写全），避免同型条目无限线性追加；反复踩落 `docs\research\`；改「正确处理」不删历史行；新分类文件登记本节。**分类文件新增行级条目时，本表该行「行级编号段」当轮同步延长，漏延长即登记债（见 M043）。**
 

@@ -123,7 +123,7 @@
 - **提供商别名注入**：`oma agents providers [--example]`（别名簿 providers.toml；注入消费面 spawn 已随 D15 移除，别名簿保留为配置面）
 - **升级与 pin 维护（deprecated）**：`oma agents update [名]`（D07 迁册：agent 升级归 ome，通道语义由 ome 裁决；本命令保留兼容）
 - **设备码登录引导**：`oma agents login <grok|kimi>`（URL 加 code 干净输出跨机完成，落盘凭据为判据）
-- **配置状态栏**：`oma agents statusline [名]`（四家写入面幂等）
+- **配置状态栏**：`oma agents statusline [名] [--example]`（四家写入面幂等；用户级定制 `~/.oma/statusline.toml`：段落开关加模板图标加 codex 子集，`--script` 整脚本替换加 `--builtin` 还原，D18）
 - **密钥管理**：`oma agents secrets init|set|env|inject|status`（一钥两密文存储加四 shell 懒注入；token 部署配置主面）
 - **hook 写状态加密钥拦截**：`oma hook`（状态落盘；block 级密钥 exit 2 拒调用）
 - **部署项目全套**：`oma init [--project PATH]`（yolo 加 hook/skill，四环境自适应，幂等）

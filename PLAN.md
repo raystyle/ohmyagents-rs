@@ -14,7 +14,9 @@
 - **合并语义（键级）**：用户配置只覆盖写下的键，没写的键用内嵌默认；`segments` 段落清单键写下即全量（顺序加显隐，合并两个顺序无意义）。坏文件（解析失败）硬错退出 1，缺键宽容回落。
 - **配置落位**：`~/.oma/statusline.toml`（用户级，D14 根）；`--example` 打印带注释全量示例（对齐 `oma agents providers --example` 先例）。
 
-### 切片 1：重构拆段（行为等价改造）
+### 切片 1：重构拆段
+
+> 行为等价改造：默认段序拼装产物与拆段前脚本 mock 直跑输出逐字节一致。
 
 - `src\statusline.rs` 的 `STATUSLINE_PS1` 单体 const 拆为：`PS1_HEAD`（param / UTF-8 / JSON 解析 / `$nerd` / Seg 与 FmtTok / FmtDur / `$parts`）、`PS1_COMMON`（`$dir` 与 `$root` 发现、projKind 探测从包版本段上提，工具链段与包版本段共享 `$projKind`）、14 个段块 const（shell / dir / oma / model / context / duration / git / package / python / rust / node / zig / go / cpp）、`PS1_TAIL`（join 输出）。
 - 段内私有依赖上提或内收：进程祖先链（shell 段专用）收进 shell 块；`$projKind` 探测进 COMMON（隐藏 package 段时工具链段仍需判型）。

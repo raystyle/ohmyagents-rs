@@ -15,7 +15,7 @@ oma 只管部署配置与诊断，不做编排（不拉会话、不发任务）�
 
 预编译二进制覆盖三平台。装好后把 `oma`（Windows 为 `oma.exe`）放进 PATH 上的任一目录即可。
 
-### Windows（PowerShell 7）
+### Windows
 
 ```powershell
 # 最新正式版
@@ -26,7 +26,7 @@ Move-Item $HOME\.oma\bin\oma-x86_64-pc-windows-msvc\oma.exe $HOME\.oma\bin\
 oma --version
 ```
 
-### macOS（arm64）
+### macOS
 
 ```bash
 curl -L https://github.com/raystyle/ohmyagents-rs/releases/latest/download/oma-aarch64-apple-darwin.tar.gz | tar xz
@@ -42,7 +42,7 @@ mkdir -p ~/.local/bin && mv oma-x86_64-unknown-linux-gnu/oma ~/.local/bin/
 oma --version
 ```
 
-### 源码安装（需要 Rust 工具链）
+### 源码安装
 
 ```bash
 cargo install --git https://github.com/raystyle/ohmyagents-rs
