@@ -22,7 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
-| 2026-09-09 | D21 达成归档 P0041：`oma diagnose cache\|agents` 活性诊断族落地（网关发现三源、缓存双连至多三连取优、ds 特判 auto-prefix、配置指向加在册加 key 活性加 thinking 对照）；131 单元加 21 集成与四门禁全绿；真网关实收 codex 线 hit 1792 与 ds 线 auto-prefix 与本机未渲染态如实上报；#8 回执待发 |
+| 2026-09-09 | D21 达成归档 P0041：`oma diagnose cache\|agents` 活性诊断族落地（网关发现三源、缓存双连至多三连取优、ds 特判 auto-prefix、配置指向加在册加 key 活性加 thinking 对照）；131 单元加 21 集成与四门禁全绿；真网关实收 codex 线 hit 1792 与 ds 线 auto-prefix 与本机未渲染态如实上报；#8 回执已发 issuecomment-5601988015 |
 | 2026-09-09 | D20 达成归档 P0040：secrets / providers / login / install / update 五面删除（净删约三千行），install.rs 瘦身为根解析加存量探测加共享下载，secretguard 实值比对只看环境变量；124 单元加 21 集成与四门禁全绿；文档八面同步（AGENTS 定位与路由、R001 / R002 / R011、INDEX、README、CHANGELOG、COMMAND_MAP 与 SKILL 再生） |
 | 2026-09-09 | **D13 实收关账**：lan-mac 部署位为编排纪元化石（无 self 无 --version），经镜像 stable 段直装 v0.3.0（边车 sha 校验过，digest 52631254 与 ohmycloud 对账一致；mirror 第二端点消费实证）；`oma --version` = 0.3.0，四家检测与定制面冒烟绿；旧件备份。**队列传空：D13 / D18 / D41 全关** |
 | 2026-09-09 | **v0.3.0 封版**（D18 后第三正式版）：D18 批 13 笔推 origin 两轮 CI 绿后打 tag，正式 release 六资产齐；mirror job 随 tag 首次填充 oma/stable 段（三压缩包加边车 HEAD 200）。D41 stable 段补验 PASS（ohmycloud 自主收讫，回执 issuecomment-5599216966），**D41 整行关账转已交付** |
