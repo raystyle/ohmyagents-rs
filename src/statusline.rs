@@ -619,6 +619,9 @@ pub struct StatuslineConfig {
     /// `[icons]`：图标映射（含 `ts`、`shell-pwsh` 子项键）；键级回落
     /// `DEFAULT_ICONS`。Grok ASCII 路径图标恒空（M046）。
     pub icons: Vec<(String, String)>,
+    /// `[codex] items`：codex 内置项 ID 子集（原样透传，未知 id codex 侧
+    /// 静默跳过）；键缺省回落 `CODEX_STATUS_LINE_ITEMS`。
+    pub codex_items: Option<Vec<String>>,
 }
 
 pub(crate) fn config_path(home: &Path) -> PathBuf {
@@ -657,6 +660,18 @@ fn parse_config(text: &str) -> Result<StatuslineConfig, String> {
                 slot.push((k.clone(), s.to_string()));
             }
         }
+    }
+    if let Some(items) = v.get("codex").and_then(|c| c.get("items")) {
+        let arr = items.as_array().ok_or("[codex] items 必须是字符串数组")?;
+        let mut out = Vec::with_capacity(arr.len());
+        for s in arr {
+            out.push(
+                s.as_str()
+                    .ok_or("[codex] items 元素必须是字符串")?
+                    .to_string(),
+            );
+        }
+        cfg.codex_items = Some(out);
     }
     Ok(cfg)
 }
@@ -899,6 +914,28 @@ pub const EXAMPLE_TOML: &str = r#"# ~/.oma/statusline.toml —— 状态栏用�
 #   segments = ["dir", "git", "oma", "model", "context", "package",
 #               "python", "rust", "node", "zig", "go", "cpp"]
 segments = ["shell", "dir", "oma", "model", "context", "duration", "git", "package", "python", "rust", "node", "zig", "go", "cpp"]
+
+# 段内模板（[template]）：每段一条格式串；`<段>-ascii` 是 grok 的 ASCII 形
+#（缺省同用 nerd 模板、图标恒空）。可用占位符：
+#   shell {icon}{name} / dir {path} / oma {icon}{agent}{state}
+#   model {icon}{model} / context {icon}{pct}{used}{window} / duration {icon}{duration}
+#   git {branch}{flags} / package 与七工具链段（含 ts）{icon}{version}
+# 例（oma 段去图标改方括号态）：
+# [template]
+# oma = "{agent}[{state}]"
+
+# 图标映射（[icons]）：键级回落；oma 机器人宽字形默认跟两空格。
+# 可用键：shell / shell-pwsh / oma / model / context / duration / package
+#         / python / rust / node / ts / zig / go / cpp
+# 例：
+# [icons]
+# rust = "R "
+
+# codex 内置项子集（[codex] items）：替换写入 ~/.codex/config.toml 的
+# [tui].status_line 内置项 ID 清单；未知 id codex 侧静默跳过（S016）。
+# 例（只要分支与目录）：
+# [codex]
+# items = ["current-dir", "git-branch"]
 "#;
 
 /// Codex `[tui].status_line` is an ordered list of built-in item IDs
@@ -916,10 +953,10 @@ const CODEX_STATUS_LINE_ITEMS: &[&str] = &[
     "branch-changes",
 ];
 
-fn render_codex_tui_section() -> String {
+fn render_codex_tui_section(items: &[&str]) -> String {
     let mut lines = vec!["[tui]".to_string(), "status_line = [".to_string()];
-    let last = CODEX_STATUS_LINE_ITEMS.len().saturating_sub(1);
-    for (i, id) in CODEX_STATUS_LINE_ITEMS.iter().enumerate() {
+    let last = items.len().saturating_sub(1);
+    for (i, id) in items.iter().enumerate() {
         let comma = if i == last { "" } else { "," };
         lines.push(format!("  \"{id}\"{comma}"));
     }
@@ -947,7 +984,14 @@ fn strip_tui_section(text: &str) -> String {
 
 /// Codex: replace the `[tui]` table with built-in item IDs (ohmypwsh S016).
 /// Does not deploy the pwsh script; Codex has no command-backed status line.
-pub fn merge_codex(_home: &Path) -> Result<String, String> {
+/// `[codex] items`（D18）用户清单原样透传：codex 对未知 id 静默跳过，oma
+/// 不校验清单合法性；键缺省回落内嵌推荐八项。
+pub fn merge_codex(home: &Path) -> Result<String, String> {
+    let cfg = read_config(home)?;
+    let items: Vec<&str> = match &cfg.codex_items {
+        Some(list) => list.iter().map(String::as_str).collect(),
+        None => CODEX_STATUS_LINE_ITEMS.to_vec(),
+    };
     let config = dirs::home_dir()
         .ok_or("no home")?
         .join(".codex")
@@ -960,9 +1004,9 @@ pub fn merge_codex(_home: &Path) -> Result<String, String> {
     let kept = strip_tui_section(&existing);
     let kept = kept.trim_end();
     let body = if kept.is_empty() {
-        format!("{}\n", render_codex_tui_section())
+        format!("{}\n", render_codex_tui_section(&items))
     } else {
-        format!("{kept}\n\n{}\n", render_codex_tui_section())
+        format!("{kept}\n\n{}\n", render_codex_tui_section(&items))
     };
     if let Some(dir) = config.parent() {
         std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
@@ -1224,6 +1268,41 @@ mod tests {
     }
 
     #[test]
+    fn codex_items_config_overrides_builtin_list() {
+        // 期望值：用户清单原样透传（含未知 id——codex 侧静默跳过，oma 不拦）。
+        let cfg =
+            parse_config("[codex]\nitems = [\"current-dir\", \"git-branch\", \"nope\"]\n").unwrap();
+        assert_eq!(
+            cfg.codex_items,
+            Some(vec![
+                "current-dir".to_string(),
+                "git-branch".to_string(),
+                "nope".to_string()
+            ])
+        );
+        let tui = render_codex_tui_section(&["current-dir", "git-branch", "nope"]);
+        assert!(tui.contains("\"current-dir\""));
+        assert!(tui.contains("\"nope\""));
+        assert!(
+            !tui.contains("run-state"),
+            "default list replaced, not merged"
+        );
+        let last = tui
+            .lines()
+            .find(|l| l.trim_start().starts_with('"') && l.contains("nope"))
+            .unwrap();
+        assert!(!last.trim().ends_with(','), "no trailing comma: {last}");
+        // 键缺省：无 [codex] items 时回落内嵌推荐八项。
+        assert!(parse_config("").unwrap().codex_items.is_none());
+    }
+
+    #[test]
+    fn dies_parse_config_rejects_malformed_codex_items() {
+        assert!(parse_config("[codex]\nitems = \"x\"\n").is_err());
+        assert!(parse_config("[codex]\nitems = [1]\n").is_err());
+    }
+
+    #[test]
     fn ps1_forces_utf8_before_any_output() {
         // Regression guard for the CP936 `??` corruption (P0027): the
         // encoding line must precede any output statement — the nerdfont
@@ -1447,7 +1526,7 @@ mod tests {
 
     #[test]
     fn codex_tui_section_is_builtin_ids_not_command_argv() {
-        let tui = render_codex_tui_section();
+        let tui = render_codex_tui_section(CODEX_STATUS_LINE_ITEMS);
         assert!(tui.contains("run-state"));
         assert!(tui.contains("git-branch"));
         assert!(tui.contains("status_line_use_colors = true"));
