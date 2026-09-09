@@ -59,6 +59,8 @@
 ### 里程碑 2026-09-09
 
 - **状态栏用户级定制**（D18）：脚本拆段拼装（HEAD 加 COMMON 加 PROBE 加 14 段块加 TAIL，行为等价迁移）；`~/.oma/statusline.toml` 三层定制（`segments` 段落显隐与序、`[template]` 段内模板加 `[icons]` 图标映射、`[codex] items` 内置项子集），键级缺省回落内嵌默认、坏文件硬错；`oma agents statusline --script <路径>` 整脚本替换（marker 跳过内嵌覆盖）加 `--builtin` 还原；`--example` 模板打印。README 精练为人类面向（三平台预编译安装加使用示例）。
+- **D41 关账**：ohmycloud 双段验收全绿（dev 段与 stable 段三方对账 sha 逐字一致，回执 issuecomment-5598606699 / 5599216966），「我滚你播」接力退役。
+- **v0.3.0 封版**：D18 后第三正式版（v* tag 触发，三平台资产加边车同形态）；mirror job 随 tag 首次填充 oma/stable 段；`oma self update --stable` 吃 releases/latest 即到此版。
 
 ### 排后
 
