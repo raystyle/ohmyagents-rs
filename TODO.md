@@ -29,4 +29,4 @@
 
 | 目标 | 状态 | 说明 |
 | --- | --- | --- |
-| D13 mac `--version` 一致性 | 排队 | CI 资产已出（2026-09-08 04:41Z 三平台）；待 mac 上 `oma self update` 实收（可走 OMA_MIRROR 镜像通道，D16） |
+| D13 mac `--version` 一致性 | 完成 | 2026-09-09 lan-mac 经镜像 stable 段直装 v0.3.0 实收：边车 sha256 校验过（digest 与 ohmycloud 对账一致，mirror 第二端点消费实证）、`--version` = oma 0.3.0、agents 四家检测与 `statusline --example` 冒烟绿；旧件备份 `~/.oma/oma-fossil-backup` |
