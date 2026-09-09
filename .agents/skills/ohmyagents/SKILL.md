@@ -14,7 +14,7 @@ description: oma 部署配置命令图：init、诊断、状态栏、token、hoo
 | 部署本项目 hook/skill/yolo 键（幂等，四环境自适应） | `oma init [--project PATH]` |
 | 只读诊断信任库、二进制、登录态、hook 形态与状态栏 | `oma doctor` |
 | 检测四家 agent 已装情况（PATH/环境变量/oma 自管根/默认目录四源） | `oma agents` |
-| 配置四家状态栏（写入面幂等；状态由 hook 落盘供给） | `oma agents statusline [名]` |
+| 配置四家状态栏（写入面幂等；状态由 hook 落盘供给；--example 定制模板，--script 自备脚本整替换，--builtin 还原） | `oma agents statusline [名] [--example] [--script 路径] [--builtin]` |
 | token 金库：一钥两密文存储加四 shell 懒注入 | `oma agents secrets init|set|env|inject|status` |
 | 设备码登录引导：转发 URL 加 code，等浏览器侧完成后以落盘凭据确认 | `oma agents login grok|kimi` |
 | 已 deprecated（D07 迁册）：agent 安装归 ome，请用 ome install <名>（本命令保留兼容） | `oma agents install [名]` |

@@ -684,8 +684,8 @@ const COMMAND_MAP: &[(&str, &str)] = &[
         "检测四家 agent 已装情况（PATH/环境变量/oma 自管根/默认目录四源）",
     ),
     (
-        "oma agents statusline [名]",
-        "配置四家状态栏（写入面幂等；状态由 hook 落盘供给）",
+        "oma agents statusline [名] [--example] [--script 路径] [--builtin]",
+        "配置四家状态栏（写入面幂等；状态由 hook 落盘供给；--example 定制模板，--script 自备脚本整替换，--builtin 还原）",
     ),
     (
         "oma agents secrets init|set|env|inject|status",
