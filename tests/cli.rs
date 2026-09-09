@@ -282,6 +282,18 @@ fn dies_statusline_unknown_agent() {
 }
 
 #[test]
+fn statusline_example_prints_customization_template() {
+    // D18: --example 打印带注释模板后干净退出，不碰任何配置面。
+    oma()
+        .args(["agents", "statusline", "--example"])
+        .assert()
+        .success()
+        .stdout(contains("~/.oma/statusline.toml"))
+        .stdout(contains("segments = "))
+        .stdout(contains("python / rust / node / zig / go / cpp"));
+}
+
+#[test]
 fn agents_install_unknown_name_fails_fast() {
     // Unknown agent is rejected before any network access: the error must
     // name the catalog's known agents.

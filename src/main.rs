@@ -202,6 +202,9 @@ enum AgentsCmd {
     Statusline {
         /// 指定 agent（claude/codex/kimi/grok）；缺省四家都配
         names: Vec<String>,
+        /// 打印 ~/.oma/statusline.toml 定制示例模板后退出（D18）
+        #[arg(long)]
+        example: bool,
     },
     /// 引导设备码登录（grok/kimi）：转发 URL 加 code 给用户，等浏览器侧完成
     Login {
@@ -305,7 +308,7 @@ fn run() -> Result<(), String> {
                 cmd_agents_install(names, force, root)
             }
             Some(AgentsCmd::Update { names, force, root }) => cmd_agents_update(names, force, root),
-            Some(AgentsCmd::Statusline { names }) => cmd_agents_statusline(names),
+            Some(AgentsCmd::Statusline { names, example }) => cmd_agents_statusline(names, example),
             Some(AgentsCmd::Verify { names, timeout }) => cmd_agents_verify(names, timeout),
             Some(AgentsCmd::Login { names, timeout }) => cmd_agents_login(names, timeout),
             Some(AgentsCmd::Secrets { cmd }) => cmd_agents_secrets(cmd),
@@ -418,8 +421,12 @@ fn cmd_agents_secrets(cmd: Option<SecretsCmd>) -> Result<(), String> {
     }
 }
 
-/// `oma agents statusline [名]`：配置四家状态栏（幂等）。
-fn cmd_agents_statusline(names: Vec<String>) -> Result<(), String> {
+/// `oma agents statusline [名] [--example]`：配置四家状态栏（幂等）。
+fn cmd_agents_statusline(names: Vec<String>, example: bool) -> Result<(), String> {
+    if example {
+        println!("{}", oma::statusline::EXAMPLE_TOML.trim_end());
+        return Ok(());
+    }
     let home = install::oma_home()?;
     let supported = ["claude", "codex", "kimi", "grok"];
     let do_all = names.is_empty();

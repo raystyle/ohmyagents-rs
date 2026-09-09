@@ -510,6 +510,52 @@ pub(crate) fn default_statusline_ps1() -> String {
     assemble_statusline_ps1(DEFAULT_SEGMENTS).expect("default segment order is valid")
 }
 
+/// `~/.oma/statusline.toml` 用户级定制（D18）。键级缺省回落内嵌默认：
+/// 没写的键用默认，写下的键生效；坏文件硬错退出 1。
+#[derive(Debug, Default, PartialEq)]
+pub struct StatuslineConfig {
+    /// `segments`：段 id 数组即全量序（显隐加顺序）；键缺省回落
+    /// `DEFAULT_SEGMENTS`。
+    pub segments: Option<Vec<String>>,
+}
+
+pub(crate) fn config_path(home: &Path) -> PathBuf {
+    home.join("statusline.toml")
+}
+
+/// 读用户定制配置；文件不存在回落全默认（不是错误）。
+pub fn read_config(home: &Path) -> Result<StatuslineConfig, String> {
+    let p = config_path(home);
+    if !p.exists() {
+        return Ok(StatuslineConfig::default());
+    }
+    let text = std::fs::read_to_string(&p).map_err(|e| format!("{}: {e}", p.display()))?;
+    parse_config(&text).map_err(|e| format!("{}: {e}", p.display()))
+}
+
+/// 纯函数：解析配置（可测）。坏文件硬错（拼装层面无法兜底）；缺键回落。
+fn parse_config(text: &str) -> Result<StatuslineConfig, String> {
+    let v: toml::Value = toml::from_str(text).map_err(|e| format!("parse: {e}"))?;
+    let mut cfg = StatuslineConfig::default();
+    if let Some(segs) = v.get("segments") {
+        let arr = segs.as_array().ok_or("segments 必须是段 id 字符串数组")?;
+        let mut out = Vec::with_capacity(arr.len());
+        for s in arr {
+            out.push(s.as_str().ok_or("segments 元素必须是字符串")?.to_string());
+        }
+        cfg.segments = Some(out);
+    }
+    Ok(cfg)
+}
+
+/// 段序生效值：用户清单或默认序（未知与重复 id 由拼装器拒）。
+fn effective_order(cfg: &StatuslineConfig) -> Result<Vec<&str>, String> {
+    Ok(match &cfg.segments {
+        Some(segs) => segs.iter().map(String::as_str).collect(),
+        None => DEFAULT_SEGMENTS.to_vec(),
+    })
+}
+
 pub(crate) fn script_path(home: &Path) -> PathBuf {
     home.join("statusline").join("oma-statusline.ps1")
 }
@@ -547,13 +593,24 @@ pub fn pwsh_on_path() -> bool {
     crate::pathutil::find_on_path("pwsh").is_some()
 }
 
-/// 释放状态栏脚本（幂等覆写；默认段序拼装，定制面在 D18 切片 2 接入）。
+/// 释放状态栏脚本（幂等覆写）。按 `~/.oma/statusline.toml` 生成时烘焙：
+/// segments 键控段序与显隐，缺省回落内嵌默认（D18）。
 pub fn deploy_script(home: &Path) -> Result<PathBuf, String> {
+    let cfg = read_config(home)?;
+    let order = effective_order(&cfg)?;
+    let script = assemble_statusline_ps1(&order).map_err(|e| {
+        // 段清单来自用户配置时，错误带上文件出处才可操作。
+        if cfg.segments.is_some() {
+            format!("{}: {e}", config_path(home).display())
+        } else {
+            e
+        }
+    })?;
     let p = script_path(home);
     if let Some(dir) = p.parent() {
         std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     }
-    std::fs::write(&p, default_statusline_ps1()).map_err(|e| format!("{}: {e}", p.display()))?;
+    std::fs::write(&p, script).map_err(|e| format!("{}: {e}", p.display()))?;
     let cmd = grok_cmd_path(home);
     std::fs::write(&cmd, STATUSLINE_GROK_CMD).map_err(|e| format!("{}: {e}", cmd.display()))?;
     Ok(p)
@@ -669,6 +726,22 @@ fn apply_grok_status_line(toml: &mut toml::Value, script_str: &str) -> Result<bo
     Ok(changed)
 }
 
+/// `oma agents statusline --example` 打印的带注释全量示例（存到
+/// `~/.oma/statusline.toml` 生效；对齐 `oma agents providers --example` 先例）。
+pub const EXAMPLE_TOML: &str = r#"# ~/.oma/statusline.toml —— 状态栏用户级定制（D18）
+# 生成时烘焙：oma agents statusline 每次运行读本文件重拼脚本后落盘，
+# 改完本文件重跑一次 oma agents statusline 生效。
+# 键级缺省回落：没写的键用内嵌默认；坏文件硬错退出 1。
+
+# 段落清单：段 id 数组即全量（显隐加顺序）；缺省 = 内嵌默认 14 段全量序。
+# 可用段 id：shell / dir / oma / model / context / duration / git / package
+#           / python / rust / node / zig / go / cpp
+# 例（隐藏 shell 与时长段、git 提到目录前）：
+#   segments = ["dir", "git", "oma", "model", "context", "package",
+#               "python", "rust", "node", "zig", "go", "cpp"]
+segments = ["shell", "dir", "oma", "model", "context", "duration", "git", "package", "python", "rust", "node", "zig", "go", "cpp"]
+"#;
+
 /// Codex `[tui].status_line` is an ordered list of built-in item IDs
 /// (ohmypwsh S016, openai/codex 0.148+). Unknown strings are silently
 /// skipped, so a command argv (`"command", "pwsh", "-File", ...`) empties
@@ -742,6 +815,87 @@ pub fn merge_codex(_home: &Path) -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// 独占临时目录（单测内 fs 落盘判据用；用完即删）。
+    fn scratch(name: &str) -> PathBuf {
+        let p = std::env::temp_dir().join(format!("oma-sl-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&p);
+        std::fs::create_dir_all(&p).unwrap();
+        p
+    }
+
+    #[test]
+    fn parse_config_reads_segments_and_falls_back_on_missing_key() {
+        // 期望值来自 D18 裁定：segments 写下即全量序，键缺省回落默认。
+        assert_eq!(parse_config("").unwrap().segments, None);
+        assert_eq!(
+            parse_config("segments = [\"oma\", \"git\"]\n")
+                .unwrap()
+                .segments,
+            Some(vec!["oma".to_string(), "git".to_string()])
+        );
+        // segments = [] 是显式空清单（空栏），不回落默认。
+        assert_eq!(
+            parse_config("segments = []\n").unwrap().segments,
+            Some(vec![])
+        );
+    }
+
+    #[test]
+    fn dies_parse_config_rejects_malformed() {
+        assert!(parse_config("segments = ").is_err(), "truncated toml");
+        assert!(
+            parse_config("segments = \"git\"\n").is_err(),
+            "not an array"
+        );
+        assert!(parse_config("segments = [1]\n").is_err(), "not strings");
+    }
+
+    #[test]
+    fn deploy_script_honors_segment_order_from_config() {
+        let home = scratch("order");
+        std::fs::write(
+            home.join("statusline.toml"),
+            "segments = [\"git\", \"oma\"]\n",
+        )
+        .unwrap();
+        let p = deploy_script(&home).unwrap();
+        let text = std::fs::read_to_string(&p).unwrap();
+        let g = text.find("# ── Git：").unwrap();
+        let o = text.find("# ── oma 段").unwrap();
+        assert!(o > g, "git before oma per config");
+        assert!(!text.contains("# ── Shell 段"), "shell hidden");
+        assert!(text.contains("rev-parse"), "COMMON in for oma");
+        assert!(!text.contains("Cargo.toml"), "PROBE gated off");
+        let _ = std::fs::remove_dir_all(&home);
+    }
+
+    #[test]
+    fn deploy_script_without_config_is_default_order() {
+        let home = scratch("default");
+        let p = deploy_script(&home).unwrap();
+        let text = std::fs::read_to_string(&p).unwrap();
+        assert!(text.contains("# ── Shell 段"));
+        assert_eq!(
+            text,
+            default_statusline_ps1(),
+            "no config = default assembly"
+        );
+        let _ = std::fs::remove_dir_all(&home);
+    }
+
+    #[test]
+    fn dies_deploy_script_rejects_unknown_segment_from_config() {
+        let home = scratch("unknown");
+        std::fs::write(home.join("statusline.toml"), "segments = [\"nope\"]\n").unwrap();
+        let err = deploy_script(&home).unwrap_err();
+        assert!(err.contains("unknown statusline segment"), "{err}");
+        assert!(
+            err.contains("statusline.toml"),
+            "error names the config file: {err}"
+        );
+        let _ = std::fs::remove_dir_all(&home);
+    }
 
     #[test]
     fn ps1_forces_utf8_before_any_output() {
