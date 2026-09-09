@@ -709,7 +709,7 @@ const LEGACY_SKILL_MD: &str = "---\nname: ohmyagents\ndescription: Oh My Agents 
 
 fn skill_md() -> String {
     let mut s = String::new();
-    s.push_str("---\nname: ohmyagents\ndescription: oma 部署配置命令图：init、诊断、状态栏、token、hook\n---\n\n");
+    s.push_str("---\nname: ohmyagents\ndescription: oma 部署配置命令图：init、诊断、hook、状态栏、trace\n---\n\n");
     s.push_str("# Oh My Agents 命令图\n\n");
     s.push_str(SKILL_MARKER);
     s.push_str("\n\n本项目由 oma 部署配置：hook 状态写 `.oma/state/`，供状态栏 `agent:state` 机读标记消费。\n\n");

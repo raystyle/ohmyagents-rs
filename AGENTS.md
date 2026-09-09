@@ -7,13 +7,13 @@
 > 本项目的本质与边界。根为定位，下分本质、边界、管理对象、方案索引。
 
 1. **本质**
-   - Oh My Agents 是 Agent 全平台 token、hook 与状态栏部署配置工具（D15，2026-09-08 用户裁定）：按目录为可注册的终端 agent 部署配置并诊断，不做编排；兼项目内四家 agent 对话历史只读检索（D19，2026-09-08 用户裁「全量恢复」：trace 直读原生会话库，与 rmux 零耦合）。
+   - Oh My Agents 是 Agent 全平台部署配置与诊断工具，专注五个功能（D20，2026-09-09 用户裁定）：agent 可用性诊断、hook 设置、状态栏设置、对话 trace、yolo 不阻塞设置；不做编排（D15），不管 token 环境变量注入（D20 删除 secrets 与 providers 面，密钥安全归 ohmypwsh）；对话 trace 直读原生会话库，与 rmux 零耦合（D19）。
 
 2. **边界**
    - 配置钉在启动的项目目录；不替代 ohmypwsh 五端环境总台，不替代各 agent 本体。
    - 不做编排（D15，2026-09-08）：spawn / send / status / serve / mcp 等编排命令与 rmux 运行时后端整体移除；原编排定位归档 P0004，本裁定归档 P0035。trace 初随 D15 连坐删除，D19 以只读检索面恢复（六视图全量）。
-   - 四仓分工（2026-09-02 定调，D07 修正 agent 二进制归属，D09 钉种子不归 oma，D15 去编排，细目见 R001 四仓生态节）：ohmyenv-rs（`ome`）管工具、运行时依赖与 agent 二进制下装部署、本仓（`oma`）管诊断、配置、hook、状态栏与 token、ohmypwsh 管五端总台与密钥安全、ohmycloud 管云端二进制分发与镜像种子；跨仓协作互相发 issue。
-   - oma 不管种子、不管 agent 二进制下装（D09，2026-09-07）：只管诊断、配置、hook、状态栏与 token。下载、安装、部署（五端）归 ohmyenv-rs：`ome install` 幂等检测安装（已装任何来源即跳过，存量原地纳管），数据权威 ome `catalog\tools.toml` agent 四节（D07 方向反转 2026-09-05，ohmyagents#5；前 D06 三裁成果转过渡态）。本仓 `oma agents install` 与 `update` 已 deprecated 指向 ome（保留兼容），`catalog\agents.toml` 冻结为历史锚。配置域含 settings、API key、MCP、statusline、登录态；oma doctor 的登录态 / hook 形态 / 状态栏三类检查归 agents 域（二进制在位与版本、token 诊断归 ome doctor）。
+   - 四仓分工（2026-09-02 定调，D07 修正 agent 二进制归属，D09 钉种子不归 oma，D15 去编排，D20 去 token 注入，细目见 R001 四仓生态节）：ohmyenv-rs（`ome`）管工具、运行时依赖与 agent 二进制下装部署、本仓（`oma`）管诊断、hook、状态栏、trace 与 yolo、ohmypwsh 管五端总台与密钥安全（token 注入归此）、ohmycloud 管云端二进制分发与镜像种子；跨仓协作互相发 issue。
+   - oma 不管种子、不管 agent 二进制下装（D09，2026-09-07）、不管 token 注入（D20，2026-09-09）：只管可用性诊断、hook、状态栏、trace 与 yolo。下载、安装、部署（五端）归 ohmyenv-rs：`ome install` 幂等检测安装（已装任何来源即跳过，存量原地纳管），数据权威 ome `catalog\tools.toml` agent 四节（D07 方向反转 2026-09-05，ohmyagents#5）。本仓 `oma agents install` / `update` / `secrets` / `providers` / `login` 已随 D20 整体移除（历史口径见 R002 与 P0040）。oma doctor 的登录态 / hook 形态 / 状态栏三类检查归 agents 域（二进制在位与版本归 ome doctor）。
    - hook、skill、状态文件只落启动目录；oma 自管应用数据根是 `~/.oma`（D14；旧 `~/.ohmyagents` 仅旧在则改名迁过去。agent 安装与本地 pin，P0012；D07 后安装域迁 ome，此根承载存量安装与配置数据），默认不改用户家目录 hook 注册。
 
 3. **管理对象**
@@ -118,13 +118,8 @@
 > 需求意图到命令的映射（摘要层）。每条命令的行为细则、机理出处、marker 行、退出码与落地状态的唯一权威见 `docs\references\R002-常用命令与管理流程-从项目init到部署诊断.md`。
 
 - **无阻塞诊断**：`oma doctor`（只读体检；登录态、hook 形态、状态栏三类归 agents 域，D07；warn 与 block 分层，block 才退出 1）
-- **检测已装 agent**：`oma agents`（PATH / 环境变量 / oma 自管根 / 默认目录四源）
-- **安装缺失 agent（deprecated）**：`oma agents install [名] [--force]`（D07 迁册：请用 `ome install <名>`；本命令保留兼容，stderr 先打 `oma.deprecated` 提示）
-- **提供商别名注入**：`oma agents providers [--example]`（别名簿 providers.toml；注入消费面 spawn 已随 D15 移除，别名簿保留为配置面）
-- **升级与 pin 维护（deprecated）**：`oma agents update [名]`（D07 迁册：agent 升级归 ome，通道语义由 ome 裁决；本命令保留兼容）
-- **设备码登录引导**：`oma agents login <grok|kimi>`（URL 加 code 干净输出跨机完成，落盘凭据为判据）
+- **检测已装 agent**：`oma agents`（PATH / 环境变量 / oma 自管根 / 默认目录四源；缺装 hint 指向 `ome install`，D20）
 - **配置状态栏**：`oma agents statusline [名] [--example]`（四家写入面幂等；用户级定制 `~/.oma/statusline.toml`：段落开关加模板图标加 codex 子集，`--script` 整脚本替换加 `--builtin` 还原，D18）
-- **密钥管理**：`oma agents secrets init|set|env|inject|status`（一钥两密文存储加四 shell 懒注入；token 部署配置主面）
 - **hook 写状态加密钥拦截**：`oma hook`（状态落盘；block 级密钥 exit 2 拒调用）
 - **部署项目全套**：`oma init [--project PATH]`（yolo 加 hook/skill，四环境自适应，幂等）
 - **部署项目级 yolo**：`oma init --yolo`（仅无阻塞键）；`--pretrust` 追加家目录信任库
@@ -134,7 +129,7 @@
 - **无头验收 agent**：`oma agents verify [名] [--timeout N]`（状态栏 mock 直跑加 hook 无头落盘两层判据，D17/S033；skip 不计败，fail 退出 1）
 - **输出格式契约**：全局 `--format kv|json|jsonl` 加 `--json` 简写（信封冻结面见 R011）
 
-编排命令（check / spawn / respawn / status / send / key / run / task / settle / cleanup / REPL / web / serve / mcp）已随 D15 移除；历史口径见归档 P0001 至 P0034。新想法走 G003 五步再立项，禁止把未验收口径写成已可跑。
+编排命令（check / spawn / respawn / status / send / key / run / task / settle / cleanup / REPL / web / serve / mcp）已随 D15 移除；token 注入面（agents secrets / providers / login）与 install / update 兼容层已随 D20 移除；历史口径见归档 P0001 至 P0034 与 P0040。新想法走 G003 五步再立项，禁止把未验收口径写成已可跑。
 
 ## 四、资源索引
 

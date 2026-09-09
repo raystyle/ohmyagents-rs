@@ -1,15 +1,16 @@
 # Oh My Agents
 
-**Agent 全平台部署配置工具**：在项目目录为终端智能体部署 hook、skill、状态栏与密钥配置，并做只读诊断。当前适配 Claude Code / Codex / Grok / Kimi 四家，Windows / macOS / Linux（含 WSL）同一命令面。CLI 名 `oma`。
+**Agent 全平台部署配置与诊断工具**，专注五个功能：agent 可用性诊断、hook 设置、状态栏设置、对话 trace、yolo 不阻塞设置。当前适配 Claude Code / Codex / Grok / Kimi 四家，Windows / macOS / Linux（含 WSL）同一命令面。CLI 名 `oma`。
 
+- `oma doctor`：agent 可用性只读体检，warn 与 block 分层，block 才退出 1
 - `oma init`：按各家规则把 hook、skill、yolo 键落进项目，幂等合并，不写家目录注册
 - `oma agents statusline`：四家状态栏写入面（starship 风格、支持用户级定制）
-- `oma agents secrets`：token 一钥两密文存储加四 shell 懒注入，明文不常驻
-- `oma doctor`：只读体检，warn 与 block 分层，block 才退出 1
-- `oma agents verify`：四家无头验收（hook 落盘加状态栏脚本直跑）
 - `oma trace`：项目内四家 agent 对话历史只读检索
+- `oma agents verify`：四家无头验收（hook 落盘加状态栏脚本直跑）
 
-oma 只管部署配置与诊断，不做编排（不拉会话、不发任务）；agent 二进制安装归姊妹工具 `ome`（`ome install claude`）。
+oma 不做编排（不拉会话、不发任务），不管 token 注入（密钥安全归 [ohmypwsh]，agent 二进制安装归姊妹工具 `ome`：`ome install claude`）。
+
+[ohmypwsh]: https://github.com/raystyle/ohmypwsh
 
 ## 安装
 
@@ -85,17 +86,6 @@ oma agents statusline --example # 用户级定制模板（~/.oma/statusline.toml
 ```
 
 定制三层：段落显隐与顺序（`segments`）、段内模板与图标（`[template]` / `[icons]`）、整脚本替换（`oma agents statusline --script <路径>`，`--builtin` 还原）。改完配置重跑一次 `oma agents statusline` 生效。
-
-### token 管理
-
-```powershell
-oma agents secrets init              # 金库初始化（一钥两密文）
-oma agents secrets set ANTHROPIC_API_KEY   # 写 token（值走 stdin，不进 argv）
-oma agents secrets inject            # 四 shell profile 写懒注入块
-oma agents secrets status            # 链路体检（只报存在性）
-oma agents providers --example       # 提供商别名簿样例（zhipu / deepseek 等端点）
-oma agents login grok                # 设备码登录引导（URL 加 code 跨机完成）
-```
 
 ### 诊断与验收
 

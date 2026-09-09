@@ -15,7 +15,7 @@
 | 类别 | 目录 | 说明 |
 | --- | --- | --- |
 | 文档 | `docs\`（proven/diary/research/guide/references/mistakes/web）+ 根目录 PRD/GOAL/PLAN/TODO/INDEX/AGENTS/README/CHANGELOG/ROADMAP | 见上节职能 |
-| 代码 | `src\` + `catalog\` | Rust CLI `oma`；四家 agent 的 pin（冻结历史锚）在 catalog |
+| 代码 | `src\` | Rust CLI `oma`（catalog 目录已随 D20 移除，pin 数据权威在 ome） |
 | 运行时产物 | 目标项目下 `.oma\` | gitignore 项目态；工具前缀不进仓 |
 
 **代码文件位置**：
@@ -29,7 +29,6 @@
 | `.tools\mdcharlint.py` | 四类禁用字符检查（G005：破折号、箭头、emoji、非法全角；掩豁免区后逐字符扫） |
 | `src\main.rs` | CLI 入口与子命令分发（init/doctor/agents/hook/self/completions）；`--json` 信封出口 |
 | `src\lib.rs` | 模块声明 |
-| `src\catalog.rs` | `catalog\agents.toml` pin 读取与加载期校验（rmux pin 随 D15 移除） |
 | `src\archive.rs` | 通用归档工具：sha256 校验、zip / tar.gz 解包、目录复制、host os/arch（D15 自 rmux.rs 剥离） |
 | `src\hook.rs` | `oma hook`：事件到四态映射与 state 落盘，加密钥拦截分流 |
 | `src\agents.rs` | `oma agents`：PATH / 环境变量 / 默认目录探测 |
@@ -37,21 +36,17 @@
 | `src\yolo.rs` | `oma init --yolo`：四家配置落盘与 pretrust |
 | `src\deploy.rs` | `oma init` hook/skill 部署层：按 S015 矩阵落项目文件，幂等合并；SKILL.md 由 COMMAND_MAP 命令图生成（标记覆写三态） |
 | `src\install.rs` | 自适应安装层（D07 deprecated：install/update 入口提示指向 ome）：多渠道下载、sha 信任锚、oma 自管根布局、update 取证与 pin 写回 |
-| `src\login.rs` | `oma agents login`：grok/kimi 设备码登录引导（子进程捕获、URL/code 转发、落盘凭据确认） |
-| `src\providers.rs` | `oma agents providers`：别名簿 providers.toml 读写与 `agent@alias` 注入形态（S027；spawn 消费面随 D15 移除，别名簿保留为配置面） |
 | `src\statusline.rs` | `oma agents statusline`：四家状态栏写入面幂等合并（S025 矩阵）；projKind 含 rust/node/python/zig/go/cpp（P0032）；脚本拆段拼装加用户级定制烘焙（~/.oma/statusline.toml 三层键加 --script 整替换，D18） |
 | `src\update.rs` | `oma self update`：dev 滚动源与正式版判新、sha256 取证、Windows rename 舞步（S028）；OMA_MIRROR 镜像通道加缓存击穿（D16） |
 | `src\trace.rs` | `oma trace` 六视图：联邦读四家原生会话库归一检索（P0013/P0014，S018/S019/S020；D15 连坐删除，D19 全量恢复） |
 | `src\verify.rs` | `oma agents verify`：四家无头验收两层判据（D17，S033）；状态栏 mock 直跑加 hook 临时 git 项目无头落盘；grok trusted_folders 种子加 Drop 摘除 |
 | `src\secretguard.rs` | `oma hook` 密钥拦截闸（S030）：模式表八层防误报、实值比对通道、PreToolUse/UserPromptSubmit 阻断 exit 2 |
 | `src\fmtio.rs` | 全局输出三态（kv/json/jsonl）与结构化错误出口（issue #1 契约，R011）；JSON 信封函数（D15 自 api.rs 迁入） |
-| `src\secrets.rs` | `oma agents secrets`：一钥两密文存储（app.key/identity.enc/secrets.yaml）与四 shell 懒注入块（S031） |
 | `src\caps.rs` | CPU 指令集能力与探针退出形态分类（S021/P0018：is_x86_feature_detected 加 0xC000001D 识别） |
 | `src\pathutil.rs` | 路径工具；项目/家目录 `.oma`（旧 `.ohmyagents` 改名迁，D14） |
-| `tests\cli.rs` | CLI 集成冒烟（assert_cmd；agents/hook/doctor/init/statusline/secrets 部署配置面加 trace 只读检索面，D19） |
-| `catalog\agents.toml` | 四家 agent pin：渠道序（github 主 CDN 兜底）、per-OS+arch 资产 SHA256、官方校验清单线索（D07 起冻结为历史锚，数据权威转 ome `catalog\tools.toml` agent 四节） |
+| `tests\cli.rs` | CLI 集成冒烟（assert_cmd；agents/hook/doctor/init/statusline 部署配置面加 trace 只读检索面） |
 
-（D15 移除：`src\rmux.rs` / `rmuxpoc.rs` / `orch.rs` / `task.rs` / `servectl.rs` / `api.rs` / `mcp.rs` / `server.rs` / `repl.rs` / `webassets.rs`、`build.rs`、`catalog\rmux.toml`、`examples\poc-*.rs` 十四件、`.tools\share-view-probe.py`、`.tools\review-round.py`；`trace.rs` 后经 D19 恢复；历史见 git。）
+（D20 移除：`src\secrets.rs` / `providers.rs` / `login.rs` / `catalog.rs`、`catalog\agents.toml`（token 注入面与 install/update 兼容层，密钥安全归 ohmypwsh）；D15 移除：`src\rmux.rs` / `rmuxpoc.rs` / `orch.rs` / `task.rs` / `servectl.rs` / `api.rs` / `mcp.rs` / `server.rs` / `repl.rs` / `webassets.rs`、`build.rs`、`catalog\rmux.toml`、`examples\poc-*.rs` 十四件、`.tools\share-view-probe.py`、`.tools\review-round.py`；`trace.rs` 后经 D19 恢复；历史见 git。）
 
 ## 三、方案归档
 
@@ -97,6 +92,7 @@
 | P0037 | `P0037-D19-trace六视图全量恢复.md` | D19 trace 六视图全量恢复：只读检索面回归，与 rmux 零耦合 |
 | P0038 | `P0038-D17-agents-verify无头验收.md` | D17 `oma agents verify`：状态栏 mock 直跑加 hook 无头落盘两层判据；本机四家全绿 |
 | P0039 | `P0039-D18-状态栏用户级定制.md` | D18 状态栏用户级定制：拆段拼装加生成时烘焙（segments / template / icons / codex items 三层键、--script 整替换） |
+| P0040 | `P0040-D20-去token注入收窄.md` | D20 去 token 注入收窄：五功能收敛，secrets / providers / login / install / update 五面删除，secretguard 只看环境变量 |
 
 （P0020 断号：编号已预留未使用，不复用。）
 
@@ -112,6 +108,7 @@
 - `2026-09-05-D06吸收合并agent二进制下装部署.md`
 - `2026-09-08-D15去编排oma退化为纯部署配置工具.md`
 - `2026-09-09-D18状态栏用户级定制.md`
+- `2026-09-09-D20去token注入收窄.md`
 
 ## 五、研究文档
 

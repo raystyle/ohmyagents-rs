@@ -38,7 +38,7 @@
 | `oma doctor` | `{blocked, findings[]}` | 逐 finding：`{agent,check,status,path,detail}` |
 | `oma agents` | `{installed,missing,agents[]}` | 逐 agent：`{agent,status,source,path,version,extras[]}`（missing 行带 hint） |
 
-hook / completions 不进 format 面（协议通道各有自己的 stdout 纪律）。`agents install` 结构化排下批。
+hook / completions 不进 format 面（协议通道各有自己的 stdout 纪律）。
 
 ## 验收
 

@@ -8,13 +8,13 @@
 > 当前目标的起点：何时发起、为什么发起、要解决什么问题。
 
 - **日期**：2026-09-09。
-- **起点**：D18 立项。状态栏用户级定制：用户「能定制状态栏么」引出，第 2 轮三裁（粒度三层全要、缺省键回落内嵌、codex 一并支持）后裁「立项开工」。
+- **起点**：D20 立项。oma 去 token 注入收窄：用户裁定删除 agent token 环境变量注入功能，oma 专注五功能（可用性诊断、hook、状态栏、trace、yolo）；第 1 轮四裁（providers 一并删、login 删、install/update 兼容层顺带删、只改程序代码不动作地安装）。
 
 ## 锚点
 
 > 当前锚定的目标 + 推进时间线。
 
-- **锚定的目标**：D18 状态栏用户级定制（PRD D18 已采纳：段落开关加整脚本替换加模板变量三层、键级缺省回落、codex 内置项子集）。
+- **锚定的目标**：D20 去 token 注入收窄（PRD D20 已采纳；归档 P0040）。
 
 ### 推进时间线
 
@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-09 | D20 达成归档 P0040：secrets / providers / login / install / update 五面删除（净删约三千行），install.rs 瘦身为根解析加存量探测加共享下载，secretguard 实值比对只看环境变量；124 单元加 21 集成与四门禁全绿；文档八面同步（AGENTS 定位与路由、R001 / R002 / R011、INDEX、README、CHANGELOG、COMMAND_MAP 与 SKILL 再生） |
 | 2026-09-09 | **D13 实收关账**：lan-mac 部署位为编排纪元化石（无 self 无 --version），经镜像 stable 段直装 v0.3.0（边车 sha 校验过，digest 52631254 与 ohmycloud 对账一致；mirror 第二端点消费实证）；`oma --version` = 0.3.0，四家检测与定制面冒烟绿；旧件备份。**队列传空：D13 / D18 / D41 全关** |
 | 2026-09-09 | **v0.3.0 封版**（D18 后第三正式版）：D18 批 13 笔推 origin 两轮 CI 绿后打 tag，正式 release 六资产齐；mirror job 随 tag 首次填充 oma/stable 段（三压缩包加边车 HEAD 200）。D41 stable 段补验 PASS（ohmycloud 自主收讫，回执 issuecomment-5599216966），**D41 整行关账转已交付** |
 | 2026-09-09 | D41 dev 段验收闭环（herdr 通知 ohmycloud claude 当日收讫）：三方对账 sha 逐字一致 PASS，回执 ohmycloud#6 issuecomment-5598606699；余 stable 段等下一版 v* tag 补验。同日 D13 前置资产齐（CI dev 六件 04:59Z） |
@@ -124,7 +125,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：无。（D18 归档 P0039；D41 已关账；D13 已实收。无挂账。）
+- 当前目标：无。（D20 归档 P0040。队列无挂账。）
 
 ## 历史
 
@@ -132,6 +133,7 @@
 
 | 日期 | 目标 | 结果 |
 | --- | --- | --- |
+| 2026-09-09 | D20 去 token 注入收窄 | 达成：oma 收敛五功能；secrets / providers / login / install / update 删除（净删约三千行）；secretguard 实值比对只看环境变量；本地部署位与 profile 块不动。归档 P0040 |
 | 2026-09-09 | D18 状态栏用户级定制 | 达成：拆段拼装加生成时烘焙（segments / template / icons / codex items 键级回落、--script 整替换、--example）；等价判据 mock 逐字节一致；145 单元加 24 集成与四门禁全绿。归档 P0039 |
 | 2026-09-08 | D16 oma self update 镜像通道 | 达成：OMA_MIRROR dev 段边车判新、sha256 强制校验、网络失败回落 GitHub；102 单元加 17 集成与四门禁全绿；镜像 e2e 待 ohmycloud 播种。归档 P0036 |
 | 2026-09-08 | D15 oma 去编排收窄为纯部署配置工具 | 达成：编排命令与 rmux 后端整体移除；保留 init / doctor / agents / hook / self update / completions；97 单元加 17 集成与四门禁全绿；文档八面同步。归档 P0035 |

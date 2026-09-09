@@ -4,12 +4,13 @@
 
 ## 本质
 
-Oh My Agents（仓库名 `ohmyagents-rs`，更名自 OhMyAgents，2026-09-02；CLI 二进制 `oma`）是 **Agent 全平台 token、hook 与状态栏部署配置工具**。
+Oh My Agents（仓库名 `ohmyagents-rs`，更名自 OhMyAgents，2026-09-02；CLI 二进制 `oma`）是 **Agent 全平台部署配置与诊断工具**，专注五个功能（D20，2026-09-09 用户裁定）。
 
-- **部署配置**：按各家规则在启动的项目目录部署 hook、skill、状态栏、yolo 键与信任预写，幂等合并，不把配置写成用户家目录全局默认。
-- **token 管理**：`oma agents secrets` 一钥两密文存储加四 shell 懒注入（S031），是 token 部署配置主面；`oma agents providers` 别名簿承载提供商端点配置（S027）。
-- **对话历史检索**：`oma trace` 六视图联邦读四家原生会话库（P0013/P0014），只读、与 rmux 零耦合；D15 曾连坐删除，D19（2026-09-08 用户裁定）全量恢复为只读检索面。
-- **诊断**：`oma doctor` 只读体检（yolo / 信任 / 二进制 / state / 登录态 / hook 形态 / 状态栏 / CPU 能力），warn 与 block 分层。
+- **agent 可用性诊断**：`oma doctor` 只读体检（yolo / 信任 / 二进制 / state / 登录态 / hook 形态 / 状态栏 / CPU 能力），warn 与 block 分层；`oma agents` 四源检测。
+- **hook 设置**：`oma init` 按各家规则在启动的项目目录部署 hook、skill 与信任预写，幂等合并，不把配置写成用户家目录全局默认；`oma hook` 状态落盘加密钥拦截。
+- **状态栏设置**：`oma agents statusline` 四家写入面加用户级定制（D18）。
+- **对话 trace**：`oma trace` 六视图联邦读四家原生会话库（P0013/P0014），只读、与 rmux 零耦合；D15 曾连坐删除，D19（2026-09-08 用户裁定）全量恢复为只读检索面。
+- **yolo 不阻塞设置**：`oma init --yolo` 项目级无阻塞键与 `--pretrust` 信任预写。
 - **全平台**：Windows / macOS / Linux（含 WSL）同一命令面；四环境自适应（P0027，矩阵见 S024）。
 - **通用**：智能体集合可扩展。当前默认适配 Claude、Codex、Grok、Kimi，不是产品上限。
 
@@ -18,6 +19,7 @@ Oh My Agents（仓库名 `ohmyagents-rs`，更名自 OhMyAgents，2026-09-02；C
 - 配置钉在启动的那个项目目录，不替代 ohmypwsh 的五端环境总台。
 - 不替代 claude / codex / grok / kimi 本体，只配置它们、诊断它们的部署形态。
 - 不做编排（D15）：不拉起会话、不发任务、不做 web 镜像与传输面；rmux 不再是运行时后端。编排时代定位见归档 P0004 与 P0001 至 P0034。
+- 不管 token 环境变量注入（D20，2026-09-09 用户裁定）：secrets（一钥两密文与四 shell 懒注入，S031）、providers 别名簿（S027）、login 设备码引导（S026）整体移除；密钥安全归 ohmypwsh。历史口径见 R002 移除面注记与 P0040。
 
 ## 四仓生态
 
@@ -26,13 +28,13 @@ Oh My Agents（仓库名 `ohmyagents-rs`，更名自 OhMyAgents，2026-09-02；C
 | 仓库 | 本地 | CLI | 职责 |
 | --- | --- | --- | --- |
 | ohmyenv-rs | `D:\ohmyenv-rs` | `ome` | 本机部署、管理、验收；agent 二进制下装与版本、工具与运行时依赖 |
-| ohmyagents-rs | `D:\ohmyagents-rs` | `oma` | 诊断、配置、hook、状态栏与 token（本仓）；不管种子、不管 agent 二进制下装（D09）、不管编排（D15） |
+| ohmyagents-rs | `D:\ohmyagents-rs` | `oma` | 可用性诊断、hook、状态栏、trace 与 yolo（本仓）；不管种子、不管 agent 二进制下装（D09）、不管编排（D15）、不管 token 注入（D20） |
 | ohmypwsh | `D:\ohmypwsh` | 无单一 CLI | Windows 元主机操作台：初始主机密钥配置、兄弟仓 git 密钥扫描安全、集成 ome 与 oma 做本地与远程的主机操作、部署、检查、诊断 |
 | ohmycloud | `D:\ohmycloud` | `omcf` | 云端基础设施：工具、运行时、agent 各版本二进制的 S3 存储与 web 分发（专用域名加 Cloudflare）；镜像种子归此仓 |
 
-- 分工裁决：agent（claude / codex / grok / kimi）二进制下装归 ome（D07，ohmyagents#5）；镜像种子归 ohmycloud（`env.ohmygh.com`，D36 / P0014）；oma 不管种子，只管诊断、配置、hook、状态栏与 token（D09 加 D15，2026-09-07 与 2026-09-08 用户裁定）。旧裁决「安装归本仓、不进 ome 名录」（2026-08-31）已被 D07 反转。
-- 分发通道：官方源与 `env.ohmygh.com` 镜像由 ome `download_asset_with_mirror` 消费；oma 不维护渠道序、不参与种子。`oma agents install` / `update` 仅兼容入口，指向 `ome install`。
-- 密钥：本仓 providers.toml 走 sops 托管标准；密钥体系主权与跨仓密钥扫描安全归 ohmypwsh，集成而非自建。
+- 分工裁决：agent（claude / codex / grok / kimi）二进制下装归 ome（D07，ohmyagents#5）；镜像种子归 ohmycloud（`env.ohmygh.com`，D36 / P0014）；oma 不管种子、不管 token 注入，只管可用性诊断、hook、状态栏、trace 与 yolo（D09 加 D15 加 D20 裁定）。旧裁决「安装归本仓、不进 ome 名录」（2026-08-31）已被 D07 反转；token 注入域曾属本仓（secrets / providers，S027 / S031）已随 D20 移除。
+- 分发通道：官方源与 `env.ohmygh.com` 镜像由 ome `download_asset_with_mirror` 消费；oma 不维护渠道序、不参与种子；`oma agents install` / `update` 兼容层已随 D20 删除（历史曾 deprecated 指向 ome）。
+- 密钥：密钥体系主权与跨仓密钥扫描安全归 ohmypwsh，集成而非自建；oma 只保留 hook 面密钥拦截闸（S030，实值比对只看环境变量）。
 
 ## 约束在一个项目
 
