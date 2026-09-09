@@ -230,10 +230,7 @@ fn mirror_sidecar_url(base: &str, name: &str) -> String {
 /// 镜像资产 URL。`?v=<边车锚>` 以边车哈希为缓存键：每滚天然新键，
 /// 永久免疫「边车新、资产旧」的陈旧缓存窗口（R2 取对象只看 path）。
 fn mirror_asset_url(base: &str, name: &str, anchor: &str) -> String {
-    format!(
-        "{}/oma/dev/{name}?v={anchor}",
-        base.trim_end_matches('/')
-    )
+    format!("{}/oma/dev/{name}?v={anchor}", base.trim_end_matches('/'))
 }
 
 /// sha256sum 边车解析：首字段即哈希（标准双空格、单空格均可），容错
@@ -277,8 +274,8 @@ fn dev_via_mirror(base: &str, force: bool) -> Result<MirrorStep, String> {
         Ok(t) => t,
         Err(e) => return Ok(MirrorStep::Fallback(format!("sidecar {sidecar_url}: {e}"))),
     };
-    let digest = parse_sidecar(&sidecar)
-        .map_err(|e| format!("mirror sidecar {sidecar_url}: {e}"))?;
+    let digest =
+        parse_sidecar(&sidecar).map_err(|e| format!("mirror sidecar {sidecar_url}: {e}"))?;
     if !force && digest_matches(read_record_digest().as_deref(), Some(&digest)) {
         println!("update.source=mirror");
         println!("update.ok=already-latest");
@@ -566,9 +563,11 @@ mod tests {
             s.starts_with("https://env.ohmygh.com/oma/dev/oma-x.zip.sha256?t="),
             "sidecar url: {s}"
         );
-        assert!(s["https://env.ohmygh.com/oma/dev/oma-x.zip.sha256?t=".len()..]
-            .chars()
-            .all(|c| c.is_ascii_digit()));
+        assert!(
+            s["https://env.ohmygh.com/oma/dev/oma-x.zip.sha256?t=".len()..]
+                .chars()
+                .all(|c| c.is_ascii_digit())
+        );
         let a = mirror_asset_url("https://env.ohmygh.com/", "oma-x.zip", "abc123");
         assert_eq!(a, "https://env.ohmygh.com/oma/dev/oma-x.zip?v=abc123");
         let s2 = mirror_sidecar_url("https://env.ohmygh.com", "oma-x.zip");
@@ -586,15 +585,9 @@ mod tests {
             want
         );
         // 单空格容错
-        assert_eq!(
-            parse_sidecar(&format!("{hex} oma.zip")).unwrap(),
-            want
-        );
+        assert_eq!(parse_sidecar(&format!("{hex} oma.zip")).unwrap(), want);
         // 大写哈希归一小写
-        assert_eq!(
-            parse_sidecar(&hex.to_ascii_uppercase()).unwrap(),
-            want
-        );
+        assert_eq!(parse_sidecar(&hex.to_ascii_uppercase()).unwrap(), want);
         // sha256: 前缀容错（大小写均收）
         assert_eq!(parse_sidecar(&format!("sha256:{hex}")).unwrap(), want);
         assert_eq!(parse_sidecar(&format!("SHA256:{hex}")).unwrap(), want);

@@ -29,7 +29,10 @@ pub enum LayerVerdict {
     /// codex 状态栏：内置项 ID 面，无外部命令可跑（M045）。
     Builtin,
     Skip(String),
-    Fail { reason: String, hint: Option<String> },
+    Fail {
+        reason: String,
+        hint: Option<String>,
+    },
 }
 
 /// 单家验收结果（两层各一条；skip 时两层不跑）。
@@ -226,10 +229,7 @@ fn verify_statusline(agent: &str, home: &Path) -> LayerVerdict {
 /// 纯函数：stdout 首行含 `<agent>:` 机读标记（脚本输出形如 agent:state）。
 pub fn statusline_marker_ok(agent: &str, stdout: &str) -> bool {
     let marker = format!("{agent}:");
-    stdout
-        .lines()
-        .next()
-        .is_some_and(|l| l.contains(&marker))
+    stdout.lines().next().is_some_and(|l| l.contains(&marker))
 }
 
 /// codex：`~/.codex/config.toml` 的 `[tui] status_line` 含内置项 ID 即过。
@@ -313,10 +313,15 @@ fn verify_hook_in(
     timeout_secs: u64,
     tmp: &Path,
 ) -> (LayerVerdict, Option<String>) {
-    let fail = |reason: String| (LayerVerdict::Fail {
-        reason,
-        hint: hook_hint(agent),
-    }, None);
+    let fail = |reason: String| {
+        (
+            LayerVerdict::Fail {
+                reason,
+                hint: hook_hint(agent),
+            },
+            None,
+        )
+    };
     if let Err(e) = fs::create_dir_all(tmp) {
         return fail(format!("tmpdir: {e}"));
     }
@@ -521,8 +526,9 @@ fn git_init(dir: &Path) -> Result<(), String> {
         Ok(s) if s.success() => Ok(()),
         Ok(s) => Err(format!("exit {}", s.code().unwrap_or(-1))),
         // git 不在 PATH：回退只查 .git 存在性，手工落目录等价。
-        Err(_) => fs::create_dir_all(dir.join(".git"))
-            .map_err(|e| format!("{}: {e}", dir.display())),
+        Err(_) => {
+            fs::create_dir_all(dir.join(".git")).map_err(|e| format!("{}: {e}", dir.display()))
+        }
     }
 }
 
@@ -563,9 +569,7 @@ fn wait_with_timeout(child: &mut Child, timeout: Duration) -> bool {
     loop {
         match child.try_wait() {
             Ok(Some(_)) => return true,
-            Ok(None) if Instant::now() < deadline => {
-                std::thread::sleep(Duration::from_millis(200))
-            }
+            Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(200)),
             Ok(None) => {
                 let _ = child.kill();
                 let _ = child.wait();
@@ -645,7 +649,8 @@ mod tests {
 
     #[test]
     fn codex_builtin_accepts_multiline_and_singleline_arrays() {
-        let multiline = "model = \"gpt\"\n\n[tui]\nstatus_line = [\n  \"run-state\",\n  \"git-branch\"\n]\n";
+        let multiline =
+            "model = \"gpt\"\n\n[tui]\nstatus_line = [\n  \"run-state\",\n  \"git-branch\"\n]\n";
         assert!(codex_builtin_statusline_ok(multiline));
         let singleline = "[tui]\nstatus_line = [\"run-state\", \"current-dir\"]\n";
         assert!(codex_builtin_statusline_ok(singleline));

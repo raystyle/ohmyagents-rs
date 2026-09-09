@@ -7,10 +7,10 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
 
+use crate::archive::{copy_dir, extract_tar_gz, extract_zip, sha256_file};
 use crate::catalog::{
     AgentAsset, AgentKind, AgentPin, AgentsCatalog, CdnStyle, PinSource, SumsMode,
 };
-use crate::archive::{copy_dir, extract_tar_gz, extract_zip, sha256_file};
 
 const UA: &str = "ohmyagents-oma";
 const MANIFEST_NAME: &str = ".oma-agent-manifest.toml";

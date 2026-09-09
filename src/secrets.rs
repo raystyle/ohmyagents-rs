@@ -440,10 +440,7 @@ pub fn inject(shell: &str) -> Result<Vec<String>, String> {
     }
     let native = profile_paths(shell)?;
     apply_block(&native, &block)?;
-    let mut out = vec![format!(
-        "secrets.inject={shell} -> {}",
-        native.display()
-    )];
+    let mut out = vec![format!("secrets.inject={shell} -> {}", native.display())];
     if let Some(wsl) = wsl_profile(shell) {
         if wsl != native {
             let wsl_block = match shell {

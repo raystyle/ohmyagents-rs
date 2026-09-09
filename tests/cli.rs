@@ -26,7 +26,15 @@ fn help_lists_the_deploy_surface() {
         .stdout
         .clone();
     let s = String::from_utf8_lossy(&out);
-    for cmd in ["init", "doctor", "agents", "hook", "self", "completions", "trace"] {
+    for cmd in [
+        "init",
+        "doctor",
+        "agents",
+        "hook",
+        "self",
+        "completions",
+        "trace",
+    ] {
         assert!(s.contains(cmd), "help must list {cmd}");
     }
 }
@@ -502,7 +510,13 @@ fn verify_all_skip_exits_zero_when_no_agents_detected() {
     // 自检：罩子下仍有 agent 检出（默认目录源），本机造不出全缺，skip。
     let mut probe = oma();
     verify_empty_env(&mut probe, &tmp);
-    let out = probe.args(["agents"]).assert().success().get_output().stdout.clone();
+    let out = probe
+        .args(["agents"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
     if String::from_utf8_lossy(&out).contains("status=installed") {
         eprintln!("skip: default-dir agent installs survive the env sandbox on this host");
         let _ = std::fs::remove_dir_all(&tmp);
@@ -526,7 +540,13 @@ fn verify_live_headless_acceptance_for_installed_agents() {
     // 闸门（R004）：依赖真 agent 二进制与登录态，消耗极少量真实 token；
     // binary 不在则 eprintln skip 并 return。判据只押 hook state 落盘
     // （SessionStart/UserPromptSubmit 先于模型调用，S033）。
-    let out = oma().args(["agents"]).assert().success().get_output().stdout.clone();
+    let out = oma()
+        .args(["agents"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
     let text = String::from_utf8_lossy(&out).into_owned();
     let mut ran = 0;
     for name in ["claude", "codex", "grok", "kimi"] {

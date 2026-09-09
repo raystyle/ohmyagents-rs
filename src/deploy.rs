@@ -699,7 +699,10 @@ const COMMAND_MAP: &[(&str, &str)] = &[
         "oma agents install [名]",
         "已 deprecated（D07 迁册）：agent 安装归 ome，请用 ome install <名>（本命令保留兼容）",
     ),
-    ("oma self update", "oma 自更新（缺省 dev 滚动源，按资产 sha256 判新）"),
+    (
+        "oma self update",
+        "oma 自更新（缺省 dev 滚动源，按资产 sha256 判新）",
+    ),
     (
         "oma trace sessions|timeline|blocks|agent|file|search",
         "项目内四家 agent 对话历史检索（六视图联邦读原生会话库，只读）",
