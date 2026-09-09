@@ -35,11 +35,12 @@
 | `src\doctor.rs` | `oma doctor`：只读诊断（yolo / 信任 / 二进制 / state / 登录态 / hook 形态 / 状态栏；会话健康随 D15 移除） |
 | `src\yolo.rs` | `oma init --yolo`：四家配置落盘与 pretrust |
 | `src\deploy.rs` | `oma init` hook/skill 部署层：按 S015 矩阵落项目文件，幂等合并；SKILL.md 由 COMMAND_MAP 命令图生成（标记覆写三态） |
-| `src\install.rs` | 自适应安装层（D07 deprecated：install/update 入口提示指向 ome）：多渠道下载、sha 信任锚、oma 自管根布局、update 取证与 pin 写回 |
+| `src\install.rs` | oma 根解析（oma_home）加自管根存量探测（managed_binaries/version）加共享下载件 download_asset（self update 复用）；安装机器已随 D20 删除 |
 | `src\statusline.rs` | `oma agents statusline`：四家状态栏写入面幂等合并（S025 矩阵）；projKind 含 rust/node/python/zig/go/cpp（P0032）；脚本拆段拼装加用户级定制烘焙（~/.oma/statusline.toml 三层键加 --script 整替换，D18） |
 | `src\update.rs` | `oma self update`：dev 滚动源与正式版判新、sha256 取证、Windows rename 舞步（S028）；OMA_MIRROR 镜像通道加缓存击穿（D16） |
 | `src\trace.rs` | `oma trace` 六视图：联邦读四家原生会话库归一检索（P0013/P0014，S018/S019/S020；D15 连坐删除，D19 全量恢复） |
 | `src\verify.rs` | `oma agents verify`：四家无头验收两层判据（D17，S033）；状态栏 mock 直跑加 hook 临时 git 项目无头落盘；grok trusted_folders 种子加 Drop 摘除 |
+| `src\diagnose.rs` | `oma diagnose cache\|agents`：活性诊断族（D21）：网关发现（env 覆盖大于 claude env 大于 codex provider）、缓存双连探测加 ds 特判、配置指向加在册加 key 活性加 thinking 对照 |
 | `src\secretguard.rs` | `oma hook` 密钥拦截闸（S030）：模式表八层防误报、实值比对通道、PreToolUse/UserPromptSubmit 阻断 exit 2 |
 | `src\fmtio.rs` | 全局输出三态（kv/json/jsonl）与结构化错误出口（issue #1 契约，R011）；JSON 信封函数（D15 自 api.rs 迁入） |
 | `src\caps.rs` | CPU 指令集能力与探针退出形态分类（S021/P0018：is_x86_feature_detected 加 0xC000001D 识别） |
@@ -93,6 +94,7 @@
 | P0038 | `P0038-D17-agents-verify无头验收.md` | D17 `oma agents verify`：状态栏 mock 直跑加 hook 无头落盘两层判据；本机四家全绿 |
 | P0039 | `P0039-D18-状态栏用户级定制.md` | D18 状态栏用户级定制：拆段拼装加生成时烘焙（segments / template / icons / codex items 三层键、--script 整替换） |
 | P0040 | `P0040-D20-去token注入收窄.md` | D20 去 token 注入收窄：五功能收敛，secrets / providers / login / install / update 五面删除，secretguard 只看环境变量 |
+| P0041 | `P0041-D21-活性诊断族.md` | D21 `oma diagnose cache\|agents`：网关发现三源、缓存双连探测加 ds 特判、配置指向加在册加 key 活性加 thinking 对照 |
 
 （P0020 断号：编号已预留未使用，不复用。）
 
@@ -109,6 +111,7 @@
 - `2026-09-08-D15去编排oma退化为纯部署配置工具.md`
 - `2026-09-09-D18状态栏用户级定制.md`
 - `2026-09-09-D20去token注入收窄.md`
+- `2026-09-09-D21活性诊断族.md`
 
 ## 五、研究文档
 

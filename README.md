@@ -96,6 +96,16 @@ oma agents verify           # 四家无头验收：hook 落盘加状态栏直跑
 oma agents verify kimi --timeout 120   # 单家加超时
 ```
 
+### 活性诊断
+
+打真网关（llm.d3fend.cn）烧最小 token，与 doctor 的零网络体检分家；凭据读 agent 侧配置，也可用 `OMA_GATEWAY_URL` / `OMA_GATEWAY_KEY` 覆盖。
+
+```powershell
+oma diagnose cache                    # 全别名缓存命中矩阵（双连探测）
+oma diagnose cache zy-gpt56sol-codex  # 只测指定别名
+oma diagnose agents                   # 配置指向、别名在册、key 活性、thinking 上限
+```
+
 ### 对话历史检索
 
 ```powershell

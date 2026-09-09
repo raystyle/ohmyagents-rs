@@ -127,6 +127,7 @@
 - **生成补全**：`oma completions <shell>`
 - **检索对话历史**：`oma trace sessions|timeline|blocks|agent|file|search`（六视图联邦读四家原生会话库，只读，D19 恢复）
 - **无头验收 agent**：`oma agents verify [名] [--timeout N]`（状态栏 mock 直跑加 hook 无头落盘两层判据，D17/S033；skip 不计败，fail 退出 1）
+- **活性诊断**：`oma diagnose cache [别名...]` 加 `oma diagnose agents`（网关缓存命中矩阵加配置指向加别名在册加 key 活性加 thinking 对照，D21；打真 API 烧最小 token，与 doctor 的零网络体检分家）
 - **输出格式契约**：全局 `--format kv|json|jsonl` 加 `--json` 简写（信封冻结面见 R011）
 
 编排命令（check / spawn / respawn / status / send / key / run / task / settle / cleanup / REPL / web / serve / mcp）已随 D15 移除；token 注入面（agents secrets / providers / login）与 install / update 兼容层已随 D20 移除；历史口径见归档 P0001 至 P0034 与 P0040。新想法走 G003 五步再立项，禁止把未验收口径写成已可跑。

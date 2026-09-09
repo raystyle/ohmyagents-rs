@@ -699,6 +699,14 @@ const COMMAND_MAP: &[(&str, &str)] = &[
         "oma agents verify [名] [--timeout N]",
         "无头验收四家 agent：状态栏脚本 mock 直跑加 hook 无头落盘（S033 两层判据）",
     ),
+    (
+        "oma diagnose cache [别名...]",
+        "网关缓存探测：逐别名双连判前缀缓存命中矩阵（D21；打真 API 烧最小 token）",
+    ),
+    (
+        "oma diagnose agents",
+        "agent 配置活性检测：指向、别名在册、key 活性、thinking 上限对照（D21）",
+    ),
 ];
 
 /// 生成标记：只有带它的 SKILL.md 才允许 oma 覆写（用户手改过的跳过）。

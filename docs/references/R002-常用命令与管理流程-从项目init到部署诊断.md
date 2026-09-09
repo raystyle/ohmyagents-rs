@@ -4,7 +4,7 @@
 > 边界：协作规则在 AGENTS 二；文件与模块定位在 INDEX；规范禁令在 `docs\guide\`；输出冻结面见 `docs\references\R011-Agent友好IO契约-format三态信封退出码与冻结面.md`。
 > 显示名 Oh My Agents；仓库 `ohmyagents-rs`；CLI 二进制 `oma`。运行时数据目录是 `.oma`（D14；旧名 `.ohmyagents` 仅旧在则改名迁过去）。
 
-已落地命令全表（D20 收窄 2026-09-09：五功能 = 可用性诊断、hook、状态栏、trace、yolo）：`oma init`（全套 / --yolo）、`oma doctor`、`oma agents`（检测 / statusline / verify）、`oma hook`（状态落盘加密钥拦截闸）、`oma self update`、`oma completions`、`oma trace` 六视图（只读检索，与 rmux 无耦合）、全局 `--format` 加 `--json`。编排命令已随 D15 移除、token 注入面（secrets / providers / login）与 install / update 兼容层已随 D20 移除，历史口径见归档 P0001 至 P0034、P0040 与 git 历史。
+已落地命令全表（D20 收窄 2026-09-09：五功能 = 可用性诊断、hook、状态栏、trace、yolo）：`oma init`（全套 / --yolo）、`oma doctor`、`oma agents`（检测 / statusline / verify）、`oma hook`（状态落盘加密钥拦截闸）、`oma self update`、`oma completions`、`oma trace` 六视图（只读检索，与 rmux 无耦合）、`oma diagnose cache\|agents`（D21 活性诊断，打真网关）、全局 `--format` 加 `--json`。编排命令已随 D15 移除、token 注入面（secrets / providers / login）与 install / update 兼容层已随 D20 移除，历史口径见归档 P0001 至 P0034、P0040 与 git 历史。
 
 ## 一、环境与依赖
 
@@ -49,7 +49,16 @@ $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Env
 | 预写信任库 | `oma init --yolo --pretrust [--project PATH]` | 额外写用户家：claude.json trust、codex projects、kimi workspace-trust、grok trusted_folders；grok 的 `permission_mode` 只能写 `~/.grok/config.toml` |
 | 权限模式 | `oma init --permission-mode auto\|yolo\|manual` | 覆盖默认 yolo；manual 不写 bypass |
 
-### 2.5 自维护
+### 2.5 活性诊断
+
+> D21（2026-09-09，ohmyagents-rs#8 / ohmycloud D45 配套）。与 doctor 的契约分家：这里打真网关（llm.d3fend.cn）、烧最小 token（每别名至多三条极短 prompt）、有网络延迟；doctor 保持零网络零 token。凭据只读 agent 侧原生配置（D45 模板下发形态），`OMA_GATEWAY_URL` / `OMA_GATEWAY_KEY` 环境覆盖（联调与测试通道）；不新建存储（D20 口径）。
+
+| 意图 | 命令 | 行为细则 |
+| --- | --- | --- |
+| 缓存探测 | `oma diagnose cache [别名...]` | 网关发现序：env 覆盖 > claude `~/.claude/settings.json` env（ANTHROPIC_BASE_URL 加 AUTH_TOKEN）> codex `~/.codex/config.toml` 激活 provider 的 base_url 加 auth.json OPENAI_API_KEY；别名缺省 = GET /v1/models 全量。逐别名判线：`-codex` 尾走 /v1/responses，其余走 /v1/messages。双连同 payload（至多三连取优，网关两连异区只写不读的实测形态）：claude 线 system 带 `cache_control: ephemeral` 长文本（约 2000 token，稳过 1024 门槛）读 usage 的 cache_creation/read_input_tokens；codex 线 instructions 读 `usage.input_tokens_details.cached_tokens` 与 cache_write_tokens。verdict：hit（读到）/ write-only（只写不断连）/ auto-prefix（ds claude 线特判：官方端点全自动前缀匹配、usage 不透传字段，判不可见而非无缓存）/ none / error。kv 输出 `cache.<别名>.line= verdict=` 加 summary；任一 error 退出 1 |
+| agent 配置检测 | `oma diagnose agents` | claude 面：base_url 是否网关指向（ok / missing / warn-not-gateway）、ANTHROPIC_MODEL 加 DEFAULT 三键对 /v1/models 在册核对（warn-not-on-record，防改名漂移）、MAX_THINKING_TOKENS 对实测上限表（zy-claudefable5 与 zy-claudeopus48 = 65536；未知上限报 info）。codex 面：激活 provider base_url 指向、model 在册、auth.json key 单独打一发 /v1/models 判 alive/dead。kv 输出 `agents.<家>.<项> state=`；探测完成即 ok=true（warn 是发现不是失败） |
+
+### 2.6 自维护
 
 | 意图 | 命令 | 行为细则 |
 | --- | --- | --- |

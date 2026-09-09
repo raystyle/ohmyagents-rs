@@ -18,5 +18,7 @@ description: oma 部署配置命令图：init、诊断、hook、状态栏、trac
 | oma 自更新（缺省 dev 滚动源，按资产 sha256 判新） | `oma self update` |
 | 项目内四家 agent 对话历史检索（六视图联邦读原生会话库，只读） | `oma trace sessions|timeline|blocks|agent|file|search` |
 | 无头验收四家 agent：状态栏脚本 mock 直跑加 hook 无头落盘（S033 两层判据） | `oma agents verify [名] [--timeout N]` |
+| 网关缓存探测：逐别名双连判前缀缓存命中矩阵（D21；打真 API 烧最小 token） | `oma diagnose cache [别名...]` |
+| agent 配置活性检测：指向、别名在册、key 活性、thinking 上限对照（D21） | `oma diagnose agents` |
 
 全部命令加 `--json` 出信封。细则见仓库 `docs\references\R002`。
