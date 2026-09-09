@@ -2,6 +2,7 @@ pub mod agents;
 pub mod archive;
 pub mod caps;
 pub mod deploy;
+pub mod diagnose;
 pub mod doctor;
 pub mod fmtio;
 pub mod hook;

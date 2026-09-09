@@ -76,6 +76,22 @@ enum Commands {
         #[command(subcommand)]
         cmd: TraceCmd,
     },
+    /// 活性诊断（D21，ohmycloud D45 配套）：打真网关烧最小 token，与 doctor 的零网络体检分家
+    Diagnose {
+        #[command(subcommand)]
+        cmd: DiagnoseCmd,
+    },
+}
+
+#[derive(Subcommand)]
+enum DiagnoseCmd {
+    /// 网关缓存探测：逐别名双连同 payload 判前缀缓存命中矩阵（claude 线 /v1/messages 加 codex 线 /v1/responses；ds 线自动前缀不可见特判）
+    Cache {
+        /// 只测这些别名；缺省 = 网关 /v1/models 全量
+        aliases: Vec<String>,
+    },
+    /// agent 配置活性检测：claude/codex 配置指向、别名在册核对、key 活性、thinking 上限对照
+    Agents,
 }
 
 #[derive(Subcommand)]
@@ -273,6 +289,34 @@ fn run() -> Result<(), String> {
         },
         Commands::Completions { shell } => cmd_completions(shell),
         Commands::Trace { cmd } => cmd_trace(cmd),
+        Commands::Diagnose { cmd } => cmd_diagnose(cmd),
+    }
+}
+
+/// `oma diagnose cache|agents`：活性诊断族（D21）。打真 API、烧最小 token。
+fn cmd_diagnose(cmd: DiagnoseCmd) -> Result<(), String> {
+    match cmd {
+        DiagnoseCmd::Cache { aliases } => {
+            let out = oma::diagnose::run_cache(&aliases)?;
+            for line in oma::diagnose::render_cache_rows(&out) {
+                println!("{line}");
+            }
+            let failed = out
+                .iter()
+                .any(|(_, _, v)| matches!(v, oma::diagnose::CacheVerdict::Error(_)));
+            if failed {
+                std::process::exit(1);
+            }
+            Ok(())
+        }
+        DiagnoseCmd::Agents => {
+            let rows = oma::diagnose::run_agents()?;
+            for (k, v) in rows {
+                println!("{k}={v}");
+            }
+            println!("diagnose.agents.ok=true");
+            Ok(())
+        }
     }
 }
 
