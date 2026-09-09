@@ -294,6 +294,29 @@ fn statusline_example_prints_customization_template() {
 }
 
 #[test]
+fn dies_statusline_script_conflicts_with_builtin_and_example() {
+    // clap 互斥：--script 与 --builtin / --example 不能同场。
+    oma()
+        .args(["agents", "statusline", "--script", "x.ps1", "--builtin"])
+        .assert()
+        .failure();
+    oma()
+        .args(["agents", "statusline", "--script", "x.ps1", "--example"])
+        .assert()
+        .failure();
+}
+
+#[test]
+fn dies_statusline_script_unknown_agent_fails_before_deploy() {
+    // 未知名在任何部署动作前快败（自备脚本不被触碰）。
+    oma()
+        .args(["agents", "statusline", "no-such-agent", "--script", "x.ps1"])
+        .assert()
+        .failure()
+        .stderr(contains("claude/codex/kimi/grok"));
+}
+
+#[test]
 fn agents_install_unknown_name_fails_fast() {
     // Unknown agent is rejected before any network access: the error must
     // name the catalog's known agents.

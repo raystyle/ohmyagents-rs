@@ -706,27 +706,73 @@ pub fn pwsh_on_path() -> bool {
     crate::pathutil::find_on_path("pwsh").is_some()
 }
 
+/// 自备脚本标记（D18 整脚本替换）：`<部署脚本>.custom`，内容为源路径。
+/// 在场时 `deploy_script` 不覆写内嵌拼装产物。
+pub(crate) fn marker_path(home: &Path) -> PathBuf {
+    let mut s = script_path(home).into_os_string();
+    s.push(".custom");
+    PathBuf::from(s)
+}
+
+/// 自备脚本当前是否在场（kv 面 statusline.custom 用）。
+pub fn custom_active(home: &Path) -> bool {
+    marker_path(home).exists()
+}
+
 /// 释放状态栏脚本（幂等覆写）。按 `~/.oma/statusline.toml` 生成时烘焙：
-/// segments 键控段序与显隐，缺省回落内嵌默认（D18）。
+/// segments 键控段序与显隐，缺省回落内嵌默认（D18）。自备脚本标记在场时
+/// 跳过覆写（只保 grok .cmd 壳，见 D18 整脚本替换）。
 pub fn deploy_script(home: &Path) -> Result<PathBuf, String> {
-    let cfg = read_config(home)?;
-    let order = effective_order(&cfg)?;
-    let script = assemble_statusline_ps1(&order, &cfg).map_err(|e| {
-        // 段清单来自用户配置时，错误带上文件出处才可操作。
-        if cfg.segments.is_some() {
-            format!("{}: {e}", config_path(home).display())
-        } else {
-            e
-        }
-    })?;
     let p = script_path(home);
     if let Some(dir) = p.parent() {
         std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     }
-    std::fs::write(&p, script).map_err(|e| format!("{}: {e}", p.display()))?;
+    if !marker_path(home).exists() {
+        let cfg = read_config(home)?;
+        let order = effective_order(&cfg)?;
+        let script = assemble_statusline_ps1(&order, &cfg).map_err(|e| {
+            // 段清单来自用户配置时，错误带上文件出处才可操作。
+            if cfg.segments.is_some() {
+                format!("{}: {e}", config_path(home).display())
+            } else {
+                e
+            }
+        })?;
+        std::fs::write(&p, script).map_err(|e| format!("{}: {e}", p.display()))?;
+    }
+    let cmd = grok_cmd_path(home);
     let cmd = grok_cmd_path(home);
     std::fs::write(&cmd, STATUSLINE_GROK_CMD).map_err(|e| format!("{}: {e}", cmd.display()))?;
     Ok(p)
+}
+
+/// 部署用户自备脚本（D18 整脚本替换）：拷到部署位，agent 配置命令行不动
+/// （claude / kimi / grok 调用约定不变：首参 agent 名，stdin 喂 agent JSON，
+/// stdout 单行状态栏）；marker 记源路径，此后无 `--script` 的重跑跳过内嵌
+/// 覆盖。codex 无脚本面（M045），对 codex 只有 `[codex] items` 生效。
+pub fn deploy_custom_script(home: &Path, src: &Path) -> Result<PathBuf, String> {
+    let text =
+        std::fs::read_to_string(src).map_err(|e| format!("--script {}: {e}", src.display()))?;
+    if text.trim().is_empty() {
+        return Err(format!("--script {}: empty script", src.display()));
+    }
+    let p = script_path(home);
+    if let Some(dir) = p.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    }
+    std::fs::write(&p, text).map_err(|e| format!("{}: {e}", p.display()))?;
+    std::fs::write(marker_path(home), format!("{}\n", src.display()))
+        .map_err(|e| format!("{}: {e}", marker_path(home).display()))?;
+    Ok(p)
+}
+
+/// 还原内嵌脚本：删自备标记后重释放（`--builtin`）。
+pub fn restore_builtin_script(home: &Path) -> Result<PathBuf, String> {
+    let m = marker_path(home);
+    if m.exists() {
+        std::fs::remove_file(&m).map_err(|e| format!("{}: {e}", m.display()))?;
+    }
+    deploy_script(home)
 }
 
 /// claude：settings.json 幂等合并 statusLine（只覆盖该键）。
@@ -1124,6 +1170,56 @@ mod tests {
             !stdout.contains('\u{f06a9}'),
             "custom template drops the icon: {stdout}"
         );
+        let _ = std::fs::remove_dir_all(&home);
+    }
+
+    #[test]
+    fn custom_script_marker_survives_plain_rerun_and_restores() {
+        let home = scratch("custom");
+        let src = home.join("my-statusline.ps1");
+        std::fs::write(&src, "Write-Output 'my-bar'\n").unwrap();
+        let p = deploy_custom_script(&home, &src).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(&p).unwrap(),
+            "Write-Output 'my-bar'\n"
+        );
+        let marker = marker_path(&home);
+        assert!(marker.exists(), "marker written");
+        assert_eq!(
+            std::fs::read_to_string(&marker).unwrap(),
+            format!("{}\n", src.display()),
+            "marker records the source path"
+        );
+        // 无 --script 的重跑不覆写自备脚本（只保 grok 壳）。
+        deploy_script(&home).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(&p).unwrap(),
+            "Write-Output 'my-bar'\n",
+            "custom script must survive plain rerun"
+        );
+        assert!(home
+            .join("statusline")
+            .join("oma-statusline-grok.cmd")
+            .exists());
+        // --builtin 还原内嵌：marker 删除、内容回拼装产物。
+        restore_builtin_script(&home).unwrap();
+        assert!(!marker.exists());
+        assert_eq!(
+            std::fs::read_to_string(&p).unwrap(),
+            default_statusline_ps1()
+        );
+        let _ = std::fs::remove_dir_all(&home);
+    }
+
+    #[test]
+    fn dies_deploy_custom_script_rejects_missing_or_empty() {
+        let home = scratch("custom-bad");
+        let err = deploy_custom_script(&home, &home.join("nope.ps1")).unwrap_err();
+        assert!(err.starts_with("--script"), "{err}");
+        let empty = home.join("empty.ps1");
+        std::fs::write(&empty, "   \n").unwrap();
+        let err = deploy_custom_script(&home, &empty).unwrap_err();
+        assert!(err.contains("empty script"), "{err}");
         let _ = std::fs::remove_dir_all(&home);
     }
 

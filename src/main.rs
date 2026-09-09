@@ -205,6 +205,12 @@ enum AgentsCmd {
         /// 打印 ~/.oma/statusline.toml 定制示例模板后退出（D18）
         #[arg(long)]
         example: bool,
+        /// 部署自备状态栏脚本（D18 整脚本替换；调用契约：首参 agent 名、stdin 喂 agent JSON、stdout 单行）
+        #[arg(long, conflicts_with_all = ["example", "builtin"])]
+        script: Option<PathBuf>,
+        /// 还原内嵌脚本（撤销 --script 的自备替换）
+        #[arg(long, conflicts_with = "example")]
+        builtin: bool,
     },
     /// 引导设备码登录（grok/kimi）：转发 URL 加 code 给用户，等浏览器侧完成
     Login {
@@ -308,7 +314,12 @@ fn run() -> Result<(), String> {
                 cmd_agents_install(names, force, root)
             }
             Some(AgentsCmd::Update { names, force, root }) => cmd_agents_update(names, force, root),
-            Some(AgentsCmd::Statusline { names, example }) => cmd_agents_statusline(names, example),
+            Some(AgentsCmd::Statusline {
+                names,
+                example,
+                script,
+                builtin,
+            }) => cmd_agents_statusline(names, example, script, builtin),
             Some(AgentsCmd::Verify { names, timeout }) => cmd_agents_verify(names, timeout),
             Some(AgentsCmd::Login { names, timeout }) => cmd_agents_login(names, timeout),
             Some(AgentsCmd::Secrets { cmd }) => cmd_agents_secrets(cmd),
@@ -421,8 +432,15 @@ fn cmd_agents_secrets(cmd: Option<SecretsCmd>) -> Result<(), String> {
     }
 }
 
-/// `oma agents statusline [名] [--example]`：配置四家状态栏（幂等）。
-fn cmd_agents_statusline(names: Vec<String>, example: bool) -> Result<(), String> {
+/// `oma agents statusline [名] [--example] [--script 路径] [--builtin]`：
+/// 配置四家状态栏（幂等）。--script 部署自备脚本（D18 整脚本替换），
+/// --builtin 还原内嵌。
+fn cmd_agents_statusline(
+    names: Vec<String>,
+    example: bool,
+    script: Option<PathBuf>,
+    builtin: bool,
+) -> Result<(), String> {
     if example {
         println!("{}", oma::statusline::EXAMPLE_TOML.trim_end());
         return Ok(());
@@ -440,6 +458,12 @@ fn cmd_agents_statusline(names: Vec<String>, example: bool) -> Result<(), String
             "statusline supports claude/codex/kimi/grok only: {}",
             unknown.join(",")
         ));
+    }
+    // 整脚本替换先行（同一部署文件名，后续 merge 指向不变）。
+    if let Some(src) = &script {
+        oma::statusline::deploy_custom_script(&home, src)?;
+    } else if builtin {
+        oma::statusline::restore_builtin_script(&home)?;
     }
     if do_all || names.iter().any(|n| n == "claude") {
         let p = oma::statusline::merge_claude(&home)?;
@@ -464,6 +488,14 @@ fn cmd_agents_statusline(names: Vec<String>, example: bool) -> Result<(), String
     } else {
         println!("statusline.pwsh=missing");
         println!("statusline.warn=pwsh-not-on-path-statusline-will-not-run");
+    }
+    if let Some(src) = &script {
+        println!("statusline.custom=true");
+        println!("statusline.script={}", src.display());
+    } else if builtin {
+        println!("statusline.custom=false");
+    } else if oma::statusline::custom_active(&home) {
+        println!("statusline.custom=true");
     }
     println!("statusline.ok=true");
     Ok(())
