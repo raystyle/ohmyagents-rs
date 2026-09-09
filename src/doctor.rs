@@ -344,7 +344,7 @@ fn kimi_login_state(v: Option<&Json>, now_secs: i64) -> (Status, String) {
     }
 }
 
-/// 当下登录态（grok/kimi），供 `oma agents login` 完成后以落盘文件确认。
+/// 当下登录态（grok/kimi）：只读诊断落盘凭据（登录引导面已随 D20 移除）。
 pub(crate) fn login_state(agent: &str) -> Option<(Status, String)> {
     let home = dirs::home_dir()?;
     match agent {

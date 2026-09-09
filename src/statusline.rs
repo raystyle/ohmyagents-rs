@@ -756,7 +756,6 @@ pub fn deploy_script(home: &Path) -> Result<PathBuf, String> {
         std::fs::write(&p, script).map_err(|e| format!("{}: {e}", p.display()))?;
     }
     let cmd = grok_cmd_path(home);
-    let cmd = grok_cmd_path(home);
     std::fs::write(&cmd, STATUSLINE_GROK_CMD).map_err(|e| format!("{}: {e}", cmd.display()))?;
     Ok(p)
 }
@@ -901,7 +900,7 @@ fn apply_grok_status_line(toml: &mut toml::Value, script_str: &str) -> Result<bo
 }
 
 /// `oma agents statusline --example` 打印的带注释全量示例（存到
-/// `~/.oma/statusline.toml` 生效；对齐 `oma agents providers --example` 先例）。
+/// `~/.oma/statusline.toml` 生效）。
 pub const EXAMPLE_TOML: &str = r#"# ~/.oma/statusline.toml —— 状态栏用户级定制（D18）
 # 生成时烘焙：oma agents statusline 每次运行读本文件重拼脚本后落盘，
 # 改完本文件重跑一次 oma agents statusline 生效。

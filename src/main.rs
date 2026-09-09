@@ -173,30 +173,6 @@ enum TraceCmd {
 }
 
 #[derive(Subcommand)]
-enum SecretsCmd {
-    /// 链路初始化：app.key 生成 + age 身份包裹进 identity.enc + meta 落盘
-    Init,
-    /// 写入一个键（值走 stdin，秘密不进 argv；base64 后 sops 加密入 vault）
-    Set {
-        /// 键名（A-Z0-9_，如 DEEPSEEK_API_KEY）
-        name: String,
-    },
-    /// 解 vault 出对应 shell 的会话 env 语句（profile 块的后端）
-    Env {
-        /// 目标 shell：pwsh | bash | zsh | nu
-        #[arg(long)]
-        shell: String,
-    },
-    /// 向 shell profile 写懒注入块（幂等，标志行包裹）
-    Inject {
-        /// 目标 shell：pwsh | bash | zsh | nu；缺省四个都写
-        shells: Vec<String>,
-    },
-    /// 链路体检（redacted：只报存在性）
-    Status,
-}
-
-#[derive(Subcommand)]
 enum AgentsCmd {
     /// 配置四家状态栏（幂等：claude/codex/kimi/grok 各自配置面，脚本随 oma 释放）
     Statusline {
@@ -212,36 +188,6 @@ enum AgentsCmd {
         #[arg(long, conflicts_with = "example")]
         builtin: bool,
     },
-    /// 引导设备码登录（grok/kimi）：转发 URL 加 code 给用户，等浏览器侧完成
-    Login {
-        /// agent 名（grok/kimi）
-        names: Vec<String>,
-        /// 等浏览器侧完成的最长秒数；0 不限时
-        #[arg(long, default_value_t = 600)]
-        timeout: u64,
-    },
-    /// 密钥一钥两密文存储与四 shell 懒注入（S031，对齐 ohmycloud D20 与 ohmypwsh 懒注入）
-    Secrets {
-        #[command(subcommand)]
-        cmd: Option<SecretsCmd>,
-    },
-    /// 提供商别名簿（~/.oma/providers.toml，标准 sops 托管）
-    Providers {
-        /// 打印示例模板（含 sops 托管说明）后退出
-        #[arg(long)]
-        example: bool,
-    },
-    /// 安装缺失的 agent（已 deprecated，D07 迁册 ome：请用 ome install；oma 自管根 ~/.oma；已装任何来源即跳过）
-    Install {
-        /// agent 名列表；缺省 = catalog 全部的缺失者
-        names: Vec<String>,
-        /// 已装也重装（oma 自管根）
-        #[arg(long)]
-        force: bool,
-        /// 自定义 oma 应用数据根；缺省 OMA_HOME 环境变量或 ~/.oma
-        #[arg(long)]
-        root: Option<PathBuf>,
-    },
     /// 四家 hook 与状态栏全平台无头验收（D17）：状态栏脚本直跑加 hook 无头落盘，任一非跳过项失败退出 1
     Verify {
         /// 指定 agent（claude/codex/grok/kimi）；缺省四家全验
@@ -249,17 +195,6 @@ enum AgentsCmd {
         /// 单家无头会话最长秒数（超时杀进程不算失败，判据只看 state 落盘）
         #[arg(long)]
         timeout: Option<u64>,
-    },
-    /// 解析最新版并升级 oma 自管安装（已 deprecated，D07 迁册 ome：agent 升级归 ome），取证 sha256 后写回用户本地 pin
-    Update {
-        /// agent 名列表；缺省 = catalog 全部
-        names: Vec<String>,
-        /// 已是最新也强制重取重装
-        #[arg(long)]
-        force: bool,
-        /// 自定义 oma 应用数据根
-        #[arg(long)]
-        root: Option<PathBuf>,
     },
 }
 
@@ -310,10 +245,6 @@ fn run() -> Result<(), String> {
                 }
                 Ok(())
             }
-            Some(AgentsCmd::Install { names, force, root }) => {
-                cmd_agents_install(names, force, root)
-            }
-            Some(AgentsCmd::Update { names, force, root }) => cmd_agents_update(names, force, root),
             Some(AgentsCmd::Statusline {
                 names,
                 example,
@@ -321,9 +252,6 @@ fn run() -> Result<(), String> {
                 builtin,
             }) => cmd_agents_statusline(names, example, script, builtin),
             Some(AgentsCmd::Verify { names, timeout }) => cmd_agents_verify(names, timeout),
-            Some(AgentsCmd::Login { names, timeout }) => cmd_agents_login(names, timeout),
-            Some(AgentsCmd::Secrets { cmd }) => cmd_agents_secrets(cmd),
-            Some(AgentsCmd::Providers { example }) => cmd_agents_providers(example),
         },
         Commands::Hook { event, agent } => cmd_hook(event, agent),
         Commands::SelfGroup { cmd } => match cmd {
@@ -368,68 +296,6 @@ fn cmd_completions(shell: clap_complete::Shell) -> Result<(), String> {
     let mut cmd = Cli::command();
     clap_complete::generate(shell, &mut cmd, "oma", &mut std::io::stdout());
     Ok(())
-}
-
-/// `oma agents login [名]`：设备码登录引导（grok/kimi，S026）——转发
-/// URL 加 code、等浏览器侧完成、以落盘凭据确认。
-fn cmd_agents_login(names: Vec<String>, timeout: u64) -> Result<(), String> {
-    if names.is_empty() {
-        return Err("login needs an agent: oma agents login grok|kimi".into());
-    }
-    let mut any_failed = false;
-    for name in &names {
-        let out = oma::login::run(name, timeout)?;
-        println!("login.ok={} detail={}", out.ok, out.detail);
-        any_failed |= !out.ok;
-    }
-    if any_failed {
-        std::process::exit(1);
-    }
-    Ok(())
-}
-
-/// `oma agents secrets`：一钥两密文存储与四 shell 懒注入（S031）。
-fn cmd_agents_secrets(cmd: Option<SecretsCmd>) -> Result<(), String> {
-    use SecretsCmd as S;
-    let root = oma::install::oma_home()?;
-    match cmd {
-        None | Some(S::Status) => {
-            for line in oma::secrets::status(&root) {
-                println!("{line}");
-            }
-            Ok(())
-        }
-        Some(S::Init) => {
-            for line in oma::secrets::init(&root)? {
-                println!("{line}");
-            }
-            Ok(())
-        }
-        Some(S::Set { name }) => {
-            let value = oma::secrets::read_stdin_value()?;
-            for line in oma::secrets::set(&root, &name, &value)? {
-                println!("{line}");
-            }
-            Ok(())
-        }
-        Some(S::Env { shell }) => {
-            print!("{}", oma::secrets::env_lines(&root, &shell)?);
-            Ok(())
-        }
-        Some(S::Inject { shells }) => {
-            let targets = if shells.is_empty() {
-                vec!["pwsh", "bash", "zsh", "nu"]
-            } else {
-                shells.iter().map(String::as_str).collect()
-            };
-            for shell in targets {
-                for line in oma::secrets::inject(shell)? {
-                    println!("{line}");
-                }
-            }
-            Ok(())
-        }
-    }
 }
 
 /// `oma agents statusline [名] [--example] [--script 路径] [--builtin]`：
@@ -512,128 +378,6 @@ fn cmd_agents_verify(names: Vec<String>, timeout: Option<u64>) -> Result<(), Str
         std::process::exit(1);
     }
     Ok(())
-}
-
-/// `oma agents providers [--example]`：提供商别名簿（列出 + 模板）。
-fn cmd_agents_providers(example: bool) -> Result<(), String> {
-    if example {
-        println!("{}", oma::providers::EXAMPLE_TOML.trim_end());
-        return Ok(());
-    }
-    let path = oma::providers::store_path()?;
-    println!("providers.store={}", path.display());
-    let book = oma::providers::load()?;
-    let aliases = oma::providers::aliases(&book);
-    if aliases.is_empty() {
-        println!("providers.defined=0");
-        println!("providers.hint=oma agents providers --example 查看模板");
-        return Ok(());
-    }
-    for alias in aliases {
-        let provider = book.providers.get(&alias).unwrap();
-        for (agent, launch) in &provider.agents {
-            // 只列键名不列值——密钥值即使误配明文也不回显。
-            println!(
-                "providers.entry={alias}.{agent} env_keys={} argv={} env_keys_list={}",
-                launch.env.len(),
-                launch.argv.len(),
-                launch.env.keys().cloned().collect::<Vec<_>>().join(",")
-            );
-        }
-    }
-    Ok(())
-}
-
-fn cmd_agents_install(
-    names: Vec<String>,
-    force: bool,
-    root: Option<PathBuf>,
-) -> Result<(), String> {
-    // D07 迁册（ohmyagents#5）：agent 二进制下装部署归 ome，本命令 deprecated
-    // 但保留兼容——提示走 stderr，不污染 stdout 的 kv/json 输出面（R011）。
-    eprintln!(
-        "oma.deprecated=agents install moved to ome (D07); use: ome install <agent>; this command still works"
-    );
-    let home = root.map(Ok).unwrap_or_else(install::oma_home)?;
-    let catalog = install::resolve_catalog(&home)?;
-    let mut failed = 0u32;
-    for (name, result) in install::install_missing(&catalog, &names, &home, force) {
-        match result {
-            Ok(install::InstallOutcome::Installed {
-                version,
-                probed,
-                path,
-            }) => {
-                println!("install.{name}.status=installed version={version}");
-                match &probed {
-                    Some(v) => println!("install.{name}.probe={v}"),
-                    None => {
-                        // 失败才补分类（S021）：illegal-instruction 即指令集不匹配。
-                        let kind = oma::caps::classify_probe_exit(
-                            std::process::Command::new(&path)
-                                .arg("--version")
-                                .output()
-                                .ok()
-                                .and_then(|o| o.status.code()),
-                        );
-                        println!("install.{name}.probe=unavailable({kind})");
-                    }
-                }
-                println!("install.{name}.path={}", path.display());
-            }
-            Ok(install::InstallOutcome::Skipped { detail }) => {
-                println!("install.{name}.status=skipped detail={detail}");
-            }
-            Err(e) => {
-                failed += 1;
-                println!("install.{name}.status=failed detail={e}");
-            }
-        }
-    }
-    println!("install.home={}", home.display());
-    if failed > 0 {
-        Err(format!("{failed} agent(s) failed to install"))
-    } else {
-        Ok(())
-    }
-}
-
-fn cmd_agents_update(names: Vec<String>, force: bool, root: Option<PathBuf>) -> Result<(), String> {
-    // D07 迁册：升级通道语义由 ome 裁决（ohmyagents#2 余项），提示先指向 ome install。
-    eprintln!(
-        "oma.deprecated=agents update moved to ome (D07); use: ome install <agent> (update channel decided by ome); this command still works"
-    );
-    let home = root.map(Ok).unwrap_or_else(install::oma_home)?;
-    let catalog = install::resolve_catalog(&home)?;
-    let wanted: Vec<String> = if names.is_empty() {
-        catalog.agents.iter().map(|p| p.name.clone()).collect()
-    } else {
-        names
-    };
-    let mut failed = 0u32;
-    for name in &wanted {
-        match install::update_agent(&home, name, force) {
-            Ok(install::UpdateOutcome::Updated { from, to }) => {
-                println!("update.{name}.status=updated from={from} to={to}");
-            }
-            Ok(install::UpdateOutcome::UpToDate { version }) => {
-                println!("update.{name}.status=uptodate version={version}");
-            }
-            Ok(install::UpdateOutcome::Skipped { detail }) => {
-                println!("update.{name}.status=skipped detail={detail}");
-            }
-            Err(e) => {
-                failed += 1;
-                println!("update.{name}.status=failed detail={e}");
-            }
-        }
-    }
-    println!("update.home={}", home.display());
-    if failed > 0 {
-        Err(format!("{failed} agent(s) failed to update"))
-    } else {
-        Ok(())
-    }
 }
 
 fn cmd_hook(event: Option<String>, agent: Option<String>) -> Result<(), String> {
@@ -735,7 +479,7 @@ fn agent_report_row(r: &agents::Report) -> Value {
         None => serde_json::json!({
             "agent": r.agent,
             "status": "missing",
-            "hint": format!("oma agents install {}", r.agent),
+            "hint": format!("ome install {}", r.agent),
         }),
     }
 }

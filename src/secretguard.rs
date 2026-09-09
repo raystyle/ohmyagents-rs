@@ -257,8 +257,7 @@ struct RealSecret {
 }
 
 /// 实值比对（防线 2，构造性零误报）：本机真实密钥值直接子串比对。
-/// providers.toml **只读明文形态**——sops 密文要起子进程解密，hook 每个
-/// 工具调用都跑，不起（密文形态的实值拦截留给 spawn 注入面）。
+/// 只看环境变量（providers.toml 面已随 D20 移除；oma 不再管理注入形态）。
 fn real_secret_values() -> Vec<RealSecret> {
     let mut out = Vec::new();
     for name in SECRET_ENV_NAMES {
@@ -269,28 +268,6 @@ fn real_secret_values() -> Vec<RealSecret> {
                     display: (*name).to_string(),
                     value: v,
                 });
-            }
-        }
-    }
-    if let Ok(root) = crate::install::oma_home() {
-        let path = root.join("providers.toml");
-        if let Ok(text) = std::fs::read_to_string(&path) {
-            if !text.contains("\n[sops]") && !text.starts_with("[sops]") {
-                if let Ok(book) = toml::from_str::<crate::providers::ProviderBook>(&text) {
-                    for provider in book.providers.values() {
-                        for launch in provider.agents.values() {
-                            for (k, v) in &launch.env {
-                                if v.len() >= 8 {
-                                    out.push(RealSecret {
-                                        label: "Real secret value from providers.toml",
-                                        display: format!("providers.toml:{k}"),
-                                        value: v.clone(),
-                                    });
-                                }
-                            }
-                        }
-                    }
-                }
             }
         }
     }
@@ -565,45 +542,6 @@ mod tests {
         assert!(!scan("export SECRET_KEY=")
             .iter()
             .any(|x| x.label.contains("Real secret")));
-    }
-
-    #[test]
-    fn providers_plaintext_channel_hits_and_sops_is_skipped() {
-        let _g = crate::testenv::ENV_LOCK.lock().unwrap();
-        let home = std::env::temp_dir().join(format!(
-            "oma-guard-prov-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_millis()
-        ));
-        std::fs::create_dir_all(&home).unwrap();
-        let val = "PlaintextProvValue9k2";
-        std::fs::write(
-            home.join("providers.toml"),
-            format!("[providers.zhipu.agents.claude.env]\nANTHROPIC_AUTH_TOKEN = \"{val}\"\n"),
-        )
-        .unwrap();
-        std::env::set_var("OMA_HOME", &home);
-        let hit = scan(&format!("curl -H auth:{val}"));
-        // sops 密文形态：跳过实值通道（不起 sops 子进程）。
-        std::fs::write(
-            home.join("providers.toml"),
-            format!("[providers.zhipu.agents.claude.env]\nfoo = \"bar\"\n\n[sops]\nmac = \"x\"\n"),
-        )
-        .unwrap();
-        let skipped = scan(&format!("curl -H auth:{val}"));
-        std::env::remove_var("OMA_HOME");
-        let _ = std::fs::remove_dir_all(&home);
-        assert!(
-            hit.iter()
-                .any(|x| x.label == "Real secret value from providers.toml"),
-            "{hit:?}"
-        );
-        assert!(!skipped
-            .iter()
-            .any(|x| x.label == "Real secret value from providers.toml"));
     }
 
     #[test]

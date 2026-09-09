@@ -250,7 +250,7 @@ pub fn print_reports(reports: &[Report]) {
             None => {
                 missing += 1;
                 println!(
-                    "agent={} status=missing detail=not on PATH, OMA_AGENT_PATH, OMA_*_BIN, oma root, or default locations hint=oma agents install {}",
+                    "agent={} status=missing detail=not on PATH, OMA_AGENT_PATH, OMA_*_BIN, oma root, or default locations hint=ome install {}",
                     r.agent, r.agent
                 );
             }

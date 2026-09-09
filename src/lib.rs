@@ -1,17 +1,13 @@
 pub mod agents;
 pub mod archive;
 pub mod caps;
-pub mod catalog;
 pub mod deploy;
 pub mod doctor;
 pub mod fmtio;
 pub mod hook;
 pub mod install;
-pub mod login;
 pub mod pathutil;
-pub mod providers;
 pub mod secretguard;
-pub mod secrets;
 pub mod statusline;
 pub mod trace;
 pub mod update;

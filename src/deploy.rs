@@ -688,18 +688,6 @@ const COMMAND_MAP: &[(&str, &str)] = &[
         "配置四家状态栏（写入面幂等；状态由 hook 落盘供给；--example 定制模板，--script 自备脚本整替换，--builtin 还原）",
     ),
     (
-        "oma agents secrets init|set|env|inject|status",
-        "token 金库：一钥两密文存储加四 shell 懒注入",
-    ),
-    (
-        "oma agents login grok|kimi",
-        "设备码登录引导：转发 URL 加 code，等浏览器侧完成后以落盘凭据确认",
-    ),
-    (
-        "oma agents install [名]",
-        "已 deprecated（D07 迁册）：agent 安装归 ome，请用 ome install <名>（本命令保留兼容）",
-    ),
-    (
         "oma self update",
         "oma 自更新（缺省 dev 滚动源，按资产 sha256 判新）",
     ),
