@@ -61,6 +61,9 @@
 - **状态栏用户级定制**（D18）：脚本拆段拼装（HEAD 加 COMMON 加 PROBE 加 14 段块加 TAIL，行为等价迁移）；`~/.oma/statusline.toml` 三层定制（`segments` 段落显隐与序、`[template]` 段内模板加 `[icons]` 图标映射、`[codex] items` 内置项子集），键级缺省回落内嵌默认、坏文件硬错；`oma agents statusline --script <路径>` 整脚本替换（marker 跳过内嵌覆盖）加 `--builtin` 还原；`--example` 模板打印。README 精练为人类面向（三平台预编译安装加使用示例）。
 - **去 token 注入收窄**（D20）：oma 收敛为五功能（可用性诊断、hook、状态栏、trace、yolo）；删 `oma agents secrets`（一钥两密文与四 shell 懒注入）、`providers` 别名簿、`login` 设备码引导、`install` / `update` 兼容层与 catalog 安装机器（净删约三千行）；secretguard 实值比对只看环境变量；密钥安全归 ohmypwsh、agent 二进制归 ome。本地部署位与 shell profile 懒注入块不动（只改程序代码）。
 - **活性诊断族**（D21，ohmyagents-rs#8 / ohmycloud D45 配套）：`oma diagnose cache`（网关别名双连缓存命中矩阵，ds 线自动前缀不可见特判，三连取优抗网关异区）与 `oma diagnose agents`（配置指向、别名在册核对、key 活性、thinking 上限对照）；与 doctor 的零网络体检契约分家；真网关实收 codex 线 hit、ds 线 auto-prefix。
+- **自适应技能生成**（D22）：`oma skill [--write]` 从 clap 活命令树渲染 oma 自身 SKILL.md（Agent Skills 标准形态，新命令自动出现），`--write` 落用户级 `~/.claude/skills/ohmyagents/`。
+- **secretguard 完整 token 匹配**（D23，#9）：实值比对由裸子串改边界匹配（杀模型别名连字符超集误报；真实密钥完整值仍 block），告警 masked 带 `名[头4字符…长度]` 脱敏前缀。
+- **codex hooks schema 修复**（M055）：hooks.json 的 `command` 字段为 codex 必填，Windows 侧新部署补 bare oma 兜底（修复 0.149.1 起 commandWindows 单独存在导致整份 hooks 解析失败被弃用、hook 不触发）。
 - **D41 关账**：ohmycloud 双段验收全绿（dev 段与 stable 段三方对账 sha 逐字一致，回执 issuecomment-5598606699 / 5599216966），「我滚你播」接力退役。
 - **v0.3.0 封版**：D18 后第三正式版（v* tag 触发，三平台资产加边车同形态）；mirror job 随 tag 首次填充 oma/stable 段；`oma self update --stable` 吃 releases/latest 即到此版。
 

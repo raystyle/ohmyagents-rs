@@ -714,6 +714,10 @@ const COMMAND_MAP: &[(&str, &str)] = &[
         "oma diagnose agents",
         "agent 配置活性检测：指向、别名在册、key 活性、thinking 上限对照（D21）",
     ),
+    (
+        "oma skill [--write]",
+        "生成 oma 自身 SKILL.md（从活命令树自适应渲染，新命令自动出现；--write 落用户级 ~/.claude/skills/，D22）",
+    ),
 ];
 
 /// 生成标记：只有带它的 SKILL.md 才允许 oma 覆写（用户手改过的跳过）。

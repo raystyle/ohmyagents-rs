@@ -121,6 +121,7 @@ oma trace agent claude      # 某家 agent 的操作块时间线
 oma self update             # 自更新（缺省 dev 滚动源）
 oma self update --stable    # 走正式版
 oma completions powershell  # 补全（bash / zsh / fish / powershell）
+oma skill --write           # 生成 oma 自身技能到 ~/.claude/skills/（自适应命令树）
 ```
 
 ## 更多文档

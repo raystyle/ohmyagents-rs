@@ -41,6 +41,7 @@
 | `src\trace.rs` | `oma trace` 六视图：联邦读四家原生会话库归一检索（P0013/P0014，S018/S019/S020；D15 连坐删除，D19 全量恢复） |
 | `src\verify.rs` | `oma agents verify`：四家无头验收两层判据（D17，S033）；状态栏 mock 直跑加 hook 临时 git 项目无头落盘；grok trusted_folders 种子加 Drop 摘除 |
 | `src\diagnose.rs` | `oma diagnose cache\|agents`：活性诊断族（D21）：网关发现（env 覆盖大于 claude env 大于 codex provider）、缓存双连探测加 ds 特判、配置指向加在册加 key 活性加 thinking 对照 |
+| `src\skillgen.rs` | `oma skill`：从 clap 活命令树自适应渲染 SKILL.md（D22；frontmatter 按 Agent Skills 标准，--write 落用户级技能目录） |
 | `src\secretguard.rs` | `oma hook` 密钥拦截闸（S030）：模式表八层防误报、实值比对通道、PreToolUse/UserPromptSubmit 阻断 exit 2 |
 | `src\fmtio.rs` | 全局输出三态（kv/json/jsonl）与结构化错误出口（issue #1 契约，R011）；JSON 信封函数（D15 自 api.rs 迁入） |
 | `src\caps.rs` | CPU 指令集能力与探针退出形态分类（S021/P0018：is_x86_feature_detected 加 0xC000001D 识别） |
@@ -95,6 +96,8 @@
 | P0039 | `P0039-D18-状态栏用户级定制.md` | D18 状态栏用户级定制：拆段拼装加生成时烘焙（segments / template / icons / codex items 三层键、--script 整替换） |
 | P0040 | `P0040-D20-去token注入收窄.md` | D20 去 token 注入收窄：五功能收敛，secrets / providers / login / install / update 五面删除，secretguard 只看环境变量 |
 | P0041 | `P0041-D21-活性诊断族.md` | D21 `oma diagnose cache\|agents`：网关发现三源、缓存双连探测加 ds 特判、配置指向加在册加 key 活性加 thinking 对照 |
+| P0042 | `P0042-D22-自适应技能生成.md` | D22 `oma skill [--write]`：clap 活命令树自适应渲染 SKILL.md |
+| P0043 | `P0043-D23-secretguard完整token匹配.md` | D23 实值比对完整 token 边界匹配加脱敏前缀（#9） |
 
 （P0020 断号：编号已预留未使用，不复用。）
 
@@ -112,6 +115,7 @@
 - `2026-09-09-D18状态栏用户级定制.md`
 - `2026-09-09-D20去token注入收窄.md`
 - `2026-09-09-D21活性诊断族.md`
+- `2026-09-10-D22D23技能与守卫修复.md`
 
 ## 五、研究文档
 
@@ -197,7 +201,7 @@
 | M104 | `M104-rmux安装与CLI调用错误.md` | 安装、`-V`、`-S`、`-L`、`cmd()`、`-t` 前缀匹配 | M006-M007、M016、M020、M029 |
 | M105 | `M105-agent检测与状态判断错误.md` | PATH、which、idle、Quiet、CPU | M012、M018-M019、M040 |
 | M106 | `M106-Windows进程与daemon启动错误.md` | os error 5、Job Object、WMI、exit-empty、pane cwd | M015、M017、M021-M022、M031、M041 |
-| M107 | `M107-工具链与脚本错误.md` | sed、grep、PowerShell、中文路径、测试临时目录 | M023-M026、M028、M032-M037、M049-M050、M052-M054 |
+| M107 | `M107-工具链与脚本错误.md` | sed、grep、PowerShell、中文路径、测试临时目录 | M023-M026、M028、M032-M037、M049-M050、M052-M055 |
 
 迭代规则：踩坑按当前最大号接编 MNNN 进对应分类文件（M0xx 行级、新分类用 M1xx 接编）；一行一事；同根因或同型坑**可合并聚合**进已有条目（保留最早编号与首踩日期，聚合后的正解写全），避免同型条目无限线性追加；反复踩落 `docs\research\`；改「正确处理」不删历史行；新分类文件登记本节。**分类文件新增行级条目时，本表该行「行级编号段」当轮同步延长，漏延长即登记债（见 M043）。**
 
