@@ -76,7 +76,9 @@
 
 - **hook 与 oma 二进制解耦**（D27 / P0044，用户裁全平台 shim）：`oma init` 先落自包含状态写入脚本到 `.oma/hooks/`（Windows cmd 加 Linux bash 加 mac zsh 三份全侧落齐，跨 OS 共享项目并存），各家 hook 注册指向 shim，state 通道零 oma 依赖（oma 任意时刻可无痛轮换升级）；secretguard 由 shim fail-open 委托（oma 在位转发 payload 透传 exit 2，不在位放行）。cmd shim 两级形态：部署前探 PATH 上 jq（jq 归 ome 部署），在位落 jq 解析版（提取与生成全走 jq --arg，ts 取 now 加 floor），缺位落 findstr 回落版加 warn 指向 `ome install jq`；sh 侧 sed 基线。陈旧收敛：老 bare 与旧 exe 形态重部署一律收敛 shim 单条；doctor `hooks.form` 加 shim 读法。
 - **codex hooks PS 调用操作符根修**（M057，订正 M056）：codex 的 hook 经会话环境 shell 执行（Windows 缺省 PowerShell，源码 session/mod.rs 实证），commandWindows 正确形态是 `& "路径" codex`；M056 的「cmd 直引号形态」系验证通道错误（只经 cmd /c 直测未跑真 codex），实测直引号三事件全 Failed、调用操作符全 Completed 且 state 落盘。存量用户级 `~/.codex/hooks.json` 里 M056 期条目需手改（oma 不动家目录）。
-- **v0.5.1 封版**：D27 加 M057（bug 清零后同发，用户裁）；三平台资产加边车同形态；mac 侧 zsh shebang 实跑验收绿。
+- **verify kimi 层改临时全局注册**（M058，S033 勘误）：kimi print 模式只触发全局 `~/.kimi-code/config.toml` 的 `[[hooks]]`（项目级不触发；Windows 侧历次绿是被用户全局条目掩蔽），且 hook 命令必须不带引号（引号形态静默不执行）；verify 改 KimiGlobalHooksGuard 字节备份加临时注册加 Drop 还原。
+- **trace 金档化与三平台测试矩阵**（用户裁）：`OMA_TRACE_HOME` 覆盖会话库根（联调与测试通道，Windows 家目录解析走 SHGetKnownFolderPath 环境重定向无效）；trace 集成测试自种金档（CI 零数据可跑，修 D26 测试 CI 三平台红）；三平台同步测试（Windows 本机、WSL 共仓 Linux 运行时、mac clone 镜像单测集成验收三层）落地 R004 第 6 条，与 ome 仓讨论定标。
+- **v0.5.1 封版**：D27 加 M057 加 M058（bug 清零后同发，用户裁）；三平台资产加边车同形态；三平台测试矩阵全绿（Windows 140+22、WSL 139+22、lan-mac 139+22）。
 
 ### 排后
 
