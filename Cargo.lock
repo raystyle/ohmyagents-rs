@@ -1200,7 +1200,7 @@ dependencies = [
 
 [[package]]
 name = "oma"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "aes-gcm",
  "age",
