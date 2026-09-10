@@ -65,6 +65,8 @@
 - **secretguard 完整 token 匹配**（D23，#9）：实值比对由裸子串改边界匹配（杀模型别名连字符超集误报；真实密钥完整值仍 block），告警 masked 带 `名[头4字符…长度]` 脱敏前缀。
 - **codex hooks schema 修复**（M055）：hooks.json 的 `command` 字段为 codex 必填，Windows 侧新部署补 bare oma 兜底（修复 0.149.1 起 commandWindows 单独存在导致整份 hooks 解析失败被弃用、hook 不触发）。
 - **codex hooks cmd 形态根修**（M056，herdr 实测报修）：commandWindows 由 PowerShell 调用语法 `& "exe"` 改 cmd 形态直接引号路径（codex 在 Windows 用 cmd 执行该字段，`&` 前缀必炸 code 1）；顺带单一来源卫生：init 清 config.toml `[hooks]` 非 state 定义键（消双 representation 警告）。
+- **跨仓共识与优先级落档**（D24 / D25）：诊断分工（oma 单机运行时治理 / omc 舰队面）、集成优先级序（诊断检测首要、恢复治愈次之、安装部署配置最后，ROADMAP 阶段 8）、同文件协调三点裁（状态栏段 omc 永不碰、yolo 托管端 omc 为准、pretrust 归 oma）；herdr 周知口径与三活仓路径登记。
+- **v0.5.0 封版**：三仓里程碑对齐版（omc 0.3.0 / ome 0.2.0 / oma v0.5.0 同日，用户裁提前至今日）；M056 加共识落档为主增量。
 - **v0.4.0 封版**：D22 加 D23 加 M055 三件合并（v* tag 触发，三平台资产加边车同形态）；`oma self update --stable` 吃 releases/latest 即到此版。
 - **D41 关账**：ohmycloud 双段验收全绿（dev 段与 stable 段三方对账 sha 逐字一致，回执 issuecomment-5598606699 / 5599216966），「我滚你播」接力退役。
 - **v0.3.0 封版**：D18 后第三正式版（v* tag 触发，三平台资产加边车同形态）；mirror job 随 tag 首次填充 oma/stable 段；`oma self update --stable` 吃 releases/latest 即到此版。
