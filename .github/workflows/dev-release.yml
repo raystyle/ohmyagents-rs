@@ -16,6 +16,20 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  docs-gate:
+    # 三个 md 扫描进 CI（codex 验收 review 补：此前只在本地人工执行，
+    # 标题括号类红两次溜过发布）。rumdl 需 Python 侧工具，走 uv。
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Markdown gates
+        run: |
+          uv run --script .tools/md-ref-scan.py
+          uv run --script .tools/md-heading-scan.py
+          uv run --script .tools/mdcharlint.py
+          uvx rumdl check .
+
   build:
     strategy:
       fail-fast: false
@@ -65,7 +79,7 @@ jobs:
           path: dist/*
 
   release:
-    needs: build
+    needs: [build, docs-gate]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

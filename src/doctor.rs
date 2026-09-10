@@ -538,15 +538,30 @@ fn push_statusline(
 
 // ===== hook 注册形态（P0027 口径） =====
 
+/// 命令串首 token 解析（剥调用操作符与包裹引号）：`& "D:/x/oma-state.cmd" codex`
+/// 与 `D:/x/oma-state.cmd codex` 都得 `D:/x/oma-state.cmd`。
+fn command_target(c: &str) -> std::path::PathBuf {
+    let first = c
+        .trim_start()
+        .trim_start_matches('&')
+        .split_whitespace()
+        .next()
+        .unwrap_or("")
+        .trim_matches('"');
+    std::path::PathBuf::from(first)
+}
+
 /// JSON 形 hook 注册（claude settings、grok ohmyagents-state.json）的 oma
-/// 形态：shim（D27 自包含状态写入，零 oma 依赖，现行）/ bare（PATH 解析，
-/// D27 前跨环境形态）/ absolute（单环境）/ args（M047 病理）/ none。
+/// 形态：shim（D27 自包含状态写入且脚本在位）/ shim-dead（指向 shim 但脚本
+/// 缺失：项目搬迁或 shim 被删）/ bare（PATH 解析，D27 前跨环境形态）/
+/// absolute（单环境）/ args（M047 病理）/ none。
 fn json_hooks_form(v: Option<&Json>) -> &'static str {
     let Some(events) = v.and_then(|v| v.get("hooks")).and_then(|h| h.as_object()) else {
         return "none";
     };
     let mut ours = false;
     let mut shim = false;
+    let mut shim_dead = false;
     let mut bare = false;
     let mut has_args = false;
     for group in events.values().filter_map(|g| g.as_array()).flatten() {
@@ -566,7 +581,11 @@ fn json_hooks_form(v: Option<&Json>) -> &'static str {
                     has_args = true;
                 }
                 if c.contains("oma-state") {
-                    shim = true;
+                    if command_target(c).is_file() {
+                        shim = true;
+                    } else {
+                        shim_dead = true;
+                    }
                 }
                 if !c.contains('/') && !c.contains('\\') {
                     bare = true;
@@ -576,6 +595,8 @@ fn json_hooks_form(v: Option<&Json>) -> &'static str {
     }
     if has_args {
         "args"
+    } else if shim_dead && !shim {
+        "shim-dead"
     } else if shim {
         "shim"
     } else if bare {
@@ -618,6 +639,51 @@ fn codex_hooks_sides(v: Option<&Json>) -> (bool, bool) {
     (unix_side, win_side)
 }
 
+/// codex 各侧有效字段（Windows 看 commandWindows、Unix 看 command）的形态
+/// 分类（review 验收补：此前不分 shim / bare / absolute 一律 ok，死链也
+/// ok，D08「写了配置仍 ok」同族）。None = 该侧无 ours 条目；多条 ours 取
+/// 最差形态（shim 好、bare/absolute 次、shim-dead 最差）。
+fn codex_side_form(v: Option<&Json>, windows_side: bool) -> Option<&'static str> {
+    let events = v.and_then(|v| v.get("hooks")).and_then(|h| h.as_object())?;
+    let key = if windows_side { "commandWindows" } else { "command" };
+    let rank = |f: &str| match f {
+        "shim" => 0,
+        "bare" | "absolute" => 1,
+        _ => 2, // shim-dead
+    };
+    let mut form: Option<&'static str> = None;
+    for group in events.values().filter_map(|g| g.as_array()).flatten() {
+        let Some(hooks) = group.get("hooks").and_then(|h| h.as_array()) else {
+            continue;
+        };
+        for h in hooks {
+            let Some(c) = h.get(key).and_then(|c| c.as_str()) else {
+                continue;
+            };
+            if !crate::deploy::is_ours(c) {
+                continue;
+            }
+            let f = if c.contains("oma-state") {
+                if command_target(c).is_file() {
+                    "shim"
+                } else {
+                    "shim-dead"
+                }
+            } else if !c.contains('/') && !c.contains('\\') {
+                "bare"
+            } else {
+                "absolute"
+            };
+            form = Some(match form {
+                None => f,
+                Some(prev) if rank(prev) >= rank(f) => prev,
+                Some(_) => f,
+            });
+        }
+    }
+    form
+}
+
 fn push_hooks_form(out: &mut Vec<Finding>, agent: &str, form: &str, path: &Path) {
     match form {
         "shim" => push_status(
@@ -627,6 +693,15 @@ fn push_hooks_form(out: &mut Vec<Finding>, agent: &str, form: &str, path: &Path)
             Status::Ok,
             path,
             "form=shim (self-contained state writer in .oma/hooks; zero oma dependency, D27)",
+        ),
+        "shim-dead" => push_status(
+            out,
+            agent,
+            "hooks.form",
+            Status::Warn,
+            path,
+            "form=shim-dead (registration points at a missing .oma/hooks script; \
+             project moved or shim deleted; rerun oma init)",
         ),
         "bare" => push_status(
             out,
@@ -989,24 +1064,33 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         },
     );
     push_binary(&mut findings, "codex");
-    let (codex_unix, codex_win) =
-        codex_hooks_sides(json_file(&root.join(".codex").join("hooks.json")).as_ref());
+    let codex_json = json_file(&root.join(".codex").join("hooks.json"));
+    let (codex_unix, codex_win) = codex_hooks_sides(codex_json.as_ref());
     if codex_unix || codex_win {
+        // 分侧辨形（review 验收补）：有效字段 shim 在位才 ok；bare 是旧注册
+        // 或 M055 兜底形态提示升级；shim-dead 是死链（项目搬迁）。
+        let unix_form = codex_side_form(codex_json.as_ref(), false);
+        let win_form = codex_side_form(codex_json.as_ref(), true);
         let mut sides = Vec::new();
+        let mut all_shim = true;
         if codex_unix {
-            sides.push("command(unix)");
+            let f = unix_form.unwrap_or("absolute");
+            all_shim &= f == "shim";
+            sides.push(format!("command(unix)={f}"));
         }
         if codex_win {
-            sides.push("commandWindows(windows)");
+            let f = win_form.unwrap_or("absolute");
+            all_shim &= f == "shim";
+            sides.push(format!("commandWindows(windows)={f}"));
         }
         push_status(
             &mut findings,
             "codex",
             "hooks.form",
-            Status::Ok,
+            if all_shim { Status::Ok } else { Status::Warn },
             &root.join(".codex").join("hooks.json"),
             format!(
-                "per-OS fields ours: {} (shim by design, D27)",
+                "per-OS fields ours: {} (shim by design, D27; bare/absolute/dead = rerun oma init)",
                 sides.join(", ")
             ),
         );
@@ -1581,14 +1665,33 @@ mod tests {
 
     #[test]
     fn hooks_form_classifies_shim_bare_absolute_none() {
+        // shim 判定含在位探针：夹具真文件判 shim，死链判 shim-dead（review
+        // 验收补：此前死链也 ok）。
+        let dir = std::env::temp_dir().join(format!(
+            "oma-doctor-shim-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ));
+        let alive = dir.join(".oma").join("hooks").join("oma-state.cmd");
+        std::fs::create_dir_all(alive.parent().unwrap()).unwrap();
+        std::fs::write(&alive, "@echo off\r\n").unwrap();
+        let alive_fwd = alive.to_string_lossy().replace('\\', "/");
         let shim = json!({"hooks": {"SessionStart": [{"hooks": [
-            {"command": "& \"D:\\proj\\.oma\\hooks\\oma-state.cmd\" claude"}
+            {"command": format!("{alive_fwd} claude")}
         ]}]}});
         assert_eq!(json_hooks_form(Some(&shim)), "shim");
         let shim_grok = json!({"hooks": {"SessionStart": [{"hooks": [
-            {"command": "D:\\proj\\.oma\\hooks\\oma-state-grok.cmd"}
+            {"command": format!("& \"{alive_fwd}\" grok")}
         ]}]}});
         assert_eq!(json_hooks_form(Some(&shim_grok)), "shim");
+        let dead = json!({"hooks": {"SessionStart": [{"hooks": [
+            {"command": "D:/moved-away/.oma/hooks/oma-state.cmd claude"}
+        ]}]}});
+        assert_eq!(json_hooks_form(Some(&dead)), "shim-dead");
+        let _ = std::fs::remove_dir_all(&dir);
         let bare = json!({"hooks": {"SessionStart": [{"hooks": [{"command": "oma hook --agent claude"}]}]}});
         assert_eq!(json_hooks_form(Some(&bare)), "bare");
         let absolute =

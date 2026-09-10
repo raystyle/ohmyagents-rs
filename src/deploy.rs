@@ -113,8 +113,12 @@ fn merge_hook_event(settings: &mut Json, event: &str, our_handler: Json) -> Resu
         })
     });
     // Update an existing oma handler in place (byte-equal survivors are
-    // no-ops), or append when none survived.
+    // no-ops), or append when none survived. Same-shape duplicates collapse:
+    // after the update pass every ours-handler equals our_handler, so keep
+    // the first and drop the rest (review-verified: identical duplicates
+    // previously survived redeploy).
     let mut replaced = false;
+    let mut seen_current = false;
     for group in arr.iter_mut() {
         let Some(hooks) = group
             .as_object_mut()
@@ -123,17 +127,36 @@ fn merge_hook_event(settings: &mut Json, event: &str, our_handler: Json) -> Resu
         else {
             continue;
         };
+        let before = hooks.len();
+        hooks.retain(|handler| {
+            let ours = handler
+                .get("command")
+                .and_then(|c| c.as_str())
+                .map(|c| is_ours(c))
+                .unwrap_or(false);
+            if !ours {
+                return true;
+            }
+            if *handler == our_handler && !seen_current {
+                seen_current = true;
+                return true;
+            }
+            false
+        });
+        if hooks.len() != before {
+            changed = true;
+        }
         for handler in hooks.iter_mut() {
             let ours = handler
                 .get("command")
                 .and_then(|c| c.as_str())
                 .map(|c| is_ours(c))
                 .unwrap_or(false);
+            if ours && *handler != our_handler {
+                *handler = our_handler.clone();
+                changed = true;
+            }
             if ours {
-                if handler != &our_handler {
-                    *handler = our_handler.clone();
-                    changed = true;
-                }
                 replaced = true;
             }
         }
@@ -1232,6 +1255,45 @@ mod tests {
             "no rewrite after healing: {:?}",
             second.wrote
         );
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn identical_duplicate_ours_handlers_collapse_to_one() {
+        // Review 发现（2026-09-10 codex 验收）：同形重复条目（逐字节相同的
+        // 现行 shim 注册被人为或历史事故复制）此前经 update-in-place 双双
+        // 保留，重部署不收敛。判据：植入 N 条同形，重跑收敛为 1 条且幂等。
+        let root = fresh_dir("dedup");
+        let settings = root.join(".claude").join("settings.json");
+        ensure_parent(&settings).unwrap();
+        write_text(&settings, r#"{"hooks": {}}"#).unwrap();
+        apply_project_hooks_with(&root, host_side()).unwrap();
+        let mut v: Json = serde_json::from_str(&fs::read_to_string(&settings).unwrap()).unwrap();
+        let canonical = v["hooks"]["Stop"][0]["hooks"][0].clone();
+        let dup = json!({ "matcher": "*", "hooks": [canonical.clone(), canonical.clone()] });
+        let single = json!({ "matcher": "*", "hooks": [canonical.clone()] });
+        v["hooks"]["Stop"]
+            .as_array_mut()
+            .unwrap()
+            .extend([single, dup.clone(), dup]);
+        fs::write(&settings, serde_json::to_string(&v).unwrap()).unwrap();
+        apply_project_hooks_with(&root, host_side()).unwrap();
+        let v: Json = serde_json::from_str(&fs::read_to_string(&settings).unwrap()).unwrap();
+        let ours: Vec<&Json> = v["hooks"]["Stop"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .flat_map(|g| g["hooks"].as_array().unwrap().iter())
+            .filter(|h| {
+                h["command"]
+                    .as_str()
+                    .is_some_and(|c| is_ours(c))
+            })
+            .collect();
+        assert_eq!(ours.len(), 1, "duplicates must collapse: {ours:?}");
+        // 再跑一次零写入（真幂等）。
+        let second = apply_project_hooks_with(&root, host_side()).unwrap();
+        assert!(second.wrote.is_empty(), "idempotent after dedup: {:?}", second.wrote);
         let _ = fs::remove_dir_all(&root);
     }
 
