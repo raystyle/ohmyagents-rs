@@ -22,7 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
-| 2026-09-10 | **v0.5.0 提前今日封版**（用户急令三仓水位对齐，不再等 09-12；ohmycloud v0.3.0 已出）：M056 根修加共识落档为主增量，六资产齐（digest 前缀 5d08a67e / cbab7d3e / 4ed0a202），oma/stable 段滚动；herdr 知会版本与资产 sha 已发（对方 tool 锚即时更新）。同日 M056 挂账降级低优先观察（三端实测零触发加双消费者辨析：& 绝对形态为 grok PowerShell 承载不能照 codex 同款修） |
+| 2026-09-10 | **v0.5.0 提前今日封版**（用户急令三仓水位对齐，不再等 09-12；ohmycloud v0.3.0 已出）：M056 根修加共识落档为主增量，六资产齐（digest 前缀 5d08a67e / cbab7d3e / 4ed0a202），oma/stable 段滚动；herdr 知会版本与资产 sha 已发（对方 tool 锚即时更新）；对端验收回执全绿（sha256 前 12 位核对吻合落装位、init --pretrust 重跑 cmd 形态实测无 & 前缀 M056 生效、oma/stable 段锚对照正常）。同日 M056 挂账降级低优先观察（三端实测零触发加双消费者辨析：& 绝对形态为 grok PowerShell 承载不能照 codex 同款修） |
 | 2026-09-10 | **v0.4.0 封版发布**（D22 技能加 D23 守卫加 M055 hooks schema 三件合并；六资产齐、oma/stable 镜像段滚动）。#9 修复回执已发（issuecomment-5613373085）；#6 #7 以 D20 回执关闭；ohmycloud 交底 models.json schema 与其项目 hooks 热补（ohmycloud#6 issuecomment-5613376435）；ohmycloud 项目与本机用户级 hooks 旧形态残留均已热补 |
 | 2026-09-10 | D22 加 D23 加 M055 三件当日闭环：oma skill 自适应技能（P0042）、secretguard 完整 token 匹配（P0043，#9）、codex hooks command 字段 schema 必填修复（用户级残留同修，verify codex 链路复活实证）；135 单元全绿 |
 | 2026-09-09 | D21 达成归档 P0041：`oma diagnose cache\|agents` 活性诊断族落地（网关发现三源、缓存双连至多三连取优、ds 特判 auto-prefix、配置指向加在册加 key 活性加 thinking 对照）；131 单元加 21 集成与四门禁全绿；真网关实收 codex 线 hit 1792 与 ds 线 auto-prefix 与本机未渲染态如实上报；#8 回执已发 issuecomment-5601988015 |
