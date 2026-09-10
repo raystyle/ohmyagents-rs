@@ -539,12 +539,14 @@ fn push_statusline(
 // ===== hook 注册形态（P0027 口径） =====
 
 /// JSON 形 hook 注册（claude settings、grok ohmyagents-state.json）的 oma
-/// 形态：bare（PATH 解析，跨环境共享）/ absolute（单环境）/ none。
+/// 形态：shim（D27 自包含状态写入，零 oma 依赖，现行）/ bare（PATH 解析，
+/// D27 前跨环境形态）/ absolute（单环境）/ args（M047 病理）/ none。
 fn json_hooks_form(v: Option<&Json>) -> &'static str {
     let Some(events) = v.and_then(|v| v.get("hooks")).and_then(|h| h.as_object()) else {
         return "none";
     };
     let mut ours = false;
+    let mut shim = false;
     let mut bare = false;
     let mut has_args = false;
     for group in events.values().filter_map(|g| g.as_array()).flatten() {
@@ -563,6 +565,9 @@ fn json_hooks_form(v: Option<&Json>) -> &'static str {
                 {
                     has_args = true;
                 }
+                if c.contains("oma-state") {
+                    shim = true;
+                }
                 if !c.contains('/') && !c.contains('\\') {
                     bare = true;
                 }
@@ -571,6 +576,8 @@ fn json_hooks_form(v: Option<&Json>) -> &'static str {
     }
     if has_args {
         "args"
+    } else if shim {
+        "shim"
     } else if bare {
         "bare"
     } else if ours {
@@ -613,13 +620,21 @@ fn codex_hooks_sides(v: Option<&Json>) -> (bool, bool) {
 
 fn push_hooks_form(out: &mut Vec<Finding>, agent: &str, form: &str, path: &Path) {
     match form {
-        "bare" => push_status(
+        "shim" => push_status(
             out,
             agent,
             "hooks.form",
             Status::Ok,
             path,
-            "form=bare (PATH-resolved; one registration serves every environment)",
+            "form=shim (self-contained state writer in .oma/hooks; zero oma dependency, D27)",
+        ),
+        "bare" => push_status(
+            out,
+            agent,
+            "hooks.form",
+            Status::Warn,
+            path,
+            "form=bare (pre-D27 registration pins the oma binary; oma init upgrades to shim)",
         ),
         "args" => push_status(
             out,
@@ -633,9 +648,9 @@ fn push_hooks_form(out: &mut Vec<Finding>, agent: &str, form: &str, path: &Path)
             out,
             agent,
             "hooks.form",
-            Status::Ok,
+            Status::Warn,
             path,
-            "form=absolute (single-environment; bare once oma is on PATH)",
+            "form=absolute (pre-D27 registration pins the oma binary; oma init upgrades to shim)",
         ),
         _ => push_status(
             out,
@@ -991,7 +1006,7 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
             Status::Ok,
             &root.join(".codex").join("hooks.json"),
             format!(
-                "per-OS fields ours: {} (absolute by design)",
+                "per-OS fields ours: {} (shim by design, D27)",
                 sides.join(", ")
             ),
         );
@@ -1565,7 +1580,15 @@ mod tests {
     }
 
     #[test]
-    fn hooks_form_classifies_bare_absolute_none() {
+    fn hooks_form_classifies_shim_bare_absolute_none() {
+        let shim = json!({"hooks": {"SessionStart": [{"hooks": [
+            {"command": "& \"D:\\proj\\.oma\\hooks\\oma-state.cmd\" claude"}
+        ]}]}});
+        assert_eq!(json_hooks_form(Some(&shim)), "shim");
+        let shim_grok = json!({"hooks": {"SessionStart": [{"hooks": [
+            {"command": "D:\\proj\\.oma\\hooks\\oma-state-grok.cmd"}
+        ]}]}});
+        assert_eq!(json_hooks_form(Some(&shim_grok)), "shim");
         let bare = json!({"hooks": {"SessionStart": [{"hooks": [{"command": "oma hook --agent claude"}]}]}});
         assert_eq!(json_hooks_form(Some(&bare)), "bare");
         let absolute =

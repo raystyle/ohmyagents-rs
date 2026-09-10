@@ -254,11 +254,14 @@ fn init_full_deploys_hooks_skills_and_yolo() {
             ours[0].get("args").is_none(),
             "Grok PowerShell ParserError if command is the exe and args follow"
         );
-        assert!(ours[0]["command"]
-            .as_str()
-            .unwrap()
-            .contains("hook --agent claude"));
         assert_eq!(ours[0]["timeout"], 10);
+        assert!(
+            ours[0]["command"]
+                .as_str()
+                .unwrap()
+                .contains("oma-state"),
+            "registration points at the self-contained state shim (D27)"
+        );
         let cmd = ours[0]["command"].as_str().unwrap();
         assert!(
             !cmd.contains("/mnt/"),

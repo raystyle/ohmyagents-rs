@@ -72,6 +72,12 @@
 - **D41 关账**：ohmycloud 双段验收全绿（dev 段与 stable 段三方对账 sha 逐字一致，回执 issuecomment-5598606699 / 5599216966），「我滚你播」接力退役。
 - **v0.3.0 封版**：D18 后第三正式版（v* tag 触发，三平台资产加边车同形态）；mirror job 随 tag 首次填充 oma/stable 段；`oma self update --stable` 吃 releases/latest 即到此版。
 
+### 里程碑 2026-09-10
+
+- **hook 与 oma 二进制解耦**（D27 / P0044，用户裁全平台 shim）：`oma init` 先落自包含状态写入脚本到 `.oma/hooks/`（Windows cmd 加 Linux bash 加 mac zsh 三份全侧落齐，跨 OS 共享项目并存），各家 hook 注册指向 shim，state 通道零 oma 依赖（oma 任意时刻可无痛轮换升级）；secretguard 由 shim fail-open 委托（oma 在位转发 payload 透传 exit 2，不在位放行）。cmd shim 两级形态：部署前探 PATH 上 jq（jq 归 ome 部署），在位落 jq 解析版（提取与生成全走 jq --arg，ts 取 now 加 floor），缺位落 findstr 回落版加 warn 指向 `ome install jq`；sh 侧 sed 基线。陈旧收敛：老 bare 与旧 exe 形态重部署一律收敛 shim 单条；doctor `hooks.form` 加 shim 读法。
+- **codex hooks PS 调用操作符根修**（M057，订正 M056）：codex 的 hook 经会话环境 shell 执行（Windows 缺省 PowerShell，源码 session/mod.rs 实证），commandWindows 正确形态是 `& "路径" codex`；M056 的「cmd 直引号形态」系验证通道错误（只经 cmd /c 直测未跑真 codex），实测直引号三事件全 Failed、调用操作符全 Completed 且 state 落盘。存量用户级 `~/.codex/hooks.json` 里 M056 期条目需手改（oma 不动家目录）。
+- **v0.5.1 封版**：D27 加 M057（bug 清零后同发，用户裁）；三平台资产加边车同形态；mac 侧 zsh shebang 实跑验收绿。
+
 ### 排后
 
 - Linux/mac 接管（P0012 跨平台面）：资产与代码路径就绪；指令集 SIGILL 预备检测研究已备（S021）。

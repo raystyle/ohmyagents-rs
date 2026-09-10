@@ -531,8 +531,8 @@ fn cmd_init(yolo: bool, pretrust: bool, project: Option<PathBuf>) -> Result<(), 
         }
         println!("init.hooks.wrote.count={}", deployed.wrote.len());
         println!("init.hooks.skipped.count={}", deployed.skipped.len());
-        // Cross-environment marker (P0027): bare hooks resolve `oma` through
-        // each OS's own PATH and survive shared project dirs.
+        // Registration-form marker (D27): hooks point at the self-contained
+        // state shim in .oma/hooks/, zero oma-binary dependency.
         if let Some(form) = deployed.form {
             println!("init.hooks.form={form}");
         }

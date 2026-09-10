@@ -122,7 +122,7 @@
 - **检测已装 agent**：`oma agents`（PATH / 环境变量 / oma 自管根 / 默认目录四源；缺装 hint 指向 `ome install`，D20）
 - **配置状态栏**：`oma agents statusline [名] [--example]`（四家写入面幂等；用户级定制 `~/.oma/statusline.toml`：段落开关加模板图标加 codex 子集，`--script` 整脚本替换加 `--builtin` 还原，D18）
 - **hook 写状态加密钥拦截**：`oma hook`（状态落盘；block 级密钥 exit 2 拒调用）
-- **部署项目全套**：`oma init [--project PATH]`（yolo 加 hook/skill，四环境自适应，幂等）
+- **部署项目全套**：`oma init [--project PATH]`（yolo 加 hook/skill，四环境自适应，幂等；hook 注册指向 `.oma/hooks/` 自包含状态 shim，零 oma 依赖可无痛轮换，cmd 侧 jq 探测两级形态，D27）
 - **部署项目级 yolo**：`oma init --yolo`（仅无阻塞键）；`--pretrust` 追加家目录信任库
 - **oma 自更新**：`oma self update [--stable] [--git]`（缺省 dev 滚动源，Windows rename 舞步；设 `OMA_MIRROR=<基址>` 走镜像 dev 段，边车 sha256 判新，网络失败回落 GitHub，D16）
 - **生成 oma 自身技能**：`oma skill [--write]`（从 clap 活命令树自适应渲染 SKILL.md，新命令自动出现；--write 落用户级 ~/.claude/skills/ohmyagents/，D22）

@@ -384,7 +384,9 @@ fn hook_hint(agent: &str) -> Option<String> {
     Some(match agent {
         "codex" => "codex 信任闸 exec 下静默跳过无提示（S033）：确认 \
             --dangerously-bypass-hook-trust 已带；项目目录信任与 \
-            [hooks.state] trusted_hash 由 oma init 预种"
+            [hooks.state] trusted_hash 由 oma init 预种。hook 经会话环境 \
+            shell 执行（Windows 缺省 PowerShell，M057）：commandWindows 应为 \
+            调用操作符形态 & \"路径\" codex"
             .into(),
         "grok" => "grok 项目源 hooks 受 folder trust 门禁（S033）：verify 已自动 \
             种子并摘除 ~/.grok/trusted_folders.toml 条目；仍失败检查该文件与 grok 版本"
@@ -392,8 +394,9 @@ fn hook_hint(agent: &str) -> Option<String> {
         "kimi" => "kimi 项目级 [[hooks]] 需现行版支持；SessionEnd 在 print \
             不触发（S033），判据只押 SessionStart/UserPromptSubmit"
             .into(),
-        _ => "确认 oma 在 PATH（hook 注册为裸命令 oma hook --agent <名>）或重跑 \
-            oma init；判据只看 state 落盘，模型应答失败不影响"
+        _ => "确认 shim 在位（.oma/hooks/oma-state.*，oma init 部署）且 jq 在 \
+            PATH（jq 缺位时 cmd shim 走 findstr 回落）；判据只看 state 落盘，\
+            模型应答失败不影响"
             .into(),
     })
 }
