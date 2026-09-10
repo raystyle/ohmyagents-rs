@@ -1,5 +1,5 @@
 //! `oma agents verify`（D17）：四家 agent 的 hook 与状态栏全平台无头验收。
-//! 两层判据（S033 源码实证底座）：
+//! 两层判据（S033 源码实证底座，2026-09-10 勘误见 kimi 段）：
 //! - 状态栏：脚本本体直跑（mock 空 JSON 喂 stdin，断言 stdout 首行
 //!   `agent:state` 机读标记，S025）；codex 无外部命令面（M045），改为断言
 //!   `~/.codex/config.toml` 的 `[tui] status_line` 含内置项 ID。
@@ -7,7 +7,10 @@
 //!   hook.rs 的 fallback 段向上 8 层找 .git），判据只押 SessionStart /
 //!   UserPromptSubmit 这类先于模型调用的事件——模型应答失败（无 token、
 //!   网络错）不影响判定，state 文件落盘即 ok。kimi 的 SessionEnd 在 print
-//!   模式不触发（S033），不纳入判据。
+//!   模式不触发（S033），不纳入判据；kimi print 模式只触发**全局**
+//!   `~/.kimi-code/config.toml` 的 [[hooks]]（项目级不触发，历次 Windows
+//!   侧绿是被用户全局条目掩蔽，2026-09-10 探针实证），验收走临时全局注册
+//!   加 Drop 还原。
 
 use std::fs;
 use std::io::Write;
@@ -334,14 +337,18 @@ fn verify_hook_in(
     if let Err(e) = crate::yolo::apply_project_yolo(tmp) {
         return fail(format!("deploy-yolo: {e}"));
     }
-    // kimi 无 oma 项目级 hook 注册面（deploy.rs 只落 skill 目录）；现行版
-    // 项目 .kimi-code/config.toml 的 [[hooks]] print 链路同载（S033），
-    // verify 在临时目录补这一份注册。
-    if agent == "kimi" {
-        if let Err(e) = deploy_kimi_hooks(tmp, exe) {
-            return fail(format!("deploy-kimi-hooks: {e}"));
+    // kimi 验收走临时全局注册（S033 勘误，2026-09-10 探针实证）：print 模式
+    // 只触发全局 ~/.kimi-code/config.toml 的 [[hooks]]，项目级不触发（历次
+    // Windows 侧绿是被用户全局 oma 条目掩蔽）；命令必须是不带引号的裸命令
+    // 行（引号形态静默不执行，M048 同型）。Drop 还原用户配置。
+    let _kimi_guard = if agent == "kimi" {
+        match KimiGlobalHooksGuard::seed(exe) {
+            Ok(g) => Some(g),
+            Err(e) => return fail(format!("seed-kimi-global-hooks: {e}")),
         }
-    }
+    } else {
+        None
+    };
     // grok 项目源 hooks 受 folder trust 门禁（S033：xai-grok-config loader）：
     // 验收临时目录先种子 ~/.grok/trusted_folders.toml，Drop 时摘除（已信任不动）。
     let _grok_guard = if agent == "grok" {
@@ -391,8 +398,9 @@ fn hook_hint(agent: &str) -> Option<String> {
         "grok" => "grok 项目源 hooks 受 folder trust 门禁（S033）：verify 已自动 \
             种子并摘除 ~/.grok/trusted_folders.toml 条目；仍失败检查该文件与 grok 版本"
             .into(),
-        "kimi" => "kimi 项目级 [[hooks]] 需现行版支持；SessionEnd 在 print \
-            不触发（S033），判据只押 SessionStart/UserPromptSubmit"
+        "kimi" => "kimi print 模式只触发全局 [[hooks]] 且命令必须不带引号 \
+            （S033 勘误，2026-09-10 实证）；verify 已临时种全局注册并在结束 \
+            还原 ~/.kimi-code/config.toml；判据只押 SessionStart/UserPromptSubmit"
             .into(),
         _ => "确认 shim 在位（.oma/hooks/oma-state.*，oma init 部署）且 jq 在 \
             PATH（jq 缺位时 cmd shim 走 findstr 回落）；判据只看 state 落盘，\
@@ -401,30 +409,49 @@ fn hook_hint(agent: &str) -> Option<String> {
     })
 }
 
-/// kimi 项目级 hook 注册：[[hooks]] 追加进 <tmp>/.kimi-code/config.toml
-/// （yolo 已写 default_permission_mode，表共存）。命令钉当前 oma exe 绝对
-/// 路径，不依赖 hook 执行环境的 PATH。
-fn deploy_kimi_hooks(root: &Path, exe: &Path) -> Result<(), String> {
-    let cfg = root.join(".kimi-code").join("config.toml");
-    let mut toml = crate::yolo::read_toml(&cfg)?;
-    let table = match &mut toml {
-        toml::Value::Table(t) => t,
-        _ => return Err("kimi config.toml is not a table".into()),
-    };
-    let command = format!(
-        "\"{}\" hook --agent kimi",
-        exe.display().to_string().replace('\\', "/")
-    );
-    let mut hooks = Vec::new();
-    for event in ["SessionStart", "UserPromptSubmit"] {
-        let mut entry = toml::map::Map::new();
-        entry.insert("event".into(), toml::Value::String(event.into()));
-        entry.insert("command".into(), toml::Value::String(command.clone()));
-        entry.insert("timeout".into(), toml::Value::Integer(10));
-        hooks.push(toml::Value::Table(entry));
+/// kimi print 模式 hook 验收通道：备份 `~/.kimi-code/config.toml` 字节，
+/// 追加两条钉当前 exe 的 [[hooks]]（SessionStart / UserPromptSubmit），Drop
+/// 时还原（原文件不在则整删）。命令行必须不带引号且用正斜杠（TOML basic
+/// string 里反斜杠是转义符；kimi 对整串命令做朴素 spawn，引号形态静默
+/// 不执行）。
+struct KimiGlobalHooksGuard {
+    path: PathBuf,
+    backup: Option<Vec<u8>>,
+}
+
+impl KimiGlobalHooksGuard {
+    fn seed(exe: &Path) -> Result<Self, String> {
+        let home = dirs::home_dir().ok_or("no home")?;
+        let path = home.join(".kimi-code").join("config.toml");
+        let backup = std::fs::read(&path).ok();
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| format!("{}: {e}", parent.display()))?;
+        }
+        let mut body =
+            String::from_utf8_lossy(backup.as_deref().unwrap_or_default()).into_owned();
+        let cmd = format!(
+            "{} hook --agent kimi",
+            exe.display().to_string().replace('\\', "/")
+        );
+        for event in ["SessionStart", "UserPromptSubmit"] {
+            body.push_str(&format!("\n[[hooks]]\nevent = {event:?}\ncommand = {cmd:?}\ntimeout = 10\n"));
+        }
+        std::fs::write(&path, body).map_err(|e| format!("{}: {e}", path.display()))?;
+        Ok(KimiGlobalHooksGuard { path, backup })
     }
-    table.insert("hooks".into(), toml::Value::Array(hooks));
-    crate::yolo::toml_write(&cfg, &toml)
+}
+
+impl Drop for KimiGlobalHooksGuard {
+    fn drop(&mut self) {
+        match &self.backup {
+            Some(bytes) => {
+                let _ = std::fs::write(&self.path, bytes);
+            }
+            None => {
+                let _ = std::fs::remove_file(&self.path);
+            }
+        }
+    }
 }
 
 /// grok folder trust 临时条目（S033 项目源 hooks 门禁）。Drop 时摘除：
