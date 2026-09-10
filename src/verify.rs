@@ -392,8 +392,9 @@ fn hook_hint(agent: &str) -> Option<String> {
         "codex" => "codex 信任闸 exec 下静默跳过无提示（S033）：确认 \
             --dangerously-bypass-hook-trust 已带；项目目录信任与 \
             [hooks.state] trusted_hash 由 oma init 预种。hook 经会话环境 \
-            shell 执行（Windows 缺省 PowerShell，M057）：commandWindows 应为 \
-            调用操作符形态 & \"路径\" codex"
+            shell 执行（Windows 缺省 PowerShell，M057）：commandWindows 为 \
+            无引号正斜杠形态 D:/路径/oma-state.cmd codex（M059，bash / PS / \
+            cmd 三吃）"
             .into(),
         "grok" => "grok 项目源 hooks 受 folder trust 门禁（S033）：verify 已自动 \
             种子并摘除 ~/.grok/trusted_folders.toml 条目；仍失败检查该文件与 grok 版本"

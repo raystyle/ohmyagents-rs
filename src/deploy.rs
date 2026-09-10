@@ -154,13 +154,17 @@ fn claude_handler(root: &Path, side: OsSide) -> Json {
 }
 
 /// D27：注册命令指向自包含状态 shim（项目 `.oma/hooks/`，零 oma 依赖）。
-/// PowerShell 消费面（claude / grok 加载 settings.json，M047）用调用操作符；
-/// POSIX 一律 sh 路径直引。
+/// Windows 用**无引号正斜杠绝对路径**加参数：settings.json 是双消费者
+/// （claude 本体经 `/usr/bin/bash -c`、grok 经 PowerShell，M047/M059），
+/// `&` 调用操作符在 bash 是语法错误、双引号路径在 PS 是 ParserError，唯
+/// 无引号正斜杠三吃（bash / PowerShell / cmd 实测 2026-09-10 全 exit 0 落
+/// 盘）；边界：路径含空格时该形态在各 shell 都裂，部署侧 warn（doctor
+/// 提示）。POSIX 一律 sh 路径直引（引号在 sh 合法且必要）。
 fn shim_command_ps_or_sh(agent: &str, root: &Path, side: OsSide) -> String {
     match side {
         OsSide::Windows => format!(
-            "& \"{}\" {}",
-            root.join(".oma").join("hooks").join("oma-state.cmd").display(),
+            "{} {}",
+            crate::pathutil::forward_slash(&root.join(".oma").join("hooks").join("oma-state.cmd")),
             agent
         ),
         OsSide::Unix => format!(
@@ -193,11 +197,11 @@ pub fn host_side() -> OsSide {
 /// from `base` byte-verbatim (absent stays absent). Keys keep a fixed order
 /// so reruns converge byte-identically on both sides.
 fn codex_handler_value(base: &Json, root: &Path, session_end: bool, side: OsSide) -> Json {
-    // D27：注册指向自包含 shim（零 oma 依赖）。M057 根修：codex 的 hook 经
-    // 会话环境 shell 执行（session/mod.rs：environment.shell.derive_exec_args），
-    // Windows 缺省是 PowerShell——引号裸路径加参数是 PS ParserError（M047 同
-    // 型），调用操作符 `& "path" codex` 才对；M056 的「cmd 直引号形态」前提
-    // 错（当时只经 cmd /c 直测验证，未经 codex 实跑）。Unix 用 sh 路径直引。
+    // D27：注册指向自包含 shim（零 oma 依赖）。Windows 侧用无引号正斜杠
+    // 绝对路径加参数（M059 统一形态：codex 的 hook 经会话环境 shell 执行
+    // ——session/mod.rs 的 environment.shell.derive_exec_args，Windows 缺省
+    // PowerShell；该形态在 bash / PS / cmd 三吃，M057 的 `&` 形态被其取代，
+    // M056 的「cmd 直引号带引号」前提本就错）。Unix 用 sh 路径直引。
     // `command` 为 schema 必填（M055）：无异侧保留值时落 bare oma 兜底。
     let foreign = |key: &str| base.get(key).filter(|v| v.is_string()).cloned();
     let mut obj = serde_json::Map::new();
@@ -223,8 +227,10 @@ fn codex_handler_value(base: &Json, root: &Path, session_end: bool, side: OsSide
         obj.insert(
             "commandWindows".into(),
             json!(format!(
-                "& \"{}\" codex",
-                root.join(".oma").join("hooks").join("oma-state.cmd").display()
+                "{} codex",
+                crate::pathutil::forward_slash(
+                    &root.join(".oma").join("hooks").join("oma-state.cmd")
+                )
             )),
         );
     }
@@ -799,6 +805,15 @@ pub fn apply_project_hooks_with(root: &Path, side: OsSide) -> Result<DeployRepor
         report.wrote.push(p.display().to_string());
     }
     report.warns.extend(shim_warns);
+    // M059 边界：Windows 注册是无引号正斜杠形态，路径含空格三 shell 全裂。
+    if side == OsSide::Windows && root.to_string_lossy().contains(' ') {
+        report.warns.push(
+            "project path contains spaces: Windows hook registrations are \
+             unquoted forward-slash forms that break in every shell; relocate \
+             the project (or drop the spaces)"
+                .to_string(),
+        );
+    }
     deploy_claude(&root, &mut report)?;
     deploy_codex(&root, &mut report, side)?;
     deploy_grok(&root, &mut report)?;
@@ -889,9 +904,14 @@ mod tests {
         assert!(ours["hooks"][0].get("args").is_none());
         let claude_cmd = ours["hooks"][0]["command"].as_str().unwrap();
         if cfg!(windows) {
-            // PowerShell 消费面（M047）：调用操作符加引号路径加 agent 参数。
-            assert!(claude_cmd.starts_with("& \""), "{claude_cmd}");
-            assert!(claude_cmd.ends_with("oma-state.cmd\" claude"), "{claude_cmd}");
+            // M059：无引号正斜杠绝对路径（bash / PS / cmd 三吃；claude 本体
+            // 经 bash、grok 经 PS 消费同一字段）。
+            assert!(!claude_cmd.contains('"'), "{claude_cmd}");
+            assert!(!claude_cmd.starts_with('&'), "{claude_cmd}");
+            assert!(
+                claude_cmd.ends_with("/.oma/hooks/oma-state.cmd claude"),
+                "{claude_cmd}"
+            );
         } else {
             assert!(claude_cmd.ends_with("oma-state.sh\" claude"), "{claude_cmd}");
         }
@@ -906,16 +926,11 @@ mod tests {
         // 侧新部署也落 bare oma 兜底，Unix 侧仍不发明 commandWindows。
         let handler = &codex["hooks"]["SessionEnd"][0]["hooks"][0];
         if cfg!(windows) {
-            // M057：PowerShell 调用操作符形态（codex hook 走会话环境 shell，
-            // Windows 缺省 PS；直引号路径加参数是 ParserError）。
-            assert!(handler["commandWindows"]
-                .as_str()
-                .unwrap()
-                .starts_with("& \""));
-            assert!(handler["commandWindows"]
-                .as_str()
-                .unwrap()
-                .ends_with("oma-state.cmd\" codex"));
+            // M059：无引号正斜杠形态（codex 会话环境 shell Windows 缺省 PS，
+            // 该形态 bash / PS / cmd 三吃；M057 的 & 形态被取代）。
+            let cw = handler["commandWindows"].as_str().unwrap();
+            assert!(!cw.contains('"') && !cw.starts_with('&'), "{cw}");
+            assert!(cw.ends_with("/.oma/hooks/oma-state.cmd codex"), "{cw}");
             assert_eq!(
                 handler["command"].as_str(),
                 Some("oma hook --agent codex"),
@@ -1267,12 +1282,12 @@ mod tests {
         let h = &after_win["hooks"]["Stop"][0]["hooks"][0];
         assert_eq!(h["command"].as_str(), Some("\"/mnt/d/oma\" hook"));
         let win_cmd = h["commandWindows"].as_str().unwrap().to_string();
-        // M057：PS 调用操作符形态——codex hook 经会话环境 shell（Windows
-        // 缺省 PowerShell）执行，`& "path" codex` 才合法；M056 的直引号
-        // 形态在 PS 下是 ParserError（实测 codex 报 hook Failed）。
-        assert!(win_cmd.starts_with("& \""), "{win_cmd}");
+        // M059：无引号正斜杠形态（bash / PS / cmd 三吃；取代 M057 的 & 形态）。
+        // Windows 宿主是盘符绝对路径，Unix 宿主跑本侧写法时是 POSIX 绝对路径，
+        // 共同点是零引号零 & 加正斜杠。
+        assert!(!win_cmd.contains('"') && !win_cmd.contains('&'), "{win_cmd}");
         assert!(
-            win_cmd.ends_with("oma-state.cmd\" codex"),
+            win_cmd.ends_with("/.oma/hooks/oma-state.cmd codex"),
             "{win_cmd}"
         );
         // 陈旧值锚定（不能裸 contains("old")：macOS 临时目录在 /var/folders/，
