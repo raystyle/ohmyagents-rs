@@ -256,7 +256,7 @@ struct RealSecret {
     value: String,
 }
 
-/// 实值比对（防线 2，构造性零误报）：本机真实密钥值直接子串比对。
+/// 实值比对（防线 2，构造性零误报）：本机真实密钥值完整 token 比对。
 /// 只看环境变量（providers.toml 面已随 D20 移除；oma 不再管理注入形态）。
 fn real_secret_values() -> Vec<RealSecret> {
     let mut out = Vec::new();
@@ -322,15 +322,45 @@ pub fn scan(text: &str) -> Vec<Finding> {
         }
     }
     for real in real_secret_values() {
-        if text.contains(&real.value) {
+        if contains_complete_token(text, &real.value) {
             out.push(Finding {
                 label: real.label,
-                masked: real.display,
+                masked: format!(
+                    "{}[{}…{}]",
+                    real.display,
+                    real.value.chars().take(4).collect::<String>(),
+                    real.value.chars().count()
+                ),
                 tier: Tier::Block,
             });
         }
     }
     out
+}
+
+/// 标识符字符类：值命中要求两侧都不是该类字符（完整 token 形态）。
+/// 杀「值是更长标识符的真子串」误报族（#9：模型别名作为更长别名后缀的
+/// 一段时被裸 contains 误拦；连字符属于标识符类，超集形态不命中）。
+fn is_ident_edge(c: Option<char>) -> bool {
+    c.is_some_and(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.'))
+}
+
+/// 完整 token 匹配：text 中出现 value 且两侧无标识符字符。
+fn contains_complete_token(text: &str, value: &str) -> bool {
+    if value.is_empty() {
+        return false;
+    }
+    let mut start = 0;
+    while let Some(offset) = text[start..].find(value) {
+        let at = start + offset;
+        let before = text[..at].chars().next_back();
+        let after = text[at + value.len()..].chars().next();
+        if !is_ident_edge(before) && !is_ident_edge(after) {
+            return true;
+        }
+        start = at + value.len();
+    }
+    false
 }
 
 /// 从 hook payload 抽待扫描文本（claude/codex/kimi/grok 信封，snake_case
@@ -535,13 +565,62 @@ mod tests {
         std::env::remove_var("SECRET_KEY");
         assert!(
             f.iter()
-                .any(|x| x.label == "Real secret value in environment" && x.masked == "SECRET_KEY"),
+                .any(|x| x.label == "Real secret value in environment"
+                    && x.masked.starts_with("SECRET_KEY[")),
             "{f:?}"
         );
         // 名单内变量名本体（无值命中）不算。
         assert!(!scan("export SECRET_KEY=")
             .iter()
             .any(|x| x.label.contains("Real secret")));
+    }
+
+    #[test]
+    fn complete_token_matching_kills_superset_false_positives() {
+        // #9 误报族：值是更长连字符标识符的真子串（模型别名变体）。
+        let value = "alpha-x1";
+        assert!(
+            !contains_complete_token("model: alpha-x1-ext", value),
+            "superset 后缀形态不拦"
+        );
+        assert!(
+            !contains_complete_token("pre-alpha-x1", value),
+            "superset 前缀形态不拦"
+        );
+        assert!(
+            contains_complete_token("model = \"alpha-x1\"", value),
+            "完整 token 拦"
+        );
+        assert!(
+            contains_complete_token("key:alpha-x1 end", value),
+            "冒号与空格为边界拦"
+        );
+        // 多次出现里有一次完整形态即命中（循环推进不漏）。
+        assert!(contains_complete_token("alpha-x1-ext alpha-x1", value));
+    }
+
+    #[test]
+    fn real_value_mask_carries_redacted_prefix() {
+        let _g = crate::testenv::ENV_LOCK.lock().unwrap();
+        let val = "zq9wKxP2mNvB7tRy9c";
+        std::env::set_var("SECRET_KEY", val);
+        let f = scan(&format!("export KEY2={val}"));
+        let hit = f
+            .iter()
+            .find(|x| x.label == "Real secret value in environment")
+            .unwrap();
+        assert_eq!(
+            hit.masked, "SECRET_KEY[zq9w…18]",
+            "名加头 4 字符加长度，可定位不泄密"
+        );
+        // 完整值仍在；超集变体不再触发。
+        assert!(scan(&format!("echo {val}"))
+            .iter()
+            .any(|x| x.label == "Real secret value in environment"));
+        assert!(!scan(&format!("echo {val}-ext"))
+            .iter()
+            .any(|x| x.label == "Real secret value in environment"));
+        std::env::remove_var("SECRET_KEY");
     }
 
     #[test]
