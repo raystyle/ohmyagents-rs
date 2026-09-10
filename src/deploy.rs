@@ -239,6 +239,11 @@ fn codex_handler_value(base: &Json, exe: &str, session_end: bool, side: OsSide) 
     // the hook exec environment never inherits our PATH, so the exe is
     // absolute either way. `--agent codex` lets user-launched sessions fall
     // back to the project state file (no env).
+    //
+    // `command` is schema-REQUIRED by codex (hard parse since 0.149.1 报
+    // missing field `command` 后整份 hooks 弃用)：Windows 侧没有异侧保留值
+    // 时也必须写——落 bare `oma hook --agent codex`（PATH 形态，Windows 侧
+    // codex 优先 commandWindows，此值只是 schema 兜底不参与执行）。
     let foreign = |key: &str| base.get(key).filter(|v| v.is_string()).cloned();
     let mut obj = serde_json::Map::new();
     obj.insert("type".into(), json!("command"));
@@ -249,6 +254,8 @@ fn codex_handler_value(base: &Json, exe: &str, session_end: bool, side: OsSide) 
         );
     } else if let Some(v) = foreign("command") {
         obj.insert("command".into(), v);
+    } else {
+        obj.insert("command".into(), json!("oma hook --agent codex"));
     }
     if side == OsSide::Unix {
         if let Some(v) = foreign("commandWindows") {
@@ -903,18 +910,24 @@ mod tests {
             &fs::read_to_string(root.join(".codex").join("hooks.json")).unwrap(),
         )
         .unwrap();
-        // Field ownership: a fresh deploy writes only the host side's field.
+        // Field ownership: host side owns its field; `command` is codex
+        // schema-REQUIRED（0.149.1 起缺字段整份 hooks 解析失败）——Windows
+        // 侧新部署也落 bare oma 兜底，Unix 侧仍不发明 commandWindows。
         let handler = &codex["hooks"]["SessionEnd"][0]["hooks"][0];
-        let (owned, foreign) = if cfg!(windows) {
-            ("commandWindows", "command")
+        if cfg!(windows) {
+            assert!(handler["commandWindows"].as_str().unwrap().contains("oma"));
+            assert_eq!(
+                handler["command"].as_str(),
+                Some("oma hook --agent codex"),
+                "schema-required fallback must be present on Windows"
+            );
         } else {
-            ("command", "commandWindows")
-        };
-        assert!(handler[owned].as_str().unwrap().contains("oma"));
-        assert!(
-            handler.get(foreign).is_none(),
-            "fresh deploy must not invent the foreign-OS field"
-        );
+            assert!(handler["command"].as_str().unwrap().contains("oma"));
+            assert!(
+                handler.get("commandWindows").is_none(),
+                "Unix fresh deploy must not invent the foreign-OS field"
+            );
+        }
         assert_eq!(handler["timeout"], 3);
         assert!(codex["hooks"].get("Notification").is_none());
         let codex_toml = fs::read_to_string(root.join(".codex").join("config.toml")).unwrap();
