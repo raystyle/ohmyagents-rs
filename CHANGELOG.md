@@ -79,6 +79,7 @@
 - **verify kimi 层改临时全局注册**（M058，S033 勘误）：kimi print 模式只触发全局 `~/.kimi-code/config.toml` 的 `[[hooks]]`（项目级不触发；Windows 侧历次绿是被用户全局条目掩蔽），且 hook 命令必须不带引号（引号形态静默不执行）；verify 改 KimiGlobalHooksGuard 字节备份加临时注册加 Drop 还原。
 - **trace 金档化与三平台测试矩阵**（用户裁）：`OMA_TRACE_HOME` 覆盖会话库根（联调与测试通道，Windows 家目录解析走 SHGetKnownFolderPath 环境重定向无效）；trace 集成测试自种金档（CI 零数据可跑，修 D26 测试 CI 三平台红）；三平台同步测试（Windows 本机、WSL 共仓 Linux 运行时、mac clone 镜像单测集成验收三层）落地 R004 第 6 条，与 ome 仓讨论定标。
 - **v0.5.1 封版**：D27 加 M057 加 M058（bug 清零后同发，用户裁）；三平台资产加边车同形态；三平台测试矩阵全绿（Windows 140+22、WSL 139+22、lan-mac 139+22）。
+- **v0.5.2 快修**（M059）：注册形态统一无引号正斜杠绝对路径（`D:/路径/.oma/hooks/oma-state.cmd 名`）。v0.5.1 的 `&` 调用操作符形态在 claude 本体（Windows 装 Git Bash 时 hook 经 /usr/bin/bash -c 执行）是语法错误且退出码 2 等同阻断（dogfood 本仓实证：会话全工具被拦）；新形态 bash / PowerShell / cmd 三 shell 实测全过，真 codex 加真 claude 会话双活体验证，路径含空格部署侧 warn。三平台矩阵复跑全绿。
 
 ### 排后
 
