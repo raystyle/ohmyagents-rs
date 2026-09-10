@@ -233,16 +233,17 @@ pub fn host_side() -> OsSide {
 /// `base` byte-verbatim (absent stays absent). Keys keep a fixed order so
 /// reruns converge byte-identically on both sides.
 fn codex_handler_value(base: &Json, exe: &str, session_end: bool, side: OsSide) -> Json {
-    // codex's command is a full command line. On Windows codex 0.149 runs it
-    // through PowerShell, where `"exe" hook` is a parse error: the call
-    // operator `&` is required. The plain command stays sh-shaped for Unix;
-    // the hook exec environment never inherits our PATH, so the exe is
-    // absolute either way. `--agent codex` lets user-launched sessions fall
-    // back to the project state file (no env).
+    // codex's command is a full command line. On Windows codex executes
+    // commandWindows through cmd.exe（用户实测 2026-09-10，M056）：调用操作符
+    // `&` 是 PowerShell 语法，cmd 下必炸（hook exited code 1）；正确形态 =
+    // 直接引号路径加参数。The plain command stays sh-shaped for Unix; the
+    // hook exec environment never inherits our PATH, so the exe is absolute
+    // either way. `--agent codex` lets user-launched sessions fall back to
+    // the project state file (no env).
     //
     // `command` is schema-REQUIRED by codex (hard parse since 0.149.1 报
     // missing field `command` 后整份 hooks 弃用)：Windows 侧没有异侧保留值
-    // 时也必须写——落 bare `oma hook --agent codex`（PATH 形态，Windows 侧
+    // 时也必须写，落 bare `oma hook --agent codex`（PATH 形态，Windows 侧
     // codex 优先 commandWindows，此值只是 schema 兜底不参与执行）。
     let foreign = |key: &str| base.get(key).filter(|v| v.is_string()).cloned();
     let mut obj = serde_json::Map::new();
@@ -264,7 +265,7 @@ fn codex_handler_value(base: &Json, exe: &str, session_end: bool, side: OsSide) 
     } else {
         obj.insert(
             "commandWindows".into(),
-            json!(format!("& \"{exe}\" hook --agent codex")),
+            json!(format!("\"{exe}\" hook --agent codex")),
         );
     }
     obj.insert("timeout".into(), json!(if session_end { 3 } else { 10 }));
@@ -441,6 +442,23 @@ fn deploy_codex(root: &Path, report: &mut DeployReport, side: OsSide) -> Result<
     // the final hooks.json (real indices, not assumption zero).
     let final_hooks = read_json(&path)?;
     let entries = codex_trust_entries(&final_hooks, &cfg)?;
+    let mut trust_changed = false;
+    // 单一来源卫生（M056 顺带，用户建议）：hook 定义只在 hooks.json；config.toml
+    // 里 [hooks] 下除 state 外的定义键（旧部署或它源残留）部署时清掉，消
+    // codex 的双 representation 警告。trust state 不动。
+    if let Some(toml::Value::Table(hooks_tbl)) = table.get_mut("hooks") {
+        let stale_defs: Vec<String> = hooks_tbl
+            .keys()
+            .filter(|k| k.as_str() != "state")
+            .cloned()
+            .collect();
+        if !stale_defs.is_empty() {
+            for k in stale_defs {
+                hooks_tbl.remove(&k);
+            }
+            trust_changed = true;
+        }
+    }
     let states = table.entry("hooks".to_string()).or_insert_with(|| {
         let mut hooks_tbl = toml::map::Map::new();
         hooks_tbl.insert(
@@ -459,7 +477,6 @@ fn deploy_codex(root: &Path, report: &mut DeployReport, side: OsSide) -> Result<
         toml::Value::Table(t) => t,
         _ => return Err("codex [hooks.state] is not a table".into()),
     };
-    let mut trust_changed = false;
     for (key, hash) in entries {
         let current = state_map
             .get(&key)
@@ -1269,7 +1286,14 @@ mod tests {
         let h = &after_win["hooks"]["Stop"][0]["hooks"][0];
         assert_eq!(h["command"].as_str(), Some("\"/mnt/d/oma\" hook"));
         let win_cmd = h["commandWindows"].as_str().unwrap().to_string();
-        assert!(win_cmd.starts_with("& \""), "{win_cmd}");
+        // M056：cmd 形态——直接引号路径加参数；调用操作符 & 是 PowerShell 语法
+        // （codex 在 Windows 用 cmd 执行该字段，& 前缀必炸 code 1）。
+        assert!(win_cmd.starts_with("\""), "{win_cmd}");
+        assert!(
+            !win_cmd.starts_with("&"),
+            "cmd form must not use the call operator: {win_cmd}"
+        );
+        assert!(win_cmd.ends_with("hook --agent codex"), "{win_cmd}");
         assert!(!win_cmd.contains("old"), "owned field rewritten: {win_cmd}");
 
         // Same side again: byte-identical, nothing rewritten.
