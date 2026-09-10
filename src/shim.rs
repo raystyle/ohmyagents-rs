@@ -248,7 +248,7 @@ pub fn deploy_shims(
         state_sh_for("bash")
     };
     if write_if_changed(&sh, &sh_body)? {
-        wrote.push(sh);
+        wrote.push(sh.clone());
     }
     #[cfg(unix)]
     {

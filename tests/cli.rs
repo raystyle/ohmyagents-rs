@@ -71,46 +71,83 @@ fn trace_sessions_on_empty_project_is_zero() {
 #[test]
 fn trace_formats_and_pagination_markers() {
     // D26：trace 全视图吃 --format 三态；截断时 kv 补 has_more；sessions 吃
-    // --limit；--offset 翻页可用。本仓是真数据项目（有历史会话）。
-    let cwd = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    // json：信封可解析、data.items 是数组。
-    let out = oma()
-        .current_dir(&cwd)
-        .args(["--format", "json", "trace", "sessions", "--limit", "2"])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let v: serde_json::Value = serde_json::from_slice(&out).expect("json envelope parses");
+    // --limit；--offset 翻页可用。数据自种金档（R004：期望不依赖宿主机的
+    // 真实会话历史——CI 检出无任何 agent 数据，靠本仓历史只会本机绿）：
+    // OMA_TRACE_HOME 重定向会话库根到夹具，.claude/projects/<slug>/ 下三
+    // 会话各两轮 Edit 工具调用（timeline 6 事件、blocks 6 块）。
+    let cwd = std::env::temp_dir().join(format!(
+        "oma-cli-trace-fmt-{}-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis(),
+        NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    let home = cwd.join("fake-home");
+    // slug 规则来自 claude 会话库约定（trace.rs 文首）：路径非字母数字一律换 -。
+    let slug: String = cwd
+        .to_string_lossy()
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
+        .collect();
+    let proj = home.join(".claude").join("projects").join(&slug);
+    std::fs::create_dir_all(&proj).unwrap();
+    for i in 0..3 {
+        let mut body = String::new();
+        for t in 0..2 {
+            let user = serde_json::json!({
+                "type": "user",
+                "timestamp": format!("2026-09-01T10:{i}{t}:00Z"),
+                "message": {"role": "user", "content": format!("seed ask {i}-{t}")},
+            });
+            let assistant = serde_json::json!({
+                "type": "assistant",
+                "timestamp": format!("2026-09-01T10:{i}{t}:05Z"),
+                "message": {"role": "assistant", "content": [
+                    {"type": "text", "text": format!("seed op {i}-{t}")},
+                    {"type": "tool_use", "id": format!("call-{i}-{t}"), "name": "Edit",
+                     "input": {
+                        "file_path": cwd.join(format!("f-{i}-{t}.txt")).to_string_lossy(),
+                        "new_string": "x",
+                     }},
+                ]},
+            });
+            body.push_str(&user.to_string());
+            body.push('\n');
+            body.push_str(&assistant.to_string());
+            body.push('\n');
+        }
+        std::fs::write(proj.join(format!("seed-sess-{i}.jsonl")), body).unwrap();
+    }
+    let run = |args: &[&str]| -> String {
+        let out = oma()
+            .current_dir(&cwd)
+            .env("OMA_TRACE_HOME", &home)
+            .args(args)
+            .assert()
+            .success()
+            .get_output()
+            .stdout
+            .clone();
+        String::from_utf8_lossy(&out).into_owned()
+    };
+    // json：信封可解析、data.items 是数组（三会话取二）。
+    let json = run(&["--format", "json", "trace", "sessions", "--limit", "2"]);
+    let v: serde_json::Value = serde_json::from_str(&json).expect("json envelope parses");
     assert_eq!(v["ok"], serde_json::json!(true));
     assert_eq!(v["data"]["count"], serde_json::json!(2));
     assert!(v["data"]["items"].as_array().unwrap().len() == 2);
-    // jsonl：逐行对象可解析。
-    let out = oma()
-        .current_dir(&cwd)
-        .args(["--format", "jsonl", "trace", "timeline", "--limit", "2"])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let lines: Vec<serde_json::Value> = String::from_utf8_lossy(&out)
+    // jsonl：逐行对象可解析（六事件取二）。
+    let jsonl = run(&["--format", "jsonl", "trace", "timeline", "--limit", "2"]);
+    let lines: Vec<serde_json::Value> = jsonl
         .lines()
         .filter(|l| !l.trim().is_empty())
         .map(|l| serde_json::from_str(l).expect("jsonl line parses"))
         .collect();
     assert_eq!(lines.len(), 2, "jsonl rows = limit");
     // kv：截断时 has_more 与 offset_next 显式标记（不再静默 clamp）。
-    let out = oma()
-        .current_dir(&cwd)
-        .args(["trace", "blocks", "--limit", "2"])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let s = String::from_utf8_lossy(&out);
+    let s = run(&["trace", "blocks", "--limit", "2"]);
     assert!(s.contains("trace.blocks.count=2"));
     assert!(
         s.contains("trace.has_more=true"),
@@ -118,14 +155,7 @@ fn trace_formats_and_pagination_markers() {
     );
     assert!(s.contains("offset_next=2"));
     // offset 翻页：第二窗与第一窗不重叠。
-    let page2 = oma()
-        .current_dir(&cwd)
-        .args(["trace", "blocks", "--limit", "2", "--offset", "2"])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
+    let page2 = run(&["trace", "blocks", "--limit", "2", "--offset", "2"]);
     let ops = |t: &str| -> Vec<String> {
         t.lines()
             .filter(|l| l.starts_with("trace.block "))
@@ -141,9 +171,10 @@ fn trace_formats_and_pagination_markers() {
             .collect()
     };
     let p1 = ops(&s);
-    let p2 = ops(&String::from_utf8_lossy(&page2));
+    let p2 = ops(&page2);
     assert!(!p1.is_empty() && !p2.is_empty());
     assert!(p1.iter().all(|o| !p2.contains(o)), "pages must not overlap");
+    let _ = std::fs::remove_dir_all(&cwd);
 }
 
 #[test]
