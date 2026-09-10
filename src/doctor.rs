@@ -1067,30 +1067,42 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
     let codex_json = json_file(&root.join(".codex").join("hooks.json"));
     let (codex_unix, codex_win) = codex_hooks_sides(codex_json.as_ref());
     if codex_unix || codex_win {
-        // 分侧辨形（review 验收补）：有效字段 shim 在位才 ok；bare 是旧注册
-        // 或 M055 兜底形态提示升级；shim-dead 是死链（项目搬迁）。
+        // 分侧辨形（review 验收补）：warn 判据只看宿主侧字段——非宿主侧在
+        // 单环境部署下恒为 M055 bare 兜底（init 修不掉，warn 即空转）；两
+        // 侧 shim-dead/absolute 都是真缺陷仍降 warn。
+        let host_windows = cfg!(windows);
         let unix_form = codex_side_form(codex_json.as_ref(), false);
         let win_form = codex_side_form(codex_json.as_ref(), true);
+        // 宿主侧必须 shim；非宿主侧 bare 是 M055 兜底设计态（不 warn），
+        // absolute / shim-dead 任何一侧都是真缺陷（warn）。
+        let side_ok = |f: &str, is_host: bool| {
+            if is_host {
+                f == "shim"
+            } else {
+                f != "shim-dead" && f != "absolute"
+            }
+        };
         let mut sides = Vec::new();
-        let mut all_shim = true;
+        let mut ok = true;
         if codex_unix {
             let f = unix_form.unwrap_or("absolute");
-            all_shim &= f == "shim";
+            ok &= side_ok(f, !host_windows);
             sides.push(format!("command(unix)={f}"));
         }
         if codex_win {
             let f = win_form.unwrap_or("absolute");
-            all_shim &= f == "shim";
+            ok &= side_ok(f, host_windows);
             sides.push(format!("commandWindows(windows)={f}"));
         }
         push_status(
             &mut findings,
             "codex",
             "hooks.form",
-            if all_shim { Status::Ok } else { Status::Warn },
+            if ok { Status::Ok } else { Status::Warn },
             &root.join(".codex").join("hooks.json"),
             format!(
-                "per-OS fields ours: {} (shim by design, D27; bare/absolute/dead = rerun oma init)",
+                "per-OS fields ours: {} (shim by design, D27; host side must be shim, \
+                 dead/absolute anywhere = rerun oma init)",
                 sides.join(", ")
             ),
         );
@@ -1709,6 +1721,46 @@ mod tests {
             "args",
             "Grok loads Claude settings; command+args is ParserError (M047)"
         );
+    }
+
+    #[test]
+    fn codex_side_form_classifies_shim_bare_dead() {
+        // 期望来自注册形态语义（M059/M055）：shim 需脚本在位；bare 无路径
+        // 分隔符；shim-dead 指 oma-state 但文件缺失；absolute 其余带路径。
+        let dir = std::env::temp_dir().join(format!(
+            "oma-doctor-codex-form-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ));
+        let alive = dir.join(".oma").join("hooks").join("oma-state.cmd");
+        std::fs::create_dir_all(alive.parent().unwrap()).unwrap();
+        std::fs::write(&alive, "@echo off\r\n").unwrap();
+        let fwd = alive.to_string_lossy().replace('\\', "/");
+        let shim_win = json!({"hooks": {"SessionStart": [{"hooks": [
+            {"command": "oma hook --agent codex", "commandWindows": format!("{fwd} codex")}
+        ]}]}});
+        assert_eq!(codex_side_form(Some(&shim_win), true), Some("shim"));
+        // M055 兜底：command 是 bare（设计态，非宿主侧不 warn 的判据基础）。
+        assert_eq!(codex_side_form(Some(&shim_win), false), Some("bare"));
+        let dead = json!({"hooks": {"SessionStart": [{"hooks": [
+            {"command": "\"/p/x/.oma/hooks/oma-state.sh\" codex"}
+        ]}]}});
+        assert_eq!(codex_side_form(Some(&dead), false), Some("shim-dead"));
+        let absolute = json!({"hooks": {"SessionStart": [{"hooks": [
+            {"commandWindows": "\"D:\\old\\oma.exe\" hook --agent codex"}
+        ]}]}});
+        assert_eq!(codex_side_form(Some(&absolute), true), Some("absolute"));
+        // 多条 ours 取最差：shim 加 dead 共存判 dead。
+        let mixed = json!({"hooks": {"SessionStart": [
+            {"hooks": [{"commandWindows": format!("{fwd} codex")}]},
+            {"hooks": [{"commandWindows": "D:/moved/.oma/hooks/oma-state.cmd codex"}]}
+        ]}});
+        assert_eq!(codex_side_form(Some(&mixed), true), Some("shim-dead"));
+        assert_eq!(codex_side_form(None, true), None);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

@@ -293,6 +293,7 @@ fn merge_codex_hook_event(
         .ok_or_else(|| "event groups is not an array".to_string())?;
     let mut changed = false;
     let mut replaced = false;
+    let mut seen_current: Option<Json> = None;
     for group in arr.iter_mut() {
         let Some(hooks) = group
             .as_object_mut()
@@ -301,6 +302,23 @@ fn merge_codex_hook_event(
         else {
             continue;
         };
+        let before = hooks.len();
+        hooks.retain(|handler| {
+            if !handler_is_ours(handler) {
+                return true;
+            }
+            let next = codex_handler_value(handler, root, session_end, side);
+            match &seen_current {
+                Some(cur) if cur == &next => false, // 同形重复：保首条弃余
+                _ => {
+                    seen_current = Some(next);
+                    true
+                }
+            }
+        });
+        if hooks.len() != before {
+            changed = true;
+        }
         for handler in hooks.iter_mut() {
             if !handler_is_ours(handler) {
                 continue;
@@ -1294,6 +1312,36 @@ mod tests {
         // 再跑一次零写入（真幂等）。
         let second = apply_project_hooks_with(&root, host_side()).unwrap();
         assert!(second.wrote.is_empty(), "idempotent after dedup: {:?}", second.wrote);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn codex_identical_duplicates_collapse_too() {
+        // review 复核补：claude/grok 面去重后 codex 面同样存在同形重复不
+        // 收敛（update-in-place 双双保留）。判据：植入两条同形 ours 处理器，
+        // 重部署收敛 1 条且幂等。
+        let root = fresh_dir("cdedup");
+        let path = root.join(".codex").join("hooks.json");
+        ensure_parent(&path).unwrap();
+        write_text(&path, r#"{"hooks": {}}"#).unwrap();
+        apply_project_hooks_with(&root, host_side()).unwrap();
+        let mut v: Json =
+            serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        let canonical = v["hooks"]["Stop"][0]["hooks"][0].clone();
+        v["hooks"]["Stop"][0]["hooks"] = Json::Array(vec![canonical.clone(), canonical]);
+        fs::write(&path, serde_json::to_string(&v).unwrap()).unwrap();
+        apply_project_hooks_with(&root, host_side()).unwrap();
+        let v: Json = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        let ours: Vec<&Json> = v["hooks"]["Stop"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .flat_map(|g| g["hooks"].as_array().unwrap().iter())
+            .filter(|h| handler_is_ours(h))
+            .collect();
+        assert_eq!(ours.len(), 1, "codex duplicates must collapse: {ours:?}");
+        let second = apply_project_hooks_with(&root, host_side()).unwrap();
+        assert!(second.wrote.is_empty(), "idempotent: {:?}", second.wrote);
         let _ = fs::remove_dir_all(&root);
     }
 

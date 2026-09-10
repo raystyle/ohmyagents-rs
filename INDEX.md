@@ -34,7 +34,7 @@
 | `src\agents.rs` | `oma agents`：PATH / 环境变量 / 默认目录探测 |
 | `src\doctor.rs` | `oma doctor`：只读诊断（yolo / 信任 / 二进制 / state / 登录态 / hook 形态 / 状态栏；会话健康随 D15 移除） |
 | `src\yolo.rs` | `oma init --yolo`：四家配置落盘与 pretrust |
-| `src\deploy.rs` | `oma init` hook/skill 部署层：按 S015 矩阵落项目文件，幂等合并，注册指向 `.oma/hooks/` 状态 shim（D27；codex commandWindows 用 PS 调用操作符形态，M057）；SKILL.md 由 COMMAND_MAP 命令图生成（标记覆写三态） |
+| `src\deploy.rs` | `oma init` hook/skill 部署层：按 S015 矩阵落项目文件，幂等合并，注册指向 `.oma/hooks/` 状态 shim（D27；Windows 注册 M059 无引号正斜杠形态，merge 同形去重）；SKILL.md 由 COMMAND_MAP 命令图生成（标记覆写三态） |
 | `src\shim.rs` | D27 自包含状态写入 shim 常量与部署：oma-state.cmd（jq 首选加 findstr 回落，PATH 探 jq）、oma-state.sh（bash 或 mac zsh）、grok baked 包装；三份全侧落齐幂等 |
 | `src\install.rs` | oma 根解析（oma_home）加自管根存量探测（managed_binaries/version）加共享下载件 download_asset（self update 复用）；安装机器已随 D20 删除 |
 | `src\statusline.rs` | `oma agents statusline`：四家状态栏写入面幂等合并（S025 矩阵）；projKind 含 rust/node/python/zig/go/cpp（P0032）；脚本拆段拼装加用户级定制烘焙（~/.oma/statusline.toml 三层键加 --script 整替换，D18） |
@@ -198,7 +198,7 @@
 | 编号 | 分类文件 | 覆盖关键词 | 行级编号段 |
 | --- | --- | --- | --- |
 | M101 | `M101-drive与paste错误.md` | send-keys、Enter、`C-c`、bracketed paste、marker 假阳性 | M001、M008、M027、M038-M039 |
-| M102 | `M102-信任与hook配置错误.md` | 信任框、trust、pretrust、init、yolo、ENOENT、共享目录 | M002、M009-M011、M042、M044-M048、M051、M055-M059 |
+| M102 | `M102-信任与hook配置错误.md` | 信任框、trust、pretrust、init、yolo、ENOENT、共享目录 | M002、M009-M011、M042、M044-M048、M051、M055-M060 |
 | M103 | `M103-文档与命名错误.md` | 命名、显示名、CLI 名、六态、diary、标题规范、索引登记 | M003-M005、M013-M014、M030、M043 |
 | M104 | `M104-rmux安装与CLI调用错误.md` | 安装、`-V`、`-S`、`-L`、`cmd()`、`-t` 前缀匹配 | M006-M007、M016、M020、M029 |
 | M105 | `M105-agent检测与状态判断错误.md` | PATH、which、idle、Quiet、CPU | M012、M018-M019、M040 |
