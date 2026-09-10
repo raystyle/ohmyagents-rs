@@ -293,7 +293,9 @@ fn merge_codex_hook_event(
         .ok_or_else(|| "event groups is not an array".to_string())?;
     let mut changed = false;
     let mut replaced = false;
-    let mut seen_current: Option<Json> = None;
+    // 全量已见集合而非单值（review 复核残余：A,B,A 序列单值判定会漏掉尾
+    // A；集合语义按形态全等去重，异形各自保留）。
+    let mut seen: std::collections::HashSet<Json> = std::collections::HashSet::new();
     for group in arr.iter_mut() {
         let Some(hooks) = group
             .as_object_mut()
@@ -308,13 +310,7 @@ fn merge_codex_hook_event(
                 return true;
             }
             let next = codex_handler_value(handler, root, session_end, side);
-            match &seen_current {
-                Some(cur) if cur == &next => false, // 同形重复：保首条弃余
-                _ => {
-                    seen_current = Some(next);
-                    true
-                }
-            }
+            seen.insert(next) // 同形重复：保首条弃余
         });
         if hooks.len() != before {
             changed = true;
@@ -1325,21 +1321,38 @@ mod tests {
         ensure_parent(&path).unwrap();
         write_text(&path, r#"{"hooks": {}}"#).unwrap();
         apply_project_hooks_with(&root, host_side()).unwrap();
+        let count_ours = |p: &Path| -> usize {
+            let v: Json = serde_json::from_str(&fs::read_to_string(p).unwrap()).unwrap();
+            v["hooks"]["Stop"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .flat_map(|g| g["hooks"].as_array().unwrap().iter())
+                .filter(|h| handler_is_ours(h))
+                .count()
+        };
         let mut v: Json =
             serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
         let canonical = v["hooks"]["Stop"][0]["hooks"][0].clone();
-        v["hooks"]["Stop"][0]["hooks"] = Json::Array(vec![canonical.clone(), canonical]);
+        // 阶段一：两条同形 → 收敛 1。
+        v["hooks"]["Stop"][0]["hooks"] = Json::Array(vec![canonical.clone(), canonical.clone()]);
         fs::write(&path, serde_json::to_string(&v).unwrap()).unwrap();
         apply_project_hooks_with(&root, host_side()).unwrap();
-        let v: Json = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
-        let ours: Vec<&Json> = v["hooks"]["Stop"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .flat_map(|g| g["hooks"].as_array().unwrap().iter())
-            .filter(|h| handler_is_ours(h))
-            .collect();
-        assert_eq!(ours.len(), 1, "codex duplicates must collapse: {ours:?}");
+        assert_eq!(count_ours(&path), 1, "two identical must collapse to one");
+        // 阶段二：A,B,A 对称用例（review 复核残余）：单值 seen 会漏掉尾 A，
+        // 集合语义必须收敛到 A 加 B 两条（B 携带异侧保留值，形态与 A 恒不同）。
+        let other = json!({
+            "type": "command",
+            "command": "\"/mnt/d/old/oma\" hook --agent codex",
+            "commandWindows": "\"D:\\old2\\oma.exe\" hook --agent codex",
+            "timeout": 10,
+        });
+        v["hooks"]["Stop"][0]["hooks"] =
+            Json::Array(vec![canonical, other.clone(), other]);
+        fs::write(&path, serde_json::to_string(&v).unwrap()).unwrap();
+        apply_project_hooks_with(&root, host_side()).unwrap();
+        assert_eq!(count_ours(&path), 2, "A,B,A collapses to two distinct");
+        // 阶段三：收敛后幂等。
         let second = apply_project_hooks_with(&root, host_side()).unwrap();
         assert!(second.wrote.is_empty(), "idempotent: {:?}", second.wrote);
         let _ = fs::remove_dir_all(&root);
