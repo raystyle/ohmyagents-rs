@@ -121,10 +121,15 @@ fn trace_formats_and_pagination_markers() {
         std::fs::write(proj.join(format!("seed-sess-{i}.jsonl")), body).unwrap();
     }
     let run = |args: &[&str]| -> String {
+        // --project 钉测试侧拼写：macOS 的 TMPDIR 是符号链接（/var 到
+        // /private/var），子进程 getcwd 会解析成真实路径，slug 随之漂移；
+        // 显式传参与夹具同串，三平台同形。
         let out = oma()
             .current_dir(&cwd)
             .env("OMA_TRACE_HOME", &home)
             .args(args)
+            .arg("--project")
+            .arg(&cwd)
             .assert()
             .success()
             .get_output()
