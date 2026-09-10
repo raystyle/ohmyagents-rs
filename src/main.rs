@@ -11,11 +11,7 @@ use oma::trace;
 use oma::yolo;
 
 #[derive(Parser)]
-#[command(
-    name = "oma",
-    version,
-    about = "Oh My Agents：Agent 全平台 token、hook 与状态栏部署配置工具"
-)]
+#[command(name = "oma", version)]
 struct Cli {
     /// JSON 信封输出（--format json 简写）
     #[arg(long, global = true, conflicts_with = "format")]
@@ -55,6 +51,7 @@ enum Commands {
     /// Agent hook 入口：读事件写 `.oma/state`。用户手拉会话按 payload cwd 回退写项目状态文件
     Hook {
         /// 事件名或四态（idle/working/blocked/unknown）；省略则读 stdin JSON
+        #[arg(value_name = "事件")]
         event: Option<String>,
         /// agent 名（注册参数注入；回退写项目状态文件用）
         #[arg(long)]
@@ -81,6 +78,12 @@ enum Commands {
         #[command(subcommand)]
         cmd: DiagnoseCmd,
     },
+    /// 生成 oma 自身 SKILL.md（从活命令树自适应渲染；--write 落用户级 ~/.claude/skills/ohmyagents/）
+    Skill {
+        /// 写入用户级技能目录后退出（缺省打印到 stdout）
+        #[arg(long)]
+        write: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -88,6 +91,7 @@ enum DiagnoseCmd {
     /// 网关缓存探测：逐别名双连同 payload 判前缀缓存命中矩阵（claude 线 /v1/messages 加 codex 线 /v1/responses；ds 线自动前缀不可见特判）
     Cache {
         /// 只测这些别名；缺省 = 网关 /v1/models 全量
+        #[arg(value_name = "别名")]
         aliases: Vec<String>,
     },
     /// agent 配置活性检测：claude/codex 配置指向、别名在册核对、key 活性、thinking 上限对照
@@ -138,6 +142,7 @@ enum TraceCmd {
     },
     /// 按正则检索 patch、file、双意图四域（非法正则退字面子串）
     Search {
+        #[arg(value_name = "关键词")]
         query: String,
         /// 只看某家 agent
         #[arg(long)]
@@ -152,6 +157,7 @@ enum TraceCmd {
     /// 单文件的 agent 修改轨迹：谁、何时、基于什么意图改了这个文件
     File {
         /// 项目内相对路径（可用 glob）
+        #[arg(value_name = "文件")]
         file: String,
         /// 只看某家 agent
         #[arg(long)]
@@ -193,6 +199,7 @@ enum AgentsCmd {
     /// 配置四家状态栏（幂等：claude/codex/kimi/grok 各自配置面，脚本随 oma 释放）
     Statusline {
         /// 指定 agent（claude/codex/kimi/grok）；缺省四家都配
+        #[arg(value_name = "名")]
         names: Vec<String>,
         /// 打印 ~/.oma/statusline.toml 定制示例模板后退出（D18）
         #[arg(long)]
@@ -207,6 +214,7 @@ enum AgentsCmd {
     /// 四家 hook 与状态栏全平台无头验收（D17）：状态栏脚本直跑加 hook 无头落盘，任一非跳过项失败退出 1
     Verify {
         /// 指定 agent（claude/codex/grok/kimi）；缺省四家全验
+        #[arg(value_name = "名")]
         names: Vec<String>,
         /// 单家无头会话最长秒数（超时杀进程不算失败，判据只看 state 落盘）
         #[arg(long)]
@@ -290,6 +298,27 @@ fn run() -> Result<(), String> {
         Commands::Completions { shell } => cmd_completions(shell),
         Commands::Trace { cmd } => cmd_trace(cmd),
         Commands::Diagnose { cmd } => cmd_diagnose(cmd),
+        Commands::Skill { write } => cmd_skill(write),
+    }
+}
+
+/// `oma skill [--write]`：从 clap 活命令树自适应渲染 SKILL.md（D22）。
+fn cmd_skill(write: bool) -> Result<(), String> {
+    let body = oma::skillgen::render_skill(&Cli::command());
+    if write {
+        let dir = dirs::home_dir()
+            .ok_or("no home")?
+            .join(".claude")
+            .join("skills")
+            .join("ohmyagents");
+        std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        let path = dir.join("SKILL.md");
+        std::fs::write(&path, &body).map_err(|e| format!("{}: {e}", path.display()))?;
+        println!("skill.wrote={}", path.display());
+        Ok(())
+    } else {
+        println!("{body}");
+        Ok(())
     }
 }
 

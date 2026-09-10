@@ -9,6 +9,7 @@ pub mod hook;
 pub mod install;
 pub mod pathutil;
 pub mod secretguard;
+pub mod skillgen;
 pub mod statusline;
 pub mod trace;
 pub mod update;
