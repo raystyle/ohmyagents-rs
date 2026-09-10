@@ -69,6 +69,84 @@ fn trace_sessions_on_empty_project_is_zero() {
 }
 
 #[test]
+fn trace_formats_and_pagination_markers() {
+    // D26：trace 全视图吃 --format 三态；截断时 kv 补 has_more；sessions 吃
+    // --limit；--offset 翻页可用。本仓是真数据项目（有历史会话）。
+    let cwd = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    // json：信封可解析、data.items 是数组。
+    let out = oma()
+        .current_dir(&cwd)
+        .args(["--format", "json", "trace", "sessions", "--limit", "2"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let v: serde_json::Value = serde_json::from_slice(&out).expect("json envelope parses");
+    assert_eq!(v["ok"], serde_json::json!(true));
+    assert_eq!(v["data"]["count"], serde_json::json!(2));
+    assert!(v["data"]["items"].as_array().unwrap().len() == 2);
+    // jsonl：逐行对象可解析。
+    let out = oma()
+        .current_dir(&cwd)
+        .args(["--format", "jsonl", "trace", "timeline", "--limit", "2"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let lines: Vec<serde_json::Value> = String::from_utf8_lossy(&out)
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|l| serde_json::from_str(l).expect("jsonl line parses"))
+        .collect();
+    assert_eq!(lines.len(), 2, "jsonl rows = limit");
+    // kv：截断时 has_more 与 offset_next 显式标记（不再静默 clamp）。
+    let out = oma()
+        .current_dir(&cwd)
+        .args(["trace", "blocks", "--limit", "2"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let s = String::from_utf8_lossy(&out);
+    assert!(s.contains("trace.blocks.count=2"));
+    assert!(
+        s.contains("trace.has_more=true"),
+        "truncation must be loud: {s}"
+    );
+    assert!(s.contains("offset_next=2"));
+    // offset 翻页：第二窗与第一窗不重叠。
+    let page2 = oma()
+        .current_dir(&cwd)
+        .args(["trace", "blocks", "--limit", "2", "--offset", "2"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let ops = |t: &str| -> Vec<String> {
+        t.lines()
+            .filter(|l| l.starts_with("trace.block "))
+            .map(|l| {
+                l.split("op=")
+                    .nth(1)
+                    .unwrap()
+                    .split(' ')
+                    .next()
+                    .unwrap()
+                    .to_string()
+            })
+            .collect()
+    };
+    let p1 = ops(&s);
+    let p2 = ops(&String::from_utf8_lossy(&page2));
+    assert!(!p1.is_empty() && !p2.is_empty());
+    assert!(p1.iter().all(|o| !p2.contains(o)), "pages must not overlap");
+}
+
+#[test]
 fn agents_lists_detection_lines() {
     oma()
         .args(["agents"])

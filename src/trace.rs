@@ -125,6 +125,9 @@ pub struct TraceFilter<'a> {
     pub agent: Option<&'a str>,
     pub file_glob: Option<&'a str>,
     pub limit: usize,
+    /// 翻页偏移（D26）：按视图输出序跳过前 offset 条（timeline / search /
+    /// file 的窗口从最新往旧走，offset 即往更早翻页）。缺省 0。
+    pub offset: usize,
 }
 
 impl<'a> TraceFilter<'a> {
@@ -278,13 +281,38 @@ pub fn claude_sessions_in(dir: &Path, project: &Path) -> Vec<TraceSession> {
         out.push(TraceSession {
             agent: "claude".into(),
             id: id.to_string(),
+            // D26 #5：started 取 jsonl 首行 timestamp（会话最早条目）。
+            started_at: first_line_timestamp(&p),
             project: project.to_path_buf(),
             file: p,
-            started_at: None,
         });
     }
     out.sort_by(|a, b| a.id.cmp(&b.id));
     out
+}
+
+/// jsonl 首个带 timestamp 的行（claude 会话开始时间；首行常是 mode 元
+/// 数据行无时间，向前扫封顶 50 行；全无返回 None）。
+fn first_line_timestamp(path: &Path) -> Option<String> {
+    let f = fs::File::open(path).ok()?;
+    let mut reader = io::BufReader::new(f);
+    for _ in 0..50 {
+        let mut line = String::new();
+        match reader.read_line(&mut line) {
+            Ok(0) => break,
+            Ok(_) => {}
+            Err(_) => return None,
+        }
+        if line.trim().is_empty() {
+            continue;
+        }
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&line) {
+            if let Some(ts) = v.get("timestamp").and_then(|x| x.as_str()) {
+                return Some(ts.to_string());
+            }
+        }
+    }
+    None
 }
 
 /// codex rollout：首行 session_meta.payload.cwd 决定项目归属。
@@ -1057,7 +1085,17 @@ fn concat_text_parts(v: Option<&serde_json::Value>) -> String {
 // ---- 过滤与检索 ----
 
 pub fn apply_filter(events: Vec<TraceEvent>, filter: &TraceFilter) -> Vec<TraceEvent> {
-    let mut out: Vec<TraceEvent> = events
+    apply_filter_counted(events, filter).0
+}
+
+/// 过滤加窗口计数（D26）：返回（窗口内事件，过滤后总数）。事件流为时间
+/// 升序；窗口从最新端取 `[n-offset-limit, n-offset)`，窗内保持升序——
+/// offset 即向更早翻页，limit 为窗口大小（clamp 1 至 MAX_LIMIT）。
+pub fn apply_filter_counted(
+    events: Vec<TraceEvent>,
+    filter: &TraceFilter,
+) -> (Vec<TraceEvent>, usize) {
+    let out: Vec<TraceEvent> = events
         .into_iter()
         .filter(|e| match filter.agent {
             Some(a) => e.agent == a,
@@ -1072,10 +1110,11 @@ pub fn apply_filter(events: Vec<TraceEvent>, filter: &TraceFilter) -> Vec<TraceE
             None => true,
         })
         .collect();
-    out.reverse();
-    out.truncate(filter.clamp_limit());
-    out.reverse();
-    out
+    let n = out.len();
+    let end = n.saturating_sub(filter.offset);
+    let start = end.saturating_sub(filter.clamp_limit());
+    let window: Vec<TraceEvent> = out.into_iter().skip(start).take(end - start).collect();
+    (window, n)
 }
 
 /// 文件过滤：glob 有则用 glob 匹配，解析失败退回子串（S018：regex 非法退字面子串的同款姿态）。
@@ -1111,6 +1150,75 @@ mod tests {
             .join("fixtures")
             .join("trace")
             .join(name)
+    }
+
+    #[test]
+    fn filter_offset_windows_do_not_overlap_and_count_total() {
+        // D26：窗口从最新端取，offset 向更早翻页；total 是过滤后全量。
+        let mk = |i: u64| TraceEvent {
+            agent: "claude".into(),
+            session_id: format!("s{i}"),
+            call_id: Some(format!("c{i}")),
+            tool: Some("Edit".into()),
+            file: Some(format!("src/a{i}.rs")),
+            kind: EditKind::Modify,
+            user_intent: None,
+            op_intent: None,
+            ts: Some(format!("2026-08-31T00:00:{i:02}Z")),
+            ts_ms: Some(1_787_407_600_000 + i * 1000),
+            patch: None,
+        };
+        let events: Vec<TraceEvent> = (0..10).map(mk).collect();
+        let f = |limit: usize, offset: usize| TraceFilter {
+            agent: None,
+            file_glob: None,
+            limit,
+            offset,
+        };
+        let (p1, total) = apply_filter_counted(events.clone(), &f(3, 0));
+        assert_eq!(total, 10);
+        assert_eq!(p1.len(), 3);
+        assert_eq!(
+            p1[0].call_id.as_deref(),
+            Some("c7"),
+            "窗口=最新 3 条，ASC 展示"
+        );
+        let (p2, _) = apply_filter_counted(events.clone(), &f(3, 3));
+        let ids: Vec<_> = p2.iter().filter_map(|e| e.call_id.clone()).collect();
+        assert_eq!(
+            ids,
+            vec!["c4".to_string(), "c5".to_string(), "c6".to_string()]
+        );
+        assert!(!p1.iter().any(|e| p2.iter().any(|x| x.call_id == e.call_id)));
+        // 越界 offset 安全：空窗不减。
+        let (p9, _) = apply_filter_counted(events.clone(), &f(3, 100));
+        assert!(p9.is_empty());
+    }
+
+    #[test]
+    fn first_line_timestamp_skips_meta_lines() {
+        // D26 #5：claude jsonl 首行是 mode 元数据（无 timestamp），扫描应
+        // 前进到首个带 timestamp 的行；全无返回 None。
+        let dir = std::env::temp_dir().join(format!("oma-trace-ts-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let p = dir.join("s1.jsonl");
+        fs::write(
+            &p,
+            concat!(
+                "{\"mode\":\"default\",\"sessionId\":\"s1\",\"type\":\"meta\"}\n",
+                "{\"type\":\"user\",\"timestamp\":\"2026-09-04T12:02:35.633Z\"}\n"
+            ),
+        )
+        .unwrap();
+        assert_eq!(
+            first_line_timestamp(&p).as_deref(),
+            Some("2026-09-04T12:02:35.633Z")
+        );
+        let p2 = dir.join("s2.jsonl");
+        fs::write(&p2, "{\"type\":\"meta\"}\n").unwrap();
+        assert_eq!(first_line_timestamp(&p2), None);
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -1367,6 +1475,7 @@ mod tests {
             agent: Some("claude"),
             file_glob: Some("src/*.rs"),
             limit: 999,
+            offset: 0,
         };
         let got = apply_filter(events.clone(), &f);
         assert!(got.iter().all(|e| e.agent == "claude"));
@@ -1375,6 +1484,7 @@ mod tests {
             agent: None,
             file_glob: None,
             limit: 3,
+            offset: 0,
         };
         assert_eq!(apply_filter(events.clone(), &f).len(), 3);
         // 正则与字面退路。

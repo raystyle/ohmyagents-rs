@@ -73,6 +73,8 @@ $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Env
 | 检索单文件轨迹 | `oma trace file <相对路径\|glob> [--agent A] [--limit N] [--project PATH]` | 文件维度：该文件被哪些 agent、何时、基于什么意图改过（创建 / 修改 / 删除），时间正序 |
 | 检索关键词 | `oma trace search <query> [--agent A] [--limit N] [--project PATH]` | 正则匹配 patch、file、双意图四域，非法正则退字面子串；先全量匹配后截断；输出元素命中数与匹配块数两个粒度 |
 
+> D26（2026-09-10，browser-harness-ts 实测反馈）trace 面统一修订：六视图全量吃全局 `--format kv|json|jsonl`（json 出 `{ok,data:{count,total,has_more,items}}` 信封、jsonl 逐行对象、items 意图全文不截断；kv 保持原 marker 行形态）；列表视图加 `--offset N` 翻页（窗口从最新端向更早翻，页间不重叠）；limit 仍 clamp 1 至 1000，窗口截断时 kv 显式补 `trace.has_more=true total=<总数> offset_next=<下一页偏移>`（不再静默截断：「数据只回溯某日」类观感多为此截断症状，全量在库，用 offset 续翻）；sessions 补 `--limit`（六视图参数统一，缺省全列）；claude 会话 started 解析（jsonl 首个带 timestamp 的行，跳过首行 mode 元数据）。
+
 ## 三、输出契约
 
 > S016 吸收裁决表的落点。双读者三轨，错误一律带下一步。

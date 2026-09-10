@@ -121,6 +121,9 @@ enum SelfSub {
 enum TraceCmd {
     /// 列项目内各 agent 的会话
     Sessions {
+        /// 条数上限（1-1000）；缺省全列
+        #[arg(long)]
+        limit: Option<usize>,
         /// 项目根；默认当前目录
         #[arg(long)]
         project: Option<PathBuf>,
@@ -136,6 +139,9 @@ enum TraceCmd {
         /// 条数上限（1-1000）
         #[arg(long, default_value_t = 100)]
         limit: usize,
+        /// 翻页偏移：跳过最新 offset 条再取窗口（往更早翻页）
+        #[arg(long, default_value_t = 0)]
+        offset: usize,
         /// 项目根；默认当前目录
         #[arg(long)]
         project: Option<PathBuf>,
@@ -150,6 +156,9 @@ enum TraceCmd {
         /// 条数上限（1-1000）
         #[arg(long, default_value_t = 100)]
         limit: usize,
+        /// 翻页偏移：跳过最新 offset 条再取窗口（往更早翻页）
+        #[arg(long, default_value_t = 0)]
+        offset: usize,
         /// 项目根；默认当前目录
         #[arg(long)]
         project: Option<PathBuf>,
@@ -165,6 +174,9 @@ enum TraceCmd {
         /// 条数上限（1-1000）
         #[arg(long, default_value_t = 100)]
         limit: usize,
+        /// 翻页偏移：跳过最新 offset 条再取窗口（往更早翻页）
+        #[arg(long, default_value_t = 0)]
+        offset: usize,
         /// 项目根；默认当前目录
         #[arg(long)]
         project: Option<PathBuf>,
@@ -177,6 +189,9 @@ enum TraceCmd {
         /// 条数上限（1-1000，取最新 N 块）
         #[arg(long, default_value_t = 100)]
         limit: usize,
+        /// 翻页偏移：跳过最新 offset 块再取窗口（往更早翻页）
+        #[arg(long, default_value_t = 0)]
+        offset: usize,
         /// 项目根；默认当前目录
         #[arg(long)]
         project: Option<PathBuf>,
@@ -188,6 +203,9 @@ enum TraceCmd {
         /// 条数上限（1-1000，取最新 N 块）
         #[arg(long, default_value_t = 100)]
         limit: usize,
+        /// 翻页偏移：跳过最新 offset 块再取窗口（往更早翻页）
+        #[arg(long, default_value_t = 0)]
+        offset: usize,
         /// 项目根；默认当前目录
         #[arg(long)]
         project: Option<PathBuf>,
@@ -597,25 +615,37 @@ fn cmd_trace(cmd: TraceCmd) -> Result<(), String> {
         p.unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
     };
     match cmd {
-        TraceCmd::Sessions { project } => {
+        TraceCmd::Sessions { limit, project } => {
             let project = resolve(project);
-            let sessions = trace::list_sessions(&project);
-            for s in &sessions {
-                println!(
-                    "trace.session agent={} id={} started={} file={}",
-                    s.agent,
-                    s.id,
-                    s.started_at.as_deref().unwrap_or("-"),
-                    s.file.display()
-                );
-            }
-            println!("trace.sessions.count={}", sessions.len());
+            let mut sessions = trace::list_sessions(&project);
+            let total = sessions.len();
+            let shown = limit.map(|n| n.clamp(1, trace::MAX_LIMIT)).unwrap_or(total);
+            sessions.truncate(shown);
+            let rows: Vec<TraceRow> = sessions
+                .iter()
+                .map(|s| TraceRow {
+                    kv: format!(
+                        "trace.session agent={} id={} started={} file={}",
+                        s.agent,
+                        s.id,
+                        s.started_at.as_deref().unwrap_or("-"),
+                        s.file.display()
+                    ),
+                    json: serde_json::json!({
+                        "agent": s.agent, "id": s.id,
+                        "started": s.started_at,
+                        "file": s.file.display().to_string(),
+                    }),
+                })
+                .collect();
+            emit_trace("trace.sessions.count", rows, total, 0, &project);
             Ok(())
         }
         TraceCmd::Timeline {
             agent,
             file,
             limit,
+            offset,
             project,
         } => {
             let project = resolve(project);
@@ -623,102 +653,138 @@ fn cmd_trace(cmd: TraceCmd) -> Result<(), String> {
                 agent: agent.as_deref(),
                 file_glob: file.as_deref(),
                 limit,
+                offset,
             };
-            let events = trace::apply_filter(trace::timeline(&project), &filter);
-            for e in &events {
-                println!(
-                    "trace.edit agent={} session={} op={} file={} kind={} tool={} ts={} intent={} op_intent={}",
-                    e.agent,
-                    e.session_id,
-                    e.operation_id(),
-                    e.file.as_deref().unwrap_or("-"),
-                    e.kind.as_str(),
-                    e.tool.as_deref().unwrap_or("-"),
-                    e.ts.as_deref().unwrap_or("-"),
-                    clip(e.user_intent.as_deref().unwrap_or("-")),
-                    clip(e.op_intent.as_deref().unwrap_or("-")),
-                );
-            }
-            println!("trace.edits.count={}", events.len());
+            let (events, total) = trace::apply_filter_counted(trace::timeline(&project), &filter);
+            let rows: Vec<TraceRow> = events
+                .iter()
+                .map(|e| TraceRow {
+                    kv: format!(
+                        "trace.edit agent={} session={} op={} file={} kind={} tool={} ts={} intent={} op_intent={}",
+                        e.agent,
+                        e.session_id,
+                        e.operation_id(),
+                        e.file.as_deref().unwrap_or("-"),
+                        e.kind.as_str(),
+                        e.tool.as_deref().unwrap_or("-"),
+                        e.ts.as_deref().unwrap_or("-"),
+                        clip(e.user_intent.as_deref().unwrap_or("-")),
+                        clip(e.op_intent.as_deref().unwrap_or("-")),
+                    ),
+                    json: serde_json::json!({
+                        "agent": e.agent, "session": e.session_id,
+                        "op": e.operation_id(),
+                        "file": e.file, "kind": e.kind.as_str(),
+                        "tool": e.tool, "ts": e.ts,
+                        "intent": e.user_intent, "op_intent": e.op_intent,
+                    }),
+                })
+                .collect();
+            emit_trace("trace.edits.count", rows, total, offset, &project);
             Ok(())
         }
         TraceCmd::Search {
             query,
             agent,
             limit,
+            offset,
             project,
         } => {
             let project = resolve(project);
-            // 先全量匹配再截断：limit 若在匹配前生效会把候选池截没。
-            let filter = trace::TraceFilter {
+            // 先全量匹配再开窗：limit 若在匹配前生效会把候选池截没。
+            let pool_filter = trace::TraceFilter {
                 agent: agent.as_deref(),
                 file_glob: None,
                 limit: trace::MAX_LIMIT,
+                offset: 0,
             };
-            let mut events: Vec<_> = trace::apply_filter(trace::timeline(&project), &filter)
-                .into_iter()
-                .filter(|e| trace::search_matches(e, &query))
+            let (mut all, _) = trace::apply_filter_counted(trace::timeline(&project), &pool_filter);
+            all.retain(|e| trace::search_matches(e, &query));
+            let total = all.len();
+            let n = limit.clamp(1, trace::MAX_LIMIT);
+            let end = total.saturating_sub(offset);
+            let start = end.saturating_sub(n);
+            let events: Vec<_> = all.into_iter().skip(start).take(end - start).collect();
+            let rows: Vec<TraceRow> = events
+                .iter()
+                .map(|e| TraceRow {
+                    kv: format!(
+                        "trace.hit agent={} session={} op={} file={} kind={} intent={} op_intent={}",
+                        e.agent,
+                        e.session_id,
+                        e.operation_id(),
+                        e.file.as_deref().unwrap_or("-"),
+                        e.kind.as_str(),
+                        clip(e.user_intent.as_deref().unwrap_or("-")),
+                        clip(e.op_intent.as_deref().unwrap_or("-")),
+                    ),
+                    json: serde_json::json!({
+                        "agent": e.agent, "session": e.session_id,
+                        "op": e.operation_id(),
+                        "file": e.file, "kind": e.kind.as_str(),
+                        "intent": e.user_intent, "op_intent": e.op_intent,
+                    }),
+                })
                 .collect();
-            let block_count = trace::group_blocks(&events).len();
-            events.truncate(limit.clamp(1, trace::MAX_LIMIT));
-            for e in &events {
-                println!(
-                    "trace.hit agent={} session={} op={} file={} kind={} intent={} op_intent={}",
-                    e.agent,
-                    e.session_id,
-                    e.operation_id(),
-                    e.file.as_deref().unwrap_or("-"),
-                    e.kind.as_str(),
-                    clip(e.user_intent.as_deref().unwrap_or("-")),
-                    clip(e.op_intent.as_deref().unwrap_or("-")),
-                );
-            }
-            println!("trace.hits.count={}", events.len());
-            println!("trace.blocks.count={block_count}");
+            emit_trace("trace.hits.count", rows, total, offset, &project);
             Ok(())
         }
         TraceCmd::File {
             file,
             agent,
             limit,
+            offset,
             project,
         } => {
             let project = resolve(project);
-            // 文件维度轨迹：按传入路径或 glob 过滤，时间正序展示该文件的完整修改史。
+            // 文件维度轨迹：按传入路径或 glob 过滤，窗口从最新端往早翻页。
             let filter = trace::TraceFilter {
                 agent: agent.as_deref(),
                 file_glob: Some(&file),
-                limit: limit.clamp(1, trace::MAX_LIMIT),
+                limit,
+                offset,
             };
-            let events = trace::apply_filter(trace::timeline(&project), &filter);
-            for e in &events {
-                println!(
-                    "trace.file agent={} session={} op={} kind={} tool={} ts={} intent={} op_intent={}",
-                    e.agent,
-                    e.session_id,
-                    e.operation_id(),
-                    e.kind.as_str(),
-                    e.tool.as_deref().unwrap_or("-"),
-                    e.ts.as_deref().unwrap_or("-"),
-                    clip(e.user_intent.as_deref().unwrap_or("-")),
-                    clip(e.op_intent.as_deref().unwrap_or("-")),
-                );
-            }
-            println!("trace.file.edits={}", events.len());
+            let (events, total) = trace::apply_filter_counted(trace::timeline(&project), &filter);
+            let rows: Vec<TraceRow> = events
+                .iter()
+                .map(|e| TraceRow {
+                    kv: format!(
+                        "trace.file agent={} session={} op={} kind={} tool={} ts={} intent={} op_intent={}",
+                        e.agent,
+                        e.session_id,
+                        e.operation_id(),
+                        e.kind.as_str(),
+                        e.tool.as_deref().unwrap_or("-"),
+                        e.ts.as_deref().unwrap_or("-"),
+                        clip(e.user_intent.as_deref().unwrap_or("-")),
+                        clip(e.op_intent.as_deref().unwrap_or("-")),
+                    ),
+                    json: serde_json::json!({
+                        "agent": e.agent, "session": e.session_id,
+                        "op": e.operation_id(),
+                        "file": e.file, "kind": e.kind.as_str(),
+                        "tool": e.tool, "ts": e.ts,
+                        "intent": e.user_intent, "op_intent": e.op_intent,
+                    }),
+                })
+                .collect();
+            emit_trace("trace.file.edits", rows, total, offset, &project);
             Ok(())
         }
         TraceCmd::Blocks {
             agent,
             limit,
+            offset,
             project,
         } => {
             let project = resolve(project);
-            print_block_timeline(&project, agent.as_deref(), limit);
+            print_block_timeline(&project, agent.as_deref(), limit, offset);
             Ok(())
         }
         TraceCmd::Agent {
             name,
             limit,
+            offset,
             project,
         } => {
             let project = resolve(project);
@@ -726,41 +792,99 @@ fn cmd_trace(cmd: TraceCmd) -> Result<(), String> {
             if !known.contains(&name.as_str()) {
                 return Err(format!("unknown agent {name}; known: {}", known.join(", ")));
             }
-            print_block_timeline(&project, Some(&name), limit);
+            print_block_timeline(&project, Some(&name), limit, offset);
             Ok(())
         }
     }
 }
 
-/// 操作块时间线：时间正序展示最新 N 块（与 timeline 的「最新 N 条」语义一致）。
-fn print_block_timeline(project: &std::path::Path, agent: Option<&str>, limit: usize) {
+/// trace 输出行：kv 形态（稳定现契约）加结构化对象（json / jsonl 用）。
+struct TraceRow {
+    kv: String,
+    json: Value,
+}
+
+/// 六视图共享三态输出器（D26）：kv 打 marker 行加 count，窗口截断时补
+/// has_more 加 total；jsonl 逐行对象；json 出信封（items 全意图不截断）。
+fn emit_trace(count_key: &str, rows: Vec<TraceRow>, total: usize, offset: usize, project: &Path) {
+    let shown = rows.len();
+    let has_more = offset + shown < total;
+    match oma::fmtio::mode() {
+        oma::fmtio::Format::Kv => {
+            for r in &rows {
+                println!("{}", r.kv);
+            }
+            println!("{count_key}={shown}");
+            if has_more {
+                println!(
+                    "trace.has_more=true total={total} offset_next={}",
+                    offset + shown
+                );
+            }
+        }
+        oma::fmtio::Format::Jsonl => {
+            for r in &rows {
+                println!("{}", r.json);
+            }
+        }
+        oma::fmtio::Format::Json => {
+            let data = serde_json::json!({
+                "count": shown,
+                "total": total,
+                "has_more": has_more,
+                "items": rows.iter().map(|r| r.json.clone()).collect::<Vec<_>>(),
+            });
+            let env = oma::fmtio::envelope(count_key, project, Ok(data));
+            let text = serde_json::to_string_pretty(&env).unwrap_or_default();
+            println!("{text}");
+        }
+    }
+}
+
+/// 操作块时间线：窗口从最新端取 `[n-offset-limit, n-offset)`，窗内时间
+/// 正序（与 timeline 的窗口语义一致，offset 向更早翻页）。
+fn print_block_timeline(
+    project: &std::path::Path,
+    agent: Option<&str>,
+    limit: usize,
+    offset: usize,
+) {
     let clip = |s: &str| -> String { s.chars().take(80).collect() };
     let filter = trace::TraceFilter {
         agent,
         file_glob: None,
         limit: trace::MAX_LIMIT,
+        offset: 0,
     };
-    let events = trace::apply_filter(trace::timeline(project), &filter);
+    let (events, _) = trace::apply_filter_counted(trace::timeline(project), &filter);
     let mut blocks = trace::group_blocks(&events);
-    let n = limit.clamp(1, trace::MAX_LIMIT);
-    if blocks.len() > n {
-        // 丢最旧，保时间正序。
-        let cut = blocks.len() - n;
-        blocks.drain(0..cut);
-    }
-    for b in &blocks {
-        println!(
-            "trace.block op={} agent={} session={} edits={} files={} kinds={} ts={} intent={} op_intent={}",
-            b.op,
-            b.agent,
-            b.session_id,
-            b.edits,
-            b.files.join(","),
-            b.kinds.join("+"),
-            b.first_ts.as_deref().unwrap_or("-"),
-            clip(b.user_intent.as_deref().unwrap_or("-")),
-            clip(b.op_intent.as_deref().unwrap_or("-")),
-        );
-    }
-    println!("trace.blocks.count={}", blocks.len());
+    let total = blocks.len();
+    let end = total.saturating_sub(offset);
+    let start = end.saturating_sub(limit.clamp(1, trace::MAX_LIMIT));
+    blocks.drain(..start);
+    blocks.truncate(end - start);
+    let rows: Vec<TraceRow> = blocks
+        .iter()
+        .map(|b| TraceRow {
+            kv: format!(
+                "trace.block op={} agent={} session={} edits={} files={} kinds={} ts={} intent={} op_intent={}",
+                b.op,
+                b.agent,
+                b.session_id,
+                b.edits,
+                b.files.join(","),
+                b.kinds.join("+"),
+                b.first_ts.as_deref().unwrap_or("-"),
+                clip(b.user_intent.as_deref().unwrap_or("-")),
+                clip(b.op_intent.as_deref().unwrap_or("-")),
+            ),
+            json: serde_json::json!({
+                "op": b.op, "agent": b.agent, "session": b.session_id,
+                "edits": b.edits, "files": b.files, "kinds": b.kinds,
+                "ts": b.first_ts,
+                "intent": b.user_intent, "op_intent": b.op_intent,
+            }),
+        })
+        .collect();
+    emit_trace("trace.blocks.count", rows, total, offset, project);
 }
