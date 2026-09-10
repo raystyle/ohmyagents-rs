@@ -22,7 +22,8 @@
 
 | 日期 | 进展 |
 | --- | --- |
-| 2026-09-10 | D22 加 D23 加 M055 三件当日闭环：oma skill 自适应技能（P0042）、secretguard 完整 token 匹配（P0043，#9）、codex hooks command 字段 schema 必填修复（用户级残留同修，verify codex 链路复活实证）；135 单元全绿；v0.4.0 封版发布 |
+| 2026-09-10 | **v0.4.0 封版发布**（D22 技能加 D23 守卫加 M055 hooks schema 三件合并；六资产齐、oma/stable 镜像段滚动）。#9 修复回执已发（issuecomment-5613373085）；#6 #7 以 D20 回执关闭；ohmycloud 交底 models.json schema 与其项目 hooks 热补（ohmycloud#6 issuecomment-5613376435）；ohmycloud 项目与本机用户级 hooks 旧形态残留均已热补 |
+| 2026-09-10 | D22 加 D23 加 M055 三件当日闭环：oma skill 自适应技能（P0042）、secretguard 完整 token 匹配（P0043，#9）、codex hooks command 字段 schema 必填修复（用户级残留同修，verify codex 链路复活实证）；135 单元全绿 |
 | 2026-09-09 | D21 达成归档 P0041：`oma diagnose cache\|agents` 活性诊断族落地（网关发现三源、缓存双连至多三连取优、ds 特判 auto-prefix、配置指向加在册加 key 活性加 thinking 对照）；131 单元加 21 集成与四门禁全绿；真网关实收 codex 线 hit 1792 与 ds 线 auto-prefix 与本机未渲染态如实上报；#8 回执已发 issuecomment-5601988015 |
 | 2026-09-09 | D20 达成归档 P0040：secrets / providers / login / install / update 五面删除（净删约三千行），install.rs 瘦身为根解析加存量探测加共享下载，secretguard 实值比对只看环境变量；124 单元加 21 集成与四门禁全绿；文档八面同步（AGENTS 定位与路由、R001 / R002 / R011、INDEX、README、CHANGELOG、COMMAND_MAP 与 SKILL 再生） |
 | 2026-09-09 | **D13 实收关账**：lan-mac 部署位为编排纪元化石（无 self 无 --version），经镜像 stable 段直装 v0.3.0（边车 sha 校验过，digest 52631254 与 ohmycloud 对账一致；mirror 第二端点消费实证）；`oma --version` = 0.3.0，四家检测与定制面冒烟绿；旧件备份。**队列传空：D13 / D18 / D41 全关** |
