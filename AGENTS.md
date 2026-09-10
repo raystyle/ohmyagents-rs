@@ -111,7 +111,7 @@
 | 经验沉淀（强规则，G004） | 验收后 | proven 归档（P 编号）；`[实证]` 做法升 references 并挂意图路由或 R002；mistakes 同型二犯升格 |
 | 方案达成 | 验收全绿 | proven 归档、GOAL 历史行、INDEX 归档节、TODO 起新清单 |
 | 每次提交 | 提交后 | diary 当天记钩子 |
-| 版本级成果 / 文档结构变更 | 阶段完成 / 改名移目录后 | CHANGELOG 里程碑与 ROADMAP 阶段状态；INDEX 同步且 `md-ref-scan.py` 断链回归必跑；正式 release 后发 issue 知会 ohmycloud 更新 tool status 镜像锚（跨仓共识 2026-09-10） |
+| 版本级成果 / 文档结构变更 | 阶段完成 / 改名移目录后 | CHANGELOG 里程碑与 ROADMAP 阶段状态；INDEX 同步且 `md-ref-scan.py` 断链回归必跑；正式 release 后经 herdr 会话知会 ohmycloud 更新 tool status 镜像锚（跨仓周知一律走 herdr 会话同步、不发 issue，用户裁 2026-09-10） |
 
 ## 三、意图路由
 
