@@ -1275,7 +1275,12 @@ mod tests {
             win_cmd.ends_with("oma-state.cmd\" codex"),
             "{win_cmd}"
         );
-        assert!(!win_cmd.contains("old"), "owned field rewritten: {win_cmd}");
+        // 陈旧值锚定（不能裸 contains("old")：macOS 临时目录在 /var/folders/，
+        // f[old]ers 含子串 old，路径会误伤断言）。
+        assert!(
+            !win_cmd.contains("old\\oma"),
+            "owned field rewritten: {win_cmd}"
+        );
 
         // Same side again: byte-identical, nothing rewritten.
         let before = fs::read_to_string(&path).unwrap();
