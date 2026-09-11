@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-11 | **D28 当日四轮闭环加 v0.5.4 发版**：第 1 轮 hook 与 shim 用户级常驻加 session 分键状态（六面：shim/deploy/statusline/hook/doctor/verify）；herdr codex 独立 review 三轮对齐（首轮九条 F1 codex 信任键源根修本机双版本无 bypass 活体落盘实证、次轮六条残留清零、终局代码面零异议）；第 2 轮 yolo 与非阻塞键用户级（用户令，git 历史佐证用户级诉求自 POC 期逐面翻正）；第 3 轮 yolo 两级显式（--yolo 用户级加 --project-yolo 项目级互斥）；第 4 轮 doctor 双级冲突 warn 加 CTA；状态栏中文目录乱码根修（stdin 字节级 UTF-8 解码）；151 单测加 24 集成加四门禁全绿；M061 记档、P0045 归档 |
 | 2026-09-10 | **D27 达成归档 P0044 加 v0.5.1/v0.5.2 当日双发收官**：hook 与 oma 二进制解耦（自包含状态 shim：cmd 两级 jq 首选加 findstr 回落探 PATH jq、bash、mac zsh，注册指向 shim 零 oma 依赖可无痛轮换，secretguard fail-open 委托）；当日连环根修 M057（codex 经会话环境 shell）、M058（kimi print 只触发全局 hooks，verify 改临时全局注册）、M059（claude 本体经 bash 消费，注册统一无引号正斜杠三吃形态；v0.5.1 的 & 形态 dogfood 拦死本会话后当日快修）；三平台测试矩阵落地 R004 三.6（Windows 140+22、WSL 共仓 139+22、lan-mac clone 镜像 139+22，与 ome 达成标准互指）；各项目 hook 清理（ohmycloud / ohmyenv-rs / 本仓重部署，用户级 codex 七条陈旧条目改 bare）；v0.5.2 对端验收回执全绿（herdr：sha256 全等核对落装位、shim 三件落位、oma/stable 边车对账一致），三仓水位终态 omc 0.3.1 / ome 0.2.1 / oma v0.5.2 当日对齐。同日 codex 独立验收 review 三轮对齐收口（七主张加三轮修正无遗留异议，M060 两笔挂账），v0.5.3 发布即回执全绿（ohmycloud：sha 前 16 位吻合落位、docs-gate 首跑绿、oma/stable 锚到货三方对账照旧；跨 agent 验收飞轮记为范式） |
 | 2026-09-10 | **v0.5.0 提前今日封版**（用户急令三仓水位对齐，不再等 09-12；ohmycloud v0.3.0 已出）：M056 根修加共识落档为主增量，六资产齐（digest 前缀 5d08a67e / cbab7d3e / 4ed0a202），oma/stable 段滚动；herdr 知会版本与资产 sha 已发（对方 tool 锚即时更新）；对端验收回执全绿（sha256 前 12 位核对吻合落装位、init --pretrust 重跑 cmd 形态实测无 & 前缀 M056 生效、oma/stable 段锚对照正常）。同日 M056 挂账降级低优先观察（三端实测零触发加双消费者辨析：& 绝对形态为 grok PowerShell 承载不能照 codex 同款修；此辨析后经 M057/M059 订正：& 形态两处皆非终形，v0.5.2 统一无引号正斜杠） |
 | 2026-09-10 | **v0.4.0 封版发布**（D22 技能加 D23 守卫加 M055 hooks schema 三件合并；六资产齐、oma/stable 镜像段滚动）。#9 修复回执已发（issuecomment-5613373085）；#6 #7 以 D20 回执关闭；ohmycloud 交底 models.json schema 与其项目 hooks 热补（ohmycloud#6 issuecomment-5613376435）；ohmycloud 项目与本机用户级 hooks 旧形态残留均已热补 |
@@ -130,7 +131,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：D28 状态栏跨项目失效根修。落码中：shim 用户级加 session 分键、注册四家迁用户级、状态栏 oma 段新读序、init 迁移清理、doctor/verify 跟随。
+- 当前目标：无（D28 归档 P0045，v0.5.4 发版）。
 
 ## 历史
 
@@ -138,6 +139,7 @@
 
 | 日期 | 目标 | 结果 |
 | --- | --- | --- |
+| 2026-09-11 | D28 状态栏跨项目失效根修（四轮裁定） | 达成：hook 与 shim 用户级常驻、`~/.oma/state/` session 分键、状态栏会话读序、项目面退役、yolo 两级显式加冲突 CTA、乱码根修；codex review 三轮对齐；151 单测加 24 集成全绿。归档 P0045，v0.5.4 发版 |
 | 2026-09-09 | D21 oma diagnose 活性诊断族 | 达成：cache 双连探测（三连取优、ds 特判 auto-prefix）加 agents 配置检测（指向、在册、key 活性、thinking 对照）；真网关实收。归档 P0041 |
 | 2026-09-09 | D20 去 token 注入收窄 | 达成：oma 收敛五功能；secrets / providers / login / install / update 删除（净删约三千行）；secretguard 实值比对只看环境变量；本地部署位与 profile 块不动。归档 P0040 |
 | 2026-09-09 | D18 状态栏用户级定制 | 达成：拆段拼装加生成时烘焙（segments / template / icons / codex items 键级回落、--script 整替换、--example）；等价判据 mock 逐字节一致；145 单元加 24 集成与四门禁全绿。归档 P0039 |

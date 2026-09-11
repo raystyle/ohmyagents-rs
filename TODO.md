@@ -4,18 +4,18 @@
 
 ## 当前目标
 
-D28 状态栏跨项目失效根修（2026-09-11 立项）：
+D28 状态栏跨项目失效根修（2026-09-11 立项，同日四轮裁定闭环：第 1 轮 hook 用户级、第 2 轮 yolo 用户级、第 3 轮 yolo 两级显式、第 4 轮双级冲突 CTA；另收状态栏中文乱码根修）：
 
-- [ ] shim 用户级加 session 分键双写与 SessionEnd GC（src\shim.rs）
-- [ ] 注册四家迁用户级（claude/codex/grok/kimi，src\deploy.rs）
-- [ ] 状态栏 oma 段读序重排（src\statusline.rs）
-- [ ] oma hook 用户级分键写与陈旧清理（src\hook.rs）
-- [ ] init 迁移清理项目 ours 注册与 shim 退役（src\deploy.rs）
-- [ ] doctor hooks.form 与 state 检查面迁用户级（src\doctor.rs）
-- [ ] verify 临时用户级注册泛化与判据隔离（src\verify.rs）
-- [ ] 测试与四门禁全绿；herdr codex review 三轮对齐
-- [ ] 文档同步（R002/R011 判定/AGENTS/INDEX/CHANGELOG/COMMAND_MAP/SKILL/S025 追记）加 P0045 归档
-- [ ] v0.5.4 发版（digest 对端验锚加 herdr 知会 ohmycloud）
+- [x] shim 用户级加 session 分键双写与 SessionEnd GC（src\shim.rs）
+- [x] 注册四家迁用户级（claude/codex/grok/kimi，src\deploy.rs）
+- [x] 状态栏 oma 段读序重排（src\statusline.rs）
+- [x] oma hook 用户级分键写与陈旧清理（src\hook.rs）
+- [x] init 迁移清理项目 ours 注册与 shim 退役（src\deploy.rs）
+- [x] doctor hooks.form 与 state 检查面迁用户级（src\doctor.rs）
+- [x] verify 临时用户级注册泛化与判据隔离（src\verify.rs）
+- [x] 测试与四门禁全绿；herdr codex review 三轮对齐（151 单测加 24 集成；F1 信任键源根修加 R2 六条清零）
+- [x] 文档同步（R002/R004/AGENTS/INDEX/CHANGELOG/COMMAND_MAP/SKILL/S025 追记）加 P0045 归档
+- [x] v0.5.4 发版（digest 对端验锚加 herdr 知会 ohmycloud）
 
 挂账（沿旧）：guard 透传白名单化与 mac shebang CI 断言（M102 挂账行）。
 

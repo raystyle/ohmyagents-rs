@@ -3,7 +3,7 @@
 **Agent 全平台部署配置与诊断工具**，专注五个功能：agent 可用性诊断、hook 设置、状态栏设置、对话 trace、yolo 不阻塞设置。当前适配 Claude Code / Codex / Grok / Kimi 四家，Windows / macOS / Linux（含 WSL）同一命令面。CLI 名 `oma`。
 
 - `oma doctor`：agent 可用性只读体检，warn 与 block 分层，block 才退出 1
-- `oma init`：把 hook 注册落进各家用户级配置（claude / codex / grok / kimi 四家统一，未 init 的项目也有状态数据），skill 与 yolo 键落进项目，幂等合并；注册指向自包含状态 shim（`~/.oma/hooks/`），oma 二进制任意时刻可无痛升级轮换
+- `oma init`：把 hook 注册与 yolo / 非阻塞键落进各家用户级配置（claude / codex / grok / kimi 四家统一，未 init 的项目也有状态数据；yolo 缺省用户级全机生效，`--project-yolo` 显式选项目级），skill 落进项目，幂等合并；注册指向自包含状态 shim（`~/.oma/hooks/`），oma 二进制任意时刻可无痛升级轮换
 - `oma agents statusline`：四家状态栏写入面（starship 风格、支持用户级定制）
 - `oma trace`：项目内四家 agent 对话历史只读检索
 - `oma agents verify`：四家无头验收（hook 落盘加状态栏脚本直跑）
@@ -53,7 +53,7 @@ cargo install --git https://github.com/raystyle/ohmyagents-rs
 
 - 状态栏运行时是 pwsh（PowerShell 7），全平台一致：装了才有状态栏，缺了只是不渲染，不影响其它命令
 - 想跟开发滚动版：上面的资产 URL 把 `releases/latest/download/` 换成 `releases/download/dev/`；配了镜像环境可 `OMA_MIRROR=https://env.ohmygh.com oma self update` 走镜像
-- oma 自管数据根是 `~/.oma`（shim、session 分键状态、状态栏脚本都在这）；hook 注册写各家用户级配置，yolo / skill 键只落项目目录
+- oma 自管数据根是 `~/.oma`（shim、session 分键状态、状态栏脚本都在这）；hook 注册与 yolo / 非阻塞键写各家用户级配置（yolo 全机生效），skill 落项目目录
 
 ## 快速上手
 
@@ -71,9 +71,10 @@ oma doctor             # 体检：有 block 级问题才退出 1
 ### 部署到项目
 
 ```powershell
-oma init                        # 全套：yolo 键加四家 hook/skill
-oma init --yolo                 # 仅无阻塞键
-oma init --yolo --pretrust      # 额外预写家目录信任库（四家）
+oma init                        # 全套：用户级 yolo 键加四家 hook/skill
+oma init --yolo                 # 仅用户级无阻塞键（全机生效）
+oma init --project-yolo         # 仅项目级无阻塞键（项目覆盖用户级）
+oma init --pretrust             # 额外预写家目录信任库（四家）
 oma init --project D:\my\proj   # 不进目录也能指定项目
 ```
 
@@ -131,4 +132,4 @@ oma skill --write           # 生成 oma 自身技能到 ~/.claude/skills/（自
 
 ## 注意
 
-`oma init` 的 yolo 旗标会关掉 agent 的审批与沙箱，只在自己信任的项目目录用。
+`oma init` 的 yolo 面（缺省用户级）会关掉 agent 的审批与沙箱且**全机所有项目生效**，只在自己信任的机器与账户上用；要收窄到单项目用 `--project-yolo`。

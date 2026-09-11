@@ -13,6 +13,15 @@
 - **进程级 env 测试的锁要跨模块共享**：doctor 各自的静态锁锁不住 hook 模块同时 set/remove 的同名 env（OMA_HOME 竞态翻车两条测试）。解：`pathutil::ENV_LOCK` 共享。
 - **pwsh 子进程行为测试必须钉 HOME**：状态栏新读序会看真实 `~/.oma/state`，用户手治的活会话 working 态污染 unknown 断言。解：spawn 时 USERPROFILE/HOME 钉 scratch。
 
+## 追记：同日四轮与三轮 review
+
+- 第 2 轮（用户「包括yolo模式和非阻塞模式也要是用户级别」「看看git历史 类似需求我们已经提过无数次」）：yolo 与非阻塞键用户级；历史脉络落档（93ac1f9 POC「不改家目录」起逐面翻正：状态栏 P0027、kimi M058、D22、D28 hook、yolo）。
+- 第 3 轮（「所以我们的yolo设置命令要分用户级和项目级」）：--yolo 用户级与 --project-yolo 项目级互斥；doctor 双级接受。
+- 第 4 令（「项目级和用户级 冲突要可用诊断和告警出来 形成CTA」）：doctor 双级冲突 warn 加对齐 CTA。
+- 状态栏中文目录乱码（用户报修，中文路径显示 GBK 误解码形）：stdin 字节级 UTF-8 解码根修。
+- herdr codex 独立 review 三轮：首轮九条（F1 codex 信任键源 = hooks.json 路径，本机 0.149.1 加 0.154.0 无 bypass 活体落盘实证，M061）、次轮六条残留、终局代码面零异议（四条收口项当轮清完：README 安全提示、COMMAND_MAP/SKILL、误入仓脚本、四原语对账）。
+- v0.5.4 发版。
+
 ## 自省
 
 - 状态通道断裂的本质是「采集面与消费面不同层」：用户第 4 点诊断（shim 写态通但状态栏仍 unknown）指出的正是协议没跟上层迁移，根修必须读写两侧同层同键，半边迁移必留 unknown 显影。

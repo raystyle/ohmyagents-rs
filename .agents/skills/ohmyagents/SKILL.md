@@ -11,7 +11,7 @@ description: oma 部署配置命令图：init、诊断、hook、状态栏、trac
 
 | 意图 | 命令 |
 | --- | --- |
-| 部署 hook/skill/yolo 键（幂等；hook 注册用户级常驻 ~/.oma/hooks/ shim，状态按 session 分键，项目旧注册自动退役，D28） | `oma init [--project PATH]` |
+| 部署 hook/skill 与 yolo 键（幂等；hook 注册用户级常驻 ~/.oma/hooks/ shim，状态按 session 分键，项目旧注册自动退役；yolo 两级显式：--yolo 用户级全机、--project-yolo 项目级覆盖，D28） | `oma init [--project PATH] [--yolo | --project-yolo]` |
 | 只读诊断信任库、二进制、登录态、hook 形态与状态栏 | `oma doctor` |
 | 检测四家 agent 已装情况（PATH/环境变量/oma 自管根/默认目录四源） | `oma agents` |
 | 配置四家状态栏（写入面幂等；状态由用户级 hook 落盘供给；--example 定制模板，--script 自备脚本整替换，--builtin 还原） | `oma agents statusline [名] [--example] [--script 路径] [--builtin]` |
