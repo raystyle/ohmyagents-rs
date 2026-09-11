@@ -20,7 +20,7 @@
 - 第 4 令（「项目级和用户级 冲突要可用诊断和告警出来 形成CTA」）：doctor 双级冲突 warn 加对齐 CTA。
 - 状态栏中文目录乱码（用户报修，中文路径显示 GBK 误解码形）：stdin 字节级 UTF-8 解码根修。
 - herdr codex 独立 review 三轮：首轮九条（F1 codex 信任键源 = hooks.json 路径，本机 0.149.1 加 0.154.0 无 bypass 活体落盘实证，M061）、次轮六条残留、终局代码面零异议（四条收口项当轮清完：README 安全提示、COMMAND_MAP/SKILL、误入仓脚本、四原语对账）。
-- v0.5.4 发版。
+- v0.5.4 发版；三平台矩阵补齐（WSL 共仓、lan-mac 经 bundle 直推）；ohmycloud 对端验收回执全绿（三资产镜像段锚对齐，oma/stable 锚账闭合）。自省一笔：知会 digest 首报取错资产对象（边车文件的 digest 而非包本体），被对端抓出更正（M063）——digest 知会前双源互证是硬纪律。
 
 ## 自省
 
