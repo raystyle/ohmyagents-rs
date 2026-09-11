@@ -14,7 +14,7 @@
 $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')
 ```
 
-四路 agent 用 `oma agents` 扫 PATH、自定义路径和环境变量，不只看 PATH。oma 无外部运行时依赖（D15 起 rmux 后端移除，`oma check` 与 `catalog\rmux.toml` 同步删除；rmux 历史 pin 口径见 P0003 与 git 历史）。
+四路 agent 用 `oma agents` 扫 PATH、自定义路径和环境变量，不只看 PATH。oma 二进制常装 `~/.local/bin`：非交互 ssh 的默认 PATH 不含它（非 login shell 不加载 profile），无头调 oma 的面（ fleet 探针、cron）需执行面前缀 `export PATH="$HOME/.local/bin:$PATH"`（ohmycloud lan-linux 新机复盘 S017 共性坑，2026-09-11 对照自查：oma agents 默认目录源已含该路径不假阴、shim 委托面 `where`/`command -v` 探针加 fail-open、diagnose 零二进制执行无此暴露面）。oma 无外部运行时依赖（D15 起 rmux 后端移除，`oma check` 与 `catalog\rmux.toml` 同步删除；rmux 历史 pin 口径见 P0003 与 git 历史）。
 
 ## 二、命令族
 
