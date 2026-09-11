@@ -82,6 +82,11 @@
 - **v0.5.3 验收加固**（codex 独立 review 三轮对齐收口）：merge 同形重复去重（claude/grok 面与 codex 面，A,B,A 集合语义）；doctor hooks.form 加 shim-dead 死链读法与 codex 分侧辨形（宿主侧判据，非宿主 bare 兜底不误报）；三个 md 扫描加 rumdl 进 CI docs-gate job；TODO/PLAN 对账补 D27 段；M060 挂账落档（guard 透传白名单化、mac shebang 可断言化）。三平台矩阵 Windows 143+22、WSL 142+22、lan-mac 142+22。
 - **v0.5.2 快修**（M059）：注册形态统一无引号正斜杠绝对路径（`D:/路径/.oma/hooks/oma-state.cmd 名`）。v0.5.1 的 `&` 调用操作符形态在 claude 本体（Windows 装 Git Bash 时 hook 经 /usr/bin/bash -c 执行）是语法错误且退出码 2 等同阻断（dogfood 本仓实证：会话全工具被拦）；新形态 bash / PowerShell / cmd 三 shell 实测全过，真 codex 加真 claude 会话双活体验证，路径含空格部署侧 warn。三平台矩阵复跑全绿。
 
+### 里程碑 2026-09-11
+
+- **hook 用户级常驻与 session 分键状态**（D28 / P0045，用户裁「hook 应用户全局」，状态栏跨项目失效根修）：hook 注册与 shim 常驻用户级（四家统一：claude `~/.claude/settings.json`、codex `~/.codex/hooks.json` 加 config 信任预种、grok `~/.grok/hooks/` global 层、kimi `~/.kimi-code/config.toml` `[[hooks]]`；未 init 项目也有状态数据，消除 codex 用户级而 claude 项目级的不一致）；状态迁 `~/.oma/state/` 按 session 分键双写（`<agent>.json` agent 最新加 `<agent>-<session>.json`，session 三源 payload `session_id` / `sessionId` / `GROK_SESSION_ID`；SessionEnd GC 加 7 天陈旧清扫，防 herdr 多会话互踩）；状态栏 oma 段读序重排（session 键直读，会话闸不符续找不再 unknown 断头）；`oma init` 迁移退役项目级 ours 注册与 `.oma/hooks/` shim（外来保留，用户手治同型注册自动收敛）；doctor 检查面迁用户级（项目残留 `hooks.retired` warn、用户级状态不 block 不误归因）；verify 判据 env 隔离加用户级注册 byte 备份 Drop 还原；`OMA_USER_HOME` / `OMA_HOME` 隔离缝全链（测试不碰真实家目录）。
+- **v0.5.4 封版**：D28 根修单件（herdr codex review 三轮对齐后发）；三平台资产加边车同形态。
+
 ### 排后
 
 - Linux/mac 接管（P0012 跨平台面）：资产与代码路径就绪；指令集 SIGILL 预备检测研究已备（S021）。
