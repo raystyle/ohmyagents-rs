@@ -32,7 +32,7 @@
 
 ## 验收
 
-- 单测加集成全绿；`rumdl check .` 加 `.tools` 三件 md 扫描绿；`oma init` 对 v0.5.3 形项目一次收敛（注册迁移、shim 退役、外来保留）单测加集成双钉。
+- 单测加集成三平台矩阵全绿（Windows 151+24、WSL 共仓 150+24、lan-mac 150+24，各少一条为 windows-only 用例；mac 经 git bundle 直推取 tag）；`rumdl check .` 加 `.tools` 三件 md 扫描绿；`oma init` 对 v0.5.3 形项目一次收敛（注册迁移、shim 退役、外来保留）单测加集成双钉。
 - v0.5.4 发版，资产 digest 交对端验锚（herdr codex review 前置）。
 
 ## 追记：codex review 九条与第 2 轮扩面
