@@ -48,12 +48,12 @@ enum Commands {
         #[command(subcommand)]
         cmd: Option<AgentsCmd>,
     },
-    /// Agent hook 入口：读事件写 `.oma/state`。用户手拉会话按 payload cwd 回退写项目状态文件
+    /// Agent hook 入口：读事件写用户级 `~/.oma/state/`（session 分键，D28）。省略事件则读 stdin JSON
     Hook {
         /// 事件名或四态（idle/working/blocked/unknown）；省略则读 stdin JSON
         #[arg(value_name = "事件")]
         event: Option<String>,
-        /// agent 名（注册参数注入；回退写项目状态文件用）
+        /// agent 名（注册参数注入）
         #[arg(long)]
         agent: Option<String>,
     },
@@ -324,8 +324,7 @@ fn run() -> Result<(), String> {
 fn cmd_skill(write: bool) -> Result<(), String> {
     let body = oma::skillgen::render_skill(&Cli::command());
     if write {
-        let dir = dirs::home_dir()
-            .ok_or("no home")?
+        let dir = oma::pathutil::user_home()?
             .join(".claude")
             .join("skills")
             .join("ohmyagents");
@@ -525,14 +524,15 @@ fn cmd_init(yolo: bool, pretrust: bool, project: Option<PathBuf>) -> Result<(), 
         println!("init.wrote={p}");
     }
     if !yolo {
-        let deployed = oma::deploy::apply_project_hooks(&root)?;
+        let deployed = oma::deploy::deploy_all(&root)?;
         for p in &deployed.wrote {
             println!("init.hooks.wrote={p}");
         }
         println!("init.hooks.wrote.count={}", deployed.wrote.len());
         println!("init.hooks.skipped.count={}", deployed.skipped.len());
-        // Registration-form marker (D27): hooks point at the self-contained
-        // state shim in .oma/hooks/, zero oma-binary dependency.
+        // Registration-form marker (D28): hooks live in the four agents'
+        // user-level configs and point at the self-contained state shim in
+        // ~/.oma/hooks/, zero oma-binary dependency.
         if let Some(form) = deployed.form {
             println!("init.hooks.form={form}");
         }

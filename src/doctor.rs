@@ -346,7 +346,7 @@ fn kimi_login_state(v: Option<&Json>, now_secs: i64) -> (Status, String) {
 
 /// 当下登录态（grok/kimi）：只读诊断落盘凭据（登录引导面已随 D20 移除）。
 pub(crate) fn login_state(agent: &str) -> Option<(Status, String)> {
-    let home = dirs::home_dir()?;
+    let home = crate::pathutil::user_home().ok()?;
     match agent {
         "grok" => {
             let p = home.join(".grok").join("auth.json");
@@ -645,7 +645,11 @@ fn codex_hooks_sides(v: Option<&Json>) -> (bool, bool) {
 /// 最差形态（shim 好、bare/absolute 次、shim-dead 最差）。
 fn codex_side_form(v: Option<&Json>, windows_side: bool) -> Option<&'static str> {
     let events = v.and_then(|v| v.get("hooks")).and_then(|h| h.as_object())?;
-    let key = if windows_side { "commandWindows" } else { "command" };
+    let key = if windows_side {
+        "commandWindows"
+    } else {
+        "command"
+    };
     let rank = |f: &str| match f {
         "shim" => 0,
         "bare" | "absolute" => 1,
@@ -692,7 +696,8 @@ fn push_hooks_form(out: &mut Vec<Finding>, agent: &str, form: &str, path: &Path)
             "hooks.form",
             Status::Ok,
             path,
-            "form=shim (self-contained state writer in .oma/hooks; zero oma dependency, D27)",
+            "form=shim (self-contained state writer in ~/.oma/hooks; user-level \
+             registration, zero oma dependency, D27/D28)",
         ),
         "shim-dead" => push_status(
             out,
@@ -700,8 +705,8 @@ fn push_hooks_form(out: &mut Vec<Finding>, agent: &str, form: &str, path: &Path)
             "hooks.form",
             Status::Warn,
             path,
-            "form=shim-dead (registration points at a missing .oma/hooks script; \
-             project moved or shim deleted; rerun oma init)",
+            "form=shim-dead (registration points at a missing ~/.oma/hooks script; \
+             rerun oma init)",
         ),
         "bare" => push_status(
             out,
@@ -738,10 +743,38 @@ fn push_hooks_form(out: &mut Vec<Finding>, agent: &str, form: &str, path: &Path)
     }
 }
 
+/// kimi `[[hooks]]`（用户级 config.toml）里是否有 ours 条目（D28：kimi 的
+/// 注册面只有用户级）。
+fn kimi_hooks_ours(toml: Option<&Toml>) -> bool {
+    toml.and_then(|t| t.get("hooks"))
+        .and_then(|h| h.as_array())
+        .is_some_and(|arr| {
+            arr.iter().any(|h| {
+                h.get("command")
+                    .and_then(|c| c.as_str())
+                    .is_some_and(crate::deploy::is_ours)
+            })
+        })
+}
+
+/// 项目级 ours 注册残留提示（D28 退役迁移判据：v0.5.3 前的项目部署遗留）。
+fn push_project_residue(out: &mut Vec<Finding>, agent: &str, ours: bool, path: &Path) {
+    if ours {
+        push_status(
+            out,
+            agent,
+            "hooks.retired",
+            Status::Warn,
+            path,
+            "project-level oma hooks remain; rerun oma init to retire (D28)",
+        );
+    }
+}
+
 /// Read-only. Does not attach, send-keys, or wait on TUI.
 pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
     let root = abs_display(root);
-    let home = dirs::home_dir().ok_or_else(|| "cannot resolve home dir".to_string())?;
+    let home = crate::pathutil::user_home()?;
     let mut findings = Vec::new();
 
     // 部署诊断共享事实：状态栏脚本与 pwsh 探测一次（S025），登录态用统一
@@ -943,7 +976,16 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         },
     );
     push_binary(&mut findings, "claude");
-    let claude_hooks_form = {
+    // D28：hook 注册用户级；形态看 ~/.claude/settings.json（项目级文件只查
+    // 残留）。
+    let claude_user_settings = home.join(".claude").join("settings.json");
+    push_hooks_form(
+        &mut findings,
+        "claude",
+        json_hooks_form(json_file(&claude_user_settings).as_ref()),
+        &claude_user_settings,
+    );
+    let claude_proj_form = {
         let form = json_hooks_form(json_file(&claude_shared).as_ref());
         if form != "none" {
             form
@@ -951,7 +993,12 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
             json_hooks_form(json_file(&claude_local).as_ref())
         }
     };
-    push_hooks_form(&mut findings, "claude", claude_hooks_form, &claude_shared);
+    push_project_residue(
+        &mut findings,
+        "claude",
+        claude_proj_form != "none",
+        &claude_shared,
+    );
     push_statusline(
         &mut findings,
         "claude",
@@ -1002,26 +1049,27 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
             "untrusted project skips .codex layer and shows trust dialog"
         },
     );
-    let codex_hooks_files = path_is_file(&root.join(".codex").join("hooks.json"))
-        || proj_toml
-            .as_ref()
-            .and_then(|t| t.get("hooks"))
-            .and_then(|h| h.as_table())
-            .is_some_and(|h| h.keys().any(|k| k != "state"));
-    // Project hooks.json is trusted by hashes in the *project* config.toml.
-    // User-store hashes belong to ~/.codex/hooks.json and must not mask an
-    // empty project [hooks.state] (P0027 Windows-only commandWindows hole).
-    let hook_hash = proj_toml.as_ref().map(hook_state_trusted).unwrap_or(false);
+    // D28：hook 注册用户级 ~/.codex/hooks.json；信任预种在 ~/.codex/config.toml
+    // 的 [hooks.state]（key source = 用户 config 路径）。项目 hooks.json 只查
+    // 残留。
+    let codex_user_hooks_path = home.join(".codex").join("hooks.json");
+    let codex_user_hooks = json_file(&codex_user_hooks_path);
+    let codex_user_ours = codex_hooks_sides(codex_user_hooks.as_ref()) != (false, false);
+    let user_hook_hash = user_toml.as_ref().map(hook_state_trusted).unwrap_or(false);
     push(
         &mut findings,
         "codex",
         "trust.hooks",
-        if codex_hooks_files { hook_hash } else { true },
-        &codex_proj,
-        if !codex_hooks_files {
-            "n/a no hooks.json / [hooks] (yolo does not bypass hook trust)"
-        } else if hook_hash {
-            "hooks.state trusted_hash present"
+        if codex_user_ours {
+            user_hook_hash
+        } else {
+            true
+        },
+        &codex_user_hooks_path,
+        if !codex_user_ours {
+            "n/a no oma hooks in user hooks.json (yolo does not bypass hook trust)"
+        } else if user_hook_hash {
+            "user [hooks.state] trusted_hash present"
         } else {
             "hook trust untrusted|modified; need trusted_hash or --dangerously-bypass-hook-trust"
         },
@@ -1064,7 +1112,7 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         },
     );
     push_binary(&mut findings, "codex");
-    let codex_json = json_file(&root.join(".codex").join("hooks.json"));
+    let codex_json = codex_user_hooks;
     let (codex_unix, codex_win) = codex_hooks_sides(codex_json.as_ref());
     if codex_unix || codex_win {
         // 分侧辨形（review 验收补）：warn 判据只看宿主侧字段——非宿主侧在
@@ -1099,21 +1147,23 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
             "codex",
             "hooks.form",
             if ok { Status::Ok } else { Status::Warn },
-            &root.join(".codex").join("hooks.json"),
+            &codex_user_hooks_path,
             format!(
-                "per-OS fields ours: {} (shim by design, D27; host side must be shim, \
+                "per-OS fields ours: {} (shim by design, D27/D28; host side must be shim, \
                  dead/absolute anywhere = rerun oma init)",
                 sides.join(", ")
             ),
         );
     } else {
-        push_hooks_form(
-            &mut findings,
-            "codex",
-            "none",
-            &root.join(".codex").join("hooks.json"),
-        );
+        push_hooks_form(&mut findings, "codex", "none", &codex_user_hooks_path);
     }
+    push_project_residue(
+        &mut findings,
+        "codex",
+        codex_hooks_sides(json_file(&root.join(".codex").join("hooks.json")).as_ref())
+            != (false, false),
+        &root.join(".codex").join("hooks.json"),
+    );
     {
         let cfg = home.join(".codex").join("config.toml");
         match codex_statusline_state(&home) {
@@ -1231,14 +1281,19 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         &kimi_cred,
         kimi_login_detail,
     );
-    push_status(
-        &mut findings,
-        "kimi",
-        "hooks.form",
-        Status::Ok,
-        &kimi_proj,
-        "n/a no project-level hook registration (S015)",
-    );
+    // D28：kimi 注册面只有用户级 ~/.kimi-code/config.toml [[hooks]]。
+    if kimi_hooks_ours(toml_file(&kimi_user).as_ref()) {
+        push_status(
+            &mut findings,
+            "kimi",
+            "hooks.form",
+            Status::Ok,
+            &kimi_user,
+            "form=shim (user-level [[hooks]] points at ~/.oma/hooks; D28)",
+        );
+    } else {
+        push_hooks_form(&mut findings, "kimi", "none", &kimi_user);
+    }
     push_statusline(
         &mut findings,
         "kimi",
@@ -1356,7 +1411,8 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         &grok_auth,
         grok_login_detail,
     );
-    let grok_state_json = root
+    // D28：grok 注册面在全局层 ~/.grok/hooks/*.json；项目文件只查残留。
+    let grok_state_json = home
         .join(".grok")
         .join("hooks")
         .join("ohmyagents-state.json");
@@ -1365,6 +1421,23 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         "grok",
         json_hooks_form(json_file(&grok_state_json).as_ref()),
         &grok_state_json,
+    );
+    push_project_residue(
+        &mut findings,
+        "grok",
+        json_hooks_form(
+            json_file(
+                &root
+                    .join(".grok")
+                    .join("hooks")
+                    .join("ohmyagents-state.json"),
+            )
+            .as_ref(),
+        ) != "none",
+        &root
+            .join(".grok")
+            .join("hooks")
+            .join("ohmyagents-state.json"),
     );
     match grok_statusline_state(&home) {
         GrokStatusline::CmdPath => {
@@ -1415,6 +1488,50 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
             sl_grok_ok,
             sl_pwsh_missing,
         ),
+    }
+
+    // D28 用户级状态面：`~/.oma/state/*.json`。用户级状态无法归因到本项
+    // 目（可能来自任何项目的会话），blocked 一律 warn 不 block——doctor
+    // 的 Block 语义仍只对本项目交互阻塞负责（项目级旧状态文件照旧扫，
+    // blocked = Block）。
+    if let Some(user_state) = crate::install::oma_home().ok().map(|h| h.join("state")) {
+        if user_state.is_dir() {
+            if let Ok(rd) = fs::read_dir(&user_state) {
+                for ent in rd.flatten() {
+                    let p = ent.path();
+                    let name = p.file_name().and_then(|s| s.to_str()).unwrap_or("");
+                    if !name.ends_with(".json") {
+                        continue;
+                    }
+                    let Some(agent) = ["claude", "codex", "grok", "kimi"].iter().find(|a| {
+                        name == format!("{a}.json") || name.starts_with(&format!("{a}-"))
+                    }) else {
+                        continue;
+                    };
+                    let keyed = name.contains('-');
+                    let blocked = json_file(&p)
+                        .as_ref()
+                        .and_then(|v| v.get("state"))
+                        .and_then(|s| s.as_str())
+                        == Some("blocked");
+                    findings.push(Finding {
+                        agent: agent.to_string(),
+                        check: "state",
+                        status: if blocked { Status::Warn } else { Status::Ok },
+                        path: p.display().to_string(),
+                        detail: if blocked {
+                            if keyed {
+                                "state=blocked (session-keyed, project unknown)".into()
+                            } else {
+                                "state=blocked (user-level latest, project unknown)".into()
+                            }
+                        } else {
+                            "state not blocked".into()
+                        },
+                    });
+                }
+            }
+        }
     }
 
     let state_dir = crate::pathutil::project_dir(&root).join("state");
@@ -1488,6 +1605,56 @@ mod tests {
     }
 
     #[test]
+    fn user_level_state_never_blocks_project_diagnosis() {
+        // D28 用户级状态面：OMA_HOME 缝注入（共享 env 锁与 hook 测试互斥）。
+        // 用户级 blocked（latest 与 session 键两种）不升 Block——无法归因本
+        // 项目；项目级旧文件 blocked 仍 Block。
+        let _g = crate::pathutil::ENV_LOCK.lock().unwrap();
+        let oma = temp_root("ustate");
+        fs::create_dir_all(oma.join("state")).unwrap();
+        fs::write(
+            oma.join("state").join("claude.json"),
+            r#"{"state":"blocked"}"#,
+        )
+        .unwrap();
+        fs::write(
+            oma.join("state").join("kimi-s9.json"),
+            r#"{"state":"blocked"}"#,
+        )
+        .unwrap();
+        fs::write(
+            oma.join("state").join("grok.json"),
+            r#"{"state":"working"}"#,
+        )
+        .unwrap();
+        std::env::set_var("OMA_HOME", &oma);
+        let root = temp_root("ustate-proj");
+        let proj_state = crate::pathutil::project_dir(&root).join("state");
+        fs::create_dir_all(&proj_state).unwrap();
+        fs::write(proj_state.join("codex.json"), r#"{"state":"blocked"}"#).unwrap();
+        let d = diagnose(&root).expect("diagnose");
+        std::env::remove_var("OMA_HOME");
+        // 用户级 blocked：warn 不 block。
+        assert_eq!(d.status("claude", "state"), Some(Status::Warn));
+        let kimi_rows: Vec<&Finding> = d
+            .findings
+            .iter()
+            .filter(|f| f.agent == "kimi" && f.check == "state")
+            .collect();
+        assert!(
+            kimi_rows.iter().any(|f| f.status == Status::Warn),
+            "keyed blocked row is warn: {kimi_rows:?}"
+        );
+        // 正常态照旧 ok。
+        assert_eq!(d.status("grok", "state"), Some(Status::Ok));
+        // 项目级旧文件 blocked 仍 Block（本项目归因）。
+        assert_eq!(d.status("codex", "state"), Some(Status::Block));
+        assert!(d.blocked());
+        let _ = fs::remove_dir_all(&oma);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
     fn empty_project_splits_trust_kinds() {
         let root = std::env::temp_dir().join(format!(
             "oma-doctor-kinds-{}-{}",
@@ -1511,6 +1678,7 @@ mod tests {
 
     #[test]
     fn claude_mcp_project_approval_ignored_until_folder_trust() {
+        let _g = crate::pathutil::ENV_LOCK.lock().unwrap();
         let root = std::env::temp_dir().join(format!(
             "oma-doctor-mcp-{}-{}",
             std::process::id(),
@@ -1575,6 +1743,7 @@ mod tests {
 
     #[test]
     fn yolo_alone_does_not_clear_mcp_or_skill_trust() {
+        let _g = crate::pathutil::ENV_LOCK.lock().unwrap();
         let root = std::env::temp_dir().join(format!(
             "oma-doctor-yolo-gates-{}-{}",
             std::process::id(),
@@ -1830,35 +1999,52 @@ mod tests {
     }
 
     #[test]
-    fn codex_empty_project_hook_state_is_block_not_user_store() {
-        let root = temp_root("codex-empty-state");
-        fs::create_dir_all(root.join(".codex")).unwrap();
+    fn codex_user_hooks_trust_needs_user_store_hash() {
+        // D28：codex 注册与信任都在用户层。OMA_USER_HOME 注入临时家：ours 在
+        // 用户 hooks.json 而 ~/.codex/config.toml 的 [hooks.state] 空 →
+        // Block；预种 trusted_hash 后翻 Ok（共享 env 锁防并行互踩）。
+        let _g = crate::pathutil::ENV_LOCK.lock().unwrap();
+        let user = temp_root("codex-user-trust");
+        fs::create_dir_all(user.join(".codex")).unwrap();
         fs::write(
-            root.join(".codex").join("hooks.json"),
-            r#"{"hooks":{"PreToolUse":[{"matcher":"*","hooks":[{"type":"command","commandWindows":"& \"D:\\oma.exe\" hook --agent codex","timeout":10}]}]}}"#,
+            user.join(".codex").join("hooks.json"),
+            r#"{"hooks":{"PreToolUse":[{"matcher":"*","hooks":[{"type":"command","command":"\"/home/x/.oma/hooks/oma-state.sh\" codex","timeout":10}]}]}}"#,
         )
         .unwrap();
         fs::write(
-            root.join(".codex").join("config.toml"),
-            "approval_policy = \"never\"\nsandbox_mode = \"danger-full-access\"\n\n[features]\nhooks = true\n\n[hooks.state]\n",
+            user.join(".codex").join("config.toml"),
+            "[features]\nhooks = true\n\n[hooks.state]\n",
         )
         .unwrap();
+        let root = temp_root("codex-user-trust-proj");
+        fs::create_dir_all(&root).unwrap();
+        std::env::set_var("OMA_USER_HOME", &user);
         let d = diagnose(&root).expect("diagnose");
         assert_eq!(
             d.status("codex", "trust.hooks"),
             Some(Status::Block),
-            "empty project [hooks.state] must not be masked by user-store hashes"
+            "empty user [hooks.state] must not pass"
         );
+        // 预种 trusted_hash 后通过。
+        fs::write(
+            user.join(".codex").join("config.toml"),
+            "[features]\nhooks = true\n\n[hooks.state]\n\"x:y:0:0\" = { trusted_hash = \"sha256:abc\" }\n",
+        )
+        .unwrap();
+        let d = diagnose(&root).expect("diagnose");
+        std::env::remove_var("OMA_USER_HOME");
+        assert_eq!(d.status("codex", "trust.hooks"), Some(Status::Ok));
         let finding = d
             .findings
             .iter()
             .find(|f| f.agent == "codex" && f.check == "trust.hooks")
             .expect("trust.hooks row");
         assert!(
-            finding.path.contains(".codex") && finding.path.contains("config.toml"),
-            "path should be the project config, got {}",
+            finding.path.contains(".codex"),
+            "path should be the user store, got {}",
             finding.path
         );
+        let _ = fs::remove_dir_all(&user);
         let _ = fs::remove_dir_all(&root);
     }
 

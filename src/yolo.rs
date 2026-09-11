@@ -162,7 +162,7 @@ pub fn apply_project_yolo(root: &Path) -> Result<ApplyReport, String> {
 /// Trust stores in the user home. Not hook registration.
 pub fn apply_pretrust(root: &Path) -> Result<ApplyReport, String> {
     let root = abs_display(root);
-    let home = dirs::home_dir().ok_or_else(|| "cannot resolve home dir".to_string())?;
+    let home = crate::pathutil::user_home()?;
     let mut wrote = Vec::new();
     let native = native_slash(&root);
     let fwd = forward_slash(&root);

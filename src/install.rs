@@ -20,7 +20,7 @@ pub fn oma_home() -> Result<PathBuf, String> {
             return Ok(PathBuf::from(v));
         }
     }
-    let home = dirs::home_dir().ok_or("cannot resolve home dir")?;
+    let home = crate::pathutil::user_home()?;
     Ok(crate::pathutil::data_dir(&home))
 }
 

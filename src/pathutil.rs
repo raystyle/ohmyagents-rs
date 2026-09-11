@@ -21,6 +21,23 @@ pub fn data_dir(parent: &Path) -> PathBuf {
     neu
 }
 
+/// 用户家目录解析（D28）：`OMA_USER_HOME` 覆盖优先（集成测试与 verify 的
+/// 隔离缝：init/doctor/verify/statusline 的用户级读写全部经此），缺省
+/// `dirs::home_dir()`。
+pub fn user_home() -> Result<PathBuf, String> {
+    if let Some(v) = std::env::var_os("OMA_USER_HOME") {
+        if !v.is_empty() {
+            return Ok(PathBuf::from(v));
+        }
+    }
+    dirs::home_dir().ok_or_else(|| "cannot resolve home dir".to_string())
+}
+
+/// 跨模块共享的 env 互斥锁（测试专用）：OMA_HOME / OMA_USER_HOME 等
+/// 进程级环境变量的读写测试必须串行（各模块各自的锁锁不住彼此）。
+#[cfg(test)]
+pub(crate) static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// 项目侧数据根：`<project>/.oma`（session / state / tasks）。
 pub fn project_dir(root: &Path) -> PathBuf {
     data_dir(root)

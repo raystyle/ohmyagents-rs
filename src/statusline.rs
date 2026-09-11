@@ -123,31 +123,56 @@ if ($dir) {
 }
 "#;
 
-/// oma 段：当前 agent 名 + 实时四态（hook 状态通道 + 会话闸，机读标记 S025）。
+/// oma 段：当前 agent 名 + 实时四态（hook 状态通道 + 会话闸，机读标记 S025；
+/// D28 用户级 session 分键读序）。
 const SEG_OMA: &str = r#"
 # ── oma 段：当前 agent 名 + 实时状态（hook 状态通道；机读标记见 S025）──
 # agent 名：oma 会话 env 优先，部署参数次之（每家配置注入自家名字）。
 $agent = if ($env:OMA_AGENT) { $env:OMA_AGENT } else { $AgentName }
-# 状态：会话状态文件优先，回退项目 .oma/state/<agent>.json（旧名 .ohmyagents）。
+# 状态读序（D28）：1) OHMYAGENTS_STATE_FILE 覆盖；2) 用户级 session 键
+# ~/.oma/state/<agent>-<session>.json（session 取 payload session_id /
+# sessionId）；3) 用户级 <agent>.json（agent 最新）；4) 项目级旧协议
+# .oma/state/<agent>.json（未迁移端兼容）。候选按序试，会话闸不符续找。
+$sid = $null
+if ($d) {
+    if ($d.session_id) { $sid = "$($d.session_id)" }
+    elseif ($d.sessionId) { $sid = "$($d.sessionId)" }
+}
 $state = $null
-$stateFile = $env:OHMYAGENTS_STATE_FILE
-if (-not $stateFile) {
+$stateFile = $null
+if ($env:OHMYAGENTS_STATE_FILE) {
+    $stateFile = $env:OHMYAGENTS_STATE_FILE
+    if (Test-Path $stateFile) {
+        try {
+            $st = Get-Content -Raw $stateFile | ConvertFrom-Json
+            if ($st.state) { $state = "$($st.state)" }
+        } catch {}
+    }
+} else {
+    $omaStateDir = $null
+    if ($HOME) { $omaStateDir = Join-Path (Join-Path $HOME '.oma') 'state' }
+    $cands = @()
+    if ($omaStateDir -and $sid) { $cands += (Join-Path $omaStateDir "$agent-$sid.json") }
+    if ($omaStateDir) { $cands += (Join-Path $omaStateDir "$agent.json") }
     $base = if ($root) { $root } else { $dir }
     if ($base) {
         $omaDir = Join-Path $base '.oma'
         if (-not (Test-Path $omaDir)) { $omaDir = Join-Path $base '.ohmyagents' }
-        $stateFile = Join-Path (Join-Path $omaDir 'state') "$agent.json"
+        $cands += (Join-Path (Join-Path $omaDir 'state') "$agent.json")
     }
-}
-if ($stateFile -and (Test-Path $stateFile)) {
-    try {
-        $st = Get-Content -Raw $stateFile | ConvertFrom-Json
-        if ($st.state) { $state = "$($st.state)" }
-        # 会话闸：记录带 session 且与当前会话不符 → 是别的（可能已死）会话遗留，不算当前态。
-        if ($state -and $st.session -and $d.session_id -and ("$($st.session)" -ne "$($d.session_id)")) {
-            $state = $null
-        }
-    } catch {}
+    foreach ($c in $cands) {
+        if (-not (Test-Path $c)) { continue }
+        try {
+            $st = Get-Content -Raw $c | ConvertFrom-Json
+            if (-not $st.state) { continue }
+            # 会话闸：记录带 session 且与当前会话不符 → 是别的（可能已死）
+            # 会话遗留，续找下一候选（session 键候选按构造恒匹配）。
+            if ($sid -and $st.session -and ("$($st.session)" -ne $sid)) { continue }
+            $stateFile = $c
+            $state = "$($st.state)"
+            break
+        } catch { continue }
+    }
 }
 if (-not $state) { $state = 'unknown' }
 $stateColor = switch ($state) {
@@ -792,8 +817,7 @@ pub fn restore_builtin_script(home: &Path) -> Result<PathBuf, String> {
 /// claude：settings.json 幂等合并 statusLine（只覆盖该键）。
 pub fn merge_claude(home: &Path) -> Result<String, String> {
     let script = deploy_script(home)?;
-    let settings = dirs::home_dir()
-        .ok_or("no home")?
+    let settings = crate::pathutil::user_home()?
         .join(".claude")
         .join("settings.json");
     let mut v: serde_json::Value = if settings.exists() {
@@ -818,8 +842,7 @@ pub fn merge_claude(home: &Path) -> Result<String, String> {
 /// 内置布局——S025）。其它表保留。
 pub fn merge_kimi(home: &Path) -> Result<String, String> {
     let script = deploy_script(home)?;
-    let config = dirs::home_dir()
-        .ok_or("no home")?
+    let config = crate::pathutil::user_home()?
         .join(".kimi-code")
         .join("tui.toml");
     let script_str = script.display().to_string().replace('\\', "/");
@@ -856,8 +879,7 @@ fn apply_kimi_status_line(toml: &mut toml::Value, script_str: &str) -> Result<bo
 /// 才回落 sh -c）。其它表保留。
 pub fn merge_grok(home: &Path) -> Result<String, String> {
     let script = deploy_script(home)?;
-    let config = dirs::home_dir()
-        .ok_or("no home")?
+    let config = crate::pathutil::user_home()?
         .join(".grok")
         .join("config.toml");
     let script_str = script.display().to_string().replace('\\', "/");
@@ -991,8 +1013,7 @@ pub fn merge_codex(home: &Path) -> Result<String, String> {
         Some(list) => list.iter().map(String::as_str).collect(),
         None => CODEX_STATUS_LINE_ITEMS.to_vec(),
     };
-    let config = dirs::home_dir()
-        .ok_or("no home")?
+    let config = crate::pathutil::user_home()?
         .join(".codex")
         .join("config.toml");
     let existing = if config.exists() {
@@ -1183,28 +1204,9 @@ mod tests {
         )
         .unwrap();
         let p = deploy_script(&home).unwrap();
-        use std::io::Write;
-        use std::process::{Command, Stdio};
-        let mut child = Command::new("pwsh")
-            .arg("-NoProfile")
-            .arg("-File")
-            .arg(&p)
-            .arg("claude")
-            // 封闭性：cwd 钉 scratch（无 git 无 state 文件，状态必 unknown）；
-            // oma 段 env 优先于部署参数，宿主会话的 OMA_AGENT 会盖掉传入的
-            // claude（本仓 agent 会话里跑测试即翻车）。
-            .current_dir(&home)
-            .env_remove("OMA_AGENT")
-            .env_remove("OHMYAGENTS_STATE_FILE")
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .spawn()
-            .unwrap();
-        child.stdin.take().unwrap().write_all(b"{}").unwrap();
-        let out = child.wait_with_output().unwrap();
-        assert!(out.status.success());
-        let stdout = String::from_utf8_lossy(&out.stdout);
+        // 封闭性：HOME 钉 scratch（D28 用户级读序会看真实 ~/.oma/state，
+        // 机器上的活会话状态会污染判据），cwd 同钉（无 git 无项目 state）。
+        let stdout = run_statusline(&p, "claude", &home, b"{}");
         assert!(
             stdout.contains("claude[unknown]"),
             "user template wins: {stdout}"
@@ -1214,6 +1216,82 @@ mod tests {
             "custom template drops the icon: {stdout}"
         );
         let _ = std::fs::remove_dir_all(&home);
+    }
+
+    #[test]
+    fn oma_segment_reads_user_session_keyed_state() {
+        // pwsh 闸门 skip（R004 形态）：无 pwsh 环境不跑行为判据。
+        if !pwsh_on_path() {
+            return;
+        }
+        // D28 读序：session 键优先于 agent 最新键；最新键 session 不符（别
+        // 会话遗留）续找而不是 unknown 断头。
+        let home = scratch("sluser");
+        let state = home.join(".oma").join("state");
+        std::fs::create_dir_all(&state).unwrap();
+        std::fs::write(
+            state.join("claude-s1.json"),
+            r#"{"state":"working","session":"s1"}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            state.join("claude.json"),
+            r#"{"state":"blocked","session":"other"}"#,
+        )
+        .unwrap();
+        let p = deploy_script(&home).unwrap();
+        let out = run_statusline(&p, "claude", &home, br#"{"session_id":"s1"}"#);
+        assert!(out.contains("claude:working"), "session-keyed wins: {out}");
+        // 键文件缺位时回落 agent 最新键；session 不符的最新键被闸掉。
+        let _ = std::fs::remove_file(state.join("claude-s1.json"));
+        let out = run_statusline(&p, "claude", &home, br#"{"session_id":"s1"}"#);
+        assert!(
+            out.contains("claude:unknown"),
+            "mismatched latest must be gated: {out}"
+        );
+        // kimi camelCase sessionId 同样命中键路径。
+        std::fs::write(
+            state.join("kimi-k1.json"),
+            r#"{"state":"idle","session":"k1"}"#,
+        )
+        .unwrap();
+        let out = run_statusline(&p, "kimi", &home, br#"{"sessionId":"k1"}"#);
+        assert!(
+            out.contains("kimi:idle"),
+            "camelCase sessionId hits keyed path: {out}"
+        );
+        let _ = std::fs::remove_dir_all(&home);
+    }
+
+    /// 直跑状态栏脚本的公共小工具（行为测试用）：env 钉临时 HOME、清覆盖
+    /// 变量，喂 stdin，收 stdout。
+    fn run_statusline(script: &Path, agent: &str, home: &Path, stdin: &[u8]) -> String {
+        use std::io::Write;
+        use std::process::{Command, Stdio};
+        let mut cmd = Command::new("pwsh");
+        cmd.arg("-NoProfile")
+            .arg("-File")
+            .arg(script)
+            .arg(agent)
+            .current_dir(home)
+            .env_remove("OMA_AGENT")
+            .env_remove("OHMYAGENTS_STATE_FILE");
+        // PowerShell $HOME：Windows 随 USERPROFILE、Unix 随 HOME（S025）。
+        if cfg!(windows) {
+            cmd.env("USERPROFILE", home);
+        } else {
+            cmd.env("HOME", home);
+        }
+        let mut child = cmd
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap();
+        child.stdin.take().unwrap().write_all(stdin).unwrap();
+        let out = child.wait_with_output().unwrap();
+        assert!(out.status.success());
+        String::from_utf8_lossy(&out.stdout).into_owned()
     }
 
     #[test]

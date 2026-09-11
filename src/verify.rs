@@ -1,16 +1,16 @@
 //! `oma agents verify`（D17）：四家 agent 的 hook 与状态栏全平台无头验收。
-//! 两层判据（S033 源码实证底座，2026-09-10 勘误见 kimi 段）：
+//! 两层判据（S033 源码实证底座；D28 起注册面全量用户级）：
 //! - 状态栏：脚本本体直跑（mock 空 JSON 喂 stdin，断言 stdout 首行
 //!   `agent:state` 机读标记，S025）；codex 无外部命令面（M045），改为断言
 //!   `~/.codex/config.toml` 的 `[tui] status_line` 含内置项 ID。
-//! - hook：临时目录起无头会话（`git init` 是 oma hook 回退写盘的硬前置，
-//!   hook.rs 的 fallback 段向上 8 层找 .git），判据只押 SessionStart /
-//!   UserPromptSubmit 这类先于模型调用的事件——模型应答失败（无 token、
-//!   网络错）不影响判定，state 文件落盘即 ok。kimi 的 SessionEnd 在 print
-//!   模式不触发（S033），不纳入判据；kimi print 模式只触发**全局**
-//!   `~/.kimi-code/config.toml` 的 [[hooks]]（项目级不触发，历次 Windows
-//!   侧绿是被用户全局条目掩蔽，2026-09-10 探针实证），验收走临时全局注册
-//!   加 Drop 还原。
+//! - hook：临时目录起无头会话，判据只押 SessionStart / UserPromptSubmit
+//!   这类先于模型调用的事件——模型应答失败（无 token、网络错）不影响判
+//!   定，state 文件落盘即 ok。D28 判据隔离：子进程带
+//!   `OHMYAGENTS_STATE_FILE` 指进临时目录（shim 与 oma hook 都认，env 经
+//!   agent 进程继承给 hook 子进程）；万一某家不透传 env，回落扫用户级
+//!   `~/.oma/state/` 里本轮窗口内新写的 `<agent>*.json`。注册走
+//!   **真实用户级面**（四家同一形态，即产品面本身）：byte 备份五件配置、
+//!   deploy、Drop 还原（kimi M058 实证全局触发面泛化到四家，2026-09-11）。
 
 use std::fs;
 use std::io::Write;
@@ -237,9 +237,9 @@ pub fn statusline_marker_ok(agent: &str, stdout: &str) -> bool {
 
 /// codex：`~/.codex/config.toml` 的 `[tui] status_line` 含内置项 ID 即过。
 fn codex_statusline_builtin() -> LayerVerdict {
-    let config = match dirs::home_dir() {
-        Some(h) => h.join(".codex").join("config.toml"),
-        None => {
+    let config = match crate::pathutil::user_home() {
+        Ok(h) => h.join(".codex").join("config.toml"),
+        Err(_) => {
             return LayerVerdict::Fail {
                 reason: "no-home".into(),
                 hint: None,
@@ -312,7 +312,7 @@ fn verify_hook(
 fn verify_hook_in(
     agent: &str,
     bin: &Path,
-    exe: &Path,
+    _exe: &Path,
     timeout_secs: u64,
     tmp: &Path,
 ) -> (LayerVerdict, Option<String>) {
@@ -331,23 +331,15 @@ fn verify_hook_in(
     if let Err(e) = git_init(tmp) {
         return fail(format!("git-init: {e}"));
     }
-    if let Err(e) = crate::deploy::apply_project_hooks(tmp) {
-        return fail(format!("deploy-hooks: {e}"));
-    }
     if let Err(e) = crate::yolo::apply_project_yolo(tmp) {
         return fail(format!("deploy-yolo: {e}"));
     }
-    // kimi 验收走临时全局注册（S033 勘误，2026-09-10 探针实证）：print 模式
-    // 只触发全局 ~/.kimi-code/config.toml 的 [[hooks]]，项目级不触发（历次
-    // Windows 侧绿是被用户全局 oma 条目掩蔽）；命令必须是不带引号的裸命令
-    // 行（引号形态静默不执行，M048 同型）。Drop 还原用户配置。
-    let _kimi_guard = if agent == "kimi" {
-        match KimiGlobalHooksGuard::seed(exe) {
-            Ok(g) => Some(g),
-            Err(e) => return fail(format!("seed-kimi-global-hooks: {e}")),
-        }
-    } else {
-        None
+    // D28：注册走真实用户级面（四家同一形态，byte 备份 + deploy + Drop 还原；
+    // 真实家目录直取 dirs::home_dir，不受 OMA_USER_HOME 隔离缝影响——agent
+    // 本体读的是真实家）。
+    let _user_guard = match UserHooksGuard::seed() {
+        Ok(g) => g,
+        Err(e) => return fail(format!("seed-user-hooks: {e}")),
     };
     // grok 项目源 hooks 受 folder trust 门禁（S033：xai-grok-config loader）：
     // 验收临时目录先种子 ~/.grok/trusted_folders.toml，Drop 时摘除（已信任不动）。
@@ -359,6 +351,14 @@ fn verify_hook_in(
     } else {
         None
     };
+    // 判据隔离：state 落进临时目录（env 经 agent 进程继承给 hook 子进程）。
+    let state_file = tmp.join("oma-verify-state").join(format!("{agent}.json"));
+    if let Some(dir) = state_file.parent() {
+        if let Err(e) = fs::create_dir_all(dir) {
+            return fail(format!("state-dir: {e}"));
+        }
+    }
+    let started = std::time::SystemTime::now();
     let argv = match headless_argv(agent, bin, tmp) {
         Some(a) => a,
         None => return fail(format!("unknown agent {agent}")),
@@ -366,6 +366,7 @@ fn verify_hook_in(
     let mut child = match Command::new(&argv[0])
         .args(&argv[1..])
         .current_dir(tmp)
+        .env("OHMYAGENTS_STATE_FILE", &state_file)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -376,80 +377,121 @@ fn verify_hook_in(
     };
     // 超时杀进程不算失败本身：判据只看 state 文件落盘。
     let _exited = wait_with_timeout(&mut child, Duration::from_secs(timeout_secs));
-    let state_file = tmp.join(".oma").join("state").join(format!("{agent}.json"));
     match fs::read_to_string(&state_file) {
         Ok(text) => match parse_state(&text) {
             Ok(state) => (LayerVerdict::Ok, Some(state)),
             Err(e) => fail(format!("bad-state: {e}")),
         },
-        Err(_) => fail("no-state-file".into()),
+        Err(_) => {
+            // 回落：某家不透传 env 时，扫用户级状态目录本轮窗口内的新文件。
+            match freshest_new_user_state(agent, started) {
+                Some(text) => match parse_state(&text) {
+                    Ok(state) => (LayerVerdict::Ok, Some(state)),
+                    Err(e) => fail(format!("bad-state(user): {e}")),
+                },
+                None => fail("no-state-file".into()),
+            }
+        }
     }
+}
+
+/// 用户级状态目录里本轮窗口内新写的 `<agent>*.json`（取最新 mtime）。
+/// 只读不删：键文件归 SessionEnd GC 与写侧清扫管（并发的活会话不碰）。
+/// 真实家目录直取（shim 写 `%USERPROFILE%\.oma\state` 不看 OMA_HOME）。
+fn freshest_new_user_state(agent: &str, started: std::time::SystemTime) -> Option<String> {
+    let home = dirs::home_dir()?;
+    let dir = crate::pathutil::data_dir(&home).join("state");
+    let mut best: Option<(std::time::SystemTime, PathBuf)> = None;
+    for ent in fs::read_dir(&dir).ok()?.flatten() {
+        let p = ent.path();
+        let name = p.file_name().and_then(|n| n.to_str())?;
+        if !name.starts_with(agent) || !name.ends_with(".json") {
+            continue;
+        }
+        let Ok(mtime) = ent.metadata().and_then(|m| m.modified()) else {
+            continue;
+        };
+        if mtime < started {
+            continue;
+        }
+        if best.as_ref().is_none_or(|(t, _)| mtime > *t) {
+            best = Some((mtime, p));
+        }
+    }
+    let (_, p) = best?;
+    fs::read_to_string(p).ok()
 }
 
 /// 环境原因失败时的可行动 hint（不只打 fail）。
 fn hook_hint(agent: &str) -> Option<String> {
     Some(match agent {
         "codex" => "codex 信任闸 exec 下静默跳过无提示（S033）：确认 \
-            --dangerously-bypass-hook-trust 已带；项目目录信任与 \
-            [hooks.state] trusted_hash 由 oma init 预种。hook 经会话环境 \
-            shell 执行（Windows 缺省 PowerShell，M057）：commandWindows 为 \
-            无引号正斜杠形态 D:/路径/oma-state.cmd codex（M059，bash / PS / \
-            cmd 三吃）"
+            --dangerously-bypass-hook-trust 已带；D28 用户级注册的 \
+            [hooks.state] trusted_hash 由 oma init 预种在 ~/.codex/config.toml。\
+            hook 经会话环境 shell 执行（Windows 缺省 PowerShell，M057）：\
+            commandWindows 为无引号正斜杠形态（M059，bash / PS / cmd 三吃）"
             .into(),
-        "grok" => "grok 项目源 hooks 受 folder trust 门禁（S033）：verify 已自动 \
-            种子并摘除 ~/.grok/trusted_folders.toml 条目；仍失败检查该文件与 grok 版本"
+        "grok" => "grok hooks 走全局层 ~/.grok/hooks/（D28）：verify 已 byte 备份\
+            并 deploy 用户级注册（结束还原）；项目源 folder trust 门禁条目也已\
+            自动种子并摘除；仍失败检查 grok 版本对 global hooks 层的支持"
             .into(),
-        "kimi" => "kimi print 模式只触发全局 [[hooks]] 且命令必须不带引号 \
-            （S033 勘误，2026-09-10 实证）；verify 已临时种全局注册并在结束 \
-            还原 ~/.kimi-code/config.toml；判据只押 SessionStart/UserPromptSubmit"
+        "kimi" => "kimi print 模式只触发全局 [[hooks]]（S033 勘误，2026-09-10 实证）；\
+            D28 注册面即用户级 ~/.kimi-code/config.toml，verify 已 byte 备份 deploy\
+            并在结束还原；判据只押 SessionStart/UserPromptSubmit"
             .into(),
-        _ => "确认 shim 在位（.oma/hooks/oma-state.*，oma init 部署）且 jq 在 \
-            PATH（jq 缺位时 cmd shim 走 findstr 回落）；判据只看 state 落盘，\
-            模型应答失败不影响"
+        _ => "确认 shim 在位（~/.oma/hooks/oma-state.*，oma init 部署）且 jq 在 \
+            PATH（jq 缺位时 cmd shim 走 findstr 回落）；判据只看 state 落盘（env \
+            隔离文件加用户级窗口回落双路），模型应答失败不影响"
             .into(),
     })
 }
 
-/// kimi print 模式 hook 验收通道：备份 `~/.kimi-code/config.toml` 字节，
-/// 追加两条钉当前 exe 的 [[hooks]]（SessionStart / UserPromptSubmit），Drop
-/// 时还原（原文件不在则整删）。命令行必须不带引号且用正斜杠（TOML basic
-/// string 里反斜杠是转义符；kimi 对整串命令做朴素 spawn，引号形态静默
-/// 不执行）。
-struct KimiGlobalHooksGuard {
-    path: PathBuf,
-    backup: Option<Vec<u8>>,
+/// 用户级注册面的 byte 备份加 Drop 还原（D28，M058 kimi 全局面泛化到四
+/// 家）：五件配置逐字节备份，deploy 后验收，Drop 时还原（原文件不在则整
+/// 删）。真实家目录直取（agent 本体读真实家，OMA_USER_HOME 隔离缝对 live
+/// 验收不适用）。
+struct UserHooksGuard {
+    backups: Vec<(PathBuf, Option<Vec<u8>>)>,
 }
 
-impl KimiGlobalHooksGuard {
-    fn seed(exe: &Path) -> Result<Self, String> {
+impl UserHooksGuard {
+    fn seed() -> Result<Self, String> {
         let home = dirs::home_dir().ok_or("no home")?;
-        let path = home.join(".kimi-code").join("config.toml");
-        let backup = std::fs::read(&path).ok();
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| format!("{}: {e}", parent.display()))?;
+        let oma = crate::install::oma_home()?;
+        let rels = [
+            ".claude/settings.json",
+            ".codex/hooks.json",
+            ".codex/config.toml",
+            ".grok/hooks/ohmyagents-state.json",
+            ".kimi-code/config.toml",
+        ];
+        let mut backups = Vec::new();
+        for rel in rels {
+            let p = home.join(rel);
+            let backup = std::fs::read(&p).ok();
+            backups.push((p, backup));
         }
-        let mut body =
-            String::from_utf8_lossy(backup.as_deref().unwrap_or_default()).into_owned();
-        let cmd = format!(
-            "{} hook --agent kimi",
-            exe.display().to_string().replace('\\', "/")
-        );
-        for event in ["SessionStart", "UserPromptSubmit"] {
-            body.push_str(&format!("\n[[hooks]]\nevent = {event:?}\ncommand = {cmd:?}\ntimeout = 10\n"));
-        }
-        std::fs::write(&path, body).map_err(|e| format!("{}: {e}", path.display()))?;
-        Ok(KimiGlobalHooksGuard { path, backup })
+        let mut report = crate::deploy::DeployReport::default();
+        crate::deploy::deploy_user_hooks_with(
+            &home,
+            &oma,
+            crate::deploy::host_side(),
+            &mut report,
+        )?;
+        Ok(UserHooksGuard { backups })
     }
 }
 
-impl Drop for KimiGlobalHooksGuard {
+impl Drop for UserHooksGuard {
     fn drop(&mut self) {
-        match &self.backup {
-            Some(bytes) => {
-                let _ = std::fs::write(&self.path, bytes);
-            }
-            None => {
-                let _ = std::fs::remove_file(&self.path);
+        for (p, backup) in &self.backups {
+            match backup {
+                Some(bytes) => {
+                    let _ = std::fs::write(p, bytes);
+                }
+                None => {
+                    let _ = std::fs::remove_file(p);
+                }
             }
         }
     }
@@ -527,7 +569,7 @@ fn grok_trust_remove(toml: &mut toml::Value, key: &str) {
 }
 
 fn grok_trust_add(root: &Path) -> Result<Option<GrokTrustGuard>, String> {
-    let home = dirs::home_dir().ok_or("no home")?;
+    let home = crate::pathutil::user_home()?;
     let file = home.join(".grok").join("trusted_folders.toml");
     let file_existed = file.exists();
     let key = crate::pathutil::native_slash(root);
