@@ -516,9 +516,10 @@ fn project_root(project: Option<PathBuf>) -> Result<PathBuf, String> {
 fn cmd_init(yolo: bool, pretrust: bool, project: Option<PathBuf>) -> Result<(), String> {
     let root = project_root(project)?;
     std::fs::create_dir_all(&root).map_err(|e| format!("{}: {e}", root.display()))?;
-    // Default init is the full deployment: yolo keys plus project-level
-    // hook/skill registration (S015 matrix). --yolo narrows to keys only.
-    let report = yolo::apply_project_yolo(&root)?;
+    // Default init is the full deployment: user-level yolo keys plus user-level
+    // hook registration and project skills (D28 round 2: yolo keys are
+    // user-level too). --yolo narrows to keys only.
+    let report = yolo::apply_user_yolo()?;
     println!("init.flag.yolo={yolo}");
     for p in &report.wrote {
         println!("init.wrote={p}");

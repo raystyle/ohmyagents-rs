@@ -17,8 +17,8 @@ pub mod update;
 pub mod verify;
 pub mod yolo;
 
-/// 测试共享 env 互斥：动 OMA_HOME / SOPS_AGE_KEY_FILE 的测试跨模块也要
-/// 互斥（各自局部锁挡不住并发互踩）。
+/// 测试共享 env 互斥：动 OMA_HOME / OMA_USER_HOME / SOPS_AGE_KEY_FILE 等
+/// 进程级环境变量的测试跨模块也要互斥（各自局部锁挡不住并发互踩）。
 #[cfg(test)]
 pub(crate) mod testenv {
     pub static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());

@@ -118,6 +118,10 @@ if defined SLINE (
   for /f "tokens=1 delims=," %%b in ("!SID!") do set "SID=%%b"
 )
 if not defined SID if defined GROK_SESSION_ID set "SID=%GROK_SESSION_ID%"
+set "NLINE="
+for /f "usebackq delims=" %%n in (`findstr /c:"notification_type" /c:"notificationType" "%TMPF%" 2^>nul`) do (
+  if not defined NLINE set "NLINE=%%n"
+)
 set "STATE=unknown"
 if /i "!ERAW!"=="SessionStart" set "STATE=idle"
 if /i "!ERAW!"=="Stop" set "STATE=idle"
@@ -134,7 +138,12 @@ if /i "!ERAW!"=="PermissionResult" set "STATE=working"
 if /i "!ERAW!"=="PermissionRequest" set "STATE=blocked"
 if /i "!ERAW!"=="Notification" (
   set "STATE=unknown"
-  findstr /c:"permission" "%TMPF%" >nul 2>nul && set "STATE=blocked"
+  rem F9：permission 只在 notification 行内判（jq 形态锚 notification_type 等
+  rem 字段；回落形态此前整包 findstr 会把任意位置出现的词误判 blocked）。
+  if defined NLINE (
+    set "NCHK=!NLINE:notificationType=notification_type!"
+    echo !NCHK!| findstr /c:"permission" >nul 2>nul && set "STATE=blocked"
+  )
 )
 set "STATE_DIR=%USERPROFILE%\.oma\state"
 set "TARGET="

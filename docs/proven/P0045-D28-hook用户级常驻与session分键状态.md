@@ -35,6 +35,24 @@
 - 单测加集成全绿；`rumdl check .` 加 `.tools` 三件 md 扫描绿；`oma init` 对 v0.5.3 形项目一次收敛（注册迁移、shim 退役、外来保留）单测加集成双钉。
 - v0.5.4 发版，资产 digest 交对端验锚（herdr codex review 前置）。
 
+## 追记：codex review 九条与第 2 轮扩面
+
+herdr codex 独立 review（对齐 v0.5.3 范式，报告 `.oma/review-v054.md`）九条主张：
+
+- **F1（高，阻塞，已根修）**：codex 信任预种键源错位。oma 一直用 config.toml 路径作 `[hooks.state]` 键前缀，codex 的键源是**定义该 hook 的 hooks.json 路径**（discovery.rs 的 load_hooks_json 返回 source_path；本机 config.toml 里 codex 自写键即 `hooks.json:` 前缀一手实证）。修：`codex_trust_entries` 键源改 hooks.json 路径；活体验证 = 本机 codex 0.149.1 与 0.154.0 双版本 `codex exec` 无 bypass 均触发用户级 hook 并落盘 `~/.oma/state/codex.json`。P0010 期「hash 复现未全中」旧账由此闭案（记 M061）。旧 `config.toml:` 前缀键留作惰性残留（codex 自写同前缀键属用户合法信任，不可归因清理）。
+- **F2（中，已修）**：doctor codex trust.hooks 判据硬化为逐键对账（期望键源 = hooks.json、期望哈希现算；「有任一 trusted_hash 即 ok」会假绿），oracle 用真 deploy 行为（种真断 Ok、篡改断 Block）。
+- **F3（中，已修）**：项目根即家目录时 init 不再自删用户级 shim（oma 根短路守卫）。
+- **F4（中，已修）**：用户级 codex config.toml `[hooks]` 非 state 定义键只清**全 ours** 的（外来定义保留，用户级主配置不做静默删除）。
+- **F5（低，已修）**：ENV_LOCK 单一权威归 `testenv`（pathutil 重导出），跨模块 env 测试真互斥。
+- **F6（低，已修）**：verify 的真实家直取集中 `verify_real_home` 并记档（live 面刻意不认隔离缝；「全链认缝」口径修准为 init/doctor/statusline/hook 认缝、verify 用户级面直取真实家）。
+- **F7（低，已修）**：UserHooksGuard 先构造后 deploy，失败路径也随 Drop byte 还原。
+- **F8（低，已修）**：doctor kimi hooks.form 补 shim-dead 在位探针（对齐其它家辨形）。
+- **F9（低，已修）**：cmd findstr 回落形态的 Notification blocked 判定锚定 notification 行（此前整包 findstr，任意位置出现 permission 即误判）。
+
+**第 2 轮扩面（用户同日两令）**：yolo 与非阻塞键全量用户级（四家用户配置；项目级旧键 init 等值退役；doctor 判据随迁；覆盖 D25「oma --yolo 面向项目级」口径，托管端协调收敛为同文件幂等合并共识）。历史脉络（用户点名 git 历史佐证）：POC 期 93ac1f9「四家 hook 项目级部署幂等不改家目录」是当时的保守安全属性，此后用户级需求逐面翻正：状态栏 P0027（天然用户级）、kimi M058（只有全局）、D22 skill（用户级）、D28 hook（本件）、D28r2 yolo。结论：oma 配置面全量用户级，项目面只余 skill 与 AGENTS/CLAUDE.md（项目内语义）。
+
+**乱码修（用户同日报修）**：中文目录在状态栏显示「缁跨洘」形 GBK 误解码。根因 = 状态栏脚本只钉了输出侧 UTF-8（S024），stdin 输入侧 `[Console]::In` 随控制台码页（CP936）解码重定向输入。修：stdin 字节级读取（`OpenStandardInput` 加 `MemoryStream`）显式 UTF-8 解码；行为测试喂中文 cwd JSON 断言原样输出。
+
 ## 经验
 
 - 采集面与消费面必须同层：状态栏（用户级）配项目级采集是慢性断裂，任何「半边迁移」都会以 unknown 形式显影（用户诊断第 4 点即此）。

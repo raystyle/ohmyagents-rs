@@ -345,39 +345,31 @@ fn init_full_deploys_hooks_skills_and_yolo() {
     ] {
         assert!(proj.join(rel).exists(), "missing project {rel}");
     }
-    // 项目 .claude/settings.json 仍会被 yolo 面写（D25 项目级），但不得带
-    // ours hook 注册（D28）；codex 项目 hooks.json 不得创建。
-    let proj_claude: serde_json::Value = serde_json::from_str(
-        &std::fs::read_to_string(proj.join(".claude").join("settings.json")).unwrap(),
-    )
-    .unwrap();
-    let proj_hooks = proj_claude
-        .get("hooks")
-        .and_then(|h| h.as_object())
-        .map(|o| {
-            o.values()
-                .filter_map(|g| g.as_array())
-                .flatten()
-                .filter_map(|grp| grp.get("hooks").and_then(|h| h.as_array()))
-                .flatten()
-                .filter_map(|h| h["command"].as_str())
-                .filter(|c| c.contains("oma"))
-                .count()
-        })
-        .unwrap_or(0);
-    assert_eq!(proj_hooks, 0, "no oma hooks in project settings (D28)");
+    // D28 第 2 轮：hook 与 yolo 面全量用户级，项目 .claude/settings.json
+    // 与 .codex/hooks.json 都不再创建；yolo 键落四家用户配置。
+    assert!(
+        !proj.join(".claude").join("settings.json").exists(),
+        "project-level claude settings must not be created (D28 r2)"
+    );
     assert!(
         !proj.join(".codex").join("hooks.json").exists(),
         "project-level codex hooks must not be created (D28)"
     );
-    // Kimi has no project-level hook registration (S015): the config.toml
-    // the yolo pass writes must carry no hooks table.
-    let kimi_cfg =
-        std::fs::read_to_string(proj.join(".kimi-code").join("config.toml")).unwrap_or_default();
-    assert!(
-        !kimi_cfg.contains("[[hooks]]"),
-        "kimi project config must stay hook-free"
+    let user_claude: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(user.join(".claude").join("settings.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        user_claude["permissions"]["defaultMode"].as_str(),
+        Some("bypassPermissions"),
+        "user-level yolo key written (D28 r2)"
     );
+    let user_codex = std::fs::read_to_string(user.join(".codex").join("config.toml")).unwrap();
+    assert!(
+        user_codex.contains("approval_policy"),
+        "codex user yolo keys"
+    );
+    // kimi 项目 config 不再被任何面写入（hook 与 yolo 都在用户级）。
     // --yolo narrows to keys only: no hook files.
     let tmp2 = std::env::temp_dir().join(format!(
         "oma-cli-init-yolo-{}-{}-{}",
@@ -400,14 +392,25 @@ fn init_full_deploys_hooks_skills_and_yolo() {
         .success()
         .stdout(contains("init.scope=yolo"))
         .stdout(contains("init.hooks=skipped"));
-    assert!(tmp2
-        .join("proj")
-        .join(".claude")
-        .join("settings.json")
-        .exists());
-    assert!(!tmp2.join("proj").join(".codex").join("hooks.json").exists());
     assert!(
-        !user2.join(".claude").join("settings.json").exists(),
+        !tmp2
+            .join("proj")
+            .join(".claude")
+            .join("settings.json")
+            .exists(),
+        "--yolo writes no project files (D28 r2)"
+    );
+    assert!(!tmp2.join("proj").join(".codex").join("hooks.json").exists());
+    let user2_claude: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(user2.join(".claude").join("settings.json")).unwrap(),
+    )
+    .unwrap();
+    assert!(
+        user2_claude["permissions"]["defaultMode"].as_str() == Some("bypassPermissions"),
+        "--yolo writes user-level yolo keys"
+    );
+    assert!(
+        user2_claude.get("hooks").is_none(),
         "--yolo must not register hooks even at user level"
     );
     let _ = std::fs::remove_dir_all(&tmp);

@@ -33,10 +33,11 @@ pub fn user_home() -> Result<PathBuf, String> {
     dirs::home_dir().ok_or_else(|| "cannot resolve home dir".to_string())
 }
 
-/// 跨模块共享的 env 互斥锁（测试专用）：OMA_HOME / OMA_USER_HOME 等
-/// 进程级环境变量的读写测试必须串行（各模块各自的锁锁不住彼此）。
+/// 跨模块共享的 env 互斥锁（测试专用）：OMA_HOME / OMA_USER_HOME 等进程
+/// 级环境变量的读写测试必须串行（各模块各自的锁锁不住彼此）。单一权威
+/// 在 `testenv::ENV_LOCK`，此处只重导出（防两把锁并存，codex review F5）。
 #[cfg(test)]
-pub(crate) static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+pub(crate) use crate::testenv::ENV_LOCK;
 
 /// 项目侧数据根：`<project>/.oma`（session / state / tasks）。
 pub fn project_dir(root: &Path) -> PathBuf {

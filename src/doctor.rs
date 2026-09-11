@@ -209,20 +209,6 @@ fn dir_nonempty(path: &Path) -> bool {
             .unwrap_or(false)
 }
 
-fn hook_state_trusted(toml: &Toml) -> bool {
-    let Some(hooks) = toml.get("hooks").and_then(|v| v.as_table()) else {
-        return false;
-    };
-    let Some(state) = hooks.get("state").and_then(|v| v.as_table()) else {
-        return false;
-    };
-    state.values().any(|v| {
-        v.get("trusted_hash")
-            .and_then(|h| h.as_str())
-            .is_some_and(|s| !s.is_empty())
-    })
-}
-
 fn path_is_file(path: &Path) -> bool {
     path.is_file()
 }
@@ -743,18 +729,40 @@ fn push_hooks_form(out: &mut Vec<Finding>, agent: &str, form: &str, path: &Path)
     }
 }
 
-/// kimi `[[hooks]]`（用户级 config.toml）里是否有 ours 条目（D28：kimi 的
-/// 注册面只有用户级）。
-fn kimi_hooks_ours(toml: Option<&Toml>) -> bool {
-    toml.and_then(|t| t.get("hooks"))
-        .and_then(|h| h.as_array())
-        .is_some_and(|arr| {
-            arr.iter().any(|h| {
-                h.get("command")
-                    .and_then(|c| c.as_str())
-                    .is_some_and(crate::deploy::is_ours)
-            })
-        })
+/// kimi `[[hooks]]`（用户级 config.toml）的 oma 形态（D28：kimi 的注册面
+/// 只有用户级；F8 补 shim 在位探针，对齐 claude / grok 面辨形）。
+fn kimi_hooks_form(toml: Option<&Toml>) -> &'static str {
+    let Some(arr) = toml.and_then(|t| t.get("hooks")).and_then(|h| h.as_array()) else {
+        return "none";
+    };
+    let mut ours = false;
+    let mut shim = false;
+    let mut shim_dead = false;
+    for h in arr {
+        let Some(c) = h.get("command").and_then(|c| c.as_str()) else {
+            continue;
+        };
+        if !crate::deploy::is_ours(c) {
+            continue;
+        }
+        ours = true;
+        if c.contains("oma-state") {
+            if command_target(c).is_file() {
+                shim = true;
+            } else {
+                shim_dead = true;
+            }
+        }
+    }
+    if shim_dead && !shim {
+        "shim-dead"
+    } else if shim {
+        "shim"
+    } else if ours {
+        "bare"
+    } else {
+        "none"
+    }
 }
 
 /// 项目级 ours 注册残留提示（D28 退役迁移判据：v0.5.3 前的项目部署遗留）。
@@ -807,8 +815,10 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         detail: crate::caps::caps_line(&caps),
     });
 
+    // D28 第 2 轮：yolo 与非阻塞键全量用户级（项目面键已由 init 退役）。
     let claude_shared = root.join(".claude").join("settings.json");
-    let yolo_claude = json_file(&claude_shared)
+    let claude_user_yolo = home.join(".claude").join("settings.json");
+    let yolo_claude = json_file(&claude_user_yolo)
         .as_ref()
         .and_then(|v| v.get("permissions"))
         .and_then(|p| p.get("defaultMode"))
@@ -819,11 +829,11 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         "claude",
         "yolo",
         yolo_claude,
-        &claude_shared,
+        &claude_user_yolo,
         if yolo_claude {
-            "permissions.defaultMode=bypassPermissions"
+            "user permissions.defaultMode=bypassPermissions"
         } else {
-            "missing permissions.defaultMode=bypassPermissions (tool prompt will block)"
+            "missing user permissions.defaultMode=bypassPermissions (tool prompt will block)"
         },
     );
 
@@ -1012,7 +1022,7 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
     let codex_user = home.join(".codex").join("config.toml");
     let proj_toml = toml_file(&codex_proj);
     let user_toml = toml_file(&codex_user);
-    let yolo_codex = proj_toml
+    let yolo_codex = user_toml
         .as_ref()
         .map(|t| {
             toml_str(t, "sandbox_mode") == Some("danger-full-access")
@@ -1024,11 +1034,11 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         "codex",
         "yolo",
         yolo_codex,
-        &codex_proj,
+        &codex_user,
         if yolo_codex {
-            "sandbox_mode=danger-full-access approval_policy=never"
+            "user sandbox_mode=danger-full-access approval_policy=never"
         } else {
-            "missing project sandbox/approval yolo keys"
+            "missing user sandbox/approval yolo keys"
         },
     );
     // Codex only loads the project config layer after the user store trusts the
@@ -1050,28 +1060,52 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         },
     );
     // D28：hook 注册用户级 ~/.codex/hooks.json；信任预种在 ~/.codex/config.toml
-    // 的 [hooks.state]（key source = 用户 config 路径）。项目 hooks.json 只查
-    // 残留。
+    // 的 [hooks.state]。判据逐键对账（codex review F2 硬化）：期望键源 =
+    // hooks.json 路径、期望哈希按宿主侧现算（与 deploy 同源）；「有任一
+    // trusted_hash 即 ok」会假绿。项目 hooks.json 只查残留。
     let codex_user_hooks_path = home.join(".codex").join("hooks.json");
     let codex_user_hooks = json_file(&codex_user_hooks_path);
     let codex_user_ours = codex_hooks_sides(codex_user_hooks.as_ref()) != (false, false);
-    let user_hook_hash = user_toml.as_ref().map(hook_state_trusted).unwrap_or(false);
+    let expected_trust = crate::deploy::codex_trust_entries(
+        codex_user_hooks
+            .as_ref()
+            .unwrap_or(&serde_json::Value::Null),
+        &codex_user_hooks_path,
+    )
+    .unwrap_or_default();
+    let trust_gap: Vec<String> = expected_trust
+        .iter()
+        .filter(|(k, want)| {
+            user_toml
+                .as_ref()
+                .and_then(|t| t.get("hooks"))
+                .and_then(|h| h.get("state"))
+                .and_then(|s| s.get(k))
+                .and_then(|e| e.get("trusted_hash"))
+                .and_then(|h| h.as_str())
+                != Some(want.as_str())
+        })
+        .map(|(k, _)| k.split(':').nth(1).unwrap_or(k).to_string())
+        .collect();
     push(
         &mut findings,
         "codex",
         "trust.hooks",
         if codex_user_ours {
-            user_hook_hash
+            trust_gap.is_empty()
         } else {
             true
         },
         &codex_user_hooks_path,
         if !codex_user_ours {
-            "n/a no oma hooks in user hooks.json (yolo does not bypass hook trust)"
-        } else if user_hook_hash {
-            "user [hooks.state] trusted_hash present"
+            "n/a no oma hooks in user hooks.json (yolo does not bypass hook trust)".to_string()
+        } else if trust_gap.is_empty() {
+            "user [hooks.state] keys+hashes match (hooks.json source)".to_string()
         } else {
-            "hook trust untrusted|modified; need trusted_hash or --dangerously-bypass-hook-trust"
+            format!(
+                "hook trust missing/mismatched for {}; rerun oma init or --dangerously-bypass-hook-trust",
+                trust_gap.join(",")
+            )
         },
     );
     let codex_skills = dir_nonempty(&root.join(".agents").join("skills"))
@@ -1196,28 +1230,19 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
 
     let kimi_proj = root.join(".kimi-code").join("config.toml");
     let kimi_user = home.join(".kimi-code").join("config.toml");
-    let kimi_mode = toml_file(&kimi_proj)
+    let kimi_mode = toml_file(&kimi_user)
         .as_ref()
-        .and_then(|t| toml_str(t, "default_permission_mode").map(|s| s.to_string()))
-        .or_else(|| {
-            toml_file(&kimi_user)
-                .as_ref()
-                .and_then(|t| toml_str(t, "default_permission_mode").map(|s| s.to_string()))
-        });
+        .and_then(|t| toml_str(t, "default_permission_mode").map(|s| s.to_string()));
     let yolo_kimi = matches!(kimi_mode.as_deref(), Some("yolo" | "auto"));
     push(
         &mut findings,
         "kimi",
         "yolo",
         yolo_kimi,
-        if kimi_proj.exists() {
-            &kimi_proj
-        } else {
-            &kimi_user
-        },
+        &kimi_user,
         match kimi_mode.as_deref() {
-            Some(m) => format!("default_permission_mode={m}"),
-            None => "missing default_permission_mode auto|yolo".into(),
+            Some(m) => format!("user default_permission_mode={m}"),
+            None => "missing user default_permission_mode auto|yolo".into(),
         },
     );
     let trust_kimi = kimi_trust_ok(&home, &root);
@@ -1281,19 +1306,14 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         &kimi_cred,
         kimi_login_detail,
     );
-    // D28：kimi 注册面只有用户级 ~/.kimi-code/config.toml [[hooks]]。
-    if kimi_hooks_ours(toml_file(&kimi_user).as_ref()) {
-        push_status(
-            &mut findings,
-            "kimi",
-            "hooks.form",
-            Status::Ok,
-            &kimi_user,
-            "form=shim (user-level [[hooks]] points at ~/.oma/hooks; D28)",
-        );
-    } else {
-        push_hooks_form(&mut findings, "kimi", "none", &kimi_user);
-    }
+    // D28：kimi 注册面只有用户级 ~/.kimi-code/config.toml [[hooks]]（F8 起
+    // 与其它家同款辨形，shim-dead 死链可见）。
+    push_hooks_form(
+        &mut findings,
+        "kimi",
+        kimi_hooks_form(toml_file(&kimi_user).as_ref()),
+        &kimi_user,
+    );
     push_statusline(
         &mut findings,
         "kimi",
@@ -1490,6 +1510,37 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         ),
     }
 
+    let state_dir = crate::pathutil::project_dir(&root).join("state");
+    if state_dir.is_dir() {
+        if let Ok(rd) = fs::read_dir(&state_dir) {
+            for ent in rd.flatten() {
+                let p = ent.path();
+                if p.extension().and_then(|s| s.to_str()) != Some("json") {
+                    continue;
+                }
+                let blocked = json_file(&p)
+                    .as_ref()
+                    .and_then(|v| v.get("state"))
+                    .and_then(|s| s.as_str())
+                    == Some("blocked");
+                let agent = p.file_stem().and_then(|s| s.to_str()).unwrap_or("unknown");
+                findings.push(Finding {
+                    agent: agent.to_string(),
+                    check: "state",
+                    status: if blocked { Status::Block } else { Status::Ok },
+                    path: p.display().to_string(),
+                    detail: if blocked {
+                        "state=blocked".into()
+                    } else {
+                        "state not blocked".into()
+                    },
+                });
+            }
+        }
+    }
+
+    // （行序：项目面状态行在前——status() 取首个，项目归因的 Block 优先
+    // 于用户级行。）
     // D28 用户级状态面：`~/.oma/state/*.json`。用户级状态无法归因到本项
     // 目（可能来自任何项目的会话），blocked 一律 warn 不 block——doctor
     // 的 Block 语义仍只对本项目交互阻塞负责（项目级旧状态文件照旧扫，
@@ -1534,35 +1585,6 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         }
     }
 
-    let state_dir = crate::pathutil::project_dir(&root).join("state");
-    if state_dir.is_dir() {
-        if let Ok(rd) = fs::read_dir(&state_dir) {
-            for ent in rd.flatten() {
-                let p = ent.path();
-                if p.extension().and_then(|s| s.to_str()) != Some("json") {
-                    continue;
-                }
-                let blocked = json_file(&p)
-                    .as_ref()
-                    .and_then(|v| v.get("state"))
-                    .and_then(|s| s.as_str())
-                    == Some("blocked");
-                let agent = p.file_stem().and_then(|s| s.to_str()).unwrap_or("unknown");
-                findings.push(Finding {
-                    agent: agent.to_string(),
-                    check: "state",
-                    status: if blocked { Status::Block } else { Status::Ok },
-                    path: p.display().to_string(),
-                    detail: if blocked {
-                        "state=blocked".into()
-                    } else {
-                        "state not blocked".into()
-                    },
-                });
-            }
-        }
-    }
-
     Ok(Diagnosis { findings })
 }
 
@@ -1588,6 +1610,9 @@ mod tests {
 
     #[test]
     fn state_blocked_is_a_finding() {
+        let _g = crate::pathutil::ENV_LOCK.lock().unwrap();
+        let oma = temp_root("pstate");
+        std::env::set_var("OMA_HOME", &oma);
         let root = std::env::temp_dir().join(format!(
             "oma-doctor-state-{}-{}",
             std::process::id(),
@@ -1600,7 +1625,9 @@ mod tests {
         fs::create_dir_all(&state).unwrap();
         fs::write(state.join("codex.json"), r#"{"state":"blocked"}"#).unwrap();
         let d = diagnose(&root).expect("diagnose");
+        std::env::remove_var("OMA_HOME");
         assert_eq!(d.status("codex", "state"), Some(Status::Block));
+        let _ = fs::remove_dir_all(&oma);
         let _ = fs::remove_dir_all(&root);
     }
 
@@ -1744,6 +1771,9 @@ mod tests {
     #[test]
     fn yolo_alone_does_not_clear_mcp_or_skill_trust() {
         let _g = crate::pathutil::ENV_LOCK.lock().unwrap();
+        let user = temp_root("yolo-user");
+        fs::create_dir_all(&user).unwrap();
+        std::env::set_var("OMA_USER_HOME", &user);
         let root = std::env::temp_dir().join(format!(
             "oma-doctor-yolo-gates-{}-{}",
             std::process::id(),
@@ -1766,23 +1796,14 @@ mod tests {
             r#"{"mcpServers":{"demo":{"command":"echo"}}}"#,
         )
         .unwrap();
-        crate::yolo::apply_project_yolo(&root).expect("yolo");
+        crate::yolo::apply_user_yolo_with(&user).expect("yolo");
         let d = diagnose(&root).expect("diagnose");
+        std::env::remove_var("OMA_USER_HOME");
         assert_eq!(d.status("claude", "yolo"), Some(Status::Ok));
         assert_eq!(d.status("claude", "trust.skill"), Some(Status::Block));
-        let user = dirs::home_dir()
-            .unwrap()
-            .join(".claude")
-            .join("settings.json");
-        let user_ok = json_file(&user)
-            .as_ref()
-            .map(mcp_servers_approved)
-            .unwrap_or(false);
-        if user_ok {
-            assert_eq!(d.status("claude", "trust.mcp"), Some(Status::Ok));
-        } else {
-            assert_eq!(d.status("claude", "trust.mcp"), Some(Status::Block));
-        }
+        // 用户级 enableAll 已由 yolo 面写入（缝内家），项目 MCP 由此覆盖。
+        assert_eq!(d.status("claude", "trust.mcp"), Some(Status::Ok));
+        let _ = fs::remove_dir_all(&user);
         let _ = fs::remove_dir_all(&root);
     }
 
@@ -1999,52 +2020,62 @@ mod tests {
     }
 
     #[test]
-    fn codex_user_hooks_trust_needs_user_store_hash() {
-        // D28：codex 注册与信任都在用户层。OMA_USER_HOME 注入临时家：ours 在
-        // 用户 hooks.json 而 ~/.codex/config.toml 的 [hooks.state] 空 →
-        // Block；预种 trusted_hash 后翻 Ok（共享 env 锁防并行互踩）。
+    fn codex_user_hooks_trust_needs_full_key_match() {
+        // D28 加 F2 硬化：判据逐键对账（键源 = hooks.json 路径）。oracle =
+        // 真 deploy 行为（种真哈希断 Ok；篡改任一键断 Block），不用被测
+        // 同款逻辑现算期望（R004 反重言式）。
         let _g = crate::pathutil::ENV_LOCK.lock().unwrap();
         let user = temp_root("codex-user-trust");
-        fs::create_dir_all(user.join(".codex")).unwrap();
-        fs::write(
-            user.join(".codex").join("hooks.json"),
-            r#"{"hooks":{"PreToolUse":[{"matcher":"*","hooks":[{"type":"command","command":"\"/home/x/.oma/hooks/oma-state.sh\" codex","timeout":10}]}]}}"#,
-        )
-        .unwrap();
-        fs::write(
-            user.join(".codex").join("config.toml"),
-            "[features]\nhooks = true\n\n[hooks.state]\n",
-        )
-        .unwrap();
+        let oma = temp_root("codex-user-trust-oma");
+        fs::create_dir_all(&user).unwrap();
+        fs::create_dir_all(&oma).unwrap();
+        let mut report = crate::deploy::DeployReport::default();
+        crate::deploy::deploy_user_hooks_with(&user, &oma, crate::deploy::host_side(), &mut report)
+            .unwrap();
         let root = temp_root("codex-user-trust-proj");
         fs::create_dir_all(&root).unwrap();
         std::env::set_var("OMA_USER_HOME", &user);
         let d = diagnose(&root).expect("diagnose");
         assert_eq!(
             d.status("codex", "trust.hooks"),
-            Some(Status::Block),
-            "empty user [hooks.state] must not pass"
+            Some(Status::Ok),
+            "deploy-seeded keys+hashes must pass the per-key check"
         );
-        // 预种 trusted_hash 后通过。
-        fs::write(
-            user.join(".codex").join("config.toml"),
-            "[features]\nhooks = true\n\n[hooks.state]\n\"x:y:0:0\" = { trusted_hash = \"sha256:abc\" }\n",
-        )
-        .unwrap();
+        // 篡改任一键哈希 → Block（「有任一 trusted_hash」旧判据在此假绿）。
+        let cfg_path = user.join(".codex").join("config.toml");
+        let mut cfg = crate::yolo::read_toml(&cfg_path).unwrap();
+        let tampered = {
+            let Some(state) = cfg
+                .get_mut("hooks")
+                .and_then(|h| h.get_mut("state"))
+                .and_then(|s| s.as_table_mut())
+            else {
+                panic!("deploy must seed [hooks.state]");
+            };
+            let mut touched = false;
+            for (_k, v) in state.iter_mut() {
+                if let Some(entry) = v.as_table_mut() {
+                    entry.insert(
+                        "trusted_hash".into(),
+                        Toml::String("sha256:tampered".into()),
+                    );
+                    touched = true;
+                    break;
+                }
+            }
+            touched
+        };
+        assert!(tampered, "state table has at least one entry");
+        crate::yolo::toml_write(&cfg_path, &cfg).unwrap();
         let d = diagnose(&root).expect("diagnose");
         std::env::remove_var("OMA_USER_HOME");
-        assert_eq!(d.status("codex", "trust.hooks"), Some(Status::Ok));
-        let finding = d
-            .findings
-            .iter()
-            .find(|f| f.agent == "codex" && f.check == "trust.hooks")
-            .expect("trust.hooks row");
-        assert!(
-            finding.path.contains(".codex"),
-            "path should be the user store, got {}",
-            finding.path
+        assert_eq!(
+            d.status("codex", "trust.hooks"),
+            Some(Status::Block),
+            "tampered hash must fail the per-key check"
         );
         let _ = fs::remove_dir_all(&user);
+        let _ = fs::remove_dir_all(&oma);
         let _ = fs::remove_dir_all(&root);
     }
 

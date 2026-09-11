@@ -15,14 +15,24 @@ use serde_json::json;
 
 use crate::yolo::{read_toml, toml_write};
 
-/// 状态栏脚本 HEAD：param、首行强制 UTF-8（CP936 控制台下 emoji 会被替换成
-/// 字面 `??`，S024）、stdin JSON 解析（claude code 供给 model 等；codex 无
-/// stdin 数据时退化）、Seg 与 FmtTok、FmtDur 助手、`$parts` 收集器。
+/// 状态栏脚本 HEAD：param、首尾强制 UTF-8（输出侧 CP936 控制台下 emoji 会被
+/// 替换成字面 `??`，S024；输入侧重定向 stdin 默认按 OEM 码页解码，中文
+/// cwd 会进来即花成「缁跨洘」形 GBK 误解码，D28 补钉）、stdin JSON 解析
+/// （claude code 供给 model 等；codex 无 stdin 数据时退化）、Seg 与 FmtTok、
+/// FmtDur 助手、`$parts` 收集器。
 const PS1_HEAD: &str = r#"
 param([string]$AgentName = 'agent')
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $ErrorActionPreference = 'SilentlyContinue'
-$raw = [Console]::In.ReadToEnd()
+# stdin 字节级读取显式 UTF-8 解码：[Console]::In 随控制台码页（中文端
+# CP936）解码重定向输入，agent 喂的 UTF-8 JSON 里中文路径进来即花
+# （「团队」成「缁跨洘」形 GBK 误解码，D28 补钉；S024 只钉过输出侧）。
+$raw = $null
+try {
+    $ms = [System.IO.MemoryStream]::new()
+    [Console]::OpenStandardInput().CopyTo($ms)
+    if ($ms.Length -gt 0) { $raw = [System.Text.Encoding]::UTF8.GetString($ms.ToArray()) }
+} catch {}
 $d = $null
 if (-not [string]::IsNullOrWhiteSpace($raw)) { try { $d = $raw | ConvertFrom-Json } catch {} }
 # Grok TUI 字体没有 Nerd 私用区字形，PUA 图标显示成替换符（M046）。
@@ -1295,6 +1305,22 @@ mod tests {
     }
 
     #[test]
+    fn chinese_cwd_survives_stdin_decode() {
+        // D28 用户报修：中文目录乱码（D:\团队 显示「缁跨洘」= UTF-8 被 CP936
+        // 解码）。判据：stdin 喂带中文 cwd 的 UTF-8 JSON，目录段原样输出。
+        if !pwsh_on_path() {
+            return;
+        }
+        let home = scratch("slcjk");
+        let p = deploy_script(&home).unwrap();
+        let bytes = r#"{"session_id":"s1","cwd":"D:\\团队"}"#.as_bytes().to_vec();
+        let out = run_statusline(&p, "claude", &home, &bytes);
+        assert!(out.contains("团队"), "chinese dir must survive: {out}");
+        assert!(!out.contains('缁'), "no GBK mojibake: {out}");
+        let _ = std::fs::remove_dir_all(&home);
+    }
+
+    #[test]
     fn custom_script_marker_survives_plain_rerun_and_restores() {
         let home = scratch("custom");
         let src = home.join("my-statusline.ps1");
@@ -1388,6 +1414,14 @@ mod tests {
         let enc = ps1.find("[Console]::OutputEncoding").unwrap();
         let out = ps1.find("Write-Output").unwrap();
         assert!(enc < out);
+        // D28 输入侧同钉：stdin 字节级读取加显式 UTF-8 解码（[Console]::In
+        // 随控制台码页解码，中文路径 UTF-8 进来即「缁跨洘」形 GBK 乱码）。
+        let stdin_utf8 = ps1.find("[System.Text.Encoding]::UTF8.GetString").unwrap();
+        let parse = ps1.find("ConvertFrom-Json").unwrap();
+        assert!(
+            stdin_utf8 < parse,
+            "stdin must be decoded as UTF-8 before JSON parsing"
+        );
         assert!(
             ps1.contains("\u{f06a9}"),
             "oma segment robot glyph (md-robot, wide: two spaces survive one)"

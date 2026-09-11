@@ -331,9 +331,6 @@ fn verify_hook_in(
     if let Err(e) = git_init(tmp) {
         return fail(format!("git-init: {e}"));
     }
-    if let Err(e) = crate::yolo::apply_project_yolo(tmp) {
-        return fail(format!("deploy-yolo: {e}"));
-    }
     // D28：注册走真实用户级面（四家同一形态，byte 备份 + deploy + Drop 还原；
     // 真实家目录直取 dirs::home_dir，不受 OMA_USER_HOME 隔离缝影响——agent
     // 本体读的是真实家）。
@@ -399,7 +396,7 @@ fn verify_hook_in(
 /// 只读不删：键文件归 SessionEnd GC 与写侧清扫管（并发的活会话不碰）。
 /// 真实家目录直取（shim 写 `%USERPROFILE%\.oma\state` 不看 OMA_HOME）。
 fn freshest_new_user_state(agent: &str, started: std::time::SystemTime) -> Option<String> {
-    let home = dirs::home_dir()?;
+    let home = verify_real_home().ok()?;
     let dir = crate::pathutil::data_dir(&home).join("state");
     let mut best: Option<(std::time::SystemTime, PathBuf)> = None;
     for ent in fs::read_dir(&dir).ok()?.flatten() {
@@ -446,17 +443,23 @@ fn hook_hint(agent: &str) -> Option<String> {
     })
 }
 
+/// verify 的真实家取值（刻意不认 OMA_USER_HOME 隔离缝：live 验收要验的
+/// 就是真实用户面，agent 本体只读真实家；与 grok folder trust 走认缝的
+/// user_home 是有意的两面，F6 记档）。
+fn verify_real_home() -> Result<PathBuf, String> {
+    dirs::home_dir().ok_or_else(|| "no home".to_string())
+}
+
 /// 用户级注册面的 byte 备份加 Drop 还原（D28，M058 kimi 全局面泛化到四
 /// 家）：五件配置逐字节备份，deploy 后验收，Drop 时还原（原文件不在则整
-/// 删）。真实家目录直取（agent 本体读真实家，OMA_USER_HOME 隔离缝对 live
-/// 验收不适用）。
+/// 删）。
 struct UserHooksGuard {
     backups: Vec<(PathBuf, Option<Vec<u8>>)>,
 }
 
 impl UserHooksGuard {
     fn seed() -> Result<Self, String> {
-        let home = dirs::home_dir().ok_or("no home")?;
+        let home = verify_real_home()?;
         let oma = crate::install::oma_home()?;
         let rels = [
             ".claude/settings.json",
@@ -471,6 +474,9 @@ impl UserHooksGuard {
             let backup = std::fs::read(&p).ok();
             backups.push((p, backup));
         }
+        // F7：guard 先构造（备份已在对象内），deploy 失败提前返回也随
+        // Drop byte 还原，不留 deploy 后的半程状态。
+        let guard = UserHooksGuard { backups };
         let mut report = crate::deploy::DeployReport::default();
         crate::deploy::deploy_user_hooks_with(
             &home,
@@ -478,7 +484,7 @@ impl UserHooksGuard {
             crate::deploy::host_side(),
             &mut report,
         )?;
-        Ok(UserHooksGuard { backups })
+        Ok(guard)
     }
 }
 

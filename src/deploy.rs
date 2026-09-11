@@ -608,17 +608,24 @@ fn deploy_codex_user(
     }
 
     // Pre-seed [hooks.state]."<key>" trusted_hash for every oma handler in
-    // the final hooks.json (real indices, not assumption zero).
+    // the final hooks.json (real indices, not assumption zero)。键源 =
+    // **hooks.json 路径**（F1 根修，codex review 2026-09-11：codex 的键源是
+    // 定义该 hook 的文件路径——discovery.rs 的 load_hooks_json 返回
+    // `<config_folder>/hooks.json` 作 source_path；本机 config.toml 里 codex
+    // 自写键即 `hooks.json:` 前缀实证。P0010 期「config.toml 路径」假设至此
+    // 证伪，见 M061）。
     let final_hooks = read_json(&path)?;
-    let entries = codex_trust_entries(&final_hooks, &cfg)?;
+    let entries = codex_trust_entries(&final_hooks, &path)?;
     let mut trust_changed = false;
     // 单一来源卫生（M056 顺带）：hook 定义只在 hooks.json；config.toml 里
-    // [hooks] 下除 state 外的定义键（旧部署或它源残留）部署时清掉。
+    // [hooks] 下除 state 外的**ours**定义键（旧 oma 部署残留）清掉。外来定
+    // 义保留（F4 收窄，codex review：用户级 config 是用户主配置，静默删外
+    // 来定义是数据损失；项目级旧口径见 P0044）。
     if let Some(toml::Value::Table(hooks_tbl)) = table.get_mut("hooks") {
         let stale_defs: Vec<String> = hooks_tbl
-            .keys()
-            .filter(|k| k.as_str() != "state")
-            .cloned()
+            .iter()
+            .filter(|(k, v)| k.as_str() != "state" && def_is_all_ours(v))
+            .map(|(k, _)| k.clone())
             .collect();
         if !stale_defs.is_empty() {
             for k in stale_defs {
@@ -885,7 +892,13 @@ pub fn retire_project_hooks_with(root: &Path, report: &mut DeployReport) -> Resu
     )?;
     // 项目 shim 退役：oma 生成的三件删（内容带标记才动，用户自置同名文件
     // 不碰）；hooks 目录空了连目录摘。旧名 .ohmyagents 同查（D14 前部署）。
+    // F3 守卫（codex review）：项目根即 oma 根（`oma init --project $HOME`
+    // 或 cwd 在家）时，base 就是用户级 shim 落点，跳过防自删。
+    let oma_root = crate::install::oma_home().unwrap_or_default();
     for base in [root.join(".oma"), root.join(".ohmyagents")] {
+        if !oma_root.as_os_str().is_empty() && crate::pathutil::abs_display(&base) == oma_root {
+            continue;
+        }
         let hooks_dir = base.join("hooks");
         for name in ["oma-state.cmd", "oma-state-grok.cmd", "oma-state.sh"] {
             let p = hooks_dir.join(name);
@@ -1012,17 +1025,49 @@ fn codex_hook_hash(event: &str, matcher: Option<&str>, handler: &Json) -> Result
     Ok(format!("sha256:{digest:x}"))
 }
 
+/// config.toml `[hooks]` 下一个定义键（事件表，值含 groups）是否全部由
+/// ours 处理器构成（F4 判据：只清 ours 残留定义，外来保留）。
+fn def_is_all_ours(def: &toml::Value) -> bool {
+    /// 单个 handler 形（claude 同构 command 字段或 codex 双字段）判 ours。
+    fn handler_ours(h: &toml::Value) -> bool {
+        ["command", "commandWindows"]
+            .iter()
+            .any(|k| h.get(*k).and_then(|c| c.as_str()).is_some_and(is_ours))
+    }
+    let Some(groups) = def
+        .get("hooks")
+        .and_then(|h| h.as_array())
+        .or_else(|| def.as_array())
+    else {
+        return false;
+    };
+    let mut any = false;
+    for g in groups {
+        match g.get("hooks").and_then(|h| h.as_array()) {
+            Some(hs) if !hs.is_empty() => {
+                if hs.iter().any(|h| !handler_ours(h)) {
+                    return false;
+                }
+                any = true;
+            }
+            _ => return false,
+        }
+    }
+    any
+}
+
 /// Walk the final hooks.json and produce (key, trusted_hash) pairs for every
-/// oma-owned handler at its real group/handler indices.
-fn codex_trust_entries(
+/// oma-owned handler at its real group/handler indices。键源 = 定义该 hook
+/// 的 hooks.json 路径（F1 根修；doctor 的信任判据同源复用）。
+pub(crate) fn codex_trust_entries(
     hooks_json: &Json,
-    config_toml: &Path,
+    hooks_json_path: &Path,
 ) -> Result<Vec<(String, String)>, String> {
     let mut out = Vec::new();
     let Some(events) = hooks_json.get("hooks").and_then(|h| h.as_object()) else {
         return Ok(out);
     };
-    let key_source = plain_absolute(config_toml);
+    let key_source = plain_absolute(hooks_json_path);
     for (event, groups) in events {
         let Some(groups) = groups.as_array() else {
             continue;
@@ -1203,6 +1248,9 @@ pub fn deploy_all_with(
     let mut report = DeployReport::default();
     deploy_user_hooks_with(user_home, oma, side, &mut report)?;
     retire_project_hooks_with(&root, &mut report)?;
+    for c in crate::yolo::retire_project_yolo(&root)? {
+        report.wrote.push(c);
+    }
     deploy_skills(&root, &mut report)?;
     deploy_kimi_project(&root, &mut report)?;
     deploy_instructions(&root, &mut report)?;
@@ -1369,6 +1417,16 @@ mod tests {
         assert!(
             codex_toml.contains("trusted_hash"),
             "user-layer trust seeded: {codex_toml}"
+        );
+        // F1：信任键源 = hooks.json 路径（codex 以定义文件为键源；本机
+        // config.toml 里 codex 自写键即此前缀，一手实证 2026-09-11）。
+        assert!(
+            codex_toml.contains("hooks.json:"),
+            "trust keys must carry the hooks.json path prefix: {codex_toml}"
+        );
+        assert!(
+            !codex_toml.contains("config.toml:session_start"),
+            "stale config.toml-prefixed keys must not be (re)written: {codex_toml}"
         );
 
         // grok 用户层 global hooks 文件。
