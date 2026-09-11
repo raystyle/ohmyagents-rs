@@ -53,6 +53,10 @@ herdr codex 独立 review（对齐 v0.5.3 范式，报告 `.oma/review-v054.md`�
 
 **乱码修（用户同日报修）**：中文目录在状态栏显示「缁跨洘」形 GBK 误解码。根因 = 状态栏脚本只钉了输出侧 UTF-8（S024），stdin 输入侧 `[Console]::In` 随控制台码页（CP936）解码重定向输入。修：stdin 字节级读取（`OpenStandardInput` 加 `MemoryStream`）显式 UTF-8 解码；行为测试喂中文 cwd JSON 断言原样输出。
 
+**第 3 轮（用户追裁「yolo 设置命令要分用户级和项目级」）**：`--yolo` 用户级、`--project-yolo` 项目级（互斥，clap conflicts_with 退出 2）；项目级旧口径（claude 项目双件、codex 项目 config 加项目信任预种、kimi 项目 config）收编为显式旗标；doctor yolo 判据双级接受，项目键在场时按 agent 分层规则遮蔽用户键（detail 标层级）。同批清完 codex review R2 六条低阶残留（R2-1 键标签尾部取、R2-2 findstr 键值段提取与 delims 补空格、R2-3 死绑定、R2-4 R002/R004 口径、R2-5 CLI 帮助、R2-6 四条回归钉 F3/F4/F8/F9）。
+
+**第 4 令（用户「项目级和用户级冲突要可用诊断和告警出来形成 CTA」）**：doctor 三家 yolo 判据双级并读，双级并存且值不同打 warn 加对齐 CTA（`oma init --project-yolo` 对齐或撤一面；项目遮蔽用户是 agent 分层事实，报告项目文件）；同值双级不告警。冲突用例测试钉（三家 warn 加 CTA 在场、对齐后翻 ok）。
+
 ## 经验
 
 - 采集面与消费面必须同层：状态栏（用户级）配项目级采集是慢性断裂，任何「半边迁移」都会以 unknown 形式显影（用户诊断第 4 点即此）。

@@ -104,7 +104,7 @@ set "ERAW="
 if defined ELINE (
   set ERAW=!ELINE:*hook_event_name":=!
   set ERAW=!ERAW:"=,!
-  for /f "tokens=1 delims=," %%a in ("!ERAW!") do set "ERAW=%%a"
+  for /f "tokens=1 delims=, " %%a in ("!ERAW!") do set "ERAW=%%a"
 )
 set "SLINE="
 for /f "usebackq delims=" %%m in (`findstr /c:"session_id" /c:"sessionId" "%TMPF%" 2^>nul`) do (
@@ -115,7 +115,7 @@ if defined SLINE (
   set SID=!SLINE:sessionId=session_id!
   set SID=!SID:*session_id":=!
   set SID=!SID:"=,!
-  for /f "tokens=1 delims=," %%b in ("!SID!") do set "SID=%%b"
+  for /f "tokens=1 delims=, " %%b in ("!SID!") do set "SID=%%b"
 )
 if not defined SID if defined GROK_SESSION_ID set "SID=%GROK_SESSION_ID%"
 set "NLINE="
@@ -138,10 +138,13 @@ if /i "!ERAW!"=="PermissionResult" set "STATE=working"
 if /i "!ERAW!"=="PermissionRequest" set "STATE=blocked"
 if /i "!ERAW!"=="Notification" (
   set "STATE=unknown"
-  rem F9：permission 只在 notification 行内判（jq 形态锚 notification_type 等
-  rem 字段；回落形态此前整包 findstr 会把任意位置出现的词误判 blocked）。
+  rem F9 加 R2-2：permission 只在 notification_type 键值内判（与 SID 同法的
+  rem 首引号段提取；整行或整包匹配会把文案里出现该词误判 blocked）。
   if defined NLINE (
     set "NCHK=!NLINE:notificationType=notification_type!"
+    set NCHK=!NCHK:*notification_type":=!
+    set NCHK=!NCHK:"=,!
+    for /f "tokens=1 delims=, " %%q in ("!NCHK!") do set "NCHK=%%q"
     echo !NCHK!| findstr /c:"permission" >nul 2>nul && set "STATE=blocked"
   )
 )
@@ -352,6 +355,16 @@ mod tests {
         assert!(
             STATE_CMD.contains("/c:\"sessionId\""),
             "camelCase key searched"
+        );
+        // R2-2 钉：Notification 判据是键值首引号段提取（单行载荷不整行
+        // 误判），不是整行/整包匹配。
+        assert!(
+            STATE_CMD.contains("set NCHK=!NCHK:*notification_type\":=!"),
+            "notification kind must extract the quoted value"
+        );
+        assert!(
+            !STATE_CMD.contains("echo !NLINE!| findstr"),
+            "must not match permission against the whole line"
         );
         // 程序体零裸双引号包 jq 字符串（cmd 引号地狱规避，--arg 传值）。
         assert!(!STATE_CMD_JQ.contains(r#""permission""#));

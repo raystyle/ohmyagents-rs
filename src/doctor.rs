@@ -815,27 +815,59 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         detail: crate::caps::caps_line(&caps),
     });
 
-    // D28 第 2 轮：yolo 与非阻塞键全量用户级（项目面键已由 init 退役）。
+    // D28 第 3 轮：yolo 两级显式（--yolo 用户级、--project-yolo 项目级），
+    // doctor 双级接受；项目键在场时按 agent 分层规则遮蔽用户键（报告项目
+    // 面为准）。
     let claude_shared = root.join(".claude").join("settings.json");
     let claude_user_yolo = home.join(".claude").join("settings.json");
-    let yolo_claude = json_file(&claude_user_yolo)
-        .as_ref()
-        .and_then(|v| v.get("permissions"))
-        .and_then(|p| p.get("defaultMode"))
-        .and_then(|m| m.as_str())
-        == Some("bypassPermissions");
-    push(
-        &mut findings,
-        "claude",
-        "yolo",
-        yolo_claude,
-        &claude_user_yolo,
-        if yolo_claude {
-            "user permissions.defaultMode=bypassPermissions"
-        } else {
-            "missing user permissions.defaultMode=bypassPermissions (tool prompt will block)"
-        },
-    );
+    let claude_mode_at = |p: &Path| -> Option<String> {
+        json_file(p)
+            .as_ref()
+            .and_then(|v| v.get("permissions"))
+            .and_then(|pp| pp.get("defaultMode"))
+            .and_then(|m| m.as_str())
+            .map(str::to_string)
+    };
+    let claude_proj_mode = claude_mode_at(&claude_shared);
+    let claude_user_mode = claude_mode_at(&claude_user_yolo);
+    match (&claude_proj_mode, &claude_user_mode) {
+        // 双级冲突（D28 第 4 令）：项目遮蔽用户，warn 加对齐 CTA。
+        (Some(p), Some(u)) if p != u => push_status(
+            &mut findings,
+            "claude",
+            "yolo",
+            Status::Warn,
+            &claude_shared,
+            format!(
+                "conflict: project defaultMode={p} shadows user {u}; align via \
+                 `oma init --project-yolo` or drop one level (D28 r4)"
+            ),
+        ),
+        (Some(p), Some(_)) | (Some(p), None) => push(
+            &mut findings,
+            "claude",
+            "yolo",
+            p == "bypassPermissions",
+            &claude_shared,
+            format!("defaultMode={p} (project level)"),
+        ),
+        (None, Some(u)) => push(
+            &mut findings,
+            "claude",
+            "yolo",
+            u == "bypassPermissions",
+            &claude_user_yolo,
+            format!("defaultMode={u} (user level)"),
+        ),
+        (None, None) => push(
+            &mut findings,
+            "claude",
+            "yolo",
+            false,
+            &claude_user_yolo,
+            "missing permissions.defaultMode=bypassPermissions (tool prompt will block)",
+        ),
+    }
 
     let claude_local = root.join(".claude").join("settings.local.json");
     let user_claude = home.join(".claude").join("settings.json");
@@ -1022,25 +1054,55 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
     let codex_user = home.join(".codex").join("config.toml");
     let proj_toml = toml_file(&codex_proj);
     let user_toml = toml_file(&codex_user);
-    let yolo_codex = user_toml
-        .as_ref()
-        .map(|t| {
-            toml_str(t, "sandbox_mode") == Some("danger-full-access")
-                && toml_str(t, "approval_policy") == Some("never")
-        })
-        .unwrap_or(false);
-    push(
-        &mut findings,
-        "codex",
-        "yolo",
-        yolo_codex,
-        &codex_user,
-        if yolo_codex {
-            "user sandbox_mode=danger-full-access approval_policy=never"
-        } else {
-            "missing user sandbox/approval yolo keys"
-        },
-    );
+    let codex_pair_at = |t: Option<&Toml>| -> Option<(String, String)> {
+        let t = t?;
+        Some((
+            toml_str(t, "sandbox_mode")?.to_string(),
+            toml_str(t, "approval_policy")?.to_string(),
+        ))
+    };
+    let codex_proj_pair = codex_pair_at(proj_toml.as_ref());
+    let codex_user_pair = codex_pair_at(user_toml.as_ref());
+    let codex_yolo_pair =
+        |p: &(String, String)| p == &("danger-full-access".to_string(), "never".to_string());
+    match (&codex_proj_pair, &codex_user_pair) {
+        // 双级冲突（D28 第 4 令）：项目遮蔽用户，warn 加对齐 CTA。
+        (Some(p), Some(u)) if p != u => push_status(
+            &mut findings,
+            "codex",
+            "yolo",
+            Status::Warn,
+            &codex_proj,
+            format!(
+                "conflict: project sandbox/approval shadows user; align via \
+                 `oma init --project-yolo` or drop one level (D28 r4)"
+            ),
+        ),
+        (Some(p), _) => push(
+            &mut findings,
+            "codex",
+            "yolo",
+            codex_yolo_pair(p),
+            &codex_proj,
+            format!("sandbox/approval (project level): {} {}", p.0, p.1),
+        ),
+        (None, Some(u)) => push(
+            &mut findings,
+            "codex",
+            "yolo",
+            codex_yolo_pair(u),
+            &codex_user,
+            format!("sandbox/approval (user level): {} {}", u.0, u.1),
+        ),
+        (None, None) => push(
+            &mut findings,
+            "codex",
+            "yolo",
+            false,
+            &codex_user,
+            "missing sandbox/approval yolo keys",
+        ),
+    }
     // Codex only loads the project config layer after the user store trusts the
     // path. Project `.codex/config.toml` [projects] does not clear the dialog.
     let trust_codex = user_toml
@@ -1085,7 +1147,7 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
                 .and_then(|h| h.as_str())
                 != Some(want.as_str())
         })
-        .map(|(k, _)| k.split(':').nth(1).unwrap_or(k).to_string())
+        .map(|(k, _)| k.rsplit(':').nth(2).unwrap_or(k).to_string())
         .collect();
     push(
         &mut findings,
@@ -1228,23 +1290,55 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         }
     }
 
-    let kimi_proj = root.join(".kimi-code").join("config.toml");
     let kimi_user = home.join(".kimi-code").join("config.toml");
-    let kimi_mode = toml_file(&kimi_user)
-        .as_ref()
-        .and_then(|t| toml_str(t, "default_permission_mode").map(|s| s.to_string()));
-    let yolo_kimi = matches!(kimi_mode.as_deref(), Some("yolo" | "auto"));
-    push(
-        &mut findings,
-        "kimi",
-        "yolo",
-        yolo_kimi,
-        &kimi_user,
-        match kimi_mode.as_deref() {
-            Some(m) => format!("user default_permission_mode={m}"),
-            None => "missing user default_permission_mode auto|yolo".into(),
-        },
-    );
+    let kimi_proj = root.join(".kimi-code").join("config.toml");
+    let kimi_mode_at = |p: &Path| -> Option<String> {
+        toml_file(p).and_then(|t| {
+            t.get("default_permission_mode")
+                .and_then(|v| v.as_str())
+                .map(str::to_string)
+        })
+    };
+    let kimi_proj_mode = kimi_mode_at(&kimi_proj);
+    let kimi_user_mode = kimi_mode_at(&kimi_user);
+    let kimi_ok = |m: &str| matches!(m, "yolo" | "auto");
+    match (&kimi_proj_mode, &kimi_user_mode) {
+        (Some(p), Some(u)) if p != u => push_status(
+            &mut findings,
+            "kimi",
+            "yolo",
+            Status::Warn,
+            &kimi_proj,
+            format!(
+                "conflict: project default_permission_mode={p} shadows user {u}; align via \
+                 `oma init --project-yolo` or drop one level (D28 r4)"
+            ),
+        ),
+        (Some(p), _) => push(
+            &mut findings,
+            "kimi",
+            "yolo",
+            kimi_ok(p),
+            &kimi_proj,
+            format!("default_permission_mode={p} (project level)"),
+        ),
+        (None, Some(u)) => push(
+            &mut findings,
+            "kimi",
+            "yolo",
+            kimi_ok(u),
+            &kimi_user,
+            format!("default_permission_mode={u} (user level)"),
+        ),
+        (None, None) => push(
+            &mut findings,
+            "kimi",
+            "yolo",
+            false,
+            &kimi_user,
+            "missing default_permission_mode auto|yolo",
+        ),
+    }
     let trust_kimi = kimi_trust_ok(&home, &root);
     let kimi_trust_path = home
         .join(".kimi-code")
@@ -2076,6 +2170,99 @@ mod tests {
         );
         let _ = fs::remove_dir_all(&user);
         let _ = fs::remove_dir_all(&oma);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn kimi_hooks_form_flags_dead_shim() {
+        // F8 回归钉：kimi 用户级 [[hooks]] 指向缺失 shim 判 shim-dead（与
+        // claude / grok 面同款在位探针）。
+        let dir = temp_root("kimi-form");
+        let dead = dir.join(".oma").join("hooks").join("oma-state.cmd");
+        fs::create_dir_all(dead.parent().unwrap()).unwrap();
+        let fwd = dead.to_string_lossy().replace('\\', "/");
+        let cfg_text = format!(
+            "[[hooks]]
+event = \"Stop\"
+command = \"{fwd} kimi\"
+timeout = 10
+"
+        );
+        let cfg = toml::from_str::<Toml>(&cfg_text).unwrap();
+        assert_eq!(kimi_hooks_form(Some(&cfg)), "shim-dead");
+        fs::write(
+            &dead,
+            "@echo off
+",
+        )
+        .unwrap();
+        let cfg = toml::from_str::<Toml>(&cfg_text).unwrap();
+        assert_eq!(kimi_hooks_form(Some(&cfg)), "shim");
+        assert_eq!(kimi_hooks_form(None), "none");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn dual_level_yolo_conflict_warns_with_cta() {
+        // D28 第 4 令：用户级与项目级并存且值不同 → warn 加对齐 CTA（项目
+        // 遮蔽用户）。缝注入双根（共享 env 锁）。
+        let _g = crate::pathutil::ENV_LOCK.lock().unwrap();
+        let user = temp_root("cta-user");
+        let root = temp_root("cta-proj");
+        fs::create_dir_all(user.join(".claude")).unwrap();
+        fs::create_dir_all(user.join(".codex")).unwrap();
+        fs::create_dir_all(user.join(".kimi-code")).unwrap();
+        fs::create_dir_all(root.join(".claude")).unwrap();
+        fs::create_dir_all(root.join(".codex")).unwrap();
+        fs::create_dir_all(root.join(".kimi-code")).unwrap();
+        // 用户级 = 全 yolo。
+        crate::yolo::apply_user_yolo_with(&user).unwrap();
+        // 项目级 = 收紧值（用户自设形态）。
+        fs::write(
+            root.join(".claude").join("settings.json"),
+            r#"{"permissions": {"defaultMode": "acceptEdits"}}"#,
+        )
+        .unwrap();
+        fs::write(
+            root.join(".codex").join("config.toml"),
+            "sandbox_mode = \"read-only\"
+approval_policy = \"on-request\"
+",
+        )
+        .unwrap();
+        fs::write(
+            root.join(".kimi-code").join("config.toml"),
+            "default_permission_mode = \"manual\"
+",
+        )
+        .unwrap();
+        std::env::set_var("OMA_USER_HOME", &user);
+        let d = diagnose(&root).expect("diagnose");
+        std::env::remove_var("OMA_USER_HOME");
+        for agent in ["claude", "codex", "kimi"] {
+            let f = d
+                .findings
+                .iter()
+                .find(|f| f.agent == agent && f.check == "yolo")
+                .unwrap_or_else(|| panic!("yolo row for {agent}"));
+            assert_eq!(f.status, Status::Warn, "{agent}: {:?}", f.detail);
+            assert!(
+                f.detail.contains("conflict") && f.detail.contains("oma init --project-yolo"),
+                "CTA present: {}",
+                f.detail
+            );
+        }
+        // 同值双级（项目对齐用户）不告警。
+        fs::write(
+            root.join(".claude").join("settings.json"),
+            r#"{"permissions": {"defaultMode": "bypassPermissions"}}"#,
+        )
+        .unwrap();
+        std::env::set_var("OMA_USER_HOME", &user);
+        let d = diagnose(&root).expect("diagnose");
+        std::env::remove_var("OMA_USER_HOME");
+        assert_eq!(d.status("claude", "yolo"), Some(Status::Ok));
+        let _ = fs::remove_dir_all(&user);
         let _ = fs::remove_dir_all(&root);
     }
 

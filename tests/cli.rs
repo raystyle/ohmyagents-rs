@@ -472,6 +472,54 @@ fn init_retires_v053_project_registrations() {
 }
 
 #[test]
+fn init_project_yolo_writes_project_scope_only() {
+    // D28 第 3 轮：yolo 两级显式。--project-yolo 写项目面（claude/codex/
+    // kimi 项目配置），不碰用户级；与 --yolo 互斥（退出 2）。
+    let tmp = std::env::temp_dir().join(format!(
+        "oma-cli-init-pyolo-{}-{}",
+        std::process::id(),
+        NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    let user = tmp.join("fake-user-home");
+    let proj = tmp.join("proj");
+    std::fs::create_dir_all(&user).unwrap();
+    oma()
+        .args(["init", "--project-yolo", "--project"])
+        .arg(&proj)
+        .env("OMA_USER_HOME", &user)
+        .env("OMA_HOME", &tmp.join("fake-oma-home"))
+        .assert()
+        .success()
+        .stdout(contains("init.scope=yolo-project"));
+    let shared: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(proj.join(".claude").join("settings.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        shared["permissions"]["defaultMode"].as_str(),
+        Some("bypassPermissions"),
+        "project-level claude yolo written"
+    );
+    let codex = std::fs::read_to_string(proj.join(".codex").join("config.toml")).unwrap();
+    assert!(codex.contains("approval_policy"), "project codex yolo keys");
+    let kimi = std::fs::read_to_string(proj.join(".kimi-code").join("config.toml")).unwrap();
+    assert!(kimi.contains("yolo"), "project kimi yolo key");
+    assert!(
+        !user.join(".claude").join("settings.json").exists(),
+        "--project-yolo must not touch user level"
+    );
+    // 与 --yolo 互斥：clap 退出 2。
+    oma()
+        .args(["init", "--yolo", "--project-yolo", "--project"])
+        .arg(&proj)
+        .env("OMA_USER_HOME", &user)
+        .assert()
+        .failure()
+        .code(2);
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
 fn init_rerun_is_byte_idempotent() {
     let tmp = std::env::temp_dir().join(format!(
         "oma-cli-init-idem-{}-{}-{}",

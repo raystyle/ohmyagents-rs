@@ -25,11 +25,14 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// 项目级 yolo 落盘（默认全套：yolo 键加 hook/skill 注册）
+    /// 用户级 yolo 与非阻塞键落盘（默认全套：yolo 键加 hook/skill 注册）
     Init {
-        /// 写项目级无阻塞键（仅 yolo，不落 hook/skill）
-        #[arg(long)]
+        /// 写用户级无阻塞键（仅 yolo，不落 hook/skill；D28 第 3 轮起两级显式）
+        #[arg(long, conflicts_with = "project_yolo")]
         yolo: bool,
+        /// 写项目级无阻塞键（仅 yolo，项目覆盖用户级；与 --yolo 互斥）
+        #[arg(long = "project-yolo")]
+        project_yolo: bool,
         /// 预写用户家目录信任库（claude/codex/kimi/grok）
         #[arg(long)]
         pretrust: bool,
@@ -259,9 +262,10 @@ fn run() -> Result<(), String> {
     match command {
         Commands::Init {
             yolo,
+            project_yolo,
             pretrust,
             project,
-        } => cmd_init(yolo, pretrust, project),
+        } => cmd_init(yolo, project_yolo, pretrust, project),
         Commands::Doctor { project } => cmd_doctor(project),
         Commands::Agents { cmd } => match cmd {
             None => {
@@ -513,35 +517,51 @@ fn project_root(project: Option<PathBuf>) -> Result<PathBuf, String> {
     Ok(raw)
 }
 
-fn cmd_init(yolo: bool, pretrust: bool, project: Option<PathBuf>) -> Result<(), String> {
+fn cmd_init(
+    yolo: bool,
+    project_yolo: bool,
+    pretrust: bool,
+    project: Option<PathBuf>,
+) -> Result<(), String> {
     let root = project_root(project)?;
     std::fs::create_dir_all(&root).map_err(|e| format!("{}: {e}", root.display()))?;
     // Default init is the full deployment: user-level yolo keys plus user-level
     // hook registration and project skills (D28 round 2: yolo keys are
-    // user-level too). --yolo narrows to keys only.
-    let report = yolo::apply_user_yolo()?;
-    println!("init.flag.yolo={yolo}");
-    for p in &report.wrote {
-        println!("init.wrote={p}");
-    }
-    if !yolo {
-        let deployed = oma::deploy::deploy_all(&root)?;
-        for p in &deployed.wrote {
-            println!("init.hooks.wrote={p}");
+    // user-level too). Round 3: yolo scope is explicit — `--yolo` = user-level
+    // keys only, `--project-yolo` = project-level keys only (project overrides
+    // user where the agent supports layering).
+    if project_yolo {
+        let report = yolo::apply_project_yolo(&root)?;
+        println!("init.flag.project_yolo=true");
+        for p in &report.wrote {
+            println!("init.wrote={p}");
         }
-        println!("init.hooks.wrote.count={}", deployed.wrote.len());
-        println!("init.hooks.skipped.count={}", deployed.skipped.len());
-        // Registration-form marker (D28): hooks live in the four agents'
-        // user-level configs and point at the self-contained state shim in
-        // ~/.oma/hooks/, zero oma-binary dependency.
-        if let Some(form) = deployed.form {
-            println!("init.hooks.form={form}");
-        }
-        for w in &deployed.warns {
-            println!("init.hooks.warn={w}");
-        }
-    } else {
         println!("init.hooks=skipped");
+    } else {
+        let report = yolo::apply_user_yolo()?;
+        println!("init.flag.yolo={yolo}");
+        for p in &report.wrote {
+            println!("init.wrote={p}");
+        }
+        if !yolo {
+            let deployed = oma::deploy::deploy_all(&root)?;
+            for p in &deployed.wrote {
+                println!("init.hooks.wrote={p}");
+            }
+            println!("init.hooks.wrote.count={}", deployed.wrote.len());
+            println!("init.hooks.skipped.count={}", deployed.skipped.len());
+            // Registration-form marker (D28): hooks live in the four agents'
+            // user-level configs and point at the self-contained state shim in
+            // ~/.oma/hooks/, zero oma-binary dependency.
+            if let Some(form) = deployed.form {
+                println!("init.hooks.form={form}");
+            }
+            for w in &deployed.warns {
+                println!("init.hooks.warn={w}");
+            }
+        } else {
+            println!("init.hooks=skipped");
+        }
     }
     if pretrust {
         let trust = yolo::apply_pretrust(&root)?;
@@ -553,7 +573,16 @@ fn cmd_init(yolo: bool, pretrust: bool, project: Option<PathBuf>) -> Result<(), 
         println!("init.pretrust=skipped");
     }
     println!("init.project={}", root.display());
-    println!("init.scope={}", if yolo { "yolo" } else { "full" });
+    println!(
+        "init.scope={}",
+        if project_yolo {
+            "yolo-project"
+        } else if yolo {
+            "yolo"
+        } else {
+            "full"
+        }
+    );
     Ok(())
 }
 

@@ -158,6 +158,89 @@ pub fn apply_user_yolo_with(user_home: &Path) -> Result<ApplyReport, String> {
     Ok(ApplyReport { wrote })
 }
 
+/// 项目级 yolo 与非阻塞键（D28 第 3 轮裁定 2026-09-11：yolo 命令分两级，
+/// `oma init --project-yolo` 显式选项目级；v0.5.3 前的默认行为收编为显式
+/// 旗标）。写入面：claude 项目 `.claude/settings.json` 加
+/// `settings.local.json`、codex 项目 `.codex/config.toml`（yolo 键加项目
+/// 信任预种）、kimi 项目 `.kimi-code/config.toml`；grok 无项目级面
+/// （permission_mode 只能写用户级，S025）。
+pub fn apply_project_yolo(root: &Path) -> Result<ApplyReport, String> {
+    let root = abs_display(root);
+    let mut wrote = Vec::new();
+
+    let claude_shared = root.join(".claude").join("settings.json");
+    let mut shared = read_json(&claude_shared)?;
+    if !shared.is_object() {
+        shared = json!({});
+    }
+    {
+        let obj = shared.as_object_mut().unwrap();
+        let permissions = obj
+            .entry("permissions".to_string())
+            .or_insert_with(|| json!({}));
+        if !permissions.is_object() {
+            *permissions = json!({});
+        }
+        permissions
+            .as_object_mut()
+            .unwrap()
+            .insert("defaultMode".into(), json!("bypassPermissions"));
+    }
+    write_json(&claude_shared, &shared)?;
+    wrote.push(claude_shared.display().to_string());
+
+    let claude_local = root.join(".claude").join("settings.local.json");
+    let mut local = read_json(&claude_local)?;
+    if !local.is_object() {
+        local = json!({});
+    }
+    {
+        let obj = local.as_object_mut().unwrap();
+        obj.insert("skipDangerousModePermissionPrompt".into(), Json::Bool(true));
+        apply_mcp_approvals(obj, &root);
+    }
+    write_json(&claude_local, &local)?;
+    wrote.push(claude_local.display().to_string());
+
+    let native = native_slash(&root);
+    let codex = root.join(".codex").join("config.toml");
+    let mut ctoml = read_toml(&codex)?;
+    {
+        let t = table_mut(&mut ctoml)?;
+        t.insert(
+            "sandbox_mode".into(),
+            Toml::String("danger-full-access".into()),
+        );
+        t.insert("approval_policy".into(), Toml::String("never".into()));
+        let projects = t
+            .entry("projects".to_string())
+            .or_insert_with(|| Toml::Table(toml::map::Map::new()));
+        let projects = table_mut(projects)?;
+        let key = if cfg!(windows) {
+            native.to_ascii_lowercase()
+        } else {
+            native.clone()
+        };
+        let proj = projects
+            .entry(key)
+            .or_insert_with(|| Toml::Table(toml::map::Map::new()));
+        table_mut(proj)?.insert("trust_level".into(), Toml::String("trusted".into()));
+    }
+    write_toml(&codex, &ctoml)?;
+    wrote.push(codex.display().to_string());
+
+    let kimi = root.join(".kimi-code").join("config.toml");
+    let mut ktoml = read_toml(&kimi)?;
+    table_mut(&mut ktoml)?.insert(
+        "default_permission_mode".into(),
+        Toml::String("yolo".into()),
+    );
+    write_toml(&kimi, &ktoml)?;
+    wrote.push(kimi.display().to_string());
+
+    Ok(ApplyReport { wrote })
+}
+
 /// 生产入口：真实家目录。
 pub fn apply_user_yolo() -> Result<ApplyReport, String> {
     let home = crate::pathutil::user_home()?;
