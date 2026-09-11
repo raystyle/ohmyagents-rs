@@ -7,14 +7,14 @@
 
 > 当前目标的起点：何时发起、为什么发起、要解决什么问题。
 
-- **日期**：2026-09-09。
-- **起点**：D21 立项。诊断功能扩展（ohmyagents-rs#8，ohmycloud D45 配套）：统一网关 llm.d3fend.cn 的缓存探测与 agent 配置检测进 oma；用户裁独立 oma diagnose 族与 doctor 分家。
+- **日期**：2026-09-11。
+- **起点**：D28 立项。状态栏跨项目失效根修：用户实证诊断四点（状态栏命令用户级、采集 hook 与 shim 项目级、codex 与 claude 注册面不一致、状态单键互踩），裁 hook 应用户全局；随修发 v0.5.4，交付前 herdr codex review。
 
 ## 锚点
 
 > 当前锚定的目标 + 推进时间线。
 
-- **锚定的目标**：D21 oma diagnose 活性诊断族（PRD D21 已采纳：diagnose cache 双连探测加 ds 特判、diagnose agents 配置指向与别名在册与 key 活性与 thinking 对照）。
+- **锚定的目标**：D28 状态栏跨项目失效根修（PRD D28 已采纳：hook 注册与 shim 常驻 `~/.oma/hooks/`、状态按 session 分键 `~/.oma/state/<agent>-<session>.json`、状态栏按当前 session 读、项目 `.oma/hooks` 退役、v0.5.4 发版）。
 
 ### 推进时间线
 
@@ -130,7 +130,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：无。（D21 归档 P0041。队列无挂账。）
+- 当前目标：D28 状态栏跨项目失效根修。落码中：shim 用户级加 session 分键、注册四家迁用户级、状态栏 oma 段新读序、init 迁移清理、doctor/verify 跟随。
 
 ## 历史
 

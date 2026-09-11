@@ -4,7 +4,20 @@
 
 ## 当前目标
 
-无。D27 shim 解耦（P0044）加 M057/M058/M059 三笔根修与三平台测试矩阵当日闭环；v0.5.1/v0.5.2 双发验收收官（三仓水位 omc 0.3.1 / ome 0.2.1 / oma v0.5.2 对齐）。挂账：guard 透传白名单化与 mac shebang CI 断言（codex 验收 review 提出，记 M102 挂账行）。
+D28 状态栏跨项目失效根修（2026-09-11 立项）：
+
+- [ ] shim 用户级加 session 分键双写与 SessionEnd GC（src\shim.rs）
+- [ ] 注册四家迁用户级（claude/codex/grok/kimi，src\deploy.rs）
+- [ ] 状态栏 oma 段读序重排（src\statusline.rs）
+- [ ] oma hook 用户级分键写与陈旧清理（src\hook.rs）
+- [ ] init 迁移清理项目 ours 注册与 shim 退役（src\deploy.rs）
+- [ ] doctor hooks.form 与 state 检查面迁用户级（src\doctor.rs）
+- [ ] verify 临时用户级注册泛化与判据隔离（src\verify.rs）
+- [ ] 测试与四门禁全绿；herdr codex review 三轮对齐
+- [ ] 文档同步（R002/R011 判定/AGENTS/INDEX/CHANGELOG/COMMAND_MAP/SKILL/S025 追记）加 P0045 归档
+- [ ] v0.5.4 发版（digest 对端验锚加 herdr 知会 ohmycloud）
+
+挂账（沿旧）：guard 透传白名单化与 mac shebang CI 断言（M102 挂账行）。
 
 ## 前目标清单
 

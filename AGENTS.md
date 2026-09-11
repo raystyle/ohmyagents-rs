@@ -15,7 +15,7 @@
    - 四仓分工（2026-09-02 定调，D07 修正 agent 二进制归属，D09 钉种子不归 oma，D15 去编排，D20 去 token 注入，细目见 R001 四仓生态节）：ohmyenv-rs（`ome`）管工具、运行时依赖与 agent 二进制下装部署、本仓（`oma`）管诊断、hook、状态栏、trace 与 yolo、ohmypwsh 管五端总台与密钥安全（token 注入归此）、ohmycloud 管云端二进制分发与镜像种子；跨仓协作互相发 issue。
    - oma 不管种子、不管 agent 二进制下装（D09，2026-09-07）、不管 token 注入（D20，2026-09-09）：只管可用性诊断、hook、状态栏、trace 与 yolo。下载、安装、部署（五端）归 ohmyenv-rs：`ome install` 幂等检测安装（已装任何来源即跳过，存量原地纳管），数据权威 ome `catalog\tools.toml` agent 四节（D07 方向反转 2026-09-05，ohmyagents#5）。本仓 `oma agents install` / `update` / `secrets` / `providers` / `login` 已随 D20 整体移除（历史口径见 R002 与 P0040）。oma doctor 的登录态 / hook 形态 / 状态栏三类检查归 agents 域（二进制在位与版本归 ome doctor）。
    - 三活仓本地路径（用户裁 2026-09-10 登记，重叠功能互相 review 时直读对方仓代码）：ohmycloud = `D:\ohmycloud`、ohmyenv-rs = `D:\ohmyenv-rs`、ohmyagents-rs = `D:\ohmyagents-rs`（本仓）；review 重叠面（如 diagnose 与 omc agent doctor 分工）直接读 `D:\ohmycloud\src\` 对应文件。
-   - hook、skill、状态文件只落启动目录；oma 自管应用数据根是 `~/.oma`（D14；旧 `~/.ohmyagents` 仅旧在则改名迁过去。agent 安装与本地 pin，P0012；D07 后安装域迁 ome，此根承载存量安装与配置数据），默认不改用户家目录 hook 注册。
+   - hook、skill 部署只落启动目录；hook 注册与状态通道常驻用户级（D28：注册面四家用户层、shim 与 session 分键状态在 `~/.oma/`，未 init 项目也有状态数据）；oma 自管应用数据根是 `~/.oma`（D14；旧 `~/.ohmyagents` 仅旧在则改名迁过去。agent 安装与本地 pin，P0012；D07 后安装域迁 ome，此根承载存量安装与配置数据），yolo 与 pretrust 键的写入面见 R002。
 
 3. **管理对象**
    - 可注册的终端 agent（当前默认 claude / codex / grok / kimi，可扩展）。
@@ -122,7 +122,7 @@
 - **检测已装 agent**：`oma agents`（PATH / 环境变量 / oma 自管根 / 默认目录四源；缺装 hint 指向 `ome install`，D20）
 - **配置状态栏**：`oma agents statusline [名] [--example]`（四家写入面幂等；用户级定制 `~/.oma/statusline.toml`：段落开关加模板图标加 codex 子集，`--script` 整脚本替换加 `--builtin` 还原，D18）
 - **hook 写状态加密钥拦截**：`oma hook`（状态落盘；block 级密钥 exit 2 拒调用）
-- **部署项目全套**：`oma init [--project PATH]`（yolo 加 hook/skill，四环境自适应，幂等；hook 注册指向 `.oma/hooks/` 自包含状态 shim，零 oma 依赖可无痛轮换，cmd 侧 jq 探测两级形态，D27）
+- **部署项目全套**：`oma init [--project PATH]`（yolo 加 hook/skill，幂等；hook 注册与 shim 常驻用户级 `~/.oma/hooks/`，状态按 session 分键写 `~/.oma/state/`，项目旧注册自动退役，零 oma 依赖可无痛轮换，D27/D28）
 - **部署项目级 yolo**：`oma init --yolo`（仅无阻塞键）；`--pretrust` 追加家目录信任库
 - **oma 自更新**：`oma self update [--stable] [--git]`（缺省 dev 滚动源，Windows rename 舞步；设 `OMA_MIRROR=<基址>` 走镜像 dev 段，边车 sha256 判新，网络失败回落 GitHub，D16）
 - **生成 oma 自身技能**：`oma skill [--write]`（从 clap 活命令树自适应渲染 SKILL.md，新命令自动出现；--write 落用户级 ~/.claude/skills/ohmyagents/，D22）
