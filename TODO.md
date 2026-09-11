@@ -17,7 +17,7 @@ D28 状态栏跨项目失效根修（2026-09-11 立项，同日四轮裁定闭�
 - [x] 文档同步（R002/R004/AGENTS/INDEX/CHANGELOG/COMMAND_MAP/SKILL/S025 追记）加 P0045 归档
 - [x] v0.5.4 发版（digest 对端验锚加 herdr 知会 ohmycloud）
 
-挂账（沿旧）：guard 透传白名单化与 mac shebang CI 断言（M102 挂账行）。
+挂账：无（M060 两笔 2026-09-11 清讫：guard 透传白名单化加 shebang 注入缝）。
 
 ## 前目标清单
 

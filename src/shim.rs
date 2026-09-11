@@ -7,8 +7,11 @@
 //! `<agent>-<session>.json`（session 键，状态栏按当前会话直读）；
 //! SessionEnd 删本 session 键文件（GC，崩溃残留由 oma hook 侧陈旧清扫）。
 //! `OHMYAGENTS_STATE_FILE` 覆盖优先且互斥（单文件语义，verify 与测试用）。
-//! secretguard 由 shim fail-open 委托：PreToolUse / UserPromptSubmit 时 oma
-//! 在位则转发 payload 并透传退出码（2 = block），不在位则放行（state 已写）。
+//! secretguard 由 shim fail-open 委托加 M060a 白名单：PreToolUse /
+//! UserPromptSubmit 时 oma 在位则转发 payload，仅「exit 2 且 stderr 带
+//! `oma secretguard:` 前缀」判定为自判 block 透传 2 并回放原因；oma 故障
+//! 的其余非零（升级期坏二进制、CLI 契约漂移含 clap 用法错的 exit 2）一律
+//! fail-open 放行，不在位同放行（state 已写）——护无痛轮换。
 //! `oma hook` 保留为手动入口与委托目标（含完整 notification 形状解析）。
 //! cmd 形态两级（用户裁 2026-09-10：jq 归 ome 部署，shim 部署前探 PATH）：
 //! jq 在位用 jq 解析（转义免疫、ts 取 jq now），缺位回落 findstr 硬解析并
@@ -78,10 +81,24 @@ if errorlevel 1 (
   del "%TMPF%" >nul 2>nul
   exit /b 0
 )
-type "%TMPF%" | oma hook --agent %AGENT%
+set "ERRF=%TEMP%\oma-guard-%RANDOM%%RANDOM%.err"
+type "%TMPF%" | oma hook --agent %AGENT% 2>"%ERRF%"
 set "RC=%errorlevel%"
+rem M060a guard 透传白名单：仅「oma 自判 block」（exit 2 且 stderr 带
+rem oma secretguard: 前缀）才透传 2 并回放原因；oma 故障的非零（升级期
+rem 坏二进制、CLI 契约漂移含 clap 用法错也是 exit 2）一律 fail-open
+rem 放行，护无痛轮换。
+if not "%RC%"=="2" goto guardpass
+findstr /b /c:"oma secretguard:" "%ERRF%" >nul 2>nul
+if errorlevel 1 goto guardpass
+type "%ERRF%" >&2
 del "%TMPF%" >nul 2>nul
-exit /b %RC%
+del "%ERRF%" >nul 2>nul
+exit /b 2
+:guardpass
+del "%TMPF%" >nul 2>nul
+del "%ERRF%" >nul 2>nul
+exit /b 0
 "#;
 
 /// Windows cmd shim，findstr 回落形态（jq 缺位时部署，warn 指向 ome install
@@ -170,10 +187,24 @@ if errorlevel 1 (
   del "%TMPF%" >nul 2>nul
   exit /b 0
 )
-type "%TMPF%" | oma hook --agent %AGENT%
+set "ERRF=%TEMP%\oma-guard-%RANDOM%%RANDOM%.err"
+type "%TMPF%" | oma hook --agent %AGENT% 2>"%ERRF%"
 set "RC=%errorlevel%"
+rem M060a guard 透传白名单：仅「oma 自判 block」（exit 2 且 stderr 带
+rem oma secretguard: 前缀）才透传 2 并回放原因；oma 故障的非零（升级期
+rem 坏二进制、CLI 契约漂移含 clap 用法错也是 exit 2）一律 fail-open
+rem 放行，护无痛轮换。
+if not "%RC%"=="2" goto guardpass
+findstr /b /c:"oma secretguard:" "%ERRF%" >nul 2>nul
+if errorlevel 1 goto guardpass
+type "%ERRF%" >&2
 del "%TMPF%" >nul 2>nul
-exit /b %RC%
+del "%ERRF%" >nul 2>nul
+exit /b 2
+:guardpass
+del "%TMPF%" >nul 2>nul
+del "%ERRF%" >nul 2>nul
+exit /b 0
 "#;
 
 /// POSIX sh shim（Linux = bash、mac = zsh 同一语义；shebang 由部署侧按宿主
@@ -220,8 +251,18 @@ fi
 case "$event" in
   pretooluse|userpromptsubmit)
     if command -v oma >/dev/null 2>&1; then
-      printf '%s' "$payload" | oma hook --agent "$agent"
-      exit $?
+      # M060a guard 透传白名单：仅「oma 自判 block」（exit 2 且 stderr 带
+      # oma secretguard: 前缀）才透传 2 并回放原因；oma 故障的非零一律
+      # fail-open 放行，护无痛轮换。
+      errf="$(mktemp "${TMPDIR:-/tmp}/oma-guard.XXXXXX" 2>/dev/null || printf '%s/oma-guard.%s' "${TMPDIR:-/tmp}" "$$")"
+      printf '%s' "$payload" | oma hook --agent "$agent" 2>"$errf"
+      rc=$?
+      if [ "$rc" -eq 2 ] && grep -q "^oma secretguard:" "$errf"; then
+        cat "$errf" >&2
+        rm -f "$errf"
+        exit 2
+      fi
+      rm -f "$errf"
     fi
     ;;
 esac
@@ -256,6 +297,16 @@ fn write_if_changed(path: &std::path::Path, content: &str) -> Result<bool, Strin
     Ok(true)
 }
 
+/// 宿主 shell 选择（M060b 抽出成映射）：macOS 落 zsh shebang（缺
+/// /usr/bin/bash 的兜底；两 shebang 皆兼容），其余 bash。
+pub fn host_shell() -> &'static str {
+    if cfg!(target_os = "macos") {
+        "zsh"
+    } else {
+        "bash"
+    }
+}
+
 /// 部署 shim 文件集到 oma 自管根的 `hooks/`（D28 用户级常驻：
 /// `<oma_home>/hooks/`，调用方传 `install::oma_home()`；测试传临时根）。
 /// 三份脚本全侧落齐（跨 OS 共享并存：Windows init 也备好 .sh、Unix init
@@ -264,6 +315,15 @@ fn write_if_changed(path: &std::path::Path, content: &str) -> Result<bool, Strin
 /// 返回 (实写路径, 警告)。
 pub fn deploy_shims(
     oma_root: &std::path::Path,
+) -> Result<(Vec<std::path::PathBuf>, Vec<String>), String> {
+    deploy_shims_with(oma_root, host_shell())
+}
+
+/// Test seam（M060b）：shell 选择注入（zsh 变体在 Windows/WSL 编译期
+/// cfg! 分支测不到的根因消除；prod 经 deploy_shims 走 host_shell）。
+pub fn deploy_shims_with(
+    oma_root: &std::path::Path,
+    shell: &str,
 ) -> Result<(Vec<std::path::PathBuf>, Vec<String>), String> {
     use std::path::PathBuf;
     let dir = oma_root.join("hooks");
@@ -288,13 +348,8 @@ pub fn deploy_shims(
     if write_if_changed(&grok, &crlf(STATE_GROK_CMD))? {
         wrote.push(grok);
     }
-    // 宿主 zsh 判定：macOS 缺 /usr/bin/bash 的兜底；两 shebang 皆兼容。
     let sh = dir.join("oma-state.sh");
-    let sh_body = if cfg!(target_os = "macos") {
-        state_sh_for("zsh")
-    } else {
-        state_sh_for("bash")
-    };
+    let sh_body = state_sh_for(shell);
     if write_if_changed(&sh, &sh_body)? {
         wrote.push(sh.clone());
     }
@@ -339,15 +394,30 @@ mod tests {
                 body.contains("GROK_SESSION_ID"),
                 "grok env session fallback"
             );
+            // M060a 白名单钉：仅「exit 2 且 stderr 带 oma secretguard: 前缀」
+            // 透传，其余非零 fail-open（护无痛轮换）。
+            assert!(
+                body.contains(r#"findstr /b /c:"oma secretguard:""#),
+                "guard pass is whitelisted on the secretguard stderr prefix"
+            );
+            assert!(
+                body.contains(":guardpass"),
+                "non-guard nonzero exits route to the fail-open label"
+            );
         }
+        // M060a 白名单钉（sh 形态）。
+        assert!(STATE_SH.contains(r#"grep -q "^oma secretguard:" "$errf""#));
         // jq 形态专属：字段提取与 state JSON 生成都走 jq，ts 用 now|floor。
         assert!(STATE_CMD_JQ.contains(r#"jq -r ".hook_event_name"#));
         assert!(STATE_CMD_JQ.contains(r#"jq -r ".session_id // .sessionId"#));
         assert!(STATE_CMD_JQ.contains("jq -n --arg state"));
         assert!(STATE_CMD_JQ.contains("ts:(now|floor)"));
+        // jq 形态不做手工解析（findstr 只许出现在 guard 的 stderr 前缀判
+        // 定里，不用于载荷字段提取）。
         assert!(
-            !STATE_CMD_JQ.contains("findstr"),
-            "jq form must not parse by hand"
+            !STATE_CMD_JQ.contains(r#"findstr /c:"hook_event_name""#)
+                && !STATE_CMD_JQ.contains(r#"findstr /c:"session_id""#),
+            "jq form must not parse payload by hand"
         );
         // 回落形态专属：findstr 硬解析（sessionId 与 session_id 双字面）、ts 记 0。
         assert!(STATE_CMD.contains("findstr"));
@@ -442,6 +512,161 @@ mod tests {
         // 幂等：内容不变不重写。
         let (wrote2, _) = deploy_shims(&dir).unwrap();
         assert!(wrote2.is_empty(), "redeploy writes nothing: {wrote2:?}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// 独占临时目录（行为测试用）。
+    fn scratch(tag: &str) -> std::path::PathBuf {
+        let p = std::env::temp_dir().join(format!(
+            "oma-shim-{tag}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ));
+        std::fs::create_dir_all(&p).unwrap();
+        p
+    }
+
+    #[test]
+    fn deploy_shims_with_bakes_requested_shebang() {
+        // M060b：shell 注入缝。zsh 变体此前是编译期 cfg! 分支，Windows 与
+        // WSL 编译体都测不到（挂账根因）；现在任何宿主都能断言两种落盘
+        // 形态（mac 语义由 host_shell 的 cfg 保证，内容语义由此钉）。
+        for (shell, head) in [
+            ("zsh", "#!/usr/bin/env zsh\n"),
+            ("bash", "#!/usr/bin/env bash\n"),
+        ] {
+            let dir = scratch("shebang");
+            deploy_shims_with(&dir, shell).unwrap();
+            let body = std::fs::read_to_string(dir.join("hooks").join("oma-state.sh")).unwrap();
+            assert!(body.starts_with(head), "{shell} variant: {:?}", &body[..40]);
+            // 主体与 bash 形同源（只换 shebang 行）。
+            assert!(body.contains("oma hook --agent"));
+            // 幂等。
+            let (w2, _) = deploy_shims_with(&dir, shell).unwrap();
+            assert!(w2.is_empty(), "{shell} redeploy writes nothing");
+            let _ = std::fs::remove_dir_all(&dir);
+        }
+        // 宿主映射形态（cfg 语义本身在对应平台矩阵跑）。
+        assert!(matches!(host_shell(), "zsh" | "bash"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn guard_whitelist_passthrough_windows() {
+        use std::io::Write;
+        use std::os::windows::process::CommandExt;
+        use std::process::{Command, Stdio};
+        // M060a 行为判据（真落盘 shim 加 PATH 注入 fake oma 三态）：带
+        // secretguard 前缀的 exit 2 透传 2 并回放原因；无前缀 exit 2（CLI
+        // 契约漂移形态，clap 用法错正是它）与 exit 1（升级期坏二进制）一律
+        // fail-open 0，护无痛轮换。
+        let dir = scratch("guard");
+        deploy_shims(&dir).unwrap();
+        let shim = dir.join("hooks").join("oma-state.cmd");
+        let fake = dir.join("fakebin");
+        std::fs::create_dir_all(&fake).unwrap();
+        let state = dir.join("state.json");
+        let path = std::env::var("PATH").unwrap_or_default();
+        let run = |body: &str| -> (Option<i32>, String) {
+            std::fs::write(fake.join("oma.cmd"), body).unwrap();
+            let mut child = Command::new("cmd")
+                .raw_arg(format!(
+                    "/c \"{}\" claude",
+                    shim.display().to_string().replace('\\', "/")
+                ))
+                .env("PATH", format!("{};{}", fake.display(), path))
+                .env("OHMYAGENTS_STATE_FILE", &state)
+                .env_remove("OMA_HOME")
+                .env_remove("GROK_SESSION_ID")
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .unwrap();
+            child
+                .stdin
+                .take()
+                .unwrap()
+                .write_all(br#"{"hook_event_name":"PreToolUse","session_id":"gw1"}"#)
+                .unwrap();
+            let out = child.wait_with_output().unwrap();
+            (
+                out.status.code(),
+                String::from_utf8_lossy(&out.stderr).into_owned(),
+            )
+        };
+        // 带 secretguard 前缀的 exit 2：透传 2 加回放原因。
+        let (code, err) = run("@echo off\r\necho oma secretguard: fake block 1>&2\r\nexit 2\r\n");
+        assert_eq!(code, Some(2), "guard verdict passes through");
+        assert!(
+            err.contains("oma secretguard: fake block"),
+            "block reason replayed to stderr: {err}"
+        );
+        // 无前缀 exit 2（契约漂移形态）：fail-open。
+        let (code, _) = run("@echo off\r\necho usage error 1>&2\r\nexit 2\r\n");
+        assert_eq!(code, Some(0), "non-guard exit 2 must fail open");
+        // exit 1（坏二进制形态）：fail-open。
+        let (code, _) = run("@echo off\r\nexit 1\r\n");
+        assert_eq!(code, Some(0), "oma failure exit 1 must fail open");
+        // guard 白名单不影响 shim 自身状态通道。
+        assert!(state.exists(), "shim still writes state");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn guard_whitelist_passthrough_unix() {
+        use std::io::Write;
+        use std::os::unix::fs::PermissionsExt;
+        use std::process::{Command, Stdio};
+        let dir = scratch("guard");
+        deploy_shims(&dir).unwrap();
+        let shim = dir.join("hooks").join("oma-state.sh");
+        let fake = dir.join("fakebin");
+        std::fs::create_dir_all(&fake).unwrap();
+        let state = dir.join("state.json");
+        let path = std::env::var("PATH").unwrap_or_default();
+        let run = |body: &str| -> (Option<i32>, String) {
+            let oma = fake.join("oma");
+            std::fs::write(&oma, body).unwrap();
+            std::fs::set_permissions(&oma, std::fs::Permissions::from_mode(0o755)).unwrap();
+            let mut child = Command::new(&shim)
+                .arg("claude")
+                .env("PATH", format!("{}:{}", fake.display(), path))
+                .env("OHMYAGENTS_STATE_FILE", &state)
+                .env_remove("OMA_HOME")
+                .env_remove("GROK_SESSION_ID")
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .unwrap();
+            child
+                .stdin
+                .take()
+                .unwrap()
+                .write_all(br#"{"hook_event_name":"PreToolUse","session_id":"gw1"}"#)
+                .unwrap();
+            let out = child.wait_with_output().unwrap();
+            (
+                out.status.code(),
+                String::from_utf8_lossy(&out.stderr).into_owned(),
+            )
+        };
+        let (code, err) = run("#!/bin/sh\necho 'oma secretguard: fake block' >&2\nexit 2\n");
+        assert_eq!(code, Some(2), "guard verdict passes through");
+        assert!(
+            err.contains("oma secretguard: fake block"),
+            "block reason replayed: {err}"
+        );
+        let (code, _) = run("#!/bin/sh\necho usage >&2\nexit 2\n");
+        assert_eq!(code, Some(0), "non-guard exit 2 must fail open");
+        let (code, _) = run("#!/bin/sh\nexit 1\n");
+        assert_eq!(code, Some(0), "oma failure exit 1 must fail open");
+        assert!(state.exists(), "shim still writes state");
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
