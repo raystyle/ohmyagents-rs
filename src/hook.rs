@@ -310,7 +310,7 @@ mod tests {
 
     #[test]
     fn run_is_silent_without_env_or_agent() {
-        let _g = ENV_LOCK.lock().unwrap();
+        let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         env::remove_var("OHMYAGENTS_STATE_FILE");
         env::remove_var("OHMYAGENTS_AGENT");
         env::remove_var("OMA_HOME");
@@ -320,7 +320,7 @@ mod tests {
 
     #[test]
     fn run_writes_blocked() {
-        let _g = ENV_LOCK.lock().unwrap();
+        let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let dir =
             std::env::temp_dir().join(format!("oma-hook-{}-{}", std::process::id(), unix_secs()));
         let file = dir.join("claude.json");
@@ -340,7 +340,7 @@ mod tests {
     fn run_writes_user_level_session_keyed_pair_without_env() {
         // D28 用户级 session 分键：OMA_HOME 缝注入临时根，双写
         // <agent>.json 加 <agent>-<session>.json；HookOutcome 报最新键。
-        let _g = ENV_LOCK.lock().unwrap();
+        let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         env::remove_var("OHMYAGENTS_STATE_FILE");
         env::remove_var("OHMYAGENTS_AGENT");
         let oma = std::env::temp_dir().join(format!(
@@ -386,7 +386,7 @@ mod tests {
 
     #[test]
     fn session_end_removes_keyed_file_and_sweep_clears_stale() {
-        let _g = ENV_LOCK.lock().unwrap();
+        let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         env::remove_var("OHMYAGENTS_STATE_FILE");
         env::remove_var("OHMYAGENTS_AGENT");
         let oma = std::env::temp_dir().join(format!(
@@ -450,7 +450,7 @@ mod tests {
 
     #[test]
     fn guard_blocks_secret_in_pretooluse_command() {
-        let _g = ENV_LOCK.lock().unwrap();
+        let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         env::remove_var("OHMYAGENTS_STATE_FILE");
         env::remove_var("OHMYAGENTS_AGENT");
         let oma = std::env::temp_dir().join(format!(

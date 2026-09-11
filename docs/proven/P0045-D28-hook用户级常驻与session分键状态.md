@@ -57,6 +57,8 @@ herdr codex 独立 review（对齐 v0.5.3 范式，报告 `.oma/review-v054.md`�
 
 **第 4 令（用户「项目级和用户级冲突要可用诊断和告警出来形成 CTA」）**：doctor 三家 yolo 判据双级并读，双级并存且值不同打 warn 加对齐 CTA（`oma init --project-yolo` 对齐或撤一面；项目遮蔽用户是 agent 分层事实，报告项目文件）；同值双级不告警。冲突用例测试钉（三家 warn 加 CTA 在场、对齐后翻 ok）。
 
+**发版尾巴**：v0.5.4 首打 tag CI 红（Windows runner）：temp 路径 8.3 短名让 F3 守卫的 canonicalize 比较失效，断言炸后 env 泄漏加 ENV_LOCK 中毒连环 12 条（本机无短名所以绿，本机绿陷阱）。修：比较双侧同过 abs_display、共享锁容忍中毒（M062）；重打 tag 后全绿。
+
 ## 经验
 
 - 采集面与消费面必须同层：状态栏（用户级）配项目级采集是慢性断裂，任何「半边迁移」都会以 unknown 形式显影（用户诊断第 4 点即此）。

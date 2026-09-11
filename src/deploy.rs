@@ -895,6 +895,9 @@ pub fn retire_project_hooks_with(root: &Path, report: &mut DeployReport) -> Resu
     // F3 守卫（codex review）：项目根即 oma 根（`oma init --project $HOME`
     // 或 cwd 在家）时，base 就是用户级 shim 落点，跳过防自删。
     let oma_root = crate::install::oma_home().unwrap_or_default();
+    // 两侧都过 abs_display（CI runner 的 temp 路径是 8.3 短名，canonicalize
+    // 后与 env 原串不等会让守卫失效，v0.5.4 CI 红根因）。
+    let oma_root = crate::pathutil::abs_display(&oma_root);
     for base in [root.join(".oma"), root.join(".ohmyagents")] {
         if !oma_root.as_os_str().is_empty() && crate::pathutil::abs_display(&base) == oma_root {
             continue;
@@ -1695,7 +1698,9 @@ mod tests {
     fn retire_skips_shim_removal_when_project_root_is_oma_root() {
         // F3 回归钉：项目根即 oma 根（`oma init --project $HOME`）时不得
         // 把用户级 shim 当项目残留自删。OMA_HOME 注入（共享 env 锁）。
-        let _g = crate::pathutil::ENV_LOCK.lock().unwrap();
+        let _g = crate::pathutil::ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let root = fresh_dir("homeproj");
         let shims = root.join(".oma").join("hooks");
         fs::create_dir_all(&shims).unwrap();

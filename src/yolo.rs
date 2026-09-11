@@ -573,7 +573,9 @@ mod tests {
 
     #[test]
     fn user_yolo_clears_file_prompt_blocks_and_retires_project_keys() {
-        let _g = crate::pathutil::ENV_LOCK.lock().unwrap();
+        let _g = crate::pathutil::ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let user = fresh_dir();
         let root = fresh_dir();
         std::env::set_var("OMA_USER_HOME", &user);

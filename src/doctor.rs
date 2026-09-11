@@ -1704,7 +1704,9 @@ mod tests {
 
     #[test]
     fn state_blocked_is_a_finding() {
-        let _g = crate::pathutil::ENV_LOCK.lock().unwrap();
+        let _g = crate::pathutil::ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let oma = temp_root("pstate");
         std::env::set_var("OMA_HOME", &oma);
         let root = std::env::temp_dir().join(format!(
@@ -1730,7 +1732,9 @@ mod tests {
         // D28 用户级状态面：OMA_HOME 缝注入（共享 env 锁与 hook 测试互斥）。
         // 用户级 blocked（latest 与 session 键两种）不升 Block——无法归因本
         // 项目；项目级旧文件 blocked 仍 Block。
-        let _g = crate::pathutil::ENV_LOCK.lock().unwrap();
+        let _g = crate::pathutil::ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let oma = temp_root("ustate");
         fs::create_dir_all(oma.join("state")).unwrap();
         fs::write(
@@ -1799,7 +1803,9 @@ mod tests {
 
     #[test]
     fn claude_mcp_project_approval_ignored_until_folder_trust() {
-        let _g = crate::pathutil::ENV_LOCK.lock().unwrap();
+        let _g = crate::pathutil::ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let root = std::env::temp_dir().join(format!(
             "oma-doctor-mcp-{}-{}",
             std::process::id(),
@@ -1864,7 +1870,9 @@ mod tests {
 
     #[test]
     fn yolo_alone_does_not_clear_mcp_or_skill_trust() {
-        let _g = crate::pathutil::ENV_LOCK.lock().unwrap();
+        let _g = crate::pathutil::ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let user = temp_root("yolo-user");
         fs::create_dir_all(&user).unwrap();
         std::env::set_var("OMA_USER_HOME", &user);
@@ -2118,7 +2126,9 @@ mod tests {
         // D28 加 F2 硬化：判据逐键对账（键源 = hooks.json 路径）。oracle =
         // 真 deploy 行为（种真哈希断 Ok；篡改任一键断 Block），不用被测
         // 同款逻辑现算期望（R004 反重言式）。
-        let _g = crate::pathutil::ENV_LOCK.lock().unwrap();
+        let _g = crate::pathutil::ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let user = temp_root("codex-user-trust");
         let oma = temp_root("codex-user-trust-oma");
         fs::create_dir_all(&user).unwrap();
@@ -2206,7 +2216,9 @@ timeout = 10
     fn dual_level_yolo_conflict_warns_with_cta() {
         // D28 第 4 令：用户级与项目级并存且值不同 → warn 加对齐 CTA（项目
         // 遮蔽用户）。缝注入双根（共享 env 锁）。
-        let _g = crate::pathutil::ENV_LOCK.lock().unwrap();
+        let _g = crate::pathutil::ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let user = temp_root("cta-user");
         let root = temp_root("cta-proj");
         fs::create_dir_all(user.join(".claude")).unwrap();
