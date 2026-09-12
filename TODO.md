@@ -4,14 +4,16 @@
 
 ## 当前目标
 
-D30 0.6.1 更名收尾批（2026-09-12 立项，D29 残面一次清完）：
+D31 至 D33 ohmycloud 协调批（2026-09-13 立项，随批发 v0.6.2）：
 
-- [x] 阶段 1 四回归修（data_dir bin 先建根、退役环旧名死码、SKILL marker 断再生、技能身份回 ohmyagents）
-- [x] 阶段 2 串面清扫（README 安装块与四处 URL、doctor/verify/deploy/main/statusline 用户可见串、UA 两处、源注释顺手批、R002 与 AGENTS 同步、ome 改 ark 注释尾巴随批清）
-- [x] 阶段 3 测试与门禁（新增两用例 156 单测加 24 集成全绿、fmt/clippy、rumdl 加 .tools 三扫描；本仓 dogfood init 重部署与 pretrust 全绿）
-- [x] 阶段 4 发版（v0.6.1 CI 两轮绿、十二资产 digest 三方对账全等、镜像双段到货、herdr 知会 ohmycloud）
-- [x] 阶段 5 本机老用户迁移实证（镜像 dev 段拿 stub 替换、stub 指路 exit 1、装 hst pristine 根、hst init 整根收干迁移、statusline CTA 闭环、stub 转调、散件合并回、doctor 全绿零 warn）
-- [x] 阶段 6 归档（P0047 验收与观察面回填、四原语收口）
+- [ ] D31 私有网关域名清扫（diagnose.rs 注释、README、R002、P0041 四处；grep 复扫归零）
+- [ ] D32 `--pre-trust` 连字符化（clap 别名兼容、全仓 md 更正、kv 标记不动）
+- [ ] D33 yolo 分级（YoloLevel 取值式旗标两级、写入矩阵、off 退役、doctor 分级判据、COMMAND_MAP）
+- [ ] 测试与门禁（单测加集成新增、fmt/clippy、rumdl 加 .tools 三扫描、dogfood SKILL 再生）
+- [ ] 发版 v0.6.2（CHANGELOG、CI 两轮绿、tag、镜像 hst/stable 到货核验、herdr 知会）
+- [ ] 归档（P0048、四原语收口、diary）
+
+D30 前目标（2026-09-12 当日闭环归档 P0047，v0.6.1 发版）：四回归修加串面清扫加老用户迁移剧本八步活体全过，清单见 git 历史。
 
 D29 前目标（2026-09-12 当日闭环归档 P0046，v0.6.0 发版；repo 改名 hst-rs 用户已办）清单见 git 历史：
 
