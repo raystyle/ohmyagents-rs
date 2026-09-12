@@ -46,5 +46,5 @@ D28 状态栏跨项目失效根修（2026-09-11 立项，同日四轮裁定闭�
 
 | 目标 | 状态 | 说明 |
 | --- | --- | --- |
-| M060 两笔随下个功能版发 | 排队 | 已落 main 滚动（oma/dev 段随 CI 可取）；用户裁 2026-09-11 攒着，随下个功能版打 tag 发出 |
+| M060 两笔加 ome 更名尾巴随下个功能版发 | 排队 | 已落 main 滚动（oma/dev 段随 CI 可取）；用户裁 2026-09-11 攒着，随下个功能版打 tag 发出；同批换代码内 ome hint 串为 ark（ome 更名 Ark 周知 2026-09-12，文档面已换） |
 | D13 mac `--version` 一致性 | 完成 | 2026-09-09 lan-mac 经镜像 stable 段直装 v0.3.0 实收：边车 sha256 校验过（digest 与 ohmycloud 对账一致，mirror 第二端点消费实证）、`--version` = oma 0.3.0、agents 四家检测与 `statusline --example` 冒烟绿；旧件备份 `~/.oma/oma-fossil-backup` |

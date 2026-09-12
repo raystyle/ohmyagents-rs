@@ -8,7 +8,7 @@
 - `oma trace`：项目内四家 agent 对话历史只读检索
 - `oma agents verify`：四家无头验收（hook 落盘加状态栏脚本直跑）
 
-oma 不做编排（不拉会话、不发任务），不管 token 注入（密钥安全归 [ohmypwsh]，agent 二进制安装归姊妹工具 `ome`：`ome install claude`）。
+oma 不做编排（不拉会话、不发任务），不管 token 注入（密钥安全归 [ohmypwsh]，agent 二进制安装归姊妹工具 `ark`（Agent Runtime Kit，原 ome）：`ark install claude`）。
 
 [ohmypwsh]: https://github.com/raystyle/ohmypwsh
 

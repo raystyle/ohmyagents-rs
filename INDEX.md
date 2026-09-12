@@ -15,7 +15,7 @@
 | 类别 | 目录 | 说明 |
 | --- | --- | --- |
 | 文档 | `docs\`（proven/diary/research/guide/references/mistakes/web）+ 根目录 PRD/GOAL/PLAN/TODO/INDEX/AGENTS/README/CHANGELOG/ROADMAP | 见上节职能 |
-| 代码 | `src\` | Rust CLI `oma`（catalog 目录已随 D20 移除，pin 数据权威在 ome） |
+| 代码 | `src\` | Rust CLI `oma`（catalog 目录已随 D20 移除，pin 数据权威在 ark-rs 原 ome） |
 | 运行时产物 | 目标项目下 `.oma\` | gitignore 项目态；工具前缀不进仓 |
 
 **代码文件位置**：

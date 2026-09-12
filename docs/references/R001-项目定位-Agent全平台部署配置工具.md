@@ -27,13 +27,13 @@ Oh My Agents（仓库名 `ohmyagents-rs`，更名自 OhMyAgents，2026-09-02；C
 
 | 仓库 | 本地 | CLI | 职责 |
 | --- | --- | --- | --- |
-| ohmyenv-rs | `D:\ohmyenv-rs` | `ome` | 本机部署、管理、验收；agent 二进制下装与版本、工具与运行时依赖 |
+| ark-rs（原 ohmyenv-rs） | `D:\ohmyenv-rs` | `ark`（原 `ome`） | 本机部署、管理、验收；agent 二进制下装与版本、工具与运行时依赖。2026-09-12 更名 Ark / Agent Runtime Kit，首版 1.0.0，镜像 env.ohmygh.com/ark/ 段、ome/ 段兼容期保留 |
 | ohmyagents-rs | `D:\ohmyagents-rs` | `oma` | 可用性诊断、hook、状态栏、trace 与 yolo（本仓）；不管种子、不管 agent 二进制下装（D09）、不管编排（D15）、不管 token 注入（D20） |
 | ohmypwsh | `D:\ohmypwsh` | 无单一 CLI | Windows 元主机操作台：初始主机密钥配置、兄弟仓 git 密钥扫描安全、集成 ome 与 oma 做本地与远程的主机操作、部署、检查、诊断 |
 | ohmycloud | `D:\ohmycloud` | `omcf` | 云端基础设施：工具、运行时、agent 各版本二进制的 S3 存储与 web 分发（专用域名加 Cloudflare）；镜像种子归此仓 |
 
-- 分工裁决：agent（claude / codex / grok / kimi）二进制下装归 ome（D07，ohmyagents#5）；镜像种子归 ohmycloud（`env.ohmygh.com`，D36 / P0014）；oma 不管种子、不管 token 注入，只管可用性诊断、hook、状态栏、trace 与 yolo（D09 加 D15 加 D20 裁定）。旧裁决「安装归本仓、不进 ome 名录」（2026-08-31）已被 D07 反转；token 注入域曾属本仓（secrets / providers，S027 / S031）已随 D20 移除。
-- 诊断分工共识（2026-09-10 跨仓对齐，ohmycloud 提案本仓确认）：oma 管本机运行时治理（hook / 状态栏 / trace / yolo，加模型缓存与网关连通的单机诊断即 `oma diagnose`）；omc 管舰队编排面（多端装态、配置对账、网关探活，配置真源在 omc 金库）。边界：oma 不做多端配置一致性检测，omc 不做 hook / trace 治理。omc 顶层有 `omc ome` / `omc oma` 透传命令（argv 原样透传），agent deploy 委托 `ome install claude codex sops age`；oma 正式 release 后经 herdr 会话知会 ohmycloud 更新 tool status 镜像锚（跨仓周知与回执一律走 herdr 会话同步、不发 issue，用户裁 2026-09-10）。omc tool 域的 oma 段吃 oma/stable 镜像，`omc tool install oma` 拒装指路（渠道序在 ome / oma self update，2026-09-10 对方同步）。同文件协调三点已裁（2026-09-10 herdr 回执）：omc 渲染器读改写语义天然保留 oma 状态栏段（statusLine 与 [tui]，测试五断言钉死，omc 模板永不碰状态栏面）；yolo 托管端用户级以 omc 为准、oma --yolo 面向项目级与非托管端（codex 项目级覆盖用户级）；pretrust 信任预写归属 oma init --pretrust，omc / ome 不双写。集成功能优先级（用户裁 2026-09-10，PRD D24）：诊断与检测首要、恢复与治愈次之、安装部署配置最后（ROADMAP 阶段 8）。
+- 分工裁决：agent（claude / codex / grok / kimi）二进制下装归 ark-rs（原 ome；D07，ohmyagents#5）；镜像种子归 ohmycloud（`env.ohmygh.com`，D36 / P0014）；oma 不管种子、不管 token 注入，只管可用性诊断、hook、状态栏、trace 与 yolo（D09 加 D15 加 D20 裁定）。旧裁决「安装归本仓、不进 ome 名录」（2026-08-31）已被 D07 反转；token 注入域曾属本仓（secrets / providers，S027 / S031）已随 D20 移除。
+- 诊断分工共识（2026-09-10 跨仓对齐，ohmycloud 提案本仓确认）：oma 管本机运行时治理（hook / 状态栏 / trace / yolo，加模型缓存与网关连通的单机诊断即 `oma diagnose`）；omc 管舰队编排面（多端装态、配置对账、网关探活，配置真源在 omc 金库）。边界：oma 不做多端配置一致性检测，omc 不做 hook / trace 治理。omc 顶层有 `omc ome` / `omc oma` 透传命令（argv 原样透传；ome 更名 ark 后以 omc 侧口径为准），agent deploy 委托其安装命令（原 `ome install claude codex sops age`，更名后 `ark install`）；oma 正式 release 后经 herdr 会话知会 ohmycloud 更新 tool status 镜像锚（跨仓周知与回执一律走 herdr 会话同步、不发 issue，用户裁 2026-09-10）。omc tool 域的 oma 段吃 oma/stable 镜像，`omc tool install oma` 拒装指路（渠道序在 ome / oma self update，2026-09-10 对方同步）。同文件协调三点已裁（2026-09-10 herdr 回执）：omc 渲染器读改写语义天然保留 oma 状态栏段（statusLine 与 [tui]，测试五断言钉死，omc 模板永不碰状态栏面）；yolo 托管端用户级以 omc 为准、oma --yolo 面向项目级与非托管端（codex 项目级覆盖用户级）；pretrust 信任预写归属 oma init --pretrust，omc / ome 不双写。集成功能优先级（用户裁 2026-09-10，PRD D24）：诊断与检测首要、恢复与治愈次之、安装部署配置最后（ROADMAP 阶段 8）。
 - 分发通道：官方源与 `env.ohmygh.com` 镜像由 ome `download_asset_with_mirror` 消费；oma 不维护渠道序、不参与种子；`oma agents install` / `update` 兼容层已随 D20 删除（历史曾 deprecated 指向 ome）。
 - 密钥：密钥体系主权与跨仓密钥扫描安全归 ohmypwsh，集成而非自建；oma 只保留 hook 面密钥拦截闸（S030，实值比对只看环境变量）。
 

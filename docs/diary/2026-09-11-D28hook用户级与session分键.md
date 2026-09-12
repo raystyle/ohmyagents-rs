@@ -28,6 +28,10 @@
 - 1b 首推空态：生产读路径全带缺件/空件兜底（read_json/read_toml 回落空对象、merge_* 缺文件回落 `{}`）；裸机首推被集成测试族覆盖（空 fake-home 加空项目 init 全链）；坏文件按 D18 设计硬错退出 1 带出处非死锁。无同类坑。
 - 2 D47 余项回执：oma 镜像链（env.ohmygh.com/oma/）自 D41 起即 CI 内（dev-release.yml mirror job，tag 自动滚 oma/stable），今日 v0.5.4 三方对账即活证——该余项在 oma 侧无水位差；pkgs seed 桶分发属 ohmycloud 加 ome 批次（oma 不管种子，D09）。
 
+## 追记：ome 更名 Ark 三仓周知
+
+ome 正式更名 Ark（Agent Runtime Kit）：仓 ark-rs（GitHub 已改名）、命令 `ark`、首版 1.0.0、镜像开 env.ohmygh.com/ark/ 段（ome/ 段兼容期保留）。oma 侧无依赖面纯知会；活文档互引顺手换（AGENTS 四仓分工加路径加外部源、README、R001 四仓表加分工加 omc 透传、R011 分道节题、R004 基线注、INDEX 代码表；史档 proven/diary/PRD 历史行不回改）。代码内 hint 串（`ome install`、shim warn）随 M060 同批换 `ark install`（下个功能版，TODO 队列已记）。
+
 ## 自省
 
 - 状态通道断裂的本质是「采集面与消费面不同层」：用户第 4 点诊断（shim 写态通但状态栏仍 unknown）指出的正是协议没跟上层迁移，根修必须读写两侧同层同键，半边迁移必留 unknown 显影。
