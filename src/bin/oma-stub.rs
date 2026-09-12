@@ -47,6 +47,6 @@ fn main() {
             return;
         }
     }
-    eprintln!("hst not found; install it from https://github.com/raystyle/hst-rs/releases");
+    eprintln!("hst not found; install it from https://github.com/raystyle/hst_rs/releases");
     std::process::exit(1);
 }

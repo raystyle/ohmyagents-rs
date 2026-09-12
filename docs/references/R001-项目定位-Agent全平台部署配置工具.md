@@ -4,7 +4,7 @@
 
 ## 本质
 
-HST（Hooks, Statusline, Trace；原 Oh My Agents / oma，v0.6.0 更名过渡期，D29；版本线自 1.0.0 重开，D34；仓库名 `hst-rs`，CLI 二进制 `hst`，数据根 `~/.hst`）是 **Agent 全平台部署配置与诊断工具**，专注五个功能（D20，2026-09-09 用户裁定）。
+HST（Hooks, Statusline, Trace；原 Oh My Agents / oma，v0.6.0 更名过渡期，D29；版本线自 1.0.0 重开，D34；仓库名 `hst_rs`（`hst-rs` 为改名重定向别名），CLI 二进制 `hst`，数据根 `~/.hst`）是 **Agent 全平台部署配置与诊断工具**，专注五个功能（D20，2026-09-09 用户裁定）。
 
 - **agent 可用性诊断**：`hst doctor` 只读体检（yolo / 信任 / 二进制 / state / 登录态 / hook 形态 / 状态栏 / CPU 能力），warn 与 block 分层；`hst agents` 四源检测；`hst diagnose` 活性诊断打真网关（D21）。
 - **hook 设置**：`hst init` 部署 hook 注册（四家用户级常驻 `~/.hst/hooks/` shim，D28）与项目 skill，幂等合并；`hst hook` 状态落盘加密钥拦截。

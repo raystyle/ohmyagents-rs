@@ -83,7 +83,9 @@ fn unix_millis() -> u128 {
 
 /// yolo 分级（D33，2026-09-13 ohmycloud 协调批）：full = 现行全 bypass；
 /// partial = 危险操作仍确认（编辑类自动过、命令执行与 MCP 审批保留确认：
-/// ours 落的 enableAllProjectMcpServers 随降级摘除，--pre-trust 重跑可再开）；
+/// ours 落的 enableAllProjectMcpServers 随降级摘除，同批或重跑 --pre-trust
+/// 会再开；enabledMcpjsonServers 名单含 agent 原生用户审批与 hst 落值、
+/// 无法归因落写者故一律保留，彻底恢复 MCP 确认需手动清名单）；
 /// off = 全关（摘 hst 落键恢复各家默认确认，用户自设值保留）。
 /// 四家 partial 取值：claude `acceptEdits`（官方 permission-mode 取值）、
 /// codex `workspace-write` 加 `on-request`（官方 config 文档）、kimi `auto`
@@ -94,7 +96,7 @@ fn unix_millis() -> u128 {
 pub enum YoloLevel {
     /// 全 bypass：编辑与命令执行全放行（现行 --yolo 行为）
     Full,
-    /// 危险操作仍确认：编辑类自动过，命令执行与 MCP 审批保留
+    /// 危险操作仍确认：编辑类自动过，命令执行与 MCP 审批保留（--pre-trust 同批或重跑会再开 MCP 直通）
     Partial,
     /// 全关：摘 hst 落的 yolo 键，恢复各家默认确认
     Off,
@@ -199,8 +201,9 @@ pub fn apply_user_yolo_level_with(
         } else {
             // partial 摘 ours 落的 enableAll（codex 评审 F1 裁 a，2026-09-13）：
             // full 降级后 MCP 审批要恢复确认；--pre-trust 面写的同值一并摘
-            // （ours 判定不分落写者，重跑 --pre-trust 可再开）。名单
-            // enabledMcpjsonServers 可能含用户自订，不动（与 retire 同纪律）。
+            // （ours 判定不分落写者，同批或重跑 --pre-trust 会再开）。名单
+            // enabledMcpjsonServers 含 agent 原生用户审批与 hst 落值、无法
+            // 归因故一律保留（用户自设值保留纪律，codex 二轮 A 裁改口径）。
             if obj
                 .get("enableAllProjectMcpServers")
                 .and_then(|x| x.as_bool())
@@ -316,7 +319,7 @@ pub fn apply_project_yolo_level(root: &Path, level: YoloLevel) -> Result<ApplyRe
             == Some(true)
         {
             // partial 摘 ours 落的 enableAll（F1 裁 a，与用户级同纪律）；
-            // 名单 enabledMcpjsonServers 可能含用户自订，不动。
+            // 名单 enabledMcpjsonServers 无法归因落写者，一律保留。
             obj.remove("enableAllProjectMcpServers");
         }
     }

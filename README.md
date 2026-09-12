@@ -14,7 +14,7 @@ hst 不做编排、不管 token 注入（密钥安全归 [ohmypwsh]）；agent �
 
 ```powershell
 # 最新正式版（镜像直下把 URL 换 https://env.ohmygh.com/hst/stable/hst-x86_64-pc-windows-msvc.zip）
-Invoke-WebRequest https://github.com/raystyle/hst-rs/releases/latest/download/hst-x86_64-pc-windows-msvc.zip -OutFile hst.zip
+Invoke-WebRequest https://github.com/raystyle/hst_rs/releases/latest/download/hst-x86_64-pc-windows-msvc.zip -OutFile hst.zip
 Expand-Archive hst.zip -DestinationPath $HOME\.hst\bin
 Move-Item $HOME\.hst\bin\hst-x86_64-pc-windows-msvc\hst.exe $HOME\.hst\bin\
 # 把 $HOME\.hst\bin 加进 PATH 后重开终端
@@ -24,7 +24,7 @@ hst --version
 ### macOS
 
 ```bash
-curl -L https://github.com/raystyle/hst-rs/releases/latest/download/hst-aarch64-apple-darwin.tar.gz | tar xz
+curl -L https://github.com/raystyle/hst_rs/releases/latest/download/hst-aarch64-apple-darwin.tar.gz | tar xz
 mkdir -p ~/.local/bin && mv hst-aarch64-apple-darwin/hst ~/.local/bin/
 hst --version    # ~/.local/bin 需在 PATH
 ```
@@ -32,7 +32,7 @@ hst --version    # ~/.local/bin 需在 PATH
 ### Linux x86_64 与 WSL
 
 ```bash
-curl -L https://github.com/raystyle/hst-rs/releases/latest/download/hst-x86_64-unknown-linux-gnu.tar.gz | tar xz
+curl -L https://github.com/raystyle/hst_rs/releases/latest/download/hst-x86_64-unknown-linux-gnu.tar.gz | tar xz
 mkdir -p ~/.local/bin && mv hst-x86_64-unknown-linux-gnu/hst ~/.local/bin/
 hst --version
 ```
@@ -40,7 +40,7 @@ hst --version
 ### 源码安装与滚动更新
 
 ```bash
-cargo install --git https://github.com/raystyle/hst-rs    # 源码
+cargo install --git https://github.com/raystyle/hst_rs    # 源码
 hst self update          # 自更新：缺省 dev 滚动源；--stable 走正式版
 ```
 
@@ -69,7 +69,7 @@ hst init                        # 全套：用户级 yolo 键加四家 hook/skil
 hst init --yolo                 # 仅用户级无阻塞键（全机生效，缺省 full 全 bypass）
 hst init --yolo=partial         # 分级：编辑自动过，危险操作仍确认
 hst init --yolo=off             # 全关：摘 hst 落的 yolo 键
-hst init --project-yolo[=级别]  # 仅项目级（项目覆盖用户级；同款三级）
+hst init --project-yolo         # 仅项目级（项目覆盖用户级；=partial/off 可选级别）
 hst init --pre-trust            # 额外预写家目录信任库（四家）
 hst init --project D:\my\proj   # 不进目录也能指定项目
 ```
@@ -114,7 +114,7 @@ hst trace file src\main.rs  # 单文件轨迹：谁、何时、为何改的
 hst trace agent claude      # 某家 agent 的操作块时间线
 ```
 
-只读直查四家原生会话库，六视图（sessions / timeline / blocks / agent / file / search）统一 `--limit` / `--offset` 分页。
+只读直查四家原生会话库，六视图（sessions / timeline / blocks / agent / file / search）；timeline / blocks / agent / file / search 支持 `--limit` / `--offset` 分页，sessions 支持 `--limit`。
 
 ## 注意
 
