@@ -22,8 +22,9 @@
 - herdr codex 独立 review 三轮：首轮九条（F1 codex 信任键源 = hooks.json 路径，本机 0.149.1 加 0.154.0 无 bypass 活体落盘实证，M061）、次轮六条残留、终局代码面零异议（四条收口项当轮清完：README 安全提示、COMMAND_MAP/SKILL、误入仓脚本、四原语对账）。
 - v0.5.4 发版；三平台矩阵补齐（WSL 共仓、lan-mac 经 bundle 直推）；ohmycloud 对端验收回执全绿（三资产镜像段锚对齐，oma/stable 锚账闭合）。自省一笔：知会 digest 首报取错资产对象（边车文件的 digest 而非包本体），被对端抓出更正（M063）——digest 知会前双源互证是硬纪律。
 
-## 追记：ohmycloud 跨仓知会两件定夺（S017 共性坑自查加 D47 余项回执）
+## 追记：ohmycloud 跨仓知会两件定夺
 
+- 主题：S017 共性坑自查加 D47 余项回执。
 - 1a 非 login PATH：oma 侧对照自查过——`oma agents` 默认目录源含 `~/.local/bin`（srcgents.rs:357）不假阴；shim 委托面探针加 fail-open（D27/M060a）；diagnose 零二进制执行无暴露面。落 R002 环境与依赖一行提示（无头调 oma 需前缀 export PATH）。
 - 1b 首推空态：生产读路径全带缺件/空件兜底（read_json/read_toml 回落空对象、merge_* 缺文件回落 `{}`）；裸机首推被集成测试族覆盖（空 fake-home 加空项目 init 全链）；坏文件按 D18 设计硬错退出 1 带出处非死锁。无同类坑。
 - 2 D47 余项回执：oma 镜像链（env.ohmygh.com/oma/）自 D41 起即 CI 内（dev-release.yml mirror job，tag 自动滚 oma/stable），今日 v0.5.4 三方对账即活证——该余项在 oma 侧无水位差；pkgs seed 桶分发属 ohmycloud 加 ome 批次（oma 不管种子，D09）。
