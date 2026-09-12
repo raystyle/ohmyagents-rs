@@ -61,5 +61,6 @@ D28 前目标（2026-09-11 四轮裁定当日闭环归档 P0045，v0.5.4 发版�
 | --- | --- | --- |
 | M060 两笔加 ome 更名尾巴随下个功能版发 | 完成 | M060 两笔（guard 透传白名单化加 shebang 注入缝）随 v0.6.0 tag 发出；ome 改 ark hint 串（shim warn 加 agents hint 已先行为 ark，注释尾巴随批）随 v0.6.1 清讫关账 |
 | deploy_shims 用户根旧名清扫 | 排队 | pristine 合并把旧名 shim（oma-state.*）迁进 `~/.hst/hooks` 与新名并存；退役环只扫项目级。P0047 观察面，随下个小版本 |
-| 兼容别名一个小版本后删 | 排队 | agents statusline 隐藏别名、oma stub 资产、旧 OMA_* env 读取，D29 定的一个版本窗口到 v0.7 清 |
+| 迁移转发 shim 兼容层产品化 | 排队 | 长寿命会话持启动时快照的旧注册，迁移收干 `~/.oma` 后每事件 exit 1（ark codex pane 实况；本机已手动落 `~/.oma/hooks/oma-state.*` 转发层缓解并活体验证）。产品化 = init 或迁移收干时自动落转发层，随 v0.7 兼容窗同批清。P0047 观察面三 |
+| 兼容别名一个小版本后删 | 排队 | agents statusline 隐藏别名、oma stub 资产、旧 OMA_* env 读取、旧路径转发 shim，D29 定的一个版本窗口到 v0.7 清 |
 | D13 mac `--version` 一致性 | 完成 | 2026-09-09 lan-mac 经镜像 stable 段直装 v0.3.0 实收：边车 sha256 校验过（digest 与 ohmycloud 对账一致，mirror 第二端点消费实证）、`--version` = oma 0.3.0、agents 四家检测与 `statusline --example` 冒烟绿；旧件备份 `~/.oma/oma-fossil-backup` |
