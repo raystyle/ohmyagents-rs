@@ -4,14 +4,17 @@
 
 ## 当前目标
 
-D31 至 D34 ohmycloud 协调批（2026-09-13 立项，随批发 v1.0.0 版本线重开）：
+D31 至 D35 ohmycloud 协调批（2026-09-13 立项，随批发 v1.0.0 版本线重开；D36 状态栏簇研究先行不阻塞本批）：
 
 - [x] D31 私有网关域名清扫（diagnose.rs 注释、README、R002、P0041 四处；grep 复扫归零）
 - [x] D32 `--pre-trust` 连字符化（clap 别名兼容、全仓 md 更正、kv 标记不动）
 - [x] D33 yolo 分级（YoloLevel 取值式旗标两级、写入矩阵、off 退役、doctor 分级判据、COMMAND_MAP）
-- [x] 测试与门禁（159 单测加 27 集成全绿、fmt/clippy、rumdl 加 .tools 三扫描、dogfood SKILL 再生）
-- [ ] D34 版本线重开 1.0.0（Cargo 与 CHANGELOG 版本线重开、v0.6.x 表述转更名过渡期记录）
+- [x] 测试与门禁（160 单测加 27 集成全绿、fmt/clippy、rumdl 加 .tools 三扫描、dogfood SKILL 再生）
+- [x] D34 版本线重开 1.0.0（Cargo 与 CHANGELOG 版本线重开、v0.6.x 表述转更名过渡期记录）
+- [ ] D35 需求四：README 精简重写与仓库描述一句话（gh repo edit 已落）
+- [ ] codex 评审达成一致（首轮 F1/F2/F3 已收口，二轮复核 README 与 F1 修）
 - [ ] 发版 v1.0.0（CHANGELOG、CI 绿、tag、镜像 hst/stable 到货核验、herdr 知会）
+- [ ] D36 状态栏 HUD 研究先行（S 文档加追问链）
 - [ ] 归档（P0048、四原语收口、diary）
 
 D30 前目标（2026-09-12 当日闭环归档 P0047，v0.6.1 发版）：四回归修加串面清扫加老用户迁移剧本八步活体全过，清单见 git 历史。

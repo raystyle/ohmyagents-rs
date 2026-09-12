@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-13 | **封版闸门与批扩容**：herdr 同步右侧 codex 独立评审达成一致才 tag（用户令）；首轮评审回执 = D31/D32/D34 零异议、D33 一条 F1（full 降 partial 不摘 ours 落的 MCP 审批键，语义矛盾）加 F2/F3 轻量，F1 裁 a 落修（partial 摘 ours enableAll 加降级回归测试，160 单测加 27 集成全绿）、F2/F3 收口、根 SKILL.md 编排遗物删除；用户并入需求四（D35：README 与仓库描述重写随批交付，仓库描述已改一句话）与 D36 状态栏 HUD 簇登记（研究先行，不阻塞本批） |
 | 2026-09-13 | **D34 补充裁定**：hst 版本线重开，本批发版不用 0.6.x 直接起 **1.0.0**（与 ark 1.0.0 同语义开山版，不接 oma 老版本线）；Cargo.toml 与 CHANGELOG 版本线重开，文档 v0.6.x 表述转更名过渡期记录；镜像 hst/stable 滚动照旧。此前当日进展：三件全落（域名清扫四处归零、`--pre-trust` canonical 加别名、yolo 两级旗标取值式分级加 doctor 分级判据；159 单测加 27 集成与四门禁全绿、dogfood SKILL 再生），main CI 绿（`349233a..1e5efd3`） |
 | 2026-09-13 | D31 至 D33 立项开工（来函三件：域名四处清扫、`--pre-trust` canonical 加别名兼容、`--yolo=<full\|partial\|off>` 两级旗标取值式；grok partial 取值经 grok-build 源码钉死 auto，kimi 沿用既有 ok 值 auto）；目标随批发版走发版链滚动 hst/stable 镜像 |
 | 2026-09-12 | 净会话接续：交接面核验（heal hooks 检查面已落属实，F8 三面探针在；本机实态：oma 旧版在 PATH、hst 未装、双根并存）；盘出 D29 残面四回归（bin 先建根挡迁移、退役环死码、SKILL marker 断再生、技能身份拧巴）加 README 安装块断链级错与一批串面残留；用户两裁后 D30 立项开工。**下半场当日闭环**：四回归修与串面清扫全落（156 单测加 24 集成加四门禁全绿；本仓 dogfood marker 双收真实生效）；v0.6.1 发版（CI 两轮绿、十二资产 digest 三方对账全等、镜像双段到货、herdr 知会）；本机老用户迁移剧本八步活体全过（stub 替换指路、pristine 合并整根迁移、CTA 闭环、转调、散件合并回）；归档 P0047 |
