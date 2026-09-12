@@ -1,6 +1,6 @@
-# HST（Hooks, Statusline, Trace）
+# HST
 
-**HST（Hooks, Statusline, Trace，原 Oh My Agents / oma，v0.6.0 更名）**：Claude Code / Codex / Grok / Kimi 四家的 hook 落盘、状态栏、只读对话 trace、可用性诊断与 yolo 非阻塞配置，Windows / macOS / Linux（含 WSL）同一命令面。CLI 名 `hst`。与 Hipo 的 hst history picker 共存：本工具装用户目录（如 ~/.local/bin、~/.hst/bin），不覆盖 /usr/bin/hst。
+**HST**，全称 Hooks, Statusline, Trace（原 Oh My Agents / oma，v0.6.0 更名）：Claude Code / Codex / Grok / Kimi 四家的 hook 落盘、状态栏、只读对话 trace、可用性诊断与 yolo 非阻塞配置，Windows / macOS / Linux（含 WSL）同一命令面。CLI 名 `hst`。与 Hipo 的 hst history picker 共存：本工具装用户目录（如 ~/.local/bin、~/.hst/bin），不覆盖 /usr/bin/hst。
 
 - `hst doctor`：agent 可用性只读体检，warn 与 block 分层，block 才退出 1
 - `hst init`：把 hook 注册与 yolo / 非阻塞键落进各家用户级配置（claude / codex / grok / kimi 四家统一，未 init 的项目也有状态数据；yolo 缺省用户级全机生效，`--project-yolo` 显式选项目级），skill 落进项目，幂等合并；注册指向自包含状态 shim（`~/.oma/hooks/`），oma 二进制任意时刻可无痛升级轮换
