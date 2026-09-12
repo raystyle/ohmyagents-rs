@@ -586,7 +586,7 @@ fn statusline_example_prints_customization_template() {
         .args(["agents", "statusline", "--example"])
         .assert()
         .success()
-        .stdout(contains("~/.oma/statusline.toml"))
+        .stdout(contains("~/.hst/statusline.toml"))
         .stdout(contains("segments = "))
         .stdout(contains("python / rust / node / zig / go / cpp"));
 }
