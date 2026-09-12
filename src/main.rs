@@ -262,7 +262,7 @@ enum AgentsCmd {
         /// 指定 agent（claude/codex/kimi/grok）；缺省四家都配
         #[arg(value_name = "名")]
         names: Vec<String>,
-        /// 打印 ~/.oma/statusline.toml 定制示例模板后退出（D18）
+        /// 打印 ~/.hst/statusline.toml 定制示例模板后退出（D18）
         #[arg(long)]
         example: bool,
         /// 部署自备状态栏脚本（D18 整脚本替换；调用契约：首参 agent 名、stdin 喂 agent JSON、stdout 单行）
@@ -574,14 +574,14 @@ fn cmd_hook(event: Option<String>, agent: Option<String>) -> Result<(), String> 
                     std::process::exit(2);
                 }
                 if std::env::var_os("HST_HOOK_VERBOSE").is_some() && !g.findings.is_empty() {
-                    eprintln!("oma.secretguard.findings={}", g.findings.len());
+                    eprintln!("hst.secretguard.findings={}", g.findings.len());
                 }
             }
         }
         Err(e) => {
             // Never fail the agent session over a state-file write.
             if std::env::var_os("HST_HOOK_VERBOSE").is_some() {
-                eprintln!("oma hook: {e}");
+                eprintln!("hst hook: {e}");
             }
         }
     }
@@ -637,7 +637,7 @@ fn cmd_init(
             println!("init.hooks.skipped.count={}", deployed.skipped.len());
             // Registration-form marker (D28): hooks live in the four agents'
             // user-level configs and point at the self-contained state shim in
-            // ~/.oma/hooks/, zero oma-binary dependency.
+            // ~/.hst/hooks/, zero hst-binary dependency.
             if let Some(form) = deployed.form {
                 println!("init.hooks.form={form}");
             }

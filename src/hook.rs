@@ -145,7 +145,7 @@ pub struct HookOutcome {
 
 /// Hook entry: always exit-path friendly. `OHMYAGENTS_STATE_FILE` 覆盖互斥
 /// 单写（verify 与测试）；缺省走用户级 session 分键通道（D28）：写
-/// `~/.oma/state/<agent>.json`（agent 最新）加 `<agent>-<session>.json`
+/// `~/.hst/state/<agent>.json`（agent 最新）加 `<agent>-<session>.json`
 /// （session 键，状态栏按当前会话直读；session 取 payload session_id /
 /// sessionId，grok 回退 GROK_SESSION_ID env）。SessionEnd 删本 session 键
 /// 文件（GC），顺带清扫同 agent 超 7 天的陈旧键文件（崩溃残留）。
@@ -338,7 +338,7 @@ mod tests {
 
     #[test]
     fn run_writes_user_level_session_keyed_pair_without_env() {
-        // D28 用户级 session 分键：OMA_HOME 缝注入临时根，双写
+        // D28 用户级 session 分键：HST_ROOT 缝注入临时根，双写
         // <agent>.json 加 <agent>-<session>.json；HookOutcome 报最新键。
         let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         env::remove_var("OHMYAGENTS_STATE_FILE");

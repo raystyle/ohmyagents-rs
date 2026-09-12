@@ -3,7 +3,7 @@
 **HST**，全称 Hooks, Statusline, Trace（原 Oh My Agents / oma，v0.6.0 更名）：Claude Code / Codex / Grok / Kimi 四家的 hook 落盘、状态栏、只读对话 trace、可用性诊断与 yolo 非阻塞配置，Windows / macOS / Linux（含 WSL）同一命令面。CLI 名 `hst`。与 Hipo 的 hst history picker 共存：本工具装用户目录（如 ~/.local/bin、~/.hst/bin），不覆盖 /usr/bin/hst。
 
 - `hst doctor`：agent 可用性只读体检，warn 与 block 分层，block 才退出 1
-- `hst init`：把 hook 注册与 yolo / 非阻塞键落进各家用户级配置（claude / codex / grok / kimi 四家统一，未 init 的项目也有状态数据；yolo 缺省用户级全机生效，`--project-yolo` 显式选项目级），skill 落进项目，幂等合并；注册指向自包含状态 shim（`~/.oma/hooks/`），oma 二进制任意时刻可无痛升级轮换
+- `hst init`：把 hook 注册与 yolo / 非阻塞键落进各家用户级配置（claude / codex / grok / kimi 四家统一，未 init 的项目也有状态数据；yolo 缺省用户级全机生效，`--project-yolo` 显式选项目级），skill 落进项目，幂等合并；注册指向自包含状态 shim（`~/.hst/hooks/`），hst 二进制任意时刻可无痛升级轮换
 - `hst statusline`：四家状态栏写入面（starship 风格、支持用户级定制）
 - `hst trace`：项目内四家 agent 对话历史只读检索
 - `hst agents verify`：四家无头验收（hook 落盘加状态栏脚本直跑）
@@ -20,9 +20,9 @@ hst 不做编排（不拉会话、不发任务），不管 token 注入（密钥
 
 ```powershell
 # 最新正式版
-Invoke-WebRequest https://github.com/raystyle/ohmyagents-rs/releases/latest/download/hst-x86_64-pc-windows-msvc.zip -OutFile oma.zip
-Expand-Archive oma.zip -DestinationPath $HOME\.hst\bin
-Move-Item $HOME\.oma\bin\oma-x86_64-pc-windows-msvc\hst.exe $HOME\.oma\bin\
+Invoke-WebRequest https://github.com/raystyle/hst-rs/releases/latest/download/hst-x86_64-pc-windows-msvc.zip -OutFile hst.zip
+Expand-Archive hst.zip -DestinationPath $HOME\.hst\bin
+Move-Item $HOME\.hst\bin\hst-x86_64-pc-windows-msvc\hst.exe $HOME\.hst\bin\
 # 把 $HOME\.hst\bin 加进 PATH 后重开终端
 hst --version
 ```
@@ -30,7 +30,7 @@ hst --version
 ### macOS
 
 ```bash
-curl -L https://github.com/raystyle/ohmyagents-rs/releases/latest/download/hst-aarch64-apple-darwin.tar.gz | tar xz
+curl -L https://github.com/raystyle/hst-rs/releases/latest/download/hst-aarch64-apple-darwin.tar.gz | tar xz
 mkdir -p ~/.local/bin && mv hst-aarch64-apple-darwin/hst ~/.local/bin/
 hst --version    # ~/.local/bin 需在 PATH
 ```
@@ -38,7 +38,7 @@ hst --version    # ~/.local/bin 需在 PATH
 ### Linux x86_64 与 WSL
 
 ```bash
-curl -L https://github.com/raystyle/ohmyagents-rs/releases/latest/download/hst-x86_64-unknown-linux-gnu.tar.gz | tar xz
+curl -L https://github.com/raystyle/hst-rs/releases/latest/download/hst-x86_64-unknown-linux-gnu.tar.gz | tar xz
 mkdir -p ~/.local/bin && mv hst-x86_64-unknown-linux-gnu/hst ~/.local/bin/
 hst --version
 ```
@@ -46,7 +46,7 @@ hst --version
 ### 源码安装
 
 ```bash
-cargo install --git https://github.com/raystyle/ohmyagents-rs
+cargo install --git https://github.com/raystyle/hst-rs
 ```
 
 ### 前置与说明
@@ -87,7 +87,7 @@ hst statusline codex            # 只配一家
 hst statusline --example        # 用户级定制模板（~/.hst/statusline.toml）
 ```
 
-定制三层：段落显隐与顺序（`segments`）、段内模板与图标（`[template]` / `[icons]`）、整脚本替换（`hst statusline --script <路径>`，`--builtin` 还原）。改完配置重跑一次 `oma agents statusline` 生效。
+定制三层：段落显隐与顺序（`segments`）、段内模板与图标（`[template]` / `[icons]`）、整脚本替换（`hst statusline --script <路径>`，`--builtin` 还原）。改完配置重跑一次 `hst statusline` 生效。
 
 ### 诊断与验收
 
@@ -100,7 +100,7 @@ hst hook verify kimi --timeout 120     # 单家 hook 层验收
 
 ### 活性诊断
 
-打真网关（llm.d3fend.cn）烧最小 token，与 doctor 的零网络体检分家；凭据读 agent 侧配置，也可用 `OMA_GATEWAY_URL` / `OMA_GATEWAY_KEY` 覆盖。
+打真网关（llm.d3fend.cn）烧最小 token，与 doctor 的零网络体检分家；凭据读 agent 侧配置，也可用 `HST_GATEWAY_URL` / `HST_GATEWAY_KEY` 覆盖（旧 `OMA_GATEWAY_*` 一个版本内仍读并提示）。
 
 ```powershell
 hst diagnose cache                    # 全别名缓存命中矩阵（双连探测）

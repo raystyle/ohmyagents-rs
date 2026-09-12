@@ -3,7 +3,7 @@
 //!   读改写，保留 env/permissions 等，只覆盖 statusLine 键）
 //! - codex：`~/.codex/config.toml` 顶层 `[tui]` 段整段替换（幂等），
 //!   `status_line` 为内置项 ID 数组（Codex 无外部命令面，S016）
-//! 状态栏脚本本体（pwsh）随 oma 释放到 `~/.oma/statusline/`。
+//! 状态栏脚本本体（pwsh）随 hst 释放到 `~/.hst/statusline/`。
 //! 用户定调 2026-09-02：渲染对齐用户 starship 配置风格（目录截断、git 旗标、
 //! 包与工具链版本段、nerdfont 图标、Catppuccin 系 256 色）；oma 段 = 当前
 //! agent 名 + 实时四态（hook 状态通道 + 会话闸，机读标记见 S025），另探测
@@ -140,9 +140,9 @@ const SEG_OMA: &str = r#"
 # agent 名：oma 会话 env 优先，部署参数次之（每家配置注入自家名字）。
 $agent = if ($env:HST_AGENT) { $env:HST_AGENT } else { $AgentName }
 # 状态读序（D28）：1) OHMYAGENTS_STATE_FILE 覆盖；2) 用户级 session 键
-# ~/.oma/state/<agent>-<session>.json（session 取 payload session_id /
+# ~/.hst/state/<agent>-<session>.json（session 取 payload session_id /
 # sessionId）；3) 用户级 <agent>.json（agent 最新）；4) 项目级旧协议
-# .oma/state/<agent>.json（未迁移端兼容）。候选按序试，会话闸不符续找。
+# .hst/state/<agent>.json（旧部署端回落 .ohmyagents）。候选按序试，会话闸不符续找。
 $sid = $null
 if ($d) {
     if ($d.session_id) { $sid = "$($d.session_id)" }
@@ -576,7 +576,7 @@ fn lookup_override<'a>(user: &'a [(String, String)], key: &str) -> Option<&'a st
 /// 默认全键在场）。值经单引号转义，用户串无法越出字面量（模板注入不成立）。
 fn render_cfg_block(cfg: &StatuslineConfig) -> String {
     let mut out = String::from(
-        "\n# ── D18 定制烘焙：模板与图标（~/.oma/statusline.toml 键级回落内嵌默认）──\n$slTmpl = @{\n",
+        "\n# ── D18 定制烘焙：模板与图标（~/.hst/statusline.toml 键级回落内嵌默认）──\n$slTmpl = @{\n",
     );
     for (k, v) in DEFAULT_TEMPLATES {
         let merged = lookup_override(&cfg.template, k).unwrap_or(v);
@@ -641,7 +641,7 @@ pub(crate) fn default_statusline_ps1() -> String {
         .expect("default segment order is valid")
 }
 
-/// `~/.oma/statusline.toml` 用户级定制（D18）。键级缺省回落内嵌默认：
+/// `~/.hst/statusline.toml` 用户级定制（D18）。键级缺省回落内嵌默认：
 /// 没写的键用默认，写下的键生效；坏文件硬错退出 1。
 #[derive(Debug, Default, PartialEq)]
 pub struct StatuslineConfig {
@@ -769,7 +769,7 @@ pub fn custom_active(home: &Path) -> bool {
     marker_path(home).exists()
 }
 
-/// 释放状态栏脚本（幂等覆写）。按 `~/.oma/statusline.toml` 生成时烘焙：
+/// 释放状态栏脚本（幂等覆写）。按 `~/.hst/statusline.toml` 生成时烘焙：
 /// segments 键控段序与显隐，缺省回落内嵌默认（D18）。自备脚本标记在场时
 /// 跳过覆写（只保 grok .cmd 壳，见 D18 整脚本替换）。
 pub fn deploy_script(home: &Path) -> Result<PathBuf, String> {
@@ -932,7 +932,7 @@ fn apply_grok_status_line(toml: &mut toml::Value, script_str: &str) -> Result<bo
 }
 
 /// `oma agents statusline --example` 打印的带注释全量示例（存到
-/// `~/.oma/statusline.toml` 生效）。
+/// `~/.hst/statusline.toml` 生效）。
 pub const EXAMPLE_TOML: &str = r#"# ~/.hst/statusline.toml —— 状态栏用户级定制（D18）
 # 生成时烘焙：oma agents statusline 每次运行读本文件重拼脚本后落盘，
 # 改完本文件重跑一次 oma agents statusline 生效。
@@ -1214,7 +1214,7 @@ mod tests {
         )
         .unwrap();
         let p = deploy_script(&home).unwrap();
-        // 封闭性：HOME 钉 scratch（D28 用户级读序会看真实 ~/.oma/state，
+        // 封闭性：HOME 钉 scratch（D28 用户级读序会看真实 ~/.hst/state，
         // 机器上的活会话状态会污染判据），cwd 同钉（无 git 无项目 state）。
         let stdout = run_statusline(&p, "claude", &home, b"{}");
         assert!(

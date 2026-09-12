@@ -1,19 +1,19 @@
-//! oma 自管根与共享下载件。agent 二进制安装 / 升级机器已随 D20 移除（归
-//! ome，D07 迁册）；本模块只留三件消费面共享的能力：oma 数据根解析、自管
-//! 根存量安装的只读探测（`oma agents` 的 source=oma 面）、单文件下载
-//! （`oma self update` 复用）。
+//! hst 自管根与共享下载件。agent 二进制安装 / 升级机器已随 D20 移除（归
+//! ome，D07 迁册）；本模块只留三件消费面共享的能力：hst 数据根解析、自管
+//! 根存量安装的只读探测（`hst agents` 的 source=oma 面）、单文件下载
+//! （`hst self update` 复用）。
 
 use std::fs::{self, File};
 use std::io;
 use std::path::{Path, PathBuf};
 
-const UA: &str = "ohmyagents-oma";
+const UA: &str = concat!("hst/", env!("CARGO_PKG_VERSION"));
 const MANIFEST_NAME: &str = ".oma-agent-manifest.toml";
 
 // ---- 根解析 ----
 
-/// oma 应用数据根：`OMA_HOME` 环境变量 > `~/.oma`（D14；旧 `~/.ohmyagents`
-/// 仅旧在则改名迁过去）。
+/// hst 应用数据根：`HST_ROOT` 环境变量 > `~/.hst`（D29；旧 `~/.oma` 与
+/// `~/.ohmyagents` 仅旧在且新根未初始化时迁过去，见 pathutil::data_dir）。
 pub fn hst_home() -> Result<PathBuf, String> {
     if let Some(v) = std::env::var_os("HST_ROOT") {
         if !v.is_empty() {
@@ -24,14 +24,14 @@ pub fn hst_home() -> Result<PathBuf, String> {
     Ok(crate::pathutil::data_dir(&home))
 }
 
-/// oma 自管 agent 安装根（存量布局 `~/.oma/agents/<name>/<version>/`）。
+/// hst 自管 agent 安装根（oma 纪元存量布局 `<根>/agents/<name>/<version>/`）。
 pub fn agents_root(home: &Path) -> PathBuf {
     home.join("agents")
 }
 
 // ---- 探测集成 ----
 
-/// oma 自管安装的二进制清单（agents.rs 的 Probe 以 source=oma 消费）。
+/// hst 自管安装的二进制清单（agents.rs 的 Probe 以 source=oma 消费）。
 /// D20 后 oma 不再安装 agent，这里只读存量（多为 ome 接管前或 ome 复用
 /// 同布局时的在位件）。
 pub fn managed_binaries(home: &Path) -> Vec<(String, PathBuf)> {
@@ -61,7 +61,7 @@ pub fn managed_binaries(home: &Path) -> Vec<(String, PathBuf)> {
     out
 }
 
-/// oma 自管已装版本（manifest 的 version 字段；多个版本目录取最大）。
+/// hst 自管已装版本（manifest 的 version 字段；多个版本目录取最大）。
 pub fn managed_version(home: &Path, name: &str) -> Option<String> {
     let dir = agents_root(home).join(name);
     let mut best: Option<String> = None;

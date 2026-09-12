@@ -1,8 +1,8 @@
 //! 用户级状态写入 shim（D27 自包含 + D28 用户级常驻）：hook 与 oma 二进制
-//! 解耦，注册与 shim 常驻 `~/.oma/hooks/`（用户裁 2026-09-11「hook 应用户
+//! 解耦，注册与 shim 常驻 `~/.hst/hooks/`（用户裁 2026-09-11「hook 应用户
 //! 全局」，对齐 codex 用户层形态），各家 hook 注册指向 shim——state 通道
 //! 零 oma 依赖，oma 可任意时刻无痛升级轮换，未 init 的项目也有状态数据。
-//! 状态落 `~/.oma/state/` 按 session 分键（D28，防 herdr 多会话互踩）：
+//! 状态落 `~/.hst/state/` 按 session 分键（D28，防 herdr 多会话互踩）：
 //! 默认双写 `<agent>.json`（agent 最新，供无 session 标识的消费面）加
 //! `<agent>-<session>.json`（session 键，状态栏按当前会话直读）；
 //! SessionEnd 删本 session 键文件（GC，崩溃残留由 oma hook 侧陈旧清扫）。
@@ -15,7 +15,7 @@
 //! `oma hook` 保留为手动入口与委托目标（含完整 notification 形状解析）。
 //! cmd 形态两级（用户裁 2026-09-10：jq 归 ome 部署，shim 部署前探 PATH）：
 //! jq 在位用 jq 解析（转义免疫、ts 取 jq now），缺位回落 findstr 硬解析并
-//! warn 指向 `ome install jq`。sh 侧 sed 是 POSIX 基线不引依赖。
+//! warn 指向 `ark install jq`（ome 更名 Ark 随批）。sh 侧 sed 是 POSIX 基线不引依赖。
 //! session 标识三源：payload `session_id`（claude/codex）、`sessionId`
 //! （kimi）、grok runner 注入的 `GROK_SESSION_ID` env（payload 无该字段）。
 
@@ -101,7 +101,7 @@ del "%ERRF%" >nul 2>nul
 exit /b 0
 "#;
 
-/// Windows cmd shim，findstr 回落形态（jq 缺位时部署，warn 指向 ome install
+/// Windows cmd shim，findstr 回落形态（jq 缺位时部署，warn 指向 ark install
 /// jq）。同约定；解析是锚定子串替换（`*hook_event_name":=` 剥前缀再取首
 /// 引号段），比 token 位次硬切抗字段序变化、不造伪值；grok 的 camelCase
 /// 事件名在此形态降级 unknown（jq 形态才解析）；`sessionId` 键先归一成
@@ -307,7 +307,7 @@ pub fn host_shell() -> &'static str {
     }
 }
 
-/// 部署 shim 文件集到 oma 自管根的 `hooks/`（D28 用户级常驻：
+/// 部署 shim 文件集到 hst 自管根的 `hooks/`（D28 用户级常驻：
 /// `<oma_home>/hooks/`，调用方传 `install::hst_home()`；测试传临时根）。
 /// 三份脚本全侧落齐（跨 OS 共享并存：Windows init 也备好 .sh、Unix init
 /// 也备好 .cmd；+x 只在 Unix 生效）。cmd 主 shim按 jq 探测选形态（D27

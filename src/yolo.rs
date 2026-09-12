@@ -159,7 +159,7 @@ pub fn apply_user_yolo_with(user_home: &Path) -> Result<ApplyReport, String> {
 }
 
 /// 项目级 yolo 与非阻塞键（D28 第 3 轮裁定 2026-09-11：yolo 命令分两级，
-/// `oma init --project-yolo` 显式选项目级；v0.5.3 前的默认行为收编为显式
+/// `hst init --project-yolo` 显式选项目级；v0.5.3 前的默认行为收编为显式
 /// 旗标）。写入面：claude 项目 `.claude/settings.json` 加
 /// `settings.local.json`、codex 项目 `.codex/config.toml`（yolo 键加项目
 /// 信任预种）、kimi 项目 `.kimi-code/config.toml`；grok 无项目级面

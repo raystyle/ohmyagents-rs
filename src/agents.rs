@@ -86,7 +86,7 @@ pub struct Probe {
     pub env_bins: BTreeMap<String, PathBuf>,
     pub path_dirs: Vec<PathBuf>,
     pub extra_dirs: Vec<PathBuf>,
-    /// oma 自管安装（`~/.oma/agents/<name>/<ver>/`，manifest 指路）的精确二进制表。
+    /// hst 自管安装（oma 纪元存量布局 `<根>/agents/<name>/<ver>/`，manifest 指路）的精确二进制表。
     pub oma_files: Vec<(String, PathBuf)>,
     pub default_files: Vec<(String, PathBuf)>,
     pub probe_version: bool,
@@ -250,7 +250,7 @@ pub fn print_reports(reports: &[Report]) {
             None => {
                 missing += 1;
                 println!(
-                    "agent={} status=missing detail=not on PATH, OMA_AGENT_PATH, OMA_*_BIN, oma root, or default locations hint=ark install {}",
+                    "agent={} status=missing detail=not on PATH, OMA_AGENT_PATH, OMA_*_BIN, hst root, or default locations hint=ark install {}",
                     r.agent, r.agent
                 );
             }
@@ -480,7 +480,7 @@ mod tests {
 
     fn fresh() -> PathBuf {
         let p = std::env::temp_dir().join(format!(
-            "oma-agents-{}-{}-{}",
+            "hst-agents-{}-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)

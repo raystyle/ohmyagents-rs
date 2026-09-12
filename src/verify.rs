@@ -8,7 +8,7 @@
 //!   定，state 文件落盘即 ok。D28 判据隔离：子进程带
 //!   `OHMYAGENTS_STATE_FILE` 指进临时目录（shim 与 oma hook 都认，env 经
 //!   agent 进程继承给 hook 子进程）；万一某家不透传 env，回落扫用户级
-//!   `~/.oma/state/` 里本轮窗口内新写的 `<agent>*.json`。注册走
+//!   `~/.hst/state/` 里本轮窗口内新写的 `<agent>*.json`。注册走
 //!   **真实用户级面**（四家同一形态，即产品面本身）：byte 备份五件配置、
 //!   deploy、Drop 还原（kimi M058 实证全局触发面泛化到四家，2026-09-11）。
 
@@ -394,7 +394,7 @@ fn verify_hook_in(
 
 /// 用户级状态目录里本轮窗口内新写的 `<agent>*.json`（取最新 mtime）。
 /// 只读不删：键文件归 SessionEnd GC 与写侧清扫管（并发的活会话不碰）。
-/// 真实家目录直取（shim 写 `%USERPROFILE%\.hst\state` 不看 OMA_HOME）。
+/// 真实家目录直取（shim 写 `%USERPROFILE%\.hst\state` 不看 HST_ROOT）。
 fn freshest_new_user_state(agent: &str, started: std::time::SystemTime) -> Option<String> {
     let home = verify_real_home().ok()?;
     let dir = crate::pathutil::data_dir(&home).join("state");
@@ -424,7 +424,7 @@ fn hook_hint(agent: &str) -> Option<String> {
     Some(match agent {
         "codex" => "codex 信任闸 exec 下静默跳过无提示（S033）：确认 \
             --dangerously-bypass-hook-trust 已带；D28 用户级注册的 \
-            [hooks.state] trusted_hash 由 oma init 预种在 ~/.codex/config.toml。\
+            [hooks.state] trusted_hash 由 hst init 预种在 ~/.codex/config.toml。\
             hook 经会话环境 shell 执行（Windows 缺省 PowerShell，M057）：\
             commandWindows 为无引号正斜杠形态（M059，bash / PS / cmd 三吃）"
             .into(),
@@ -436,7 +436,7 @@ fn hook_hint(agent: &str) -> Option<String> {
             D28 注册面即用户级 ~/.kimi-code/config.toml，verify 已 byte 备份 deploy\
             并在结束还原；判据只押 SessionStart/UserPromptSubmit"
             .into(),
-        _ => "确认 shim 在位（~/.oma/hooks/oma-state.*，oma init 部署）且 jq 在 \
+        _ => "确认 shim 在位（~/.hst/hooks/hst-state.*，hst init 部署）且 jq 在 \
             PATH（jq 缺位时 cmd shim 走 findstr 回落）；判据只看 state 落盘（env \
             隔离文件加用户级窗口回落双路），模型应答失败不影响"
             .into(),

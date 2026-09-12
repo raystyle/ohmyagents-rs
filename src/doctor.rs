@@ -722,8 +722,8 @@ fn push_hooks_form(out: &mut Vec<Finding>, agent: &str, form: &str, path: &Path)
             "hooks.form",
             Status::Ok,
             path,
-            "form=shim (self-contained state writer in ~/.oma/hooks; user-level \
-             registration, zero oma dependency, D27/D28)",
+            "form=shim (self-contained state writer in ~/.hst/hooks; user-level \
+             registration, zero hst dependency, D27/D28)",
         ),
         "shim-dead" => push_status(
             out,
@@ -731,7 +731,7 @@ fn push_hooks_form(out: &mut Vec<Finding>, agent: &str, form: &str, path: &Path)
             "hooks.form",
             Status::Warn,
             path,
-            "form=shim-dead (registration points at a missing ~/.oma/hooks script; \
+            "form=shim-dead (registration points at a missing ~/.hst/hooks script; \
              rerun hst init)",
         ),
         "bare" => push_status(
@@ -740,7 +740,7 @@ fn push_hooks_form(out: &mut Vec<Finding>, agent: &str, form: &str, path: &Path)
             "hooks.form",
             Status::Warn,
             path,
-            "form=bare (pre-D27 registration pins the oma binary; oma init upgrades to shim)",
+            "form=bare (pre-D27 registration pins the oma binary; hst init upgrades to shim)",
         ),
         "args" => push_status(
             out,
@@ -748,7 +748,7 @@ fn push_hooks_form(out: &mut Vec<Finding>, agent: &str, form: &str, path: &Path)
             "hooks.form",
             Status::Warn,
             path,
-            "command+args is PowerShell ParserError under Grok (M047); oma init",
+            "command+args is PowerShell ParserError under Grok (M047); hst init",
         ),
         "absolute" => push_status(
             out,
@@ -756,7 +756,7 @@ fn push_hooks_form(out: &mut Vec<Finding>, agent: &str, form: &str, path: &Path)
             "hooks.form",
             Status::Warn,
             path,
-            "form=absolute (pre-D27 registration pins the oma binary; oma init upgrades to shim)",
+            "form=absolute (pre-D27 registration pins the oma binary; hst init upgrades to shim)",
         ),
         _ => push_status(
             out,
@@ -764,7 +764,7 @@ fn push_hooks_form(out: &mut Vec<Finding>, agent: &str, form: &str, path: &Path)
             "hooks.form",
             Status::Warn,
             path,
-            "no oma hooks; oma init deploys",
+            "no hst hooks; hst init deploys",
         ),
     }
 }
@@ -880,7 +880,7 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
             &claude_shared,
             format!(
                 "conflict: project defaultMode={p} shadows user {u}; align via \
-                 `oma init --project-yolo` or drop one level (D28 r4)"
+                 `hst init --project-yolo` or drop one level (D28 r4)"
             ),
         ),
         (Some(p), Some(_)) | (Some(p), None) => push(
@@ -1121,7 +1121,7 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
             &codex_proj,
             format!(
                 "conflict: project sandbox/approval shadows user; align via \
-                 `oma init --project-yolo` or drop one level (D28 r4)"
+                 `hst init --project-yolo` or drop one level (D28 r4)"
             ),
         ),
         (Some(p), _) => push(
@@ -1363,7 +1363,7 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
             &kimi_proj,
             format!(
                 "conflict: project default_permission_mode={p} shadows user {u}; align via \
-                 `oma init --project-yolo` or drop one level (D28 r4)"
+                 `hst init --project-yolo` or drop one level (D28 r4)"
             ),
         ),
         (Some(p), _) => push(
@@ -1693,7 +1693,7 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
 
     // （行序：项目面状态行在前——status() 取首个，项目归因的 Block 优先
     // 于用户级行。）
-    // D28 用户级状态面：`~/.oma/state/*.json`。用户级状态无法归因到本项
+    // D28 用户级状态面：`~/.hst/state/*.json`。用户级状态无法归因到本项
     // 目（可能来自任何项目的会话），blocked 一律 warn 不 block——doctor
     // 的 Block 语义仍只对本项目交互阻塞负责（项目级旧状态文件照旧扫，
     // blocked = Block）。
@@ -1787,7 +1787,7 @@ mod tests {
 
     #[test]
     fn user_level_state_never_blocks_project_diagnosis() {
-        // D28 用户级状态面：OMA_HOME 缝注入（共享 env 锁与 hook 测试互斥）。
+        // D28 用户级状态面：HST_ROOT 缝注入（共享 env 锁与 hook 测试互斥）。
         // 用户级 blocked（latest 与 session 键两种）不升 Block——无法归因本
         // 项目；项目级旧文件 blocked 仍 Block。
         let _g = crate::pathutil::ENV_LOCK
@@ -2317,7 +2317,7 @@ approval_policy = \"on-request\"
                 .unwrap_or_else(|| panic!("yolo row for {agent}"));
             assert_eq!(f.status, Status::Warn, "{agent}: {:?}", f.detail);
             assert!(
-                f.detail.contains("conflict") && f.detail.contains("oma init --project-yolo"),
+                f.detail.contains("conflict") && f.detail.contains("hst init --project-yolo"),
                 "CTA present: {}",
                 f.detail
             );

@@ -10,10 +10,21 @@ pub const LEGACY_DIR: &str = ".ohmyagents";
 /// `<parent>/.hst`。旧名（`.oma` 加 `.ohmyagents`）仅旧在、新不在时**同卷
 /// rename** 迁过去（D29 启动探测迁移；rename 在同一父目录内恒同卷，跨卷
 /// copy 校验删的分支由 HST_ROOT 显式覆盖场景规避——覆盖时不自动迁）；两
-/// 者都在用新名、旧目录不动。
+/// 者都在用新名、旧目录不动，**唯一例外**：新根只有 `bin/`（README 装法
+/// 把 hst.exe 先落 `~/.hst/bin` 建了根）或空根视为未初始化，旧根子项逐个
+/// move 迁入（撞名保新侧，bin 不动，迁空的旧根摘除；D30 堵 bin 先建根挡
+/// rename 的缝）。
 pub fn data_dir(parent: &Path) -> PathBuf {
     let neu = parent.join(DIR);
     if neu.exists() {
+        if is_pristine_root(&neu) {
+            for legacy in [LEGACY_OMA_DIR, LEGACY_DIR] {
+                let old = parent.join(legacy);
+                if old.exists() && merge_legacy_children(&old, &neu) {
+                    break;
+                }
+            }
+        }
         return neu;
     }
     for legacy in [LEGACY_OMA_DIR, LEGACY_DIR] {
@@ -23,6 +34,41 @@ pub fn data_dir(parent: &Path) -> PathBuf {
         }
     }
     neu
+}
+
+/// 新根是否「未初始化」：只有 `bin/`（或空）。有 hooks/state 等任何实内容
+/// 即视为已初始化（迁移窗口活会话重建 .oma/state 的并存实况，不动旧）。
+fn is_pristine_root(neu: &Path) -> bool {
+    match std::fs::read_dir(neu) {
+        Ok(entries) => entries
+            .flatten()
+            .all(|e| e.file_name().to_str().is_some_and(|n| n == "bin")),
+        // 读不了的根当已初始化，走不动旧语义（保守）。
+        Err(_) => false,
+    }
+}
+
+/// 旧根子项逐个 rename 进新根：撞名保新侧跳过；全部迁走则连旧根目录摘除，
+/// 有迁不动的残留则旧根保留（下次启动重试）。返回是否迁了至少一项。
+fn merge_legacy_children(old: &Path, neu: &Path) -> bool {
+    let Ok(entries) = std::fs::read_dir(old) else {
+        return false;
+    };
+    let mut moved = false;
+    for e in entries.flatten() {
+        let to = neu.join(e.file_name());
+        if to.exists() {
+            continue;
+        }
+        if std::fs::rename(e.path(), &to).is_ok() {
+            moved = true;
+        }
+    }
+    if moved {
+        // 迁空才摘得掉；非空（有撞名保留或失败残留）保留旧根。
+        let _ = std::fs::remove_dir(old);
+    }
+    moved
 }
 
 /// 用户家目录解析（D28）：`HST_USER_HOME` 覆盖优先（集成测试与 verify 的
@@ -37,7 +83,7 @@ pub fn user_home() -> Result<PathBuf, String> {
     dirs::home_dir().ok_or_else(|| "cannot resolve home dir".to_string())
 }
 
-/// 跨模块共享的 env 互斥锁（测试专用）：OMA_HOME / HST_USER_HOME 等进程
+/// 跨模块共享的 env 互斥锁（测试专用）：HST_ROOT / HST_USER_HOME 等进程
 /// 级环境变量的读写测试必须串行（各模块各自的锁锁不住彼此）。单一权威
 /// 在 `testenv::ENV_LOCK`，此处只重导出（防两把锁并存，codex review F5）。
 #[cfg(test)]
@@ -104,7 +150,7 @@ mod tests {
 
     fn tmp_parent() -> PathBuf {
         let p = std::env::temp_dir().join(format!(
-            "oma-pathutil-{}-{}-{}",
+            "hst-pathutil-{}-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -151,6 +197,57 @@ mod tests {
         std::fs::create_dir_all(parent.join(".hst")).unwrap();
         assert_eq!(data_dir(&parent).file_name().unwrap(), DIR);
         assert!(!parent.join(".oma").exists());
+        let _ = std::fs::remove_dir_all(&parent);
+    }
+
+    #[test]
+    fn d30_bin_first_root_still_merges_legacy() {
+        // README 装法先把 hst.exe 落 ~/.hst/bin 建根：rename 永不触发，旧根
+        // 子项应逐个迁入（bin 保留、旧根摘除）；新根有实内容则仍不动旧。
+        let parent = tmp_parent();
+        std::fs::create_dir_all(parent.join(".hst").join("bin")).unwrap();
+        std::fs::write(parent.join(".hst").join("bin").join("hst.exe"), "bin").unwrap();
+        std::fs::create_dir_all(parent.join(".oma").join("state")).unwrap();
+        std::fs::write(parent.join(".oma").join("state").join("claude.json"), "{}").unwrap();
+        std::fs::write(parent.join(".oma").join("statusline.toml"), "# cfg").unwrap();
+        let got = data_dir(&parent);
+        assert_eq!(got.file_name().unwrap(), DIR);
+        assert!(got.join("bin").join("hst.exe").is_file(), "bin survives");
+        assert!(got.join("state").join("claude.json").is_file());
+        assert!(
+            got.join("statusline.toml").is_file(),
+            "user customization migrates"
+        );
+        assert!(!parent.join(".oma").exists(), "legacy root drained");
+        let _ = std::fs::remove_dir_all(&parent);
+
+        // 撞名保新侧：pristine 语义下撞名只可能发生在 bin 本身（新根其余子项
+        // 一出现即非 pristine）。旧根同名 bin 跳过、其余照迁，旧根因 bin 残
+        // 留保留。
+        let parent = tmp_parent();
+        std::fs::create_dir_all(parent.join(".hst").join("bin")).unwrap();
+        std::fs::write(parent.join(".hst").join("bin").join("hst.exe"), "bin").unwrap();
+        std::fs::create_dir_all(parent.join(".oma").join("bin")).unwrap();
+        std::fs::write(parent.join(".oma").join("bin").join("junk.txt"), "old").unwrap();
+        std::fs::create_dir_all(parent.join(".oma").join("state")).unwrap();
+        std::fs::write(parent.join(".oma").join("state").join("claude.json"), "{}").unwrap();
+        let got = data_dir(&parent);
+        assert!(
+            got.join("bin").join("hst.exe").is_file(),
+            "collision keeps the new bin"
+        );
+        assert!(
+            got.join("state").join("claude.json").is_file(),
+            "non-colliding items migrate"
+        );
+        assert!(
+            parent.join(".oma").join("bin").join("junk.txt").is_file(),
+            "legacy bin residue kept in old root"
+        );
+        assert!(
+            parent.join(".oma").exists(),
+            "legacy root kept: bin collision residue"
+        );
         let _ = std::fs::remove_dir_all(&parent);
     }
 

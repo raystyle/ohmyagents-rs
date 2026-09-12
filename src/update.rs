@@ -15,7 +15,7 @@ use serde::Deserialize;
 /// 此值在更名前后均可用。
 pub const DEFAULT_REPO: &str = "raystyle/hst-rs";
 
-const UA: &str = concat!("oma/", env!("CARGO_PKG_VERSION"));
+const UA: &str = concat!("hst/", env!("CARGO_PKG_VERSION"));
 
 #[derive(Debug, Deserialize)]
 pub struct Release {
@@ -143,7 +143,7 @@ pub fn version_newer(tag: &str, current: &str) -> bool {
     false
 }
 
-/// 上次安装记录：`~/.oma/selfupdate.json`（资产 digest 为判据——
+/// 上次安装记录：`~/.hst/selfupdate.json`（资产 digest 为判据——
 /// digest 是压缩包哈希，与 exe 哈希不可比）。
 fn record_path() -> Result<PathBuf, String> {
     Ok(crate::install::hst_home()?.join("selfupdate.json"))
