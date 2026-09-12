@@ -1,8 +1,12 @@
 //! `hst agents verify`（D17）：四家 agent 的 hook 与状态栏全平台无头验收。
 //! 两层判据（S033 源码实证底座；D28 起注册面全量用户级）：
-//! - 状态栏：脚本本体直跑（mock 空 JSON 喂 stdin，断言 stdout 首行
-//!   `agent:state` 机读标记，S025）；codex 无外部命令面（M045），改为断言
-//!   `~/.codex/config.toml` 的 `[tui] status_line` 含内置项 ID。
+//! - 状态栏：**验收已部署的面**（D37，2026-09-13 wsl 总台验收适配）：脚本
+//!   本体直跑（mock 空 JSON 喂 stdin，断言 stdout 首行 `agent:state` 机读
+//!   标记，S025；脚本由 verify 按需释放）；codex 无外部命令面（M045），断
+//!   `~/.codex/config.toml` 的 `[tui] status_line` 含内置项 ID。面未部署
+//!   （无 `[tui] status_line`）或可选运行时缺位（pwsh 不在 PATH）= skip
+//!   不计败、带 CTA（状态栏是可选面，doctor 另有 warn）；已部署但断链
+//!   （marker 缺、内置项缺 run-state 锚、脚本非零退出）仍 fail。
 //! - hook：临时目录起无头会话，判据只押 SessionStart / UserPromptSubmit
 //!   这类先于模型调用的事件——模型应答失败（无 token、网络错）不影响判
 //!   定，state 文件落盘即 ok。D28 判据隔离：子进程带
@@ -174,10 +178,11 @@ fn verify_statusline(agent: &str, home: &Path) -> LayerVerdict {
         }
     };
     if !crate::statusline::pwsh_on_path() {
-        return LayerVerdict::Fail {
-            reason: "pwsh-not-on-path".into(),
-            hint: Some("pwsh 是状态栏运行时（全平台同）；装 PowerShell 7 后重跑".into()),
-        };
+        // D37：pwsh 是可选运行时（README 前置：缺了只是不渲染），未装不
+        // 计败，skip 带 CTA；doctor 的状态栏 warn 面另行覆盖。
+        return LayerVerdict::Skip(
+            "pwsh-not-on-path（状态栏可选运行时缺位：装 PowerShell 7 后重跑 hst statusline 与 verify）".into(),
+        );
     }
     let mut child = match Command::new("pwsh")
         .arg("-NoProfile")
@@ -235,7 +240,8 @@ pub fn statusline_marker_ok(agent: &str, stdout: &str) -> bool {
     stdout.lines().next().is_some_and(|l| l.contains(&marker))
 }
 
-/// codex：`~/.codex/config.toml` 的 `[tui] status_line` 含内置项 ID 即过。
+/// codex：`[tui] status_line` 含内置项 ID 即 Builtin；键未部署 = Skip（D37，
+/// 部署归 `hst statusline` 面，init 不写）；已部署但缺 run-state 锚 = Fail。
 fn codex_statusline_builtin() -> LayerVerdict {
     let config = match crate::pathutil::user_home() {
         Ok(h) => h.join(".codex").join("config.toml"),
@@ -246,17 +252,50 @@ fn codex_statusline_builtin() -> LayerVerdict {
             }
         }
     };
-    match fs::read_to_string(&config) {
-        Ok(text) if codex_builtin_statusline_ok(&text) => LayerVerdict::Builtin,
-        Ok(_) => LayerVerdict::Fail {
+    let text = match fs::read_to_string(&config) {
+        Ok(t) => t,
+        Err(_) => {
+            // 无 config（连 init 都没跑过）或不可读：面未部署，skip。
+            return LayerVerdict::Skip(
+                "statusline-not-deployed（[tui] status_line 未部署：跑 hst statusline codex）"
+                    .into(),
+            );
+        }
+    };
+    codex_statusline_from_text(&text)
+}
+
+/// 纯函数：按 config.toml 文本判 codex 状态栏层（D37 测试面）。
+fn codex_statusline_from_text(text: &str) -> LayerVerdict {
+    if !codex_statusline_key_present(text) {
+        return LayerVerdict::Skip(
+            "statusline-not-deployed（[tui] status_line 未部署：跑 hst statusline codex）".into(),
+        );
+    }
+    if codex_builtin_statusline_ok(text) {
+        LayerVerdict::Builtin
+    } else {
+        LayerVerdict::Fail {
             reason: "status_line-missing-builtin-ids".into(),
             hint: Some("跑 `hst statusline codex` 写入 [tui] 内置项 ID".into()),
-        },
-        Err(_) => LayerVerdict::Fail {
-            reason: format!("no-config: {}", config.display()),
-            hint: Some("跑 `hst statusline codex` 写入 [tui] 内置项 ID".into()),
-        },
+        }
     }
+}
+
+/// 纯函数：`[tui]` 段是否有 `status_line` 键（单行或多行数组起笔都算）。
+fn codex_statusline_key_present(text: &str) -> bool {
+    let mut in_tui = false;
+    for ln in text.lines() {
+        let t = ln.trim();
+        if t.starts_with('[') {
+            in_tui = t == "[tui]";
+            continue;
+        }
+        if in_tui && t.starts_with("status_line") {
+            return true;
+        }
+    }
+    false
 }
 
 /// 纯函数：config.toml 的 `[tui]` 段 `status_line`（单行或多行数组）含
@@ -676,6 +715,36 @@ pub fn parse_state(text: &str) -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dies_codex_statusline_undeployed_is_skip_not_fail() {
+        // D37：`[tui] status_line` 只有 hst statusline 才写，init 不写；
+        // 全新 init 态（无键、无 [tui] 段、无 config 内容）是 skip 不计败。
+        assert!(matches!(
+            codex_statusline_from_text("model = \"gpt\"\n"),
+            LayerVerdict::Skip(_)
+        ));
+        assert!(matches!(
+            codex_statusline_from_text("[tui]\nnotifications = true\n"),
+            LayerVerdict::Skip(_)
+        ));
+    }
+
+    #[test]
+    fn codex_statusline_deployed_but_broken_is_fail() {
+        // 已部署（键在）但缺 run-state 锚：真断链，仍 fail。
+        let deployed = "[tui]\nstatus_line = [\"custom-only\"]\n";
+        assert!(codex_statusline_key_present(deployed));
+        assert!(matches!(
+            codex_statusline_from_text(deployed),
+            LayerVerdict::Fail { .. }
+        ));
+        let ok_form = "[tui]\nstatus_line = [\"run-state\"]\n";
+        assert!(matches!(
+            codex_statusline_from_text(ok_form),
+            LayerVerdict::Builtin
+        ));
+    }
 
     #[test]
     fn headless_argv_shapes_per_agent() {

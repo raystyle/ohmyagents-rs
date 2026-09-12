@@ -31,6 +31,10 @@
 3. 发版 v1.0.0：tag 打在评审终批 `ed94f94`；CI 绿；十二资产（hst 本体六件加 oma stub 六件）加 sha256 边车齐；镜像 hst/stable 与 oma/stable 段到货核验（资产与边车 HEAD 200 加 digest 对账）；herdr 知会 ohmycloud（版本加资产 sha256 全量）。
 4. D31 四处与 D35 README 均无私有域名；GitHub 仓库描述一句话已生效。
 
+## 当日补丁：D37 verify 状态栏层环境探测
+
+ohmywsl 总台（全新 Ubuntu 24.04、四家 agent 已装、`hst init --pre-trust` 落盘）跑仓测，`verify_live_headless_acceptance_for_installed_agents` 红。根因两支：codex 状态栏层必红（`[tui] status_line` 由 `hst statusline` 写、init 不写该面，属部署语义分家而非缺陷）；无 pwsh 的机器 claude/grok/kimi 状态栏层红（`pwsh-not-on-path`，pwsh 是可选运行时）。裁定（来函两路径取 skip 条件路径，不动 init 落盘面语义）：verify 状态栏层只验**已部署的面**，未部署（键无、config 不在）或缺可选运行时 = `skip` 不计败带 CTA；已部署但 marker 缺、内置项缺 run-state 锚、脚本非零退出仍 fail；hook 层保持严格（登录缺失红属真阳性，P0047 前例）。skip 与 fail 分界由纯函数单测钉死（`codex_statusline_from_text` 三态）。162 单测加 27 集成全绿含本机 live 回归（已部署态行为不变）。
+
 ## 观察面
 
 - 旧 OMA_* env 读取、`--pretrust` 别名、oma stub 资产、旧路径转发 shim 的兼容窗统一到 1.1.0（原 v0.7 口径随 D34 改号）。
