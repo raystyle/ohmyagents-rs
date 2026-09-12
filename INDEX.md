@@ -100,6 +100,7 @@
 | P0042 | `P0042-D22-自适应技能生成.md` | D22 `hst skill [--write]`：clap 活命令树自适应渲染 SKILL.md |
 | P0043 | `P0043-D23-secretguard完整token匹配.md` | D23 实值比对完整 token 边界匹配加脱敏前缀（#9） |
 | P0044 | `P0044-D27-hook与oma二进制解耦全平台shim.md` | D27 自包含状态 shim（cmd jq/findstr 两级加 bash/zsh）加 M057 codex PS 调用操作符根修 |
+| P0047 | `P0047-D30更名收尾批.md` | D30 更名收尾批 / v0.6.1：data_dir pristine 合并、退役环与 marker 双收复活、技能身份回 ohmyagents、串面清扫 |
 | P0046 | `P0046-D29-oma更名HST破坏性迁移.md` | D29 更名 HST / hst / v0.6.0：crate hst-cli、`~/.hst` 根迁移、heal 即重部署、oma stub 与镜像双段 |
 | P0045 | `P0045-D28-hook用户级常驻与session分键状态.md` | D28 hook 注册与 shim 用户级常驻（四家统一）、`~/.oma/state/` session 分键双写、状态栏会话读序、项目面退役 |
 

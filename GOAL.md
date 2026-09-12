@@ -8,13 +8,13 @@
 > 当前目标的起点：何时发起、为什么发起、要解决什么问题。
 
 - **日期**：2026-09-12。
-- **起点**：D29 立项。用户定夺 oma 更名 HST（Hooks, Statusline, Trace）：命令 hst、crate hst-cli、仓 hst-rs、数据根 ~/.hst、v0.6.0 破坏性一次做完；职责不变（hook 落盘、statusline、只读 trace、doctor、yolo；不编排、不装二进制归 ark）。
+- **起点**：D30 立项。净会话交接对齐：D29 已发 v0.6.0，残面收尾（sweep 连坐四回归修加串面清扫加本机老用户迁移实证）清完即发 0.6.1；用户两裁（发布策略、迁移剧本）记 PRD D30 第 1 轮。
 
 ## 锚点
 
 > 当前锚定的目标 + 推进时间线。
 
-- **锚定的目标**：D29 HST 更名迁移（PRD D29 已采纳：七阶段到 v0.6.0 发版，八条验收清单）。
+- **锚定的目标**：D30 0.6.1 更名收尾批（PRD D30 已采纳：四回归修、串面清扫、本机迁移实证、发版）。
 
 ### 推进时间线
 
@@ -22,6 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
+| 2026-09-12 | 净会话接续：交接面核验（heal hooks 检查面已落属实，F8 三面探针在；本机实态：oma 旧版在 PATH、hst 未装、双根并存）；盘出 D29 残面四回归（bin 先建根挡迁移、退役环死码、SKILL marker 断再生、技能身份拧巴）加 README 安装块断链级错与一批串面残留；用户两裁后 D30 立项开工。**下半场四回归修与串面清扫全落**（156 单测加 24 集成加四门禁全绿；本仓 dogfood init 重部署 marker 双收真实生效、pretrust 重种 doctor 绿；R002/AGENTS/CHANGELOG/diary/P0047 同步）；待发 v0.6.1 加迁移实证 |
 | 2026-09-12 | **D29 当日闭环加 v0.6.0 发版**：oma 更名 HST / hst（crate hst-cli、数据根 `~/.hst` 启动 rename 迁移、HST_* env 旧读提示、hst hook init/status/verify 三支与 statusline 一级化、heal 即重部署、oma stub 与镜像 hst/ 加 oma/ 双段）；154 单测加 24 集成加三平台矩阵全绿；本机 dogfood 真迁移与四家注册收敛；八条验收逐条过；v0.6.0 十二资产 digest 双源核对；归档 P0046 |
 | 2026-09-11 | **D28 当日四轮闭环加 v0.5.4 发版**：第 1 轮 hook 与 shim 用户级常驻加 session 分键状态（六面：shim/deploy/statusline/hook/doctor/verify）；herdr codex 独立 review 三轮对齐（首轮九条 F1 codex 信任键源根修本机双版本无 bypass 活体落盘实证、次轮六条残留清零、终局代码面零异议）；第 2 轮 yolo 与非阻塞键用户级（用户令，git 历史佐证用户级诉求自 POC 期逐面翻正）；第 3 轮 yolo 两级显式（--yolo 用户级加 --project-yolo 项目级互斥）；第 4 轮 doctor 双级冲突 warn 加 CTA；状态栏中文目录乱码根修（stdin 字节级 UTF-8 解码）；151 单测加 24 集成加四门禁全绿（三平台矩阵补齐 Windows 151+24、WSL/mac 各 150+24）；M061 至 M063 记档、P0045 归档；**对端验收回执全绿**：ohmycloud 三资产镜像段锚全对齐（win c7af19e1 加 linux 7f9b227c 加 mac 8a56ce5b，边车与更正值逐字一致，oma/stable 三平台锚账闭合；知会 digest 首报取错边车文件对象经对端抓出更正，M063） |
 | 2026-09-10 | **D27 达成归档 P0044 加 v0.5.1/v0.5.2 当日双发收官**：hook 与 oma 二进制解耦（自包含状态 shim：cmd 两级 jq 首选加 findstr 回落探 PATH jq、bash、mac zsh，注册指向 shim 零 oma 依赖可无痛轮换，secretguard fail-open 委托）；当日连环根修 M057（codex 经会话环境 shell）、M058（kimi print 只触发全局 hooks，verify 改临时全局注册）、M059（claude 本体经 bash 消费，注册统一无引号正斜杠三吃形态；v0.5.1 的 & 形态 dogfood 拦死本会话后当日快修）；三平台测试矩阵落地 R004 三.6（Windows 140+22、WSL 共仓 139+22、lan-mac clone 镜像 139+22，与 ome 达成标准互指）；各项目 hook 清理（ohmycloud / ohmyenv-rs / 本仓重部署，用户级 codex 七条陈旧条目改 bare）；v0.5.2 对端验收回执全绿（herdr：sha256 全等核对落装位、shim 三件落位、oma/stable 边车对账一致），三仓水位终态 omc 0.3.1 / ome 0.2.1 / oma v0.5.2 当日对齐。同日 codex 独立验收 review 三轮对齐收口（七主张加三轮修正无遗留异议，M060 两笔挂账），v0.5.3 发布即回执全绿（ohmycloud：sha 前 16 位吻合落位、docs-gate 首跑绿、oma/stable 锚到货三方对账照旧；跨 agent 验收飞轮记为范式） |
@@ -132,7 +133,7 @@
 
 > 当前目标的进程：只记录当前这一个目标的进行状态。
 
-- 当前目标：无（D29 归档 P0046，v0.6.0 发版；repo 改名与本地迁移用户随后）。
+- 当前目标：D30 0.6.1 更名收尾批，进行中（代码修与清扫落地后发版，再做本机迁移实证）。
 
 ## 历史
 

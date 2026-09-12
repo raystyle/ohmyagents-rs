@@ -119,13 +119,13 @@
 > 需求意图到命令的映射（摘要层）。每条命令的行为细则、机理出处、marker 行、退出码与落地状态的唯一权威见 `docs\references\R002-常用命令与管理流程-从项目init到部署诊断.md`。
 
 - **无阻塞诊断**：`hst doctor`（只读体检；登录态、hook 形态、状态栏三类归 agents 域，D07；warn 与 block 分层，block 才退出 1）
-- **检测已装 agent**：`hst agents`（PATH / 环境变量 / oma 自管根 / 默认目录四源；缺装 hint 指向 `ome install`，D20）
-- **配置状态栏**：`hst agents statusline [名] [--example]`（四家写入面幂等；用户级定制 `~/.oma/statusline.toml`：段落开关加模板图标加 codex 子集，`--script` 整脚本替换加 `--builtin` 还原，D18）
+- **检测已装 agent**：`hst agents`（PATH / 环境变量 / hst 自管根 / 默认目录四源；缺装 hint 指向 `ark install`，D20）
+- **配置状态栏**：`hst statusline [名] [--example]`（四家写入面幂等；用户级定制 `~/.hst/statusline.toml`：段落开关加模板图标加 codex 子集，`--script` 整脚本替换加 `--builtin` 还原，D18）
 - **hook 写状态加密钥拦截**：`hst hook`（状态落盘；block 级密钥 exit 2 拒调用）
-- **部署项目全套**：`hst init [--project PATH]`（yolo 加 hook/skill，幂等；hook 注册与 shim 常驻用户级 `~/.oma/hooks/`，状态按 session 分键写 `~/.oma/state/`，项目旧注册自动退役，零 oma 依赖可无痛轮换，D27/D28）
+- **部署项目全套**：`hst init [--project PATH]`（yolo 加 hook/skill，幂等；hook 注册与 shim 常驻用户级 `~/.hst/hooks/`，状态按 session 分键写 `~/.hst/state/`，项目旧注册自动退役，零 hst 依赖可无痛轮换，D27/D28）
 - **部署 yolo 与非阻塞键**：`hst init --yolo`（用户级）或 `hst init --project-yolo`（项目级，两级显式互斥，D28 第 3 轮）；`--pretrust` 追加按项目信任库预写
 - **oma 自更新**：`hst self update [--stable] [--git]`（缺省 dev 滚动源，Windows rename 舞步；设 `OMA_MIRROR=<基址>` 走镜像 dev 段，边车 sha256 判新，网络失败回落 GitHub，D16）
-- **生成 oma 自身技能**：`hst skill [--write]`（从 clap 活命令树自适应渲染 SKILL.md，新命令自动出现；--write 落用户级 ~/.claude/skills/ohmyagents/，D22）
+- **生成 hst 自身技能**：`hst skill [--write]`（从 clap 活命令树自适应渲染 SKILL.md，新命令自动出现；--write 落用户级 ~/.claude/skills/ohmyagents/，技能名随 D14 裁定保留旧牌，D22）
 - **生成补全**：`hst completions <shell>`
 - **检索对话历史**：`hst trace sessions|timeline|blocks|agent|file|search`（六视图联邦读四家原生会话库，只读，D19 恢复）
 - **无头验收 agent**：`hst agents verify [名] [--timeout N]`（状态栏 mock 直跑加 hook 无头落盘两层判据，D17/S033；skip 不计败，fail 退出 1）

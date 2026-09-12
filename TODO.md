@@ -4,15 +4,18 @@
 
 ## 当前目标
 
-D29 oma 更名 HST / hst / v0.6.0（2026-09-12 立项，破坏性一次做完）：
+D30 0.6.1 更名收尾批（2026-09-12 立项，D29 残面一次清完）：
 
-- [x] 阶段 1 crate 与标识（hst-cli / bin hst / 信封 tool 字段 / 0.6.0）
-- [x] 阶段 2 命令面（hst hook init|status|verify、statusline 一级化加 alias、trace/agents/init/doctor/diagnose/self/skill/completions）
-- [x] 阶段 3 路径与 env（~/.hst 加 HST_ROOT、启动探测迁移、init 并 heal、HST_* env 新读旧提示）
-- [x] 阶段 4 资产与自更新（hst-* 资产、oma stub、mirror 双推一版本）
-- [x] 阶段 5 文档（七面加 P0046 归档加 CHANGELOG）
-- [x] 阶段 6 测试（迁移三用例加八条验收加三平台矩阵：Windows 154+24、WSL 与 lan-mac 各 153+24）
-- [x] 阶段 7 发版（v0.6.0 十二资产齐、digest 双源核对、herdr 知会；repo 改名 hst-rs 用户代办随后）
+- [x] 阶段 1 四回归修（data_dir bin 先建根、退役环旧名死码、SKILL marker 断再生、技能身份回 ohmyagents）
+- [x] 阶段 2 串面清扫（README 安装块与四处 URL、doctor/verify/deploy/main/statusline 用户可见串、UA 两处、源注释顺手批、R002 与 AGENTS 同步、ome 改 ark 注释尾巴随批清）
+- [x] 阶段 3 测试与门禁（新增两用例 156 单测加 24 集成全绿、fmt/clippy、rumdl 加 .tools 三扫描；本仓 dogfood init 重部署与 pretrust 全绿）
+- [ ] 阶段 4 发版（0.6.1、CHANGELOG、diary、tag、digest 双源核对、herdr 知会）
+- [ ] 阶段 5 本机老用户迁移实证（stub 指路、装 hst、rename 迁移加 heal、doctor 绿、转调、散件合并回）
+- [ ] 阶段 6 归档（P0047、四原语收口）
+
+D29 前目标（2026-09-12 当日闭环归档 P0046，v0.6.0 发版；repo 改名 hst-rs 用户已办）清单见 git 历史：
+
+- [x] 阶段 1 至 7 全落（154 单测加 24 集成加三平台矩阵、八条验收、十二资产 digest 双源核对）
 
 D28 前目标（2026-09-11 四轮裁定当日闭环归档 P0045，v0.5.4 发版对端验锚全绿）清单见 git 历史：
 
