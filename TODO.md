@@ -6,13 +6,13 @@
 
 D29 oma 更名 HST / hst / v0.6.0（2026-09-12 立项，破坏性一次做完）：
 
-- [ ] 阶段 1 crate 与标识（hst-cli / bin hst / 信封 tool 字段 / 0.6.0）
-- [ ] 阶段 2 命令面（hst hook init|status|verify、statusline 一级化加 alias、trace/agents/init/doctor/diagnose/self/skill/completions）
-- [ ] 阶段 3 路径与 env（~/.hst 加 HST_ROOT、启动探测迁移、init 并 heal、HST_* env 新读旧提示）
-- [ ] 阶段 4 资产与自更新（hst-* 资产、oma stub、mirror 双推一版本）
-- [ ] 阶段 5 文档（七面加 P0046 归档加 CHANGELOG）
-- [ ] 阶段 6 测试（迁移三用例加八条验收加三平台矩阵）
-- [ ] 阶段 7 发版（repo 改名 hst-rs、v0.6.0、digest、herdr 知会）
+- [x] 阶段 1 crate 与标识（hst-cli / bin hst / 信封 tool 字段 / 0.6.0）
+- [x] 阶段 2 命令面（hst hook init|status|verify、statusline 一级化加 alias、trace/agents/init/doctor/diagnose/self/skill/completions）
+- [x] 阶段 3 路径与 env（~/.hst 加 HST_ROOT、启动探测迁移、init 并 heal、HST_* env 新读旧提示）
+- [x] 阶段 4 资产与自更新（hst-* 资产、oma stub、mirror 双推一版本）
+- [x] 阶段 5 文档（七面加 P0046 归档加 CHANGELOG）
+- [x] 阶段 6 测试（迁移三用例加八条验收加三平台矩阵：Windows 154+24、WSL 与 lan-mac 各 153+24）
+- [x] 阶段 7 发版（v0.6.0 十二资产齐、digest 双源核对、herdr 知会；repo 改名 hst-rs 用户代办随后）
 
 D28 前目标（2026-09-11 四轮裁定当日闭环归档 P0045，v0.5.4 发版对端验锚全绿）清单见 git 历史：
 
