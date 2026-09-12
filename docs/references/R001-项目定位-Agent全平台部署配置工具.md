@@ -28,7 +28,7 @@ HST（Hooks, Statusline, Trace；原 Oh My Agents / oma，v0.6.0 更名过渡期
 | 仓库 | 本地 | CLI | 职责 |
 | --- | --- | --- | --- |
 | ark-rs（原 ohmyenv-rs） | `D:\ohmyenv-rs` | `ark`（原 `ome`） | 本机部署、管理、验收；agent 二进制下装与版本、工具与运行时依赖。2026-09-12 更名 Ark / Agent Runtime Kit，首版 1.0.0，镜像 env.ohmygh.com/ark/ 段、ome/ 段兼容期保留 |
-| hst-rs（原 ohmyagents-rs） | `D:\hst_rs` | `hst`（原 `oma`） | 可用性诊断、hook、状态栏、trace 与 yolo（本仓）；不管种子、不管 agent 二进制下装（D09）、不管编排（D15）、不管 token 注入（D20） |
+| hst_rs（原 ohmyagents-rs） | `D:\hst_rs` | `hst`（原 `oma`） | 可用性诊断、hook、状态栏、trace 与 yolo（本仓）；不管种子、不管 agent 二进制下装（D09）、不管编排（D15）、不管 token 注入（D20） |
 | ohmypwsh | `D:\ohmypwsh` | 无单一 CLI | Windows 元主机操作台：初始主机密钥配置、兄弟仓 git 密钥扫描安全、集成 ark 与 hst 做本地与远程的主机操作、部署、检查、诊断 |
 | ohmycloud | `D:\ohmycloud` | `omc` | 云端基础设施：工具、运行时、agent 各版本二进制的 S3 存储与 web 分发（专用域名加 Cloudflare）；镜像种子归此仓 |
 

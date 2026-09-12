@@ -12,9 +12,9 @@
 2. **边界**
    - 配置钉在启动的项目目录；不替代 ohmypwsh 五端环境总台，不替代各 agent 本体。
    - 不做编排（D15，2026-09-08）：spawn / send / status / serve / mcp 等编排命令与 rmux 运行时后端整体移除；原编排定位归档 P0004，本裁定归档 P0035。trace 初随 D15 连坐删除，D19 以只读检索面恢复（六视图全量）。
-   - 四仓分工（2026-09-02 定调，D07 修正 agent 二进制归属，D09 钉种子不归 oma，D15 去编排，D20 去 token 注入，细目见 R001 四仓生态节）：ark-rs（原 ohmyenv-rs，`ark`，2026-09-12 三仓周知更名 Ark / Agent Runtime Kit，首版 1.0.0，镜像开 env.ohmygh.com/ark/ 段、ome/ 段兼容期保留；本地路径仍 `D:\ohmyenv-rs`）管工具、运行时依赖与 agent 二进制下装部署、本仓（`oma`）管诊断、hook、状态栏、trace 与 yolo、ohmypwsh 管五端总台与密钥安全（token 注入归此）、ohmycloud 管云端二进制分发与镜像种子；跨仓协作互相发 issue。
+   - 四仓分工（2026-09-02 定调，D07 修正 agent 二进制归属，D09 钉种子不归 oma，D15 去编排，D20 去 token 注入，细目见 R001 四仓生态节）：ark-rs（原 ohmyenv-rs，`ark`，2026-09-12 三仓周知更名 Ark / Agent Runtime Kit，首版 1.0.0，镜像开 env.ohmygh.com/ark/ 段、ome/ 段兼容期保留；本地路径仍 `D:\ohmyenv-rs`）管工具、运行时依赖与 agent 二进制下装部署、本仓（`hst`）管诊断、hook、状态栏、trace 与 yolo、ohmypwsh 管五端总台与密钥安全（token 注入归此）、ohmycloud 管云端二进制分发与镜像种子；跨仓协作互相发 issue。
    - oma 不管种子、不管 agent 二进制下装（D09，2026-09-07）、不管 token 注入（D20，2026-09-09）：只管可用性诊断、hook、状态栏、trace 与 yolo。下载、安装、部署（五端）归 ark-rs：`ark install`（更名前 `ome install`，兼容期 ome 命令与镜像段保留）幂等检测安装（已装任何来源即跳过，存量原地纳管），数据权威 ome `catalog\tools.toml` agent 四节（D07 方向反转 2026-09-05，ohmyagents#5）。本仓 `hst agents install` / `update` / `secrets` / `providers` / `login` 已随 D20 整体移除（历史口径见 R002 与 P0040）。hst doctor 的登录态 / hook 形态 / 状态栏三类检查归 agents 域（二进制在位与版本归 ome doctor）。
-   - 三活仓本地路径（用户裁 2026-09-10 登记，重叠功能互相 review 时直读对方仓代码）：ohmycloud = `D:\ohmycloud`、ark-rs（原 ohmyenv-rs）= `D:\ohmyenv-rs`、ohmyagents-rs = `D:\ohmyagents-rs`（本仓）；review 重叠面（如 diagnose 与 omc agent doctor 分工）直接读 `D:\ohmycloud\src\` 对应文件。
+   - 三活仓本地路径（用户裁 2026-09-10 登记，重叠功能互相 review 时直读对方仓代码）：ohmycloud = `D:\ohmycloud`、ark-rs（原 ohmyenv-rs）= `D:\ohmyenv-rs`、hst-rs（原 ohmyagents-rs，本地目录 2026-09-12 随 D30 更名）= `D:\hst_rs`（本仓）；review 重叠面（如 diagnose 与 omc agent doctor 分工）直接读 `D:\ohmycloud\src\` 对应文件。
    - hook、skill 部署只落启动目录；hook 注册与状态通道常驻用户级（D28：注册面四家用户层、shim 与 session 分键状态在 `~/.hst/`（D29 更名，旧 `~/.oma` 首启自动迁移），未 init 项目也有状态数据）；hst 自管应用数据根是 `~/.hst`（D29；旧 `~/.oma` 与 `~/.ohmyagents` 仅旧在则改名迁过去。agent 安装与本地 pin，P0012；D07 后安装域迁 ome，此根承载存量安装与配置数据），yolo 与 pretrust 键的写入面见 R002。
 
 3. **管理对象**

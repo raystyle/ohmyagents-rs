@@ -100,6 +100,7 @@
 | P0042 | `P0042-D22-自适应技能生成.md` | D22 `hst skill [--write]`：clap 活命令树自适应渲染 SKILL.md |
 | P0043 | `P0043-D23-secretguard完整token匹配.md` | D23 实值比对完整 token 边界匹配加脱敏前缀（#9） |
 | P0044 | `P0044-D27-hook与oma二进制解耦全平台shim.md` | D27 自包含状态 shim（cmd jq/findstr 两级加 bash/zsh）加 M057 codex PS 调用操作符根修 |
+| P0048 | `P0048-ohmycloud协调批与版本线重开.md` | D31 至 D35 ohmycloud 协调批 / v1.0.0 版本线重开：域名清扫、--pre-trust、yolo 分级 full/partial/off、README 重写；herdr codex 三轮评审闸门 |
 | P0047 | `P0047-D30更名收尾批.md` | D30 更名收尾批 / v0.6.1：data_dir pristine 合并、退役环与 marker 双收复活、技能身份回 ohmyagents、串面清扫 |
 | P0046 | `P0046-D29-oma更名HST破坏性迁移.md` | D29 更名 HST / hst / v0.6.0：crate hst-cli、`~/.hst` 根迁移、heal 即重部署、oma stub 与镜像双段 |
 | P0045 | `P0045-D28-hook用户级常驻与session分键状态.md` | D28 hook 注册与 shim 用户级常驻（四家统一）、`~/.oma/state/` session 分键双写、状态栏会话读序、项目面退役 |
@@ -123,6 +124,8 @@
 - `2026-09-10-D22D23技能与守卫修复.md`
 - `2026-09-11-D28hook用户级与session分键.md`
 - `2026-09-12-D29更名HST.md`
+- `2026-09-12-D30更名收尾批.md`
+- `2026-09-13-D31D35协调批与1.0.0发版.md`
 
 ## 五、研究文档
 
@@ -163,6 +166,7 @@
 | S031 | `S031-密钥一钥两密文存储与四shell懒注入接管.md` | ohmycloud D20 keystore 与 ohmypwsh 懒注入取证；oma secrets 子树设计 |
 | S032 | `S032-GitHub发版与分支合并标准流程调研.md` | 三分支模型、合并三式、分支保护与发版自动化选型；本仓适用结论 |
 | S033 | `S033-四家agent无头模式hook触发与状态栏渲染矩阵.md` | D17 前置：无头入口、hook 触发、状态栏渲染四行矩阵；状态栏无头四家均不可验，判据须两层分离 |
+| S034 | `S034-状态栏HUD流行设置与多行context构成.md` | D36 前置：ccstatusline/CCometixLine 等流行 HUD 盘点、官方 stdin JSON 契约（context_window 与多行）、MCP/tools 计数数据源缺口与设计候选 |
 
 ## 六、开发测试参考
 

@@ -10,9 +10,9 @@ use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
-/// Default repo; `--repo owner/name` overrides. 更名预备（2026-09-02）：
-/// 仓库名 OhMyAgents → hst-rs；GitHub 更名后旧名 URL 自动重定向，
-/// 此值在更名前后均可用。
+/// Default repo; `--repo owner/name` overrides. 更名史（2026-09-02）：
+/// 仓库名 OhMyAgents → hst_rs（`hst-rs` 等旧名 URL 自动重定向，
+/// canonical 与公开发布面一律 hst_rs，D35 评审 D 裁）。
 pub const DEFAULT_REPO: &str = "raystyle/hst_rs";
 
 const UA: &str = concat!("hst/", env!("CARGO_PKG_VERSION"));
