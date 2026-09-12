@@ -93,6 +93,10 @@
 - **M060 挂账两笔清讫**（v0.5.3 codex 验收 review 提出，2026-09-11）：guard 透传白名单化（shim 三形态仅「exit 2 且 stderr 带 `oma secretguard:` 前缀」透传 block 并回放原因，oma 故障非零一律 fail-open 护无痛轮换；fake oma 三态行为测试 Windows 加 Unix 双钉）；mac shebang 注入缝（`deploy_shims_with(root, shell)` 加 `host_shell()`，zsh/bash 落盘变体任何宿主可单测，消除编译期 cfg 分支无测试点）。
 - **v0.5.4 封版**：D28 根修加三轮裁定加 codex review 九条修复加 R2 六条残留清零。第 2 轮（用户同日两令）：yolo 与非阻塞键全量用户级（四家用户配置、项目旧键 init 等值退役、doctor 判据随迁，覆盖 D25 项目级口径；git 历史佐证用户级诉求自 POC 期逐面翻正）；状态栏中文目录乱码根修（stdin 字节级 UTF-8 解码，防 CP936 误解码「缁跨洘」形）。第 3 轮：yolo 命令两级显式（`--yolo` 用户级加 `--project-yolo` 项目级互斥，doctor 双级接受）。codex review：F1 codex 信任键源根修（键源 = hooks.json 路径，双版本无 bypass 活体落盘实证，P0010 旧账闭案记 M061）、F2 doctor 逐键对账、F3 家目录短路守卫、F4 外来定义保留、F5-F9 锁与辨形与回落形态加固。herdr codex review 三轮对齐后发（终局签收可发版）；三平台资产加边车同形态；三平台测试矩阵全绿（Windows 151+24、WSL 150+24、lan-mac 150+24）；ohmycloud 对端验收回执全绿（三资产镜像段锚对齐：win c7af19e1、linux 7f9b227c、mac 8a56ce5b，oma/stable 锚账闭合）。
 
+### 里程碑 2026-09-13
+
+- **ohmycloud 协调批 v0.6.2**（D31 至 D33 / P0048）：私有网关域名全仓清扫（diagnose 注释加 README / R002 / P0041 脱敏，表述统一「api 缓存回归测试端点（配置注入）」；端点本就 env 加 agent 配置注入无硬编码，逻辑不动）；init 旗标连字符化 `--pre-trust`（旧 `--pretrust` 隐藏别名兼容到 v0.7 与 OMA_* env 同批清，kv 标记 `init.pretrust.*` 冻结不动，全仓 md 28 处随函更正含历史档案）；yolo 分级关闭 `--yolo[=full|partial|off]` 与 `--project-yolo[=级别]`（裸旗标兼容、级别缺省 full；partial 危险操作仍确认：claude `acceptEdits`、codex `workspace-write`/`on-request`、kimi `auto`、grok `auto`（grok-build `permissions.rs` canonical 值集实证，S007 缺口收口）、MCP 审批键不随分级写（归 trust / pretrust 面）；off 按 ours 等值摘除（新用户级 retire 面，值集含 full 与 partial 两代，用户自设值保留空文件删除）；doctor 判据分级接受不再误报、冲突 CTA 带 `=<level>`；marker 只增 `init.yolo.level` 与 `init.retired`）。159 单测加 27 集成与四门禁全绿；本仓 dogfood init 四处 SKILL 再生与用户级技能刷新。
+
 ### 排后
 
 - Linux/mac 接管（P0012 跨平台面）：资产与代码路径就绪；指令集 SIGILL 预备检测研究已备（S021）。
