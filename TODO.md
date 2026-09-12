@@ -9,9 +9,9 @@ D30 0.6.1 更名收尾批（2026-09-12 立项，D29 残面一次清完）：
 - [x] 阶段 1 四回归修（data_dir bin 先建根、退役环旧名死码、SKILL marker 断再生、技能身份回 ohmyagents）
 - [x] 阶段 2 串面清扫（README 安装块与四处 URL、doctor/verify/deploy/main/statusline 用户可见串、UA 两处、源注释顺手批、R002 与 AGENTS 同步、ome 改 ark 注释尾巴随批清）
 - [x] 阶段 3 测试与门禁（新增两用例 156 单测加 24 集成全绿、fmt/clippy、rumdl 加 .tools 三扫描；本仓 dogfood init 重部署与 pretrust 全绿）
-- [ ] 阶段 4 发版（0.6.1、CHANGELOG、diary、tag、digest 双源核对、herdr 知会）
-- [ ] 阶段 5 本机老用户迁移实证（stub 指路、装 hst、rename 迁移加 heal、doctor 绿、转调、散件合并回）
-- [ ] 阶段 6 归档（P0047、四原语收口）
+- [x] 阶段 4 发版（v0.6.1 CI 两轮绿、十二资产 digest 三方对账全等、镜像双段到货、herdr 知会 ohmycloud）
+- [x] 阶段 5 本机老用户迁移实证（镜像 dev 段拿 stub 替换、stub 指路 exit 1、装 hst pristine 根、hst init 整根收干迁移、statusline CTA 闭环、stub 转调、散件合并回、doctor 全绿零 warn）
+- [x] 阶段 6 归档（P0047 验收与观察面回填、四原语收口）
 
 D29 前目标（2026-09-12 当日闭环归档 P0046，v0.6.0 发版；repo 改名 hst-rs 用户已办）清单见 git 历史：
 
@@ -30,7 +30,7 @@ D28 前目标（2026-09-11 四轮裁定当日闭环归档 P0045，v0.5.4 发版�
 - [x] 文档同步（R002/R004/AGENTS/INDEX/CHANGELOG/COMMAND_MAP/SKILL/S025 追记）加 P0045 归档
 - [x] v0.5.4 发版（digest 对端验锚加 herdr 知会 ohmycloud）
 
-挂账：无（M060 两笔 2026-09-11 清讫：guard 透传白名单化加 shebang 注入缝）。
+挂账：无（M060 两笔 2026-09-11 清讫随 v0.6.0 tag 发出；ome 改 ark hint 串随 v0.6.1 清讫，队列行关账）。
 
 ## 前目标清单
 
@@ -59,5 +59,7 @@ D28 前目标（2026-09-11 四轮裁定当日闭环归档 P0045，v0.5.4 发版�
 
 | 目标 | 状态 | 说明 |
 | --- | --- | --- |
-| M060 两笔加 ome 更名尾巴随下个功能版发 | 排队 | 已落 main 滚动（oma/dev 段随 CI 可取）；用户裁 2026-09-11 攒着，随下个功能版打 tag 发出；同批换代码内 ome hint 串为 ark（ome 更名 Ark 周知 2026-09-12，文档面已换） |
+| M060 两笔加 ome 更名尾巴随下个功能版发 | 完成 | M060 两笔（guard 透传白名单化加 shebang 注入缝）随 v0.6.0 tag 发出；ome 改 ark hint 串（shim warn 加 agents hint 已先行为 ark，注释尾巴随批）随 v0.6.1 清讫关账 |
+| deploy_shims 用户根旧名清扫 | 排队 | pristine 合并把旧名 shim（oma-state.*）迁进 `~/.hst/hooks` 与新名并存；退役环只扫项目级。P0047 观察面，随下个小版本 |
+| 兼容别名一个小版本后删 | 排队 | agents statusline 隐藏别名、oma stub 资产、旧 OMA_* env 读取，D29 定的一个版本窗口到 v0.7 清 |
 | D13 mac `--version` 一致性 | 完成 | 2026-09-09 lan-mac 经镜像 stable 段直装 v0.3.0 实收：边车 sha256 校验过（digest 与 ohmycloud 对账一致，mirror 第二端点消费实证）、`--version` = oma 0.3.0、agents 四家检测与 `statusline --example` 冒烟绿；旧件备份 `~/.oma/oma-fossil-backup` |
