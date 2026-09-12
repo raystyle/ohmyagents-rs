@@ -35,7 +35,7 @@
 
 1. 取证：S015 矩阵 + claude 官方文档（exec form PATH 解析、无 per-OS 字段、statusline shell 路由）+ 本机盘上破坏面（`.codex/hooks.json` 双字段皆 `/mnt/d`）+ Node spawn 无扩展名补 `.exe` 实测。
 2. Plan 子代理设计合并语义（`probe_hit`/`OsSide` 注入保测试宿主无关）；claude/grok `merge_hook_event` 零语义改动（stale 谓词天然要求含分隔符，测试钉住）。
-3. 实机收敛：Windows 与 WSL 各 `cargo install --path` + `oma init`，双侧第二轮起三注册文件字节不变（see-saw 消除实证）；`oma init --pretrust` 清 Windows kimi 家目录信任残留，双侧 `doctor.blocked=false`。
+3. 实机收敛：Windows 与 WSL 各 `cargo install --path` + `oma init`，双侧第二轮起三注册文件字节不变（see-saw 消除实证）；`oma init --pre-trust` 清 Windows kimi 家目录信任残留，双侧 `doctor.blocked=false`。
 4. 状态通道活体验证：本会话（用户手拉、无 env）PreToolUse 实时写 working，会话闸拦下旧会话遗留 idle。
 5. 用户多轮定调收敛渲染：去成本段（网关计价不准）、oma 段 agent:state（先项目名后改）、完整目录路径、starship 风格旗标与版本段、Catppuccin 配色、pwsh 图标（md-terminal_powershell EBC7，cmap 实证）。
 6. 全仓 rustfmt 漂移就地清零（用户定调「发现就要解决」），fmt 进门禁。

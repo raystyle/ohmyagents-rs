@@ -5,6 +5,7 @@
 //! 经 D19 全量恢复。
 
 use assert_cmd::Command;
+use predicates::prelude::PredicateBooleanExt;
 use predicates::str::contains;
 
 /// Unique per-call suffix: same-millisecond parallel tests must not share a
@@ -516,6 +517,50 @@ fn init_project_yolo_writes_project_scope_only() {
         .assert()
         .failure()
         .code(2);
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn init_pretrust_hyphen_canonical_and_legacy_alias_both_parse() {
+    // D32：canonical 拼写 --pre-trust，旧 --pretrust 隐藏别名兼容（v0.7 清）。
+    // kv 标记 init.pretrust.* 不随拼写变（机器面冻结，ohmycloud 消费）。
+    let tmp = std::env::temp_dir().join(format!(
+        "oma-cli-init-pretrust-{}-{}",
+        std::process::id(),
+        NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    let user = tmp.join("fake-user-home");
+    let proj = tmp.join("proj");
+    std::fs::create_dir_all(&user).unwrap();
+    for flag in ["--pre-trust", "--pretrust"] {
+        oma()
+            .args(["init", flag, "--project"])
+            .arg(&proj)
+            .env("HST_USER_HOME", &user)
+            .env("HST_ROOT", &tmp.join("fake-oma-home"))
+            .assert()
+            .success()
+            .stdout(contains("init.pretrust=wrote"));
+    }
+    // 信任库真落用户家（claude.json 双 hasTrust* 键）。
+    let cj: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(user.join(".claude.json")).unwrap(),
+    )
+    .unwrap();
+    assert!(
+        cj["projects"].as_object().is_some_and(|p| p.values().any(|e| {
+            e["hasTrustDialogAccepted"].as_bool() == Some(true)
+                && e["hasTrustDialogHooksAccepted"].as_bool() == Some(true)
+        })),
+        "pretrust wrote both claude trust keys: {cj}"
+    );
+    // help 面只露 canonical 拼写（别名隐藏）。
+    oma()
+        .args(["init", "--help"])
+        .assert()
+        .success()
+        .stdout(contains("--pre-trust"))
+        .stdout(predicates::str::contains("--pretrust").not());
     let _ = std::fs::remove_dir_all(&tmp);
 }
 

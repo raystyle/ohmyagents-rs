@@ -34,7 +34,7 @@ enum Commands {
         #[arg(long = "project-yolo")]
         project_yolo: bool,
         /// 预写用户家目录信任库（claude/codex/kimi/grok）
-        #[arg(long)]
+        #[arg(long = "pre-trust", alias = "pretrust")]
         pretrust: bool,
         /// 项目根；默认当前目录
         #[arg(long)]

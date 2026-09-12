@@ -21,7 +21,7 @@
 
 表内各键为各家官方文档与 poc-yolo-doctor 实测口径；Claude 列订正自 S006 核查表。[实证: 2026-08-29 poc-yolo-doctor + 官方 settings/config 文档]
 
-| agent | 权限/沙箱（配置） | 项目信任（用户家，`--pretrust` 才写） | 订正注 |
+| agent | 权限/沙箱（配置） | 项目信任（用户家，`--pre-trust` 才写） | 订正注 |
 | --- | --- | --- | --- |
 | claude | 项目 `.claude/settings.json`：`permissions.defaultMode=bypassPermissions`；`skipDangerousModePermissionPrompt=true` 写 local **顶层**（scope 限 User/local/managed，不进共享项目文件、不进 permissions 嵌套） | `~/.claude.json` `projects.<abs>.hasTrustDialogAccepted`；`hasCompletedOnboarding` | ~~`hasTrustDialogHooksAccepted`~~ 不列为必要键：官方零记载，双写无害但不构成检测依据（见《信任阻塞门》） |
 | codex | 项目 `.codex/config.toml`：`sandbox_mode=danger-full-access`、`approval_policy=never` | 用户 `~/.codex/config.toml` `[projects."<abs>"] trust_level=trusted`（项目级 `[projects]` 不能清信任框） | 有项目 hook 时另写 `[hooks.state] trusted_hash` 替代 `--dangerously-bypass-hook-trust` |

@@ -116,5 +116,5 @@ P0005 十二个部件 POC 已在 Windows 全部跑绿，共用层（专用端点
 
 ### 追记：init 接 deploy 层
 
-- 2026-08-31 收尾件：`oma init` 无 flag 时全套（yolo 键加 `deploy::apply_project_hooks` 的 S015 矩阵部署），`--yolo` 收窄为仅键，`--pretrust` 语义不变。`tests/cli.rs` 加 init 冒烟（全套产物存在、kimi config 无 `[[hooks]]`、`--yolo` 不产 hook 文件）；全套 cargo test 39 过。[实证]
+- 2026-08-31 收尾件：`oma init` 无 flag 时全套（yolo 键加 `deploy::apply_project_hooks` 的 S015 矩阵部署），`--yolo` 收窄为仅键，`--pre-trust` 语义不变。`tests/cli.rs` 加 init 冒烟（全套产物存在、kimi config 无 `[[hooks]]`、`--yolo` 不产 hook 文件）；全套 cargo test 39 过。[实证]
 - 断言坑：全套 init 下 `.kimi-code/config.toml` 存在是正确的（yolo 键产物），「Kimi 项目级无 hook 注册」的正确断法是文件里不含 `[[hooks]]`，不是文件不存在。

@@ -75,7 +75,7 @@ hst init                        # 全套：用户级 yolo 键加四家 hook/skil
 hst hook init                   # 仅 hook 面（注册加 shim 落位）
 hst init --yolo                 # 仅用户级无阻塞键（全机生效）
 hst init --project-yolo         # 仅项目级无阻塞键（项目覆盖用户级）
-hst init --pretrust             # 额外预写家目录信任库（四家）
+hst init --pre-trust             # 额外预写家目录信任库（四家）
 hst init --project D:\my\proj   # 不进目录也能指定项目
 ```
 
