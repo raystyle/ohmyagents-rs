@@ -33,7 +33,11 @@
 
 ## 当日补丁：D37 verify 状态栏层环境探测
 
-ohmywsl 总台（全新 Ubuntu 24.04、四家 agent 已装、`hst init --pre-trust` 落盘）跑仓测，`verify_live_headless_acceptance_for_installed_agents` 红。根因两支：codex 状态栏层必红（`[tui] status_line` 由 `hst statusline` 写、init 不写该面，属部署语义分家而非缺陷）；无 pwsh 的机器 claude/grok/kimi 状态栏层红（`pwsh-not-on-path`，pwsh 是可选运行时）。裁定（来函两路径取 skip 条件路径，不动 init 落盘面语义）：verify 状态栏层只验**已部署的面**，未部署（键无、config 不在）或缺可选运行时 = `skip` 不计败带 CTA；已部署但 marker 缺、内置项缺 run-state 锚、脚本非零退出仍 fail；hook 层保持严格（登录缺失红属真阳性，P0047 前例）。skip 与 fail 分界由纯函数单测钉死（`codex_statusline_from_text` 三态）。162 单测加 27 集成全绿含本机 live 回归（已部署态行为不变）。
+ohmywsl 总台（全新 Ubuntu 24.04、四家 agent 已装、`hst init --pre-trust` 落盘）跑仓测，`verify_live_headless_acceptance_for_installed_agents` 红。根因两支：codex 状态栏层必红（`[tui] status_line` 由 `hst statusline` 写、init 不写该面，属部署语义分家而非缺陷）；无 pwsh 的机器 claude/grok/kimi 状态栏层红（`pwsh-not-on-path`，pwsh 是可选运行时）。裁定（来函两路径取 skip 条件路径，不动 init 落盘面语义）：verify 状态栏层只验**已部署的面**，未部署（键无、config 不在）或缺可选运行时 = `skip` 不计败带 CTA；已部署但 marker 缺、内置项缺 run-state 锚、脚本非零退出仍 fail；hook 层保持严格。skip 与 fail 分界由纯函数单测钉死（`codex_statusline_from_text` 三态）。162 单测加 27 集成全绿含本机 live 回归（已部署态行为不变）。
+
+## 当日补丁：D38 活体验收登录闸门
+
+总台第二轮断言原文回传：红的是 grok 的 **hook 层**（`verify.grok=fail(statusline=ok)` exit 1；grok CLI 已装、无 grok 凭据，环境事实非 bug）。机理：grok 与 kimi 的无头会话先过鉴权才触发 hook（S033 取证、P0038 本机四家全绿前提是全登录、P0047 kimi 未登录 fail 前例），无凭据时 hook 层必无 state 落盘。D37 的「真阳性红」口径在总台验收场景（面板消费仓测绿）不成立，裁定分层：**仓测**加登录闸门（`login_gate_open` 探测，判据与 doctor 登录态同源 S026：grok `~/.grok/auth.json` 任一 scope 有 `key`/`refresh_token`、kimi `credentials/kimi-code.json` 的 `access_token` 非空空串墓碑除外），已装无凭据 skip 带说明、有凭据保持实跑；**产品 verify 面不动**（如实 fail，修环境归操作员）；探测纯函数单测钉 S026 形。R004 三.6「真阳性失败修环境不修测试」旧口径随批修订。经验：验收面板消费仓测、操作员消费产品面，两层红绿口径要分开裁，混用会来回修不到点。
 
 ## 观察面
 

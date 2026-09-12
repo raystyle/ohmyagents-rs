@@ -4,6 +4,8 @@
 //! 与其 rmux 闸门测试已随删除面一并移除；trace（只读检索，与 rmux 无耦合）
 //! 经 D19 全量恢复。
 
+use std::path::PathBuf;
+
 use assert_cmd::Command;
 use predicates::prelude::PredicateBooleanExt;
 use predicates::str::contains;
@@ -947,11 +949,81 @@ fn verify_all_skip_exits_zero_when_no_agents_detected() {
     let _ = std::fs::remove_dir_all(&tmp);
 }
 
+/// 活体验收登录闸门（D38，2026-09-13 ohmywsl 总台裁定）：grok 与 kimi 的
+/// 无头会话先过鉴权才触发 hook（S033 / P0038 活体证据；P0047 kimi 前例），
+/// 已装但无凭据时 `hst agents verify` 的 hook 层 fail 属环境事实非缺陷。
+/// 仓测按闸门 skip（带说明）；产品 verify 面保持如实 fail（R004 三.6 口径
+/// 修订：修环境归操作员，仓测不背环境债）。探测判据与 doctor 登录态同源
+/// （S026）：grok `~/.grok/auth.json` 任一 scope 有 `key` 或
+/// `refresh_token`；kimi `~/.kimi-code/credentials/kimi-code.json` 的
+/// `access_token` 非空（空串是 401/403 吊销墓碑）。
+fn login_gate_open(name: &str) -> Option<bool> {
+    let home = std::env::var("HOME")
+        .ok()
+        .or_else(|| std::env::var("USERPROFILE").ok())
+        .map(PathBuf::from)?;
+    let path = match name {
+        "grok" => home.join(".grok").join("auth.json"),
+        "kimi" => home
+            .join(".kimi-code")
+            .join("credentials")
+            .join("kimi-code.json"),
+        _ => return None, // claude/codex：无稳定可探测登录面，保持实跑。
+    };
+    let text = std::fs::read_to_string(path).ok()?;
+    let v: serde_json::Value = serde_json::from_str(&text).ok()?;
+    Some(match name {
+        "grok" => grok_auth_present(&v),
+        "kimi" => kimi_token_present(&v),
+        _ => unreachable!(),
+    })
+}
+
+/// 纯函数：S026 形，scope map 任一条目有非空 `key` 或 `refresh_token`。
+fn grok_auth_present(v: &serde_json::Value) -> bool {
+    v.as_object().is_some_and(|m| {
+        m.values().any(|c| {
+            c.get("key")
+                .and_then(|x| x.as_str())
+                .is_some_and(|s| !s.is_empty())
+                || c.get("refresh_token")
+                    .and_then(|x| x.as_str())
+                    .is_some_and(|s| !s.is_empty())
+        })
+    })
+}
+
+/// 纯函数：S026 形，`access_token` 非空即登录态（空串是吊销墓碑）。
+fn kimi_token_present(v: &serde_json::Value) -> bool {
+    v.get("access_token")
+        .and_then(|x| x.as_str())
+        .is_some_and(|s| !s.is_empty())
+}
+
+#[test]
+fn login_probe_shapes_match_s026() {
+    let grok_key: serde_json::Value =
+        serde_json::from_str(r#"{"grok.com": {"key": "sk-x"}}"#).unwrap();
+    let grok_refresh: serde_json::Value =
+        serde_json::from_str(r#"{"x": {"refresh_token": "r"}}"#).unwrap();
+    let grok_empty: serde_json::Value = serde_json::from_str("{}").unwrap();
+    assert!(grok_auth_present(&grok_key));
+    assert!(grok_auth_present(&grok_refresh));
+    assert!(!grok_auth_present(&grok_empty), "空 scope map = 无凭据");
+    let kimi_live: serde_json::Value =
+        serde_json::from_str(r#"{"access_token": "t", "refresh_token": "r"}"#).unwrap();
+    let kimi_tombstone: serde_json::Value =
+        serde_json::from_str(r#"{"access_token": ""}"#).unwrap();
+    assert!(kimi_token_present(&kimi_live));
+    assert!(!kimi_token_present(&kimi_tombstone), "空串是吊销墓碑");
+}
+
 #[test]
 fn verify_live_headless_acceptance_for_installed_agents() {
-    // 闸门（R004）：依赖真 agent 二进制与登录态，消耗极少量真实 token；
-    // binary 不在则 eprintln skip 并 return。判据只押 hook state 落盘
-    // （SessionStart/UserPromptSubmit 先于模型调用，S033）。
+    // 闸门（R004）：依赖真 agent 二进制，消耗极少量真实 token；binary 不在
+    // 或登录闸门未开（D38 grok/kimi 探测）则 eprintln skip 并跳过断言。
+    // 判据只押 hook state 落盘（SessionStart/UserPromptSubmit 先于模型调用，
+    // S033）。
     let out = oma()
         .args(["agents"])
         .assert()
@@ -969,6 +1041,13 @@ fn verify_live_headless_acceptance_for_installed_agents() {
             eprintln!("skip: {name} not installed");
             continue;
         }
+        if login_gate_open(name) == Some(false) {
+            eprintln!(
+                "skip: {name} installed but credentials absent (headless session needs auth \
+                 before hooks fire; environment fact, not a defect; product verify stays fail)"
+            );
+            continue;
+        }
         ran += 1;
         oma()
             .args(["agents", "verify", name, "--timeout", "90"])
@@ -977,7 +1056,7 @@ fn verify_live_headless_acceptance_for_installed_agents() {
             .stdout(contains(format!("verify.{name}.hook=ok")));
     }
     if ran == 0 {
-        eprintln!("skip: no agent binaries on this host");
+        eprintln!("skip: no verifiable agents on this host (none installed or login-gated)");
     }
 }
 
