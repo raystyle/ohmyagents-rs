@@ -7,7 +7,7 @@
 > 本项目的本质与边界。根为定位，下分本质、边界、管理对象、方案索引。
 
 1. **本质**
-   - HST（Hooks, Statusline, Trace，原 Oh My Agents，v0.6.0 更名，D29）：Agent 全平台部署配置与诊断工具，专注五个功能（D20，2026-09-09 用户裁定）：agent 可用性诊断、hook 设置、状态栏设置、对话 trace、yolo 不阻塞设置；不做编排（D15），不管 token 环境变量注入（D20 删除 secrets 与 providers 面，密钥安全归 ohmypwsh）；对话 trace 直读原生会话库，与 rmux 零耦合（D19）。
+   - HST（Hooks, Statusline, Trace，原 Oh My Agents，v0.6.0 更名过渡期，D29；版本线自 1.0.0 重开不接 oma 老线，D34）：Agent 全平台部署配置与诊断工具，专注五个功能（D20，2026-09-09 用户裁定）：agent 可用性诊断、hook 设置、状态栏设置、对话 trace、yolo 不阻塞设置；不做编排（D15），不管 token 环境变量注入（D20 删除 secrets 与 providers 面，密钥安全归 ohmypwsh）；对话 trace 直读原生会话库，与 rmux 零耦合（D19）。
 
 2. **边界**
    - 配置钉在启动的项目目录；不替代 ohmypwsh 五端环境总台，不替代各 agent 本体。

@@ -4,13 +4,14 @@
 
 ## 当前目标
 
-D31 至 D33 ohmycloud 协调批（2026-09-13 立项，随批发 v0.6.2）：
+D31 至 D34 ohmycloud 协调批（2026-09-13 立项，随批发 v1.0.0 版本线重开）：
 
-- [ ] D31 私有网关域名清扫（diagnose.rs 注释、README、R002、P0041 四处；grep 复扫归零）
-- [ ] D32 `--pre-trust` 连字符化（clap 别名兼容、全仓 md 更正、kv 标记不动）
-- [ ] D33 yolo 分级（YoloLevel 取值式旗标两级、写入矩阵、off 退役、doctor 分级判据、COMMAND_MAP）
-- [ ] 测试与门禁（单测加集成新增、fmt/clippy、rumdl 加 .tools 三扫描、dogfood SKILL 再生）
-- [ ] 发版 v0.6.2（CHANGELOG、CI 两轮绿、tag、镜像 hst/stable 到货核验、herdr 知会）
+- [x] D31 私有网关域名清扫（diagnose.rs 注释、README、R002、P0041 四处；grep 复扫归零）
+- [x] D32 `--pre-trust` 连字符化（clap 别名兼容、全仓 md 更正、kv 标记不动）
+- [x] D33 yolo 分级（YoloLevel 取值式旗标两级、写入矩阵、off 退役、doctor 分级判据、COMMAND_MAP）
+- [x] 测试与门禁（159 单测加 27 集成全绿、fmt/clippy、rumdl 加 .tools 三扫描、dogfood SKILL 再生）
+- [ ] D34 版本线重开 1.0.0（Cargo 与 CHANGELOG 版本线重开、v0.6.x 表述转更名过渡期记录）
+- [ ] 发版 v1.0.0（CHANGELOG、CI 绿、tag、镜像 hst/stable 到货核验、herdr 知会）
 - [ ] 归档（P0048、四原语收口、diary）
 
 D30 前目标（2026-09-12 当日闭环归档 P0047，v0.6.1 发版）：四回归修加串面清扫加老用户迁移剧本八步活体全过，清单见 git 历史。
@@ -63,6 +64,6 @@ D28 前目标（2026-09-11 四轮裁定当日闭环归档 P0045，v0.5.4 发版�
 | --- | --- | --- |
 | M060 两笔加 ome 更名尾巴随下个功能版发 | 完成 | M060 两笔（guard 透传白名单化加 shebang 注入缝）随 v0.6.0 tag 发出；ome 改 ark hint 串（shim warn 加 agents hint 已先行为 ark，注释尾巴随批）随 v0.6.1 清讫关账 |
 | deploy_shims 用户根旧名清扫 | 排队 | pristine 合并把旧名 shim（oma-state.*）迁进 `~/.hst/hooks` 与新名并存；退役环只扫项目级。P0047 观察面，随下个小版本 |
-| 迁移转发 shim 兼容层产品化 | 排队 | 长寿命会话持启动时快照的旧注册，迁移收干 `~/.oma` 后每事件 exit 1（ark codex pane 实况；本机已手动落 `~/.oma/hooks/oma-state.*` 转发层缓解并活体验证）。产品化 = init 或迁移收干时自动落转发层，随 v0.7 兼容窗同批清。P0047 观察面三 |
-| 兼容别名一个小版本后删 | 排队 | agents statusline 隐藏别名、oma stub 资产、旧 OMA_* env 读取、旧路径转发 shim，D29 定的一个版本窗口到 v0.7 清 |
+| 迁移转发 shim 兼容层产品化 | 排队 | 长寿命会话持启动时快照的旧注册，迁移收干 `~/.oma` 后每事件 exit 1（ark codex pane 实况；本机已手动落 `~/.oma/hooks/oma-state.*` 转发层缓解并活体验证）。产品化 = init 或迁移收干时自动落转发层，随 1.1.0 兼容窗同批清（原 v0.7 口径，版本线重开后改号，D34）。P0047 观察面三 |
+| 兼容别名一个小版本后删 | 排队 | agents statusline 隐藏别名、oma stub 资产、旧 OMA_* env 读取、旧路径转发 shim 加 `--pretrust` 旧拼写，D29 定的一个版本窗口（原 v0.7，版本线重开后为 1.1.0，D34）清 |
 | D13 mac `--version` 一致性 | 完成 | 2026-09-09 lan-mac 经镜像 stable 段直装 v0.3.0 实收：边车 sha256 校验过（digest 与 ohmycloud 对账一致，mirror 第二端点消费实证）、`--version` = oma 0.3.0、agents 四家检测与 `statusline --example` 冒烟绿；旧件备份 `~/.oma/oma-fossil-backup` |

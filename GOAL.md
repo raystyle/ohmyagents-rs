@@ -14,7 +14,7 @@
 
 > 当前锚定的目标 + 推进时间线。
 
-- **锚定的目标**：D31 至 D33 协调批（PRD 三条已采纳：域名清扫、旗标连字符化、yolo 分级 full/partial/off 加发版 v0.6.2）。
+- **锚定的目标**：D31 至 D34 协调批（PRD 四条已采纳：域名清扫、旗标连字符化、yolo 分级 full/partial/off、版本线重开 1.0.0）。
 
 ### 推进时间线
 
@@ -22,7 +22,8 @@
 
 | 日期 | 进展 |
 | --- | --- |
-| 2026-09-13 | D31 至 D33 立项开工（来函三件：域名四处清扫、`--pre-trust` canonical 加别名兼容、`--yolo=<full\|partial\|off>` 两级旗标取值式；grok partial 取值经 grok-build 源码钉死 auto，kimi 沿用既有 ok 值 auto）；目标随批发 v0.6.2 走发版链滚动 hst/stable 镜像 |
+| 2026-09-13 | **D34 补充裁定**：hst 版本线重开，本批发版不用 0.6.x 直接起 **1.0.0**（与 ark 1.0.0 同语义开山版，不接 oma 老版本线）；Cargo.toml 与 CHANGELOG 版本线重开，文档 v0.6.x 表述转更名过渡期记录；镜像 hst/stable 滚动照旧。此前当日进展：三件全落（域名清扫四处归零、`--pre-trust` canonical 加别名、yolo 两级旗标取值式分级加 doctor 分级判据；159 单测加 27 集成与四门禁全绿、dogfood SKILL 再生），main CI 绿（`349233a..1e5efd3`） |
+| 2026-09-13 | D31 至 D33 立项开工（来函三件：域名四处清扫、`--pre-trust` canonical 加别名兼容、`--yolo=<full\|partial\|off>` 两级旗标取值式；grok partial 取值经 grok-build 源码钉死 auto，kimi 沿用既有 ok 值 auto）；目标随批发版走发版链滚动 hst/stable 镜像 |
 | 2026-09-12 | 净会话接续：交接面核验（heal hooks 检查面已落属实，F8 三面探针在；本机实态：oma 旧版在 PATH、hst 未装、双根并存）；盘出 D29 残面四回归（bin 先建根挡迁移、退役环死码、SKILL marker 断再生、技能身份拧巴）加 README 安装块断链级错与一批串面残留；用户两裁后 D30 立项开工。**下半场当日闭环**：四回归修与串面清扫全落（156 单测加 24 集成加四门禁全绿；本仓 dogfood marker 双收真实生效）；v0.6.1 发版（CI 两轮绿、十二资产 digest 三方对账全等、镜像双段到货、herdr 知会）；本机老用户迁移剧本八步活体全过（stub 替换指路、pristine 合并整根迁移、CTA 闭环、转调、散件合并回）；归档 P0047 |
 | 2026-09-12 | **D29 当日闭环加 v0.6.0 发版**：oma 更名 HST / hst（crate hst-cli、数据根 `~/.hst` 启动 rename 迁移、HST_* env 旧读提示、hst hook init/status/verify 三支与 statusline 一级化、heal 即重部署、oma stub 与镜像 hst/ 加 oma/ 双段）；154 单测加 24 集成加三平台矩阵全绿；本机 dogfood 真迁移与四家注册收敛；八条验收逐条过；v0.6.0 十二资产 digest 双源核对；归档 P0046 |
 | 2026-09-11 | **D28 当日四轮闭环加 v0.5.4 发版**：第 1 轮 hook 与 shim 用户级常驻加 session 分键状态（六面：shim/deploy/statusline/hook/doctor/verify）；herdr codex 独立 review 三轮对齐（首轮九条 F1 codex 信任键源根修本机双版本无 bypass 活体落盘实证、次轮六条残留清零、终局代码面零异议）；第 2 轮 yolo 与非阻塞键用户级（用户令，git 历史佐证用户级诉求自 POC 期逐面翻正）；第 3 轮 yolo 两级显式（--yolo 用户级加 --project-yolo 项目级互斥）；第 4 轮 doctor 双级冲突 warn 加 CTA；状态栏中文目录乱码根修（stdin 字节级 UTF-8 解码）；151 单测加 24 集成加四门禁全绿（三平台矩阵补齐 Windows 151+24、WSL/mac 各 150+24）；M061 至 M063 记档、P0045 归档；**对端验收回执全绿**：ohmycloud 三资产镜像段锚全对齐（win c7af19e1 加 linux 7f9b227c 加 mac 8a56ce5b，边车与更正值逐字一致，oma/stable 三平台锚账闭合；知会 digest 首报取错边车文件对象经对端抓出更正，M063） |
