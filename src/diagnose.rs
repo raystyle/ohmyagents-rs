@@ -1,5 +1,6 @@
 //! oma diagnose：活性诊断族（D21，hst-rs#8 / ohmycloud D45 配套）。
-//! 与 doctor 的契约分家：这里打真 API（统一网关 llm.d3fend.cn）、烧最小
+//! 与 doctor 的契约分家：这里打真 API（api 缓存回归测试端点，配置注入：
+//! `HST_GATEWAY_URL` / agent 侧配置，端点不落仓面明文）、烧最小
 //! token（每别名两条极短 prompt）、有网络延迟；doctor 保持零网络零 token。
 //! 凭据只读 agent 侧原生配置（D45 模板下发形态），不新建存储（D20 口径）：
 //! claude `~/.claude/settings.json` env（ANTHROPIC_BASE_URL / AUTH_TOKEN）、

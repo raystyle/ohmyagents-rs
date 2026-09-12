@@ -52,7 +52,7 @@ $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Env
 
 ### 2.5 活性诊断
 
-> D21（2026-09-09，ohmyagents-rs#8 / ohmycloud D45 配套）。与 doctor 的契约分家：这里打真网关（llm.d3fend.cn）、烧最小 token（每别名至多三条极短 prompt）、有网络延迟；doctor 保持零网络零 token。凭据只读 agent 侧原生配置（D45 模板下发形态），`HST_GATEWAY_URL` / `HST_GATEWAY_KEY` 环境覆盖（旧 `OMA_*` 一个版本内仍读并提示；联调与测试通道）；不新建存储（D20 口径）。单机语义边界（2026-09-10 跨仓共识）：本族只做本机运行时诊断；多端装态、配置对账、网关舰队探活归 omc agent doctor（配置真源在 omc 金库），hst 不做多端配置一致性检测。
+> D21（2026-09-09，ohmyagents-rs#8 / ohmycloud D45 配套）。与 doctor 的契约分家：这里打真网关（api 缓存回归测试端点，配置注入不落明文）、烧最小 token（每别名至多三条极短 prompt）、有网络延迟；doctor 保持零网络零 token。凭据只读 agent 侧原生配置（D45 模板下发形态），`HST_GATEWAY_URL` / `HST_GATEWAY_KEY` 环境覆盖（旧 `OMA_*` 一个版本内仍读并提示；联调与测试通道）；不新建存储（D20 口径）。单机语义边界（2026-09-10 跨仓共识）：本族只做本机运行时诊断；多端装态、配置对账、网关舰队探活归 omc agent doctor（配置真源在 omc 金库），hst 不做多端配置一致性检测。
 
 | 意图 | 命令 | 行为细则 |
 | --- | --- | --- |

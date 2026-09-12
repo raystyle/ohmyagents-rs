@@ -100,7 +100,7 @@ hst hook verify kimi --timeout 120     # 单家 hook 层验收
 
 ### 活性诊断
 
-打真网关（llm.d3fend.cn）烧最小 token，与 doctor 的零网络体检分家；凭据读 agent 侧配置，也可用 `HST_GATEWAY_URL` / `HST_GATEWAY_KEY` 覆盖（旧 `OMA_GATEWAY_*` 一个版本内仍读并提示）。
+打真网关（api 缓存回归测试端点，配置注入）烧最小 token，与 doctor 的零网络体检分家；凭据读 agent 侧配置，也可用 `HST_GATEWAY_URL` / `HST_GATEWAY_KEY` 覆盖（旧 `OMA_GATEWAY_*` 一个版本内仍读并提示）。
 
 ```powershell
 hst diagnose cache                    # 全别名缓存命中矩阵（双连探测）
