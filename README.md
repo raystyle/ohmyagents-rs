@@ -3,7 +3,7 @@
 **HST**，全称 Hooks, Statusline, Trace（原 Oh My Agents / oma，v0.6.0 更名）：Claude Code / Codex / Grok / Kimi 四家的 hook 落盘、状态栏、只读对话 trace、可用性诊断与 yolo 非阻塞配置，Windows / macOS / Linux（含 WSL）同一命令面。CLI 名 `hst`。与 Hipo 的 hst history picker 共存：本工具装用户目录（如 ~/.local/bin、~/.hst/bin），不覆盖 /usr/bin/hst。
 
 - `hst doctor`：agent 可用性只读体检，warn 与 block 分层，block 才退出 1
-- `hst init`：把 hook 注册与 yolo / 非阻塞键落进各家用户级配置（claude / codex / grok / kimi 四家统一，未 init 的项目也有状态数据；yolo 缺省用户级全机生效，`--project-yolo` 显式选项目级），skill 落进项目，幂等合并；注册指向自包含状态 shim（`~/.hst/hooks/`），hst 二进制任意时刻可无痛升级轮换
+- `hst init`：把 hook 注册与 yolo / 非阻塞键落进各家用户级配置（claude / codex / grok / kimi 四家统一，未 init 的项目也有状态数据；yolo 缺省用户级全机生效，`--yolo=partial|off` 分级收窄，`--project-yolo` 显式选项目级），skill 落进项目，幂等合并；注册指向自包含状态 shim（`~/.hst/hooks/`），hst 二进制任意时刻可无痛升级轮换
 - `hst statusline`：四家状态栏写入面（starship 风格、支持用户级定制）
 - `hst trace`：项目内四家 agent 对话历史只读检索
 - `hst agents verify`：四家无头验收（hook 落盘加状态栏脚本直跑）
@@ -73,9 +73,11 @@ hst doctor             # 体检：有 block 级问题才退出 1
 ```powershell
 hst init                        # 全套：用户级 yolo 键加四家 hook/skill 加 heal 迁移
 hst hook init                   # 仅 hook 面（注册加 shim 落位）
-hst init --yolo                 # 仅用户级无阻塞键（全机生效）
-hst init --project-yolo         # 仅项目级无阻塞键（项目覆盖用户级）
-hst init --pre-trust             # 额外预写家目录信任库（四家）
+hst init --yolo                 # 仅用户级无阻塞键（全机生效，缺省 full 全 bypass）
+hst init --yolo=partial         # 分级：编辑自动过，危险操作仍确认
+hst init --yolo=off             # 全关：摘 hst 落的 yolo 键
+hst init --project-yolo         # 仅项目级无阻塞键（项目覆盖用户级；同级可 =partial/off）
+hst init --pre-trust            # 额外预写家目录信任库（四家）
 hst init --project D:\my\proj   # 不进目录也能指定项目
 ```
 
@@ -133,4 +135,4 @@ hst skill --write           # 生成 hst 自身技能到 ~/.claude/skills/（自
 
 ## 注意
 
-`hst init` 的 yolo 面（缺省用户级）会关掉 agent 的审批与沙箱且**全机所有项目生效**，只在自己信任的机器与账户上用；要收窄到单项目用 `--project-yolo`。oma 旧命令由过渡 stub 警告后转调 hst（release 兼容期同挂 oma-* stub 资产）。
+`hst init` 的 yolo 面（缺省用户级）会关掉 agent 的审批与沙箱且**全机所有项目生效**，只在自己信任的机器与账户上用；要收窄：`--yolo=partial` 危险操作仍确认、`--yolo=off` 全关、或 `--project-yolo` 收到单项目。oma 旧命令由过渡 stub 警告后转调 hst（release 兼容期同挂 oma-* stub 资产）。

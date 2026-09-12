@@ -83,4 +83,4 @@ spawn 后立刻允许委派，当且仅当：doctor 全绿；pane 进程活着�
 
 - ~~未本机实跑三家 `-p` 写文件任务（假绿/stall 无时序证据）~~ 已由 ohmypwsh 同机实测补上（见来源表末行，2026-08-31）；~~grok `-p` 侧仍只有官方口径未实跑~~ **2026-08-31 补上（P0017）**：本机 grok 1.0.13 `grok --always-approve -p "<任务>"` 无头写文件 exit 0 且产物精确（`GROK-HEADLESS-ACCEPT`）。两个脚手架坑：`-p` 是 `--single <PROMPT>` 的短名（值必须紧跟，`-p --always-approve "任务"` 会把 flag 当值前缺参 exit 2）；无头默认输出 plain 正文（`--output-format plain|json|streaming-json|streaming-messages-json`，无 `text` 值）。同场闭环：该无头会话即时被 oma 联邦 trace 检出（updates.jsonl 主源，真实时间戳加双意图）。[实证: P0017 验收]
 - Claude 受保护路径在 bypass 下是否仍提示（原文标「随版本反复」）未核 2.1.246。
-- grok `--permission-mode` 与 `[ui] permission_mode` 取值对应未做 inspect 对照。
+- ~~grok `--permission-mode` 与 `[ui] permission_mode` 取值对应未做 inspect 对照~~ **2026-09-13 对照已做（D33）**：grok-build `xai-grok-shell/src/util/config/permissions.rs` 的 `parse_permission_mode_canonical` 值集 = `always-approve|auto|ask`（`default` 与未知串回落 Ask 安全向；旧键 `approval_mode` 只认 always-approve、`yolo` 布尔）；CLI `--permission-mode` 是另一套 Claude 同构六值（default/acceptEdits/auto/dontAsk/bypassPermissions/plan，本机 help），0.2.14 起正确覆盖 config。hst partial 落 `[ui] permission_mode=auto`（Auto：编辑类自动放行、其余仍问）。[实证: 上游源码 2026-09-13 加本机 grok --help]

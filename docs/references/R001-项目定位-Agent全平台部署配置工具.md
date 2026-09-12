@@ -10,7 +10,7 @@ Oh My Agents（仓库名 `ohmyagents-rs`，更名自 OhMyAgents，2026-09-02；C
 - **hook 设置**：`oma init` 按各家规则在启动的项目目录部署 hook、skill 与信任预写，幂等合并，不把配置写成用户家目录全局默认；`oma hook` 状态落盘加密钥拦截。
 - **状态栏设置**：`oma agents statusline` 四家写入面加用户级定制（D18）。
 - **对话 trace**：`oma trace` 六视图联邦读四家原生会话库（P0013/P0014），只读、与 rmux 零耦合；D15 曾连坐删除，D19（2026-09-08 用户裁定）全量恢复为只读检索面。
-- **yolo 不阻塞设置**：`oma init --yolo` 项目级无阻塞键与 `--pre-trust` 信任预写。
+- **yolo 不阻塞设置**：`hst init --yolo[=full|partial|off]` 分级无阻塞键（full 全 bypass / partial 危险操作仍确认 / off 全关，D33）与 `--pre-trust` 信任预写。
 - **全平台**：Windows / macOS / Linux（含 WSL）同一命令面；四环境自适应（P0027，矩阵见 S024）。
 - **通用**：智能体集合可扩展。当前默认适配 Claude、Codex、Grok、Kimi，不是产品上限。
 

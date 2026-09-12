@@ -33,9 +33,9 @@
 | `src\hook.rs` | `hst hook`：事件到四态映射与用户级 session 分键 state 落盘（D28），加密钥拦截分流 |
 | `src\agents.rs` | `hst agents`：PATH / 环境变量 / 默认目录探测 |
 | `src\doctor.rs` | `hst doctor`：只读诊断（yolo / 信任 / 二进制 / 登录态 / hook 形态 / 状态栏 / 用户级与项目级状态面，D28；会话健康随 D15 移除） |
-| `src\yolo.rs` | `hst init --yolo`：四家配置落盘与 pretrust |
+| `src\yolo.rs` | `hst init --yolo[=full|partial|off]`：四家分级落盘、ours 退役（用户级与项目级）与 pretrust（D33） |
 | `src\deploy.rs` | `hst init` hook/skill 部署层：hook 注册四家用户级（D28：claude/codex/grok/kimi 用户层，codex trusted_hash 预种，kimi `[[hooks]]` 合并），项目级 ours 注册与 shim 退役，幂等合并（M059 无引号正斜杠形态，同形去重）；SKILL.md 由 COMMAND_MAP 命令图生成（标记覆写三态） |
-| `src\shim.rs` | D27 自包含状态 shim 加 D28 用户级常驻与 session 分键：oma-state.cmd（jq 首选加 findstr 回落，PATH 探 jq）、oma-state.sh（bash 或 mac zsh）、grok baked 包装；落 `~/.oma/hooks/`，双写 agent 最新加 session 键，SessionEnd GC |
+| `src\shim.rs` | D27 自包含状态 shim 加 D28 用户级常驻与 session 分键：hst-state.cmd（jq 首选加 findstr 回落，PATH 探 jq）、hst-state.sh（bash 或 mac zsh）、grok baked 包装；落 `~/.hst/hooks/`，双写 agent 最新加 session 键，SessionEnd GC |
 | `src\install.rs` | oma 根解析（oma_home）加自管根存量探测（managed_binaries/version）加共享下载件 download_asset（self update 复用）；安装机器已随 D20 删除 |
 | `src\statusline.rs` | `hst agents statusline`：四家状态栏写入面幂等合并（S025 矩阵）；projKind 含 rust/node/python/zig/go/cpp（P0032）；脚本拆段拼装加用户级定制烘焙（~/.oma/statusline.toml 三层键加 --script 整替换，D18）；oma 段状态读序用户级 session 键优先（D28） |
 | `src\update.rs` | `hst self update`：dev 滚动源与正式版判新、sha256 取证、Windows rename 舞步（S028）；OMA_MIRROR 镜像通道加缓存击穿（D16） |

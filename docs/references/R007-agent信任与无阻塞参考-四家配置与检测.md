@@ -4,16 +4,16 @@
 
 ## 一、四家 yolo 落盘
 
-> `init --yolo` 写什么
+> `init --yolo[=full|partial|off]` 写什么（D33 起；两级旗标 `--yolo` 用户级与 `--project-yolo` 项目级同款分级，级别缺省 full，off = 摘 ours 键）
 
-| agent | 权限/沙箱 | 信任库（`--pre-trust` 才写用户家） | 注意 |
+| agent | 权限/沙箱（full / partial） | 信任库（`--pre-trust` 才写用户家） | 注意 |
 | --- | --- | --- | --- |
-| claude | 项目 `.claude/settings.json` `permissions.defaultMode=bypassPermissions`；`.claude/settings.local.json` 顶层 `skipDangerousModePermissionPrompt=true` | `~/.claude.json` `projects.<abs>.hasTrustDialogAccepted`；`hasCompletedOnboarding` | skip 键 scope 限 User/local/managed，**不写共享项目文件、不进 permissions 嵌套** [实证: 官方 settings-reference + poc-yolo-doctor] |
-| codex | 项目 `.codex/config.toml`：`sandbox_mode=danger-full-access`、`approval_policy=never` | 用户 `~/.codex/config.toml` `[projects."<abs>"] trust_level=trusted` | 信任只认用户层；项目 `[projects]` 无效 [实证: poc-yolo-doctor] |
-| kimi | 项目 `.kimi-code/config.toml` `default_permission_mode=auto|yolo` | `~/.kimi-code/workspace-trust/wd_*` | 无 hook-trust 框 [经验: kimi docs] |
-| grok | **仅用户** `~/.grok/config.toml` `[ui] permission_mode=always-approve` | `~/.grok/trusted_folders.toml` | 官方明文不能写项目；always-approve 下 deny 与 PreToolUse hook 仍生效（secret-guard 有用）[实证: 官方 permissions 页] |
+| claude | full：`.claude` 层 `permissions.defaultMode=bypassPermissions` 加 skip 加 enableAll；partial：`defaultMode=acceptEdits` 加 skip（enableAll 不写，MCP 审批归 trust 面） | `~/.claude.json` `projects.<abs>.hasTrustDialogAccepted`；`hasCompletedOnboarding` | skip 键 scope 限 User/local/managed，**不写共享项目文件、不进 permissions 嵌套** [实证: 官方 settings-reference + poc-yolo-doctor]；partial 取值 = 官方 permission-mode `acceptEdits` [实证: 官方 settings-reference] |
+| codex | full：`sandbox_mode=danger-full-access`、`approval_policy=never`；partial：`workspace-write`、`on-request`（危险命令仍确认） | 用户 `~/.codex/config.toml` `[projects."<abs>"] trust_level=trusted` | 信任只认用户层；项目 `[projects]` 无效 [实证: poc-yolo-doctor]；项目信任预种不分级（信任门是另一面）[经验: D33 设计口径] |
+| kimi | full：`default_permission_mode=yolo`；partial：`auto` | `~/.kimi-code/workspace-trust/wd_*` | 无 hook-trust 框 [经验: kimi docs] |
+| grok | full：`[ui] permission_mode=always-approve`；partial：`auto` | `~/.grok/trusted_folders.toml` | 官方明文不能写项目；always-approve 下 deny 与 PreToolUse hook 仍生效（secret-guard 有用）[实证: 官方 permissions 页]；config 值集 always-approve\|auto\|ask、未知回落 ask 安全向 [实证: grok-build permissions.rs 2026-09-13，S007 追记] |
 
-flags（`--yolo`、`--always-approve` 等）只作单次覆盖，配置落盘优先。[经验: ohmypwsh 0017]
+off = 按 ours 等值摘除（值集含 full 与 partial 两代），用户自设值保留、空文件删除；用户级 off 会连 `--pre-trust` 写的 skip / enableAll 一并摘（ours 判定不分落写者）。flags（`--yolo`、`--always-approve` 等）只作单次覆盖，配置落盘优先。[经验: ohmypwsh 0017]
 
 ## 二、信任门检测
 
