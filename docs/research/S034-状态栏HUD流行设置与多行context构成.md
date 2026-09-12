@@ -2,7 +2,9 @@
 
 > D36（用户 2026-09-13 连续四令）研究先行件：1) 不显示 `claude:working` 形 agent 态段；2) 显示当前 MCP 与 tools 数量加对话 context 构成比例；3) 状态栏支持多行；4) 盘点当下最流行的 Claude Code / Codex 状态栏 HUD 设置。结论供追问链澄清设计用。
 
-## 一、流行 HUD 工具盘点（2026-09 检索）
+## 一、流行 HUD 工具盘点
+
+> 2026-09 检索。
 
 | 工具 | 形态 | 流行点 | 对 D36 的启示 |
 | --- | --- | --- | --- |
@@ -13,7 +15,9 @@
 
 共同标配段：模型名、context 用量（百分比或红绿灯）、git 分支加脏态、session 时长、cost（API 计费场景）。共同少见：MCP / tools 计数（无现成工具做，因官方 payload 不给）。
 
-## 二、Claude Code statusline 输入契约（官方口径）
+## 二、Claude Code statusline 输入契约
+
+> 官方口径。
 
 - 输入：每 tick 向脚本 stdin 喂 JSON 会话数据（[官方文档](https://code.claude.com/docs/en/statusline)）[实证: 2026-09-13 官方页]。
 - 字段：`model`（display_name 与 id）、`workspace`（current_dir 等）、`session_id`、cost / usage 族、`context_window` 族（used / total / remaining / 百分比；2.1.6 起给实际窗口值而非会话累计，[社区讨论](https://www.reddit.com/r/ClaudeAI/comments/1qbmrc7/claude_status_line_can_now_show_actual_context/) 与 [issue #13783](https://github.com/anthropics/claude-code/issues/13783) 记过新旧口径差）[实证: 2026-09-13]。
@@ -21,14 +25,18 @@
 - **MCP 与 tools 计数不在 payload 里**：要显示需自取数据源。候选：项目 `.mcp.json` 的 `mcpServers` 键数（hst doctor 已读同源）[实证: doctor.rs project_mcp_configured]；tools 数无稳定外部源（`claude mcp list` 是子进程调用，statusline 预算内不宜）[推断]。
 - context 构成比例（system / tools / messages / free 切分）：payload 只给 used / total 两级，**细分构成拿不到**；近似只能 `used / total` 一维百分比或进度条 [推断: 官方字段集推导]。
 
-## 三、四家写入面约束（S025 矩阵回照）
+## 三、四家写入面约束
+
+> S025 矩阵回照。
 
 - codex：`[tui] status_line` 只吃内置项 ID 数组，无外部命令面（M045）：多行、MCP 计数、context 比例在 codex 侧做不了，保持内置项形态。
 - kimi：`tui.toml` `[status_line].command` 单行输出加 300ms 预算；多行未验证 [假设: 待澄清轮实证]。
 - grok：`[ui.status_line] type=command`，Windows 侧 `.cmd` 单路径直 spawn（M048）；多行未验证 [假设: 待澄清轮实证]。
 - claude：多行官方支持，是 D36 第 3 令的主战场。
 
-## 四、agent 态段取舍（D36 第 1 令）
+## 四、agent 态段取舍
+
+> D36 第 1 令。
 
 现状：`oma` 段吃 `~/.hst/state/<agent>-<session>.json` 渲染 `agent:state`（S025 机读标记）。用户令「不显示 `claude:working` 形免得影响 herdr 的 hook」的理解候选：a) 状态栏该段与 herdr 自身状态显示重复且挤占宽度；b) 担心状态栏频繁触发 hook 读写干扰。落设计前需澄清：是「segments 默认序列去掉 oma 段」还是「完全移除该段能力」[待澄清]。机读标记消费面（`agent:state` grep）若仍有人吃，删段要留配置开关。
 

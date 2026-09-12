@@ -10,7 +10,9 @@
 4. **D34 版本线重开**：Cargo 与 CHANGELOG 版本线重开，v1.0.0 起算（与 ark 1.0.0 同语义），v0.6.x 及 oma 0.x 各节转更名过渡期记录；活文档 v0.7 兼容窗口径改 1.1.0。
 5. **D35 README 与仓库描述**：README 精简为安装（三平台加镜像直链加源码）与使用（部署与信任、诊断验收、活性诊断、状态栏、trace）；GitHub 描述一句话（`gh repo edit raystyle/hst_rs --description`）。
 
-## 评审闸门（herdr codex 三轮）
+## 评审闸门
+
+> herdr codex 三轮，达成一致才封版（用户令）。
 
 - 首轮（区间 349233a..eaaae84）：D31/D32/D34 零异议；D33 F1 = full 降 partial 时 ours 落的 `enableAllProjectMcpServers` 不摘，与「MCP 审批保留确认」语义矛盾。裁 (a)：partial 分支按 ours 等值摘除（两级同纪律），补降级回归测试；F2 测试注释版本号、F3 R001 命名与口径统一随批；根 SKILL.md 为 D15 编排遗物删除。
 - 二轮（eaaae84..38b1e35 复核加 README）：F1 修闭环；新 A = `enabledMcpjsonServers` 名单里 hst 落值仍在（doctor 视非空名单为已批准）。裁改口径：名单混有 agent 原生用户审批（Claude Code 交互确认也写此键），无法归因落写者，按用户自设值保留纪律一律不动，彻底恢复 MCP 确认需手动清名单；pretrust 组合口径 = 确定性后写者赢（同批或重跑 `--pre-trust` 会再开 MCP 直通）。B trace 分页表述（sessions 无 `--offset`）、C 示例改可直接复跑形、D canonical 仓名 `hst_rs`（hst-rs 是改名重定向别名；README 四链、Cargo repository、DEFAULT_REPO、stub 指路、main help、R001/R002 别名注）、E clap 帮助 partial 注释补边界。
