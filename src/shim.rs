@@ -633,7 +633,7 @@ mod tests {
         let state = dir.join("state.json");
         let path = std::env::var("PATH").unwrap_or_default();
         let run = |body: &str| -> (Option<i32>, String) {
-            let oma = fake.join("oma");
+            let oma = fake.join("hst");
             std::fs::write(&oma, body).unwrap();
             std::fs::set_permissions(&oma, std::fs::Permissions::from_mode(0o755)).unwrap();
             let mut child = Command::new(&shim)

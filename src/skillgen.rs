@@ -126,9 +126,9 @@ mod tests {
             .subcommand(ClapCommand::new("doctor").about("只读体检"));
         let md = render_skill(&tree);
         assert!(md.starts_with("---\nname: hst\ndescription: hst "));
-        assert!(
-            md.contains("| `hst agents statusline [名]... [--example] [--script <路径>]` | 配置状态栏 |")
-        );
+        assert!(md.contains(
+            "| `hst agents statusline [名]... [--example] [--script <路径>]` | 配置状态栏 |"
+        ));
         assert!(md.contains("| `hst doctor` | 只读体检 |"));
         assert!(md.contains("勿手改"));
         // help 不入表。
