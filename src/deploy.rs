@@ -35,7 +35,7 @@ pub struct DeployReport {
 /// entry should be replaced (path moved between builds). Matches the bare
 /// name `oma`, `oma.exe`, and test-harness binaries like `oma-<hash>.exe`.
 fn oma_exe() -> PathBuf {
-    std::env::current_exe().unwrap_or_else(|_| PathBuf::from("oma"))
+    std::env::current_exe().unwrap_or_else(|_| PathBuf::from("hst"))
 }
 
 pub(crate) fn is_ours(command: &str) -> bool {
@@ -60,7 +60,8 @@ pub(crate) fn is_ours(command: &str) -> bool {
         .unwrap_or("")
         .trim_matches('"')
         .trim_end_matches(".exe");
-    stem == "oma" || stem.starts_with("oma-") || stem.starts_with("oma-state")
+    // hst 现行形态加 oma 历史形态（heal 与重部署收敛旧注册都靠旧名可识）。
+    stem == "hst" || stem.starts_with("hst-") || stem == "oma" || stem.starts_with("oma-")
 }
 
 /// JSON arrays of handler groups under settings["hooks"][event], append-only:
@@ -348,12 +349,12 @@ fn shim_command_ps_or_sh(agent: &str, oma: &Path, side: OsSide) -> String {
     match side {
         OsSide::Windows => format!(
             "{} {}",
-            crate::pathutil::forward_slash(&oma.join("hooks").join("oma-state.cmd")),
+            crate::pathutil::forward_slash(&oma.join("hooks").join("hst-state.cmd")),
             agent
         ),
         OsSide::Unix => format!(
             "\"{}\" {}",
-            oma.join("hooks").join("oma-state.sh").display(),
+            oma.join("hooks").join("hst-state.sh").display(),
             agent
         ),
     }
@@ -395,13 +396,13 @@ fn codex_handler_value(base: &Json, oma: &Path, session_end: bool, side: OsSide)
             "command".into(),
             json!(format!(
                 "\"{}\" codex",
-                oma.join("hooks").join("oma-state.sh").display()
+                oma.join("hooks").join("hst-state.sh").display()
             )),
         );
     } else if let Some(v) = foreign("command") {
         obj.insert("command".into(), v);
     } else {
-        obj.insert("command".into(), json!("oma hook --agent codex"));
+        obj.insert("command".into(), json!("hst hook status --agent codex"));
     }
     if side == OsSide::Unix {
         if let Some(v) = foreign("commandWindows") {
@@ -412,7 +413,7 @@ fn codex_handler_value(base: &Json, oma: &Path, session_end: bool, side: OsSide)
             "commandWindows".into(),
             json!(format!(
                 "{} codex",
-                crate::pathutil::forward_slash(&oma.join("hooks").join("oma-state.cmd"))
+                crate::pathutil::forward_slash(&oma.join("hooks").join("hst-state.cmd"))
             )),
         );
     }
@@ -499,7 +500,7 @@ fn grok_handler(oma: &Path, side: OsSide) -> Json {
     let command = match side {
         OsSide::Windows => oma
             .join("hooks")
-            .join("oma-state-grok.cmd")
+            .join("hst-state-grok.cmd")
             .display()
             .to_string(),
         OsSide::Unix => shim_command_ps_or_sh("grok", oma, side),
@@ -728,9 +729,9 @@ fn kimi_hook_command(oma: &Path, side: OsSide) -> String {
     match side {
         OsSide::Windows => format!(
             "{} kimi",
-            crate::pathutil::forward_slash(&oma.join("hooks").join("oma-state.cmd"))
+            crate::pathutil::forward_slash(&oma.join("hooks").join("hst-state.cmd"))
         ),
-        OsSide::Unix => format!("{} kimi", oma.join("hooks").join("oma-state.sh").display()),
+        OsSide::Unix => format!("{} kimi", oma.join("hooks").join("hst-state.sh").display()),
     }
 }
 
@@ -829,7 +830,7 @@ fn deploy_kimi_user(
 }
 
 /// 用户级部署总入口（可注入：测试传临时 user_home 与 oma 根；生产传真实
-/// 家目录与 `install::oma_home()`）。shim 先落（三平台全侧），四家注册
+/// 家目录与 `install::hst_home()`）。shim 先落（三平台全侧），四家注册
 /// 幂等合并。
 pub fn deploy_user_hooks_with(
     user_home: &Path,
@@ -862,7 +863,7 @@ pub fn deploy_user_hooks_with(
 /// 生产入口：真实家目录 + oma 自管根。
 pub fn deploy_user_hooks(report: &mut DeployReport) -> Result<(), String> {
     let user_home = crate::pathutil::user_home()?;
-    let oma = crate::install::oma_home()?;
+    let oma = crate::install::hst_home()?;
     deploy_user_hooks_with(&user_home, &oma, host_side(), report)
 }
 
@@ -894,7 +895,7 @@ pub fn retire_project_hooks_with(root: &Path, report: &mut DeployReport) -> Resu
     // 不碰）；hooks 目录空了连目录摘。旧名 .ohmyagents 同查（D14 前部署）。
     // F3 守卫（codex review）：项目根即 oma 根（`oma init --project $HOME`
     // 或 cwd 在家）时，base 就是用户级 shim 落点，跳过防自删。
-    let oma_root = crate::install::oma_home().unwrap_or_default();
+    let oma_root = crate::install::hst_home().unwrap_or_default();
     // 两侧都过 abs_display（CI runner 的 temp 路径是 8.3 短名，canonicalize
     // 后与 env 原串不等会让守卫失效，v0.5.4 CI 红根因）。
     let oma_root = crate::pathutil::abs_display(&oma_root);
@@ -903,7 +904,7 @@ pub fn retire_project_hooks_with(root: &Path, report: &mut DeployReport) -> Resu
             continue;
         }
         let hooks_dir = base.join("hooks");
-        for name in ["oma-state.cmd", "oma-state-grok.cmd", "oma-state.sh"] {
+        for name in ["hst-state.cmd", "hst-state-grok.cmd", "hst-state.sh"] {
             let p = hooks_dir.join(name);
             if let Ok(text) = fs::read_to_string(&p) {
                 if text.contains("generated by oma init") {
@@ -1092,11 +1093,11 @@ pub(crate) fn codex_trust_entries(
 /// 新增子命令在此补一行，`oma init` 重跑即同步（带生成标记才覆写）。
 const COMMAND_MAP: &[(&str, &str)] = &[
     (
-        "oma init [--project PATH] [--yolo | --project-yolo]",
+        "hst init [--project PATH] [--yolo | --project-yolo]",
         "部署 hook/skill 与 yolo 键（幂等；hook 注册用户级常驻 ~/.oma/hooks/ shim，状态按 session 分键，项目旧注册自动退役；yolo 两级显式：--yolo 用户级全机、--project-yolo 项目级覆盖，D28）",
     ),
     (
-        "oma doctor",
+        "hst doctor",
         "只读诊断信任库、二进制、登录态、hook 形态与状态栏",
     ),
     (
@@ -1104,37 +1105,37 @@ const COMMAND_MAP: &[(&str, &str)] = &[
         "检测四家 agent 已装情况（PATH/环境变量/oma 自管根/默认目录四源）",
     ),
     (
-        "oma agents statusline [名] [--example] [--script 路径] [--builtin]",
+        "hst statusline [名] [--example] [--script 路径] [--builtin]",
         "配置四家状态栏（写入面幂等；状态由用户级 hook 落盘供给；--example 定制模板，--script 自备脚本整替换，--builtin 还原）",
     ),
     (
-        "oma self update",
-        "oma 自更新（缺省 dev 滚动源，按资产 sha256 判新）",
+        "hst self update",
+        "hst 自更新（缺省 dev 滚动源，按资产 sha256 判新）",
     ),
     (
-        "oma trace sessions|timeline|blocks|agent|file|search",
+        "hst trace sessions|timeline|blocks|agent|file|search",
         "项目内四家 agent 对话历史检索（六视图联邦读原生会话库，只读）",
     ),
     (
-        "oma agents verify [名] [--timeout N]",
+        "hst agents verify [名] [--timeout N]",
         "无头验收四家 agent：状态栏脚本 mock 直跑加 hook 无头落盘（S033 两层判据）",
     ),
     (
-        "oma diagnose cache [别名...]",
+        "hst diagnose cache [别名...]",
         "网关缓存探测：逐别名双连判前缀缓存命中矩阵（D21；打真 API 烧最小 token）",
     ),
     (
-        "oma diagnose agents",
+        "hst diagnose agents",
         "agent 配置活性检测：指向、别名在册、key 活性、thinking 上限对照（D21）",
     ),
     (
-        "oma skill [--write]",
-        "生成 oma 自身 SKILL.md（从活命令树自适应渲染，新命令自动出现；--write 落用户级 ~/.claude/skills/，D22）",
+        "hst skill [--write]",
+        "生成 hst 自身 SKILL.md（从活命令树自适应渲染，新命令自动出现；--write 落用户级 ~/.claude/skills/，D22）",
     ),
 ];
 
 /// 生成标记：只有带它的 SKILL.md 才允许 oma 覆写（用户手改过的跳过）。
-const SKILL_MARKER: &str = "<!-- generated by oma init; rerun oma init to sync the command map -->";
+const SKILL_MARKER: &str = "<!-- generated by oma init; rerun hst init to sync the command map -->";
 
 /// 旧版静态 skill 全文：识别后升级为命令图生成版。
 const LEGACY_SKILL_MD: &str = "---\nname: ohmyagents\ndescription: Oh My Agents 项目编排说明与状态通道\n---\n\n# Oh My Agents\n\n本项目会话由 oma 编排。agent 状态在 `.ohmyagents/state/`；委派与诊断经 oma CLI。\n";
@@ -1142,7 +1143,7 @@ const LEGACY_SKILL_MD: &str = "---\nname: ohmyagents\ndescription: Oh My Agents 
 fn skill_md() -> String {
     let mut s = String::new();
     s.push_str("---\nname: ohmyagents\ndescription: oma 部署配置命令图：init、诊断、hook、状态栏、trace\n---\n\n");
-    s.push_str("# Oh My Agents 命令图\n\n");
+    s.push_str("# HST 命令图\n\n");
     s.push_str(SKILL_MARKER);
     s.push_str("\n\n本项目由 oma 部署配置：hook 状态写用户级 `~/.oma/state/`（session 分键），供状态栏 `agent:state` 机读标记消费。\n\n");
     s.push_str("| 意图 | 命令 |\n| --- | --- |\n");
@@ -1177,7 +1178,7 @@ fn write_skill(path: &Path, report: &mut DeployReport) -> Result<(), String> {
     Ok(())
 }
 
-const AGENTS_MD: &str = "# AGENTS\n\n本项目会话由 Oh My Agents（oma）编排：agent 状态写用户级 `~/.oma/state/`，委派与诊断经 oma CLI。\n";
+const AGENTS_MD: &str = "# AGENTS\n\n本项目会话由 HST（Hooks, Statusline, Trace，原 Oh My Agents）治理：agent 状态写用户级 `~/.hst/state/`，诊断与部署经 hst CLI。\n";
 
 /// Skills: `.agents/skills/ohmyagents` is the source; Claude and Grok and
 /// Kimi get copies (Claude does not scan .agents/skills, S008).
@@ -1228,7 +1229,7 @@ fn deploy_kimi_project(root: &Path, report: &mut DeployReport) -> Result<(), Str
 /// 与 oma 根）、本项目旧注册与 shim 退役、项目级 skill 与说明。
 pub fn deploy_all(root: &Path) -> Result<DeployReport, String> {
     let user_home = crate::pathutil::user_home()?;
-    let oma = crate::install::oma_home()?;
+    let oma = crate::install::hst_home()?;
     deploy_all_with(root, &user_home, &oma, host_side())
 }
 
@@ -1349,8 +1350,8 @@ mod tests {
             "claude user settings written: {:?}",
             first.wrote
         );
-        assert!(oma.join("hooks").join("oma-state.cmd").exists());
-        assert!(oma.join("hooks").join("oma-state.sh").exists());
+        assert!(oma.join("hooks").join("hst-state.cmd").exists());
+        assert!(oma.join("hooks").join("hst-state.sh").exists());
 
         // statusLine 键与外来 hook 保留，ours 注册指向用户级 shim。
         let v: Json = serde_json::from_str(&fs::read_to_string(&claude).unwrap()).unwrap();
@@ -1365,7 +1366,7 @@ mod tests {
                 g["hooks"][0]["command"]
                     .as_str()
                     .unwrap()
-                    .contains("oma-state")
+                    .contains("hst-state")
             })
             .unwrap();
         let claude_cmd = ours["hooks"][0]["command"].as_str().unwrap();
@@ -1373,12 +1374,12 @@ mod tests {
             assert!(!claude_cmd.contains('"'), "{claude_cmd}");
             assert!(!claude_cmd.starts_with('&'), "{claude_cmd}");
             assert!(
-                claude_cmd.ends_with("/hooks/oma-state.cmd claude"),
+                claude_cmd.ends_with("/hooks/hst-state.cmd claude"),
                 "{claude_cmd}"
             );
         } else {
             assert!(
-                claude_cmd.ends_with("oma-state.sh\" claude"),
+                claude_cmd.ends_with("hst-state.sh\" claude"),
                 "{claude_cmd}"
             );
         }
@@ -1393,17 +1394,17 @@ mod tests {
         if cfg!(windows) {
             let cw = handler["commandWindows"].as_str().unwrap();
             assert!(!cw.contains('"') && !cw.starts_with('&'), "{cw}");
-            assert!(cw.ends_with("/hooks/oma-state.cmd codex"), "{cw}");
+            assert!(cw.ends_with("/hooks/hst-state.cmd codex"), "{cw}");
             assert_eq!(
                 handler["command"].as_str(),
-                Some("oma hook --agent codex"),
+                Some("hst hook status --agent codex"),
                 "schema-required fallback must be present on Windows"
             );
         } else {
             assert!(handler["command"]
                 .as_str()
                 .unwrap()
-                .ends_with("oma-state.sh\" codex"));
+                .ends_with("hst-state.sh\" codex"));
             assert!(
                 handler.get("commandWindows").is_none(),
                 "Unix fresh deploy must not invent the foreign-OS field"
@@ -1434,17 +1435,17 @@ mod tests {
                 .join("hooks")
                 .join("ohmyagents-state.json"),
         );
-        assert!(grok_cmds.iter().any(|c| c.contains("oma-state")));
+        assert!(grok_cmds.iter().any(|c| c.contains("hst-state")));
         if cfg!(windows) {
-            let g = grok_cmds.iter().find(|c| c.contains("oma-state")).unwrap();
-            assert!(g.ends_with("oma-state-grok.cmd"), "M048 single path: {g}");
+            let g = grok_cmds.iter().find(|c| c.contains("hst-state")).unwrap();
+            assert!(g.ends_with("hst-state-grok.cmd"), "M048 single path: {g}");
         }
 
         // kimi [[hooks]]：外来条目存活、ours 八事件补齐、strict 四字段。
         let kimi_toml = fs::read_to_string(&kimi).unwrap();
         assert!(kimi_toml.contains("theme"), "foreign key survives");
         assert!(kimi_toml.contains("\"my-tool\""), "foreign hook survives");
-        assert!(kimi_toml.contains("oma-state"));
+        assert!(kimi_toml.contains("hst-state"));
         let kv: toml::Value = toml::from_str(&kimi_toml).unwrap();
         let hooks = kv.get("hooks").and_then(|h| h.as_array()).unwrap();
         let ours: Vec<&toml::Value> = hooks
@@ -1452,7 +1453,7 @@ mod tests {
             .filter(|h| {
                 h.get("command")
                     .and_then(|c| c.as_str())
-                    .is_some_and(|c| c.contains("oma-state"))
+                    .is_some_and(|c| c.contains("hst-state"))
             })
             .collect();
         assert_eq!(ours.len(), 8, "eight events registered: {ours:?}");
@@ -1492,7 +1493,7 @@ mod tests {
             r#"{"hooks": {"Stop": [{"matcher": "*", "hooks": [
                 {"type": "command", "command": "oma hook --agent claude"},
                 {"type": "command", "command": "D:\\old\\oma.exe hook --agent claude"},
-                {"type": "command", "command": "D:\\proj\\.oma\\hooks\\oma-state.cmd claude"}]}]}}"#,
+                {"type": "command", "command": "D:\\proj\\.oma\\hooks\\hst-state.cmd claude"}]}]}}"#,
         )
         .unwrap();
 
@@ -1501,7 +1502,7 @@ mod tests {
         // 注入的三条旧形态都在 Stop 事件：收敛为现行单条；全文件无旧路径残留。
         let ours = ours_in_event(&claude, "Stop");
         assert_eq!(ours.len(), 1, "legacy forms collapse to one: {ours:?}");
-        assert!(ours[0].contains("oma-state"), "{}", ours[0]);
+        assert!(ours[0].contains("hst-state"), "{}", ours[0]);
         let cmds = collect_commands(&claude);
         assert!(!cmds.iter().any(|c| c.contains("D:\\old")), "old exe gone");
         assert!(
@@ -1546,7 +1547,7 @@ mod tests {
         );
         let cw = h["commandWindows"].as_str().unwrap();
         assert!(!cw.contains('"') && !cw.contains('&'), "{cw}");
-        assert!(cw.ends_with("/hooks/oma-state.cmd codex"), "{cw}");
+        assert!(cw.ends_with("/hooks/hst-state.cmd codex"), "{cw}");
         assert!(!cw.contains("old2"), "owned field rewritten: {cw}");
 
         // 同形重复植入后收敛。
@@ -1582,7 +1583,7 @@ mod tests {
             &claude,
             r#"{"hooks": {"Stop": [{"matcher": "*", "hooks": [
                 {"type": "command", "command": "C:\\tools\\fmt.sh"},
-                {"type": "command", "command": "D:\\proj\\.oma\\hooks\\oma-state.cmd claude"}]}]}}"#,
+                {"type": "command", "command": "D:\\proj\\.oma\\hooks\\hst-state.cmd claude"}]}]}}"#,
         )
         .unwrap();
         let codex = root.join(".codex").join("hooks.json");
@@ -1601,16 +1602,16 @@ mod tests {
         write_text(
             &grok,
             r#"{"hooks": {"Stop": [{"matcher": "*", "hooks": [
-                {"type": "command", "command": "D:\\proj\\.oma\\hooks\\oma-state-grok.cmd"}]}]}}"#,
+                {"type": "command", "command": "D:\\proj\\.oma\\hooks\\hst-state-grok.cmd"}]}]}}"#,
         )
         .unwrap();
         // 项目 shim 三件（带生成标记）+ 用户自置同名文件保护判据。
         let shims = root.join(".oma").join("hooks");
         fs::create_dir_all(&shims).unwrap();
-        fs::write(shims.join("oma-state.cmd"), "rem generated by oma init\r\n").unwrap();
-        fs::write(shims.join("oma-state.sh"), "# generated by oma init\n").unwrap();
+        fs::write(shims.join("hst-state.cmd"), "rem generated by oma init\r\n").unwrap();
+        fs::write(shims.join("hst-state.sh"), "# generated by oma init\n").unwrap();
         fs::write(
-            shims.join("oma-state-grok.cmd"),
+            shims.join("hst-state-grok.cmd"),
             "@echo off\r\nrem generated by oma init\r\n",
         )
         .unwrap();
@@ -1639,9 +1640,9 @@ mod tests {
         // grok 同理。
         assert!(!grok.exists(), "ours-only grok hooks removed");
         // shim：oma 生成的删、用户自置的留。
-        assert!(!shims.join("oma-state.cmd").exists());
-        assert!(!shims.join("oma-state.sh").exists());
-        assert!(!shims.join("oma-state-grok.cmd").exists());
+        assert!(!shims.join("hst-state.cmd").exists());
+        assert!(!shims.join("hst-state.sh").exists());
+        assert!(!shims.join("hst-state-grok.cmd").exists());
         assert!(shims.join("my-own.cmd").exists(), "user file untouched");
         // hooks 目录非空（my-own.cmd）不删。
         assert!(shims.is_dir());
@@ -1682,7 +1683,7 @@ mod tests {
         write_text(
             &ours_only,
             r#"{"hooks": {"Stop": [{"matcher": "*", "hooks": [
-                {"type": "command", "command": "D:\\proj\\.oma\\hooks\\oma-state-grok.cmd"}]}]}}"#,
+                {"type": "command", "command": "D:\\proj\\.oma\\hooks\\hst-state-grok.cmd"}]}]}}"#,
         )
         .unwrap();
         let mut report = DeployReport::default();
@@ -1705,28 +1706,28 @@ mod tests {
         let shims = root.join(".oma").join("hooks");
         fs::create_dir_all(&shims).unwrap();
         fs::write(
-            shims.join("oma-state.cmd"),
+            shims.join("hst-state.cmd"),
             "rem generated by oma init
 ",
         )
         .unwrap();
         fs::write(
-            shims.join("oma-state.sh"),
+            shims.join("hst-state.sh"),
             "# generated by oma init
 ",
         )
         .unwrap();
         // 缝值取 <root>/.oma（与 base 同路）：oma_home() 即项目 .oma。
-        std::env::set_var("OMA_HOME", root.join(".oma"));
+        std::env::set_var("HST_ROOT", root.join(".oma"));
         let mut report = DeployReport::default();
         retire_project_hooks_with(&root, &mut report).unwrap();
-        std::env::remove_var("OMA_HOME");
+        std::env::remove_var("HST_ROOT");
         assert!(
-            shims.join("oma-state.cmd").exists(),
+            shims.join("hst-state.cmd").exists(),
             "user shim must survive"
         );
         assert!(
-            shims.join("oma-state.sh").exists(),
+            shims.join("hst-state.sh").exists(),
             "user shim must survive"
         );
         let _ = fs::remove_dir_all(&root);
@@ -1738,7 +1739,7 @@ mod tests {
         // 保留）。期望来自清理语义（只清 oma 自己的残留定义）。
         let ours = r#"[[hooks]]
 matcher = "*"
-hooks = [{ command = "C:/x/.oma/hooks/oma-state.cmd codex", timeout = 10 }]
+hooks = [{ command = "C:/x/.oma/hooks/hst-state.cmd codex", timeout = 10 }]
 "#;
         let groups = |text: &str| -> toml::Value {
             // 根层 [[hooks]] 解析为 Table 包 hooks 键（= 事件 group 数组）。
@@ -1754,7 +1755,7 @@ hooks = [{ command = "my-tool", timeout = 5 }]
         let mixed = r#"[[hooks]]
 matcher = "*"
 hooks = [
-  { command = "C:/x/.oma/hooks/oma-state.cmd codex", timeout = 10 },
+  { command = "C:/x/.oma/hooks/hst-state.cmd codex", timeout = 10 },
   { command = "my-tool", timeout = 5 },
 ]
 "#;

@@ -12,7 +12,7 @@ use predicates::str::contains;
 static NEXT_TEST_DIR: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 fn oma() -> Command {
-    Command::cargo_bin("oma").unwrap()
+    Command::cargo_bin("hst").unwrap()
 }
 
 #[test]
@@ -73,7 +73,7 @@ fn trace_formats_and_pagination_markers() {
     // D26：trace 全视图吃 --format 三态；截断时 kv 补 has_more；sessions 吃
     // --limit；--offset 翻页可用。数据自种金档（R004：期望不依赖宿主机的
     // 真实会话历史——CI 检出无任何 agent 数据，靠本仓历史只会本机绿）：
-    // OMA_TRACE_HOME 重定向会话库根到夹具，.claude/projects/<slug>/ 下三
+    // HST_TRACE_HOME 重定向会话库根到夹具，.claude/projects/<slug>/ 下三
     // 会话各两轮 Edit 工具调用（timeline 6 事件、blocks 6 块）。
     let cwd = std::env::temp_dir().join(format!(
         "oma-cli-trace-fmt-{}-{}-{}",
@@ -126,7 +126,7 @@ fn trace_formats_and_pagination_markers() {
         // 显式传参与夹具同串，三平台同形。
         let out = oma()
             .current_dir(&cwd)
-            .env("OMA_TRACE_HOME", &home)
+            .env("HST_TRACE_HOME", &home)
             .args(args)
             .arg("--project")
             .arg(&cwd)
@@ -199,7 +199,7 @@ fn hook_is_silent_without_state_env() {
     // Outside an oma session there is no OHMYAGENTS_STATE_FILE: the hook
     // entry must stay silent and exit 0 (never fail the agent session).
     oma()
-        .args(["hook", "blocked"])
+        .args(["hook", "status", "blocked"])
         .env_remove("OHMYAGENTS_STATE_FILE")
         .assert()
         .success();
@@ -221,10 +221,10 @@ fn hook_secret_guard_blocks_with_exit_2() {
     ));
     std::fs::create_dir_all(&tmp).unwrap();
     oma()
-        .args(["hook", "--agent", "claude"])
+        .args(["hook", "status", "--agent", "claude"])
         .env_remove("OHMYAGENTS_STATE_FILE")
         .env_remove("OHMYAGENTS_AGENT")
-        .env("OMA_HOME", &tmp)
+        .env("HST_ROOT", &tmp)
         .write_stdin(payload)
         .assert()
         .code(2)
@@ -277,8 +277,8 @@ fn init_full_deploys_hooks_skills_and_yolo() {
     oma()
         .args(["init", "--project"])
         .arg(&tmp.join("proj"))
-        .env("OMA_USER_HOME", &user)
-        .env("OMA_HOME", &oma_root)
+        .env("HST_USER_HOME", &user)
+        .env("HST_ROOT", &oma_root)
         .assert()
         .success()
         .stdout(contains("init.scope=full"))
@@ -300,7 +300,7 @@ fn init_full_deploys_hooks_skills_and_yolo() {
             .unwrap()
             .iter()
             .flat_map(|g| g["hooks"].as_array().unwrap().iter())
-            .filter(|h| h["command"].as_str().is_some_and(|c| c.contains("oma")))
+            .filter(|h| h["command"].as_str().is_some_and(|c| c.contains("hst")))
             .collect();
         assert_eq!(ours.len(), 1, "one oma handler per event");
         assert!(
@@ -310,7 +310,7 @@ fn init_full_deploys_hooks_skills_and_yolo() {
         assert_eq!(ours[0]["timeout"], 10);
         let cmd = ours[0]["command"].as_str().unwrap();
         assert!(
-            cmd.contains("oma-state"),
+            cmd.contains("hst-state"),
             "registration points at the self-contained state shim: {cmd}"
         );
         assert!(
@@ -319,8 +319,8 @@ fn init_full_deploys_hooks_skills_and_yolo() {
         );
     }
     // shims 常驻 oma 根 hooks/（D28）。
-    assert!(oma_root.join("hooks").join("oma-state.cmd").exists());
-    assert!(oma_root.join("hooks").join("oma-state.sh").exists());
+    assert!(oma_root.join("hooks").join("hst-state.cmd").exists());
+    assert!(oma_root.join("hooks").join("hst-state.sh").exists());
     // 四家用户级注册面落齐（kimi 是 [[hooks]] 数组、codex 带信任预种）。
     for rel in [
         ".claude/settings.json",
@@ -333,7 +333,7 @@ fn init_full_deploys_hooks_skills_and_yolo() {
     }
     let kimi_user = std::fs::read_to_string(user.join(".kimi-code").join("config.toml")).unwrap();
     assert!(
-        kimi_user.contains("oma-state"),
+        kimi_user.contains("hst-state"),
         "kimi user-level [[hooks]] registered (D28): {kimi_user}"
     );
     // 项目面：skills 与说明仍在项目；hook 注册不再落项目（D28 退役）。
@@ -386,8 +386,8 @@ fn init_full_deploys_hooks_skills_and_yolo() {
     oma()
         .args(["init", "--yolo", "--project"])
         .arg(&tmp2.join("proj"))
-        .env("OMA_USER_HOME", &user2)
-        .env("OMA_HOME", &tmp2.join("fake-oma-home"))
+        .env("HST_USER_HOME", &user2)
+        .env("HST_ROOT", &tmp2.join("fake-oma-home"))
         .assert()
         .success()
         .stdout(contains("init.scope=yolo"))
@@ -437,18 +437,18 @@ fn init_retires_v053_project_registrations() {
         &claude,
         r#"{"hooks": {"Stop": [{"matcher": "*", "hooks": [
             {"type": "command", "command": "C:\\tools\\fmt.sh"},
-            {"type": "command", "command": "D:\\p\\.oma\\hooks\\oma-state.cmd claude"}]}]}}"#,
+            {"type": "command", "command": "D:\\p\\.oma\\hooks\\hst-state.cmd claude"}]}]}}"#,
     )
     .unwrap();
     let shims = proj.join(".oma").join("hooks");
     std::fs::create_dir_all(&shims).unwrap();
-    std::fs::write(shims.join("oma-state.cmd"), "rem generated by oma init\r\n").unwrap();
-    std::fs::write(shims.join("oma-state.sh"), "# generated by oma init\n").unwrap();
+    std::fs::write(shims.join("hst-state.cmd"), "rem generated by oma init\r\n").unwrap();
+    std::fs::write(shims.join("hst-state.sh"), "# generated by oma init\n").unwrap();
     oma()
         .args(["init", "--project"])
         .arg(&proj)
-        .env("OMA_USER_HOME", &tmp.join("user"))
-        .env("OMA_HOME", &tmp.join("oma"))
+        .env("HST_USER_HOME", &tmp.join("user"))
+        .env("HST_ROOT", &tmp.join("hst"))
         .assert()
         .success();
     // 外来 hook 存活、ours 摘除、项目 shim 删除。
@@ -466,8 +466,8 @@ fn init_retires_v053_project_registrations() {
         vec!["C:\\tools\\fmt.sh"],
         "ours retired, foreign kept"
     );
-    assert!(!shims.join("oma-state.cmd").exists());
-    assert!(!shims.join("oma-state.sh").exists());
+    assert!(!shims.join("hst-state.cmd").exists());
+    assert!(!shims.join("hst-state.sh").exists());
     let _ = std::fs::remove_dir_all(&tmp);
 }
 
@@ -486,8 +486,8 @@ fn init_project_yolo_writes_project_scope_only() {
     oma()
         .args(["init", "--project-yolo", "--project"])
         .arg(&proj)
-        .env("OMA_USER_HOME", &user)
-        .env("OMA_HOME", &tmp.join("fake-oma-home"))
+        .env("HST_USER_HOME", &user)
+        .env("HST_ROOT", &tmp.join("fake-oma-home"))
         .assert()
         .success()
         .stdout(contains("init.scope=yolo-project"));
@@ -512,7 +512,7 @@ fn init_project_yolo_writes_project_scope_only() {
     oma()
         .args(["init", "--yolo", "--project-yolo", "--project"])
         .arg(&proj)
-        .env("OMA_USER_HOME", &user)
+        .env("HST_USER_HOME", &user)
         .assert()
         .failure()
         .code(2);
@@ -551,8 +551,8 @@ fn init_rerun_is_byte_idempotent() {
     oma()
         .args(["init", "--project"])
         .arg(&tmp.join("proj"))
-        .env("OMA_USER_HOME", &user)
-        .env("OMA_HOME", &oma_root)
+        .env("HST_USER_HOME", &user)
+        .env("HST_ROOT", &oma_root)
         .assert()
         .success();
     let after_first = read_all(&user);
@@ -560,8 +560,8 @@ fn init_rerun_is_byte_idempotent() {
     oma()
         .args(["init", "--project"])
         .arg(&tmp.join("proj"))
-        .env("OMA_USER_HOME", &user)
-        .env("OMA_HOME", &oma_root)
+        .env("HST_USER_HOME", &user)
+        .env("HST_ROOT", &oma_root)
         .assert()
         .success()
         .stdout(contains("init.hooks.wrote.count=0"));
@@ -626,7 +626,7 @@ fn completions_emit_shell_scripts() {
             .clone();
         let s = String::from_utf8_lossy(&out);
         assert!(
-            !s.is_empty() && s.contains("oma"),
+            !s.is_empty() && s.contains("hst"),
             "{shell} script mentions oma"
         );
     }
@@ -637,7 +637,7 @@ fn completions_emit_shell_scripts() {
         .get_output()
         .stdout
         .clone();
-    assert!(String::from_utf8_lossy(&out).contains("_oma"));
+    assert!(String::from_utf8_lossy(&out).contains("_hst"));
 }
 
 // ===== Agent 友好 IO 契约（issue #1，与 ome S003 同构）=====
@@ -736,7 +736,7 @@ fn dies_verify_unknown_agent() {
 /// env），所以调用方要先自检仍检出 installed 就 skip。
 fn verify_empty_env(cmd: &mut Command, sandbox: &std::path::Path) {
     cmd.env("PATH", sandbox.join("empty-path"))
-        .env("OMA_HOME", sandbox.join("empty-oma-home"));
+        .env("HST_ROOT", sandbox.join("empty-oma-home"));
     for key in [
         "OMA_AGENT_PATH",
         "CODEX_HOME",

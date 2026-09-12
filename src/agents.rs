@@ -21,7 +21,7 @@ impl Source {
         match self {
             Source::Env => "env",
             Source::Path => "path",
-            Source::Oma => "oma",
+            Source::Oma => "hst",
             Source::Default => "default",
         }
     }
@@ -108,7 +108,7 @@ impl Probe {
         }
         let mut extra_dirs = split_path_var("OMA_AGENT_PATH");
         extra_dirs.extend(codex_home_bins());
-        let oma_files = crate::install::oma_home()
+        let oma_files = crate::install::hst_home()
             .map(|h| crate::install::managed_binaries(&h))
             .unwrap_or_default();
         Probe {
@@ -250,7 +250,7 @@ pub fn print_reports(reports: &[Report]) {
             None => {
                 missing += 1;
                 println!(
-                    "agent={} status=missing detail=not on PATH, OMA_AGENT_PATH, OMA_*_BIN, oma root, or default locations hint=ome install {}",
+                    "agent={} status=missing detail=not on PATH, OMA_AGENT_PATH, OMA_*_BIN, oma root, or default locations hint=ark install {}",
                     r.agent, r.agent
                 );
             }
@@ -534,7 +534,7 @@ mod tests {
     fn oma_beats_default_but_not_path() {
         let root = fresh();
         let path_dir = root.join("path");
-        let oma_bin = root.join("oma").join("claude.exe");
+        let oma_bin = root.join("hst").join("claude.exe");
         let def_bin = root.join("default").join("claude.exe");
         touch(&path_dir.join(claude_name()));
         touch(&oma_bin);

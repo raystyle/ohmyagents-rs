@@ -1,7 +1,7 @@
-//! oma 自适应 SKILL 渲染（D22）：从 clap 活命令树生成 SKILL.md（Agent
+//! hst 自适应 SKILL 渲染（D22）：从 clap 活命令树生成 SKILL.md（Agent
 //! Skills 标准形态：frontmatter name 加 description 含何时用）。新命令/
-//! 新旗标自动出现在生成物里，不需要手维护命令表；`oma skill` 打印、
-//! `oma skill --write` 落用户级 `~/.claude/skills/ohmyagents/`。
+//! 新旗标自动出现在生成物里，不需要手维护命令表；`hst skill` 打印、
+//! `hst skill --write` 落用户级 `~/.claude/skills/hst/`。
 //! 项目级 init 生成物（deploy.rs COMMAND_MAP 加 marker 覆写语义）是另一
 //! 层，不共用渲染器（lib 拿不到 bin 的 Cli 树，双层记档于 R002）。
 
@@ -21,18 +21,18 @@ pub fn render_skill(root: &ClapCommand) -> String {
         table.push_str(&format!("| `{usage}` | {about} |\n"));
     }
     format!(
-        "---\nname: ohmyagents\ndescription: oma 部署配置与诊断 CLI 的自适应命令速查：agent 可用性诊断、hook 设置、状态栏设置、对话 trace、yolo 不阻塞设置与活性诊断。要在项目里查 agent 对话历史、体检部署形态、配置状态栏或探测网关缓存时使用。\n---\n\n# oma 命令速查\n\n> 本文件由 `oma skill` 从 oma 活命令树自适应生成（含子命令与旗标）；oma 升级后跑 `oma skill --write` 同步，勿手改。\n\n## 功能面\n\n- **可用性诊断**：`oma doctor`（零网络只读体检）、`oma agents`（四家检测）、`oma diagnose cache|agents`（活性诊断，打真网关烧最小 token）\n- **hook 设置**：`oma init`（项目级部署，幂等）、`oma hook`（状态落盘加密钥拦截）\n- **状态栏设置**：`oma agents statusline`（四家写入面加用户级定制）\n- **对话 trace**：`oma trace` 六视图只读检索四家原生会话库\n- **yolo 不阻塞设置**：`oma init --yolo`（项目级无阻塞键）\n\n## 命令表\n\n| 命令 | 说明 |\n| --- | --- |\n{table}\n## 输出契约\n\n全部命令支持 `--format kv|json|jsonl` 与 `--json` 信封（kv 是缺省 marker 行）；结构化错误 stderr 单行 JSON；doctor blocked 与 verify fail 退出 1，diagnose cache 探测错误退出 1。\n\n## 快速上手\n\n```powershell\noma init                              # 进项目后一次性部署（幂等）\noma doctor                            # 体检\noma trace file <文件>                 # 这文件谁改的、为什么\noma agents statusline --example       # 状态栏定制模板\noma diagnose cache <别名>             # 网关缓存探测\noma skill --write                     # 本技能自适应再生\n```\n"
+        "---\nname: hst\ndescription: hst 部署配置与诊断 CLI 的自适应命令速查：agent 可用性诊断、hook 设置、状态栏设置、对话 trace、yolo 不阻塞设置与活性诊断。要在项目里查 agent 对话历史、体检部署形态、配置状态栏或探测网关缓存时使用。\n---\n\n# hst 命令速查\n\n> 本文件由 `hst skill` 从 hst 活命令树自适应生成（含子命令与旗标）；hst 升级后跑 `hst skill --write` 同步，勿手改。\n\n## 功能面\n\n- **可用性诊断**：`hst doctor`（零网络只读体检）、`hst agents`（四家检测）、`hst diagnose cache|agents`（活性诊断，打真网关烧最小 token）\n- **hook 设置**：`hst init`（部署，幂等）、`hst hook status`（状态落盘加密钥拦截）\n- **状态栏设置**：`hst statusline`（四家写入面加用户级定制）\n- **对话 trace**：`hst trace` 六视图只读检索四家原生会话库\n- **yolo 不阻塞设置**：`hst init --yolo`（项目级无阻塞键）\n\n## 命令表\n\n| 命令 | 说明 |\n| --- | --- |\n{table}\n## 输出契约\n\n全部命令支持 `--format kv|json|jsonl` 与 `--json` 信封（kv 是缺省 marker 行）；结构化错误 stderr 单行 JSON；doctor blocked 与 verify fail 退出 1，diagnose cache 探测错误退出 1。\n\n## 快速上手\n\n```powershell\nhst init                              # 进项目后一次性部署（幂等）\nhst doctor                            # 体检\nhst trace file <文件>                 # 这文件谁改的、为什么\nhst statusline --example       # 状态栏定制模板\nhst diagnose cache <别名>             # 网关缓存探测\nhst skill --write                     # 本技能自适应再生\n```\n"
     )
 }
 
-/// 递归收集 (usage, about)。父命令可裸调（如 `oma agents`）时也记一行。
+/// 递归收集 (usage, about)。父命令可裸调（如 `hst agents`）时也记一行。
 fn walk(cmd: &ClapCommand, prefix: String, rows: &mut Vec<(String, String)>) {
     for sub in cmd.get_subcommands() {
         if sub.get_name() == "help" {
             continue;
         }
         let path = if prefix.is_empty() {
-            format!("oma {}", sub.get_name())
+            format!("hst {}", sub.get_name())
         } else {
             format!("{prefix} {}", sub.get_name())
         };
@@ -97,7 +97,7 @@ mod tests {
     /// 独立小命令树验证渲染形状（期望值来自 SKILL 标准与本渲染约定）。
     #[test]
     fn renders_frontmatter_and_adaptive_rows() {
-        let tree = ClapCommand::new("oma")
+        let tree = ClapCommand::new("hst")
             .subcommand(
                 ClapCommand::new("agents")
                     .about("检测四家 agent")
@@ -125,22 +125,22 @@ mod tests {
             )
             .subcommand(ClapCommand::new("doctor").about("只读体检"));
         let md = render_skill(&tree);
-        assert!(md.starts_with("---\nname: ohmyagents\ndescription: oma "));
-        assert!(md.contains(
-            "| `oma agents statusline [名]... [--example] [--script <路径>]` | 配置状态栏 |"
-        ));
-        assert!(md.contains("| `oma doctor` | 只读体检 |"));
+        assert!(md.starts_with("---\nname: hst\ndescription: hst "));
+        assert!(
+            md.contains("| `hst agents statusline [名]... [--example] [--script <路径>]` | 配置状态栏 |")
+        );
+        assert!(md.contains("| `hst doctor` | 只读体检 |"));
         assert!(md.contains("勿手改"));
         // help 不入表。
-        assert!(!md.contains("`oma help`"));
+        assert!(!md.contains("`hst help`"));
     }
 
     #[test]
     fn new_subcommands_appear_without_hand_edits() {
         // 自适应判据：树加了子命令，命令表即出现该行。
-        let tree = ClapCommand::new("oma").subcommand(ClapCommand::new("doctor").about("体检"));
+        let tree = ClapCommand::new("hst").subcommand(ClapCommand::new("doctor").about("体检"));
         assert!(!render_skill(&tree).contains("| `oma verify`"));
         let tree = tree.subcommand(ClapCommand::new("verify").about("验收"));
-        assert!(render_skill(&tree).contains("| `oma verify`"));
+        assert!(render_skill(&tree).contains("| `hst verify`"));
     }
 }

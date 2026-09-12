@@ -1,6 +1,8 @@
-# - push main：构建测试后资产滚动挂 pre-release tag `dev`（本地测试期的滚动升级源，`oma self update`）；
-# - push v* tag：构建测试后资产挂正式 release（封版触发，`oma self update --stable`）。
-# 资产名即编译目标（selfupdate 按目标三元组映射）；mac 只要 arm64 不要 intel（用户裁决）
+# - push main：构建测试后资产滚动挂 pre-release tag `dev`（本地测试期的滚动升级源，`hst self update`）；
+# - push v* tag：构建测试后资产挂正式 release（封版触发，`hst self update --stable`）。
+# 资产名即编译目标（selfupdate 按目标三元组映射）；mac 只要 arm64 不要 intel（用户裁决）。
+# D29：主资产 hst-<triple>；过渡期同挂 oma-<triple>（stub bin，警告后转调 hst）；
+# 镜像 hst/ 主段 sync，oma/ 兼容段只推 stub 资产（旧 oma self update 升到 stub 被引导换名）。
 name: dev-release
 
 on:
@@ -56,17 +58,26 @@ jobs:
       - name: Test
         run: cargo test --locked
       - name: Build
-        run: cargo build --release --locked --target ${{ matrix.target }}
+        run: cargo build --release --locked --target ${{ matrix.target }} --bins
       - name: Package
         shell: bash
         run: |
           triple="${{ matrix.target }}"
-          src="target/${triple}/release/oma"
-          [ "${{ matrix.os }}" = "windows-latest" ] && src="${src}.exe"
-          # 资产名即编译目标：oma-<triple>.zip / .tar.gz（selfupdate 按三元组映射）
-          mkdir -p "dist/oma-${triple}"
-          cp "$src" "dist/oma-${triple}/"
+          src="target/${triple}/release/hst"
+          stub="target/${triple}/release/oma"
+          [ "${{ matrix.os }}" = "windows-latest" ] && { src="${src}.exe"; stub="${stub}.exe"; }
+          # 主资产 hst-<triple> 加过渡 stub 资产 oma-<triple>（D29）。
+          mkdir -p "dist/hst-${triple}" "dist-stub/oma-${triple}"
+          cp "$src" "dist/hst-${triple}/"
+          cp "$stub" "dist-stub/oma-${triple}/"
           cd dist
+          if [ "${{ matrix.archive }}" = "zip" ]; then
+            7z a "hst-${triple}.zip" "hst-${triple}" || zip -r "hst-${triple}.zip" "hst-${triple}"
+          else
+            tar czf "hst-${triple}.tar.gz" "hst-${triple}"
+          fi
+          sha256sum "hst-${triple}.${{ matrix.archive }}" > "hst-${triple}.${{ matrix.archive }}.sha256"
+          cd ../dist-stub
           if [ "${{ matrix.archive }}" = "zip" ]; then
             7z a "oma-${triple}.zip" "oma-${triple}" || zip -r "oma-${triple}.zip" "oma-${triple}"
           else
@@ -75,8 +86,12 @@ jobs:
           sha256sum "oma-${triple}.${{ matrix.archive }}" > "oma-${triple}.${{ matrix.archive }}.sha256"
       - uses: actions/upload-artifact@v4
         with:
-          name: oma-${{ matrix.target }}
+          name: hst-${{ matrix.target }}
           path: dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oma-stub-${{ matrix.target }}
+          path: dist-stub/*
 
   release:
     needs: [build, docs-gate]
@@ -94,17 +109,18 @@ jobs:
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             tag="${GITHUB_REF#refs/tags/}"
             gh release create "$tag" dist/*.zip dist/*.tar.gz dist/*.sha256 --latest \
-              --title "oma $tag" \
-              --notes "正式版 $tag（版本 tag 触发构建）。安装：oma self update --stable。"
+              --title "hst $tag" \
+              --notes "正式版 $tag（版本 tag 触发构建）。安装：hst self update --stable。oma 旧命令请换 hst（oma-* 资产为过渡 stub，警告后转调 hst）。"
           else
             gh release delete dev --yes --cleanup-tag || true
             gh release create dev dist/*.zip dist/*.tar.gz dist/*.sha256 --prerelease \
-              --title "oma dev (rolling)" \
-              --notes "滚动开发版：main 最新提交自动构建。安装：oma self update（默认 dev 通道）。"
+              --title "hst dev (rolling)" \
+              --notes "滚动开发版：main 最新提交自动构建。安装：hst self update（默认 dev 通道）。oma-* 为过渡 stub。"
           fi
 
-  # D41 路线 A：产物镜像自推 R2（env 桶）——dev 滚动传 oma/dev，正式 tag 传 oma/stable，
-  # 滚动即到货，「我滚你播」接力退役。边车是 Package 步 sha256sum 原生格式（hex 空两格加名）。
+  # D41 路线 A（D29 更新）：产物镜像自推 R2（env 桶）——hst/ 主段 sync（dev 滚动与
+  # stable tag），oma/ 兼容段只推 stub 资产一个版本（旧 oma self update 吃到 stub
+  # 后被引导换 hst）。边车是 Package 步 sha256sum 原生格式（hex 空两格加名）。
   mirror:
     needs: release
     runs-on: ubuntu-latest
@@ -120,7 +136,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          path: dist
+          path: artifacts
           merge-multiple: true
       - name: Install rclone if missing
         run: command -v rclone || (curl -fsSL https://rclone.org/install.sh | sudo bash)
@@ -128,11 +144,20 @@ jobs:
         run: |
           seg="dev"
           [[ "$GITHUB_REF" == refs/tags/v* ]] && seg="stable"
-          # 段内只留压缩包加边车（dist/ 还含解包目录，勿传）；sync 加
-          # --delete-excluded 把段内不在白名单的遗留对象一并清掉（copy 不删）。
-          rclone sync dist/ "r2:${R2_BUCKET}/oma/${seg}/" \
+          # hst 主资产与 oma stub 分目录收拢（download-artifact 平铺会混）。
+          mkdir -p dist-hst dist-oma
+          mv artifacts/hst-* dist-hst/ 2>/dev/null || true
+          mv artifacts/oma-* dist-oma/ 2>/dev/null || true
+          # 段内只留压缩包加边车；sync 加 --delete-excluded 清段内白名单外遗留。
+          rclone sync dist-hst/ "r2:${R2_BUCKET}/hst/${seg}/" \
             --include "*.zip" --include "*.tar.gz" --include "*.sha256" \
             --delete-excluded \
             --header-upload "Cache-Control: public, max-age=60" \
             --checksum -v --stats-one-line
+          rclone sync dist-oma/ "r2:${R2_BUCKET}/oma/${seg}/" \
+            --include "*.zip" --include "*.tar.gz" --include "*.sha256" \
+            --delete-excluded \
+            --header-upload "Cache-Control: public, max-age=60" \
+            --checksum -v --stats-one-line
+          rclone lsl "r2:${R2_BUCKET}/hst/${seg}/"
           rclone lsl "r2:${R2_BUCKET}/oma/${seg}/"

@@ -578,7 +578,7 @@ mod tests {
             .unwrap_or_else(|e| e.into_inner());
         let user = fresh_dir();
         let root = fresh_dir();
-        std::env::set_var("OMA_USER_HOME", &user);
+        std::env::set_var("HST_USER_HOME", &user);
         let before = diagnose(&root).expect("diagnose");
         assert_eq!(before.status("claude", "yolo"), Some(Status::Block));
         assert_eq!(before.status("codex", "yolo"), Some(Status::Block));
@@ -676,7 +676,7 @@ model = \"gpt\"
         // 再跑幂等（无变更）。
         assert!(retire_project_yolo(&root).unwrap().is_empty());
 
-        std::env::remove_var("OMA_USER_HOME");
+        std::env::remove_var("HST_USER_HOME");
         let _ = fs::remove_dir_all(&user);
         let _ = fs::remove_dir_all(&root);
     }

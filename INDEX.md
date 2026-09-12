@@ -30,20 +30,20 @@
 | `src\main.rs` | CLI 入口与子命令分发（init/doctor/agents/hook/self/completions）；`--json` 信封出口 |
 | `src\lib.rs` | 模块声明 |
 | `src\archive.rs` | 通用归档工具：sha256 校验、zip / tar.gz 解包、目录复制、host os/arch（D15 自 rmux.rs 剥离） |
-| `src\hook.rs` | `oma hook`：事件到四态映射与用户级 session 分键 state 落盘（D28），加密钥拦截分流 |
-| `src\agents.rs` | `oma agents`：PATH / 环境变量 / 默认目录探测 |
-| `src\doctor.rs` | `oma doctor`：只读诊断（yolo / 信任 / 二进制 / 登录态 / hook 形态 / 状态栏 / 用户级与项目级状态面，D28；会话健康随 D15 移除） |
-| `src\yolo.rs` | `oma init --yolo`：四家配置落盘与 pretrust |
-| `src\deploy.rs` | `oma init` hook/skill 部署层：hook 注册四家用户级（D28：claude/codex/grok/kimi 用户层，codex trusted_hash 预种，kimi `[[hooks]]` 合并），项目级 ours 注册与 shim 退役，幂等合并（M059 无引号正斜杠形态，同形去重）；SKILL.md 由 COMMAND_MAP 命令图生成（标记覆写三态） |
+| `src\hook.rs` | `hst hook`：事件到四态映射与用户级 session 分键 state 落盘（D28），加密钥拦截分流 |
+| `src\agents.rs` | `hst agents`：PATH / 环境变量 / 默认目录探测 |
+| `src\doctor.rs` | `hst doctor`：只读诊断（yolo / 信任 / 二进制 / 登录态 / hook 形态 / 状态栏 / 用户级与项目级状态面，D28；会话健康随 D15 移除） |
+| `src\yolo.rs` | `hst init --yolo`：四家配置落盘与 pretrust |
+| `src\deploy.rs` | `hst init` hook/skill 部署层：hook 注册四家用户级（D28：claude/codex/grok/kimi 用户层，codex trusted_hash 预种，kimi `[[hooks]]` 合并），项目级 ours 注册与 shim 退役，幂等合并（M059 无引号正斜杠形态，同形去重）；SKILL.md 由 COMMAND_MAP 命令图生成（标记覆写三态） |
 | `src\shim.rs` | D27 自包含状态 shim 加 D28 用户级常驻与 session 分键：oma-state.cmd（jq 首选加 findstr 回落，PATH 探 jq）、oma-state.sh（bash 或 mac zsh）、grok baked 包装；落 `~/.oma/hooks/`，双写 agent 最新加 session 键，SessionEnd GC |
 | `src\install.rs` | oma 根解析（oma_home）加自管根存量探测（managed_binaries/version）加共享下载件 download_asset（self update 复用）；安装机器已随 D20 删除 |
-| `src\statusline.rs` | `oma agents statusline`：四家状态栏写入面幂等合并（S025 矩阵）；projKind 含 rust/node/python/zig/go/cpp（P0032）；脚本拆段拼装加用户级定制烘焙（~/.oma/statusline.toml 三层键加 --script 整替换，D18）；oma 段状态读序用户级 session 键优先（D28） |
-| `src\update.rs` | `oma self update`：dev 滚动源与正式版判新、sha256 取证、Windows rename 舞步（S028）；OMA_MIRROR 镜像通道加缓存击穿（D16） |
-| `src\trace.rs` | `oma trace` 六视图：联邦读四家原生会话库归一检索（P0013/P0014，S018/S019/S020；D15 连坐删除，D19 全量恢复） |
-| `src\verify.rs` | `oma agents verify`：四家无头验收两层判据（D17，S033）；状态栏 mock 直跑加 hook 用户级注册 byte 备份 Drop 还原与 env 隔离判据（D28）；grok trusted_folders 种子加 Drop 摘除 |
-| `src\diagnose.rs` | `oma diagnose cache\|agents`：活性诊断族（D21）：网关发现（env 覆盖大于 claude env 大于 codex provider）、缓存双连探测加 ds 特判、配置指向加在册加 key 活性加 thinking 对照 |
-| `src\skillgen.rs` | `oma skill`：从 clap 活命令树自适应渲染 SKILL.md（D22；frontmatter 按 Agent Skills 标准，--write 落用户级技能目录） |
-| `src\secretguard.rs` | `oma hook` 密钥拦截闸（S030）：模式表八层防误报、实值比对通道、PreToolUse/UserPromptSubmit 阻断 exit 2 |
+| `src\statusline.rs` | `hst agents statusline`：四家状态栏写入面幂等合并（S025 矩阵）；projKind 含 rust/node/python/zig/go/cpp（P0032）；脚本拆段拼装加用户级定制烘焙（~/.oma/statusline.toml 三层键加 --script 整替换，D18）；oma 段状态读序用户级 session 键优先（D28） |
+| `src\update.rs` | `hst self update`：dev 滚动源与正式版判新、sha256 取证、Windows rename 舞步（S028）；OMA_MIRROR 镜像通道加缓存击穿（D16） |
+| `src\trace.rs` | `hst trace` 六视图：联邦读四家原生会话库归一检索（P0013/P0014，S018/S019/S020；D15 连坐删除，D19 全量恢复） |
+| `src\verify.rs` | `hst agents verify`：四家无头验收两层判据（D17，S033）；状态栏 mock 直跑加 hook 用户级注册 byte 备份 Drop 还原与 env 隔离判据（D28）；grok trusted_folders 种子加 Drop 摘除 |
+| `src\diagnose.rs` | `hst diagnose cache\|agents`：活性诊断族（D21）：网关发现（env 覆盖大于 claude env 大于 codex provider）、缓存双连探测加 ds 特判、配置指向加在册加 key 活性加 thinking 对照 |
+| `src\skillgen.rs` | `hst skill`：从 clap 活命令树自适应渲染 SKILL.md（D22；frontmatter 按 Agent Skills 标准，--write 落用户级技能目录） |
+| `src\secretguard.rs` | `hst hook` 密钥拦截闸（S030）：模式表八层防误报、实值比对通道、PreToolUse/UserPromptSubmit 阻断 exit 2 |
 | `src\fmtio.rs` | 全局输出三态（kv/json/jsonl）与结构化错误出口（issue #1 契约，R011）；JSON 信封函数（D15 自 api.rs 迁入） |
 | `src\caps.rs` | CPU 指令集能力与探针退出形态分类（S021/P0018：is_x86_feature_detected 加 0xC000001D 识别） |
 | `src\pathutil.rs` | 路径工具；项目/家目录 `.oma`（旧 `.ohmyagents` 改名迁，D14）；`user_home`（OMA_USER_HOME 隔离缝，D28） |
@@ -93,11 +93,11 @@
 | P0035 | `P0035-项目重新定位-Agent全平台部署配置工具.md` | D15 去编排：oma 退化为 Agent 全平台 token、hook 与状态栏部署配置工具 |
 | P0036 | `P0036-D16-self-update镜像通道.md` | D16 `OMA_MIRROR` 镜像通道：dev 段边车判新、sha256 强制校验、网络失败回落 GitHub |
 | P0037 | `P0037-D19-trace六视图全量恢复.md` | D19 trace 六视图全量恢复：只读检索面回归，与 rmux 零耦合 |
-| P0038 | `P0038-D17-agents-verify无头验收.md` | D17 `oma agents verify`：状态栏 mock 直跑加 hook 无头落盘两层判据；本机四家全绿 |
+| P0038 | `P0038-D17-agents-verify无头验收.md` | D17 `hst agents verify`：状态栏 mock 直跑加 hook 无头落盘两层判据；本机四家全绿 |
 | P0039 | `P0039-D18-状态栏用户级定制.md` | D18 状态栏用户级定制：拆段拼装加生成时烘焙（segments / template / icons / codex items 三层键、--script 整替换） |
 | P0040 | `P0040-D20-去token注入收窄.md` | D20 去 token 注入收窄：五功能收敛，secrets / providers / login / install / update 五面删除，secretguard 只看环境变量 |
-| P0041 | `P0041-D21-活性诊断族.md` | D21 `oma diagnose cache\|agents`：网关发现三源、缓存双连探测加 ds 特判、配置指向加在册加 key 活性加 thinking 对照 |
-| P0042 | `P0042-D22-自适应技能生成.md` | D22 `oma skill [--write]`：clap 活命令树自适应渲染 SKILL.md |
+| P0041 | `P0041-D21-活性诊断族.md` | D21 `hst diagnose cache\|agents`：网关发现三源、缓存双连探测加 ds 特判、配置指向加在册加 key 活性加 thinking 对照 |
+| P0042 | `P0042-D22-自适应技能生成.md` | D22 `hst skill [--write]`：clap 活命令树自适应渲染 SKILL.md |
 | P0043 | `P0043-D23-secretguard完整token匹配.md` | D23 实值比对完整 token 边界匹配加脱敏前缀（#9） |
 | P0044 | `P0044-D27-hook与oma二进制解耦全平台shim.md` | D27 自包含状态 shim（cmd jq/findstr 两级加 bash/zsh）加 M057 codex PS 调用操作符根修 |
 | P0045 | `P0045-D28-hook用户级常驻与session分键状态.md` | D28 hook 注册与 shim 用户级常驻（四家统一）、`~/.oma/state/` session 分键双写、状态栏会话读序、项目面退役 |

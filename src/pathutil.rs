@@ -1,31 +1,35 @@
 use std::path::{Path, PathBuf};
 
-/// 项目与家目录下的 oma 数据目录名（D14，2026-09-07 用户裁定）。
-pub const DIR: &str = ".oma";
-/// 2026-08-31 至 D14 的旧名。仅旧在、新不在时改名迁过去。
+/// 数据目录名（D29，2026-09-12 用户裁更名 HST）：`.hst`。
+pub const DIR: &str = ".hst";
+/// D14 至 D29 的旧名（oma 纪元）。仅旧在、新不在时改名迁过去。
+pub const LEGACY_OMA_DIR: &str = ".oma";
+/// 2026-08-31 至 D14 的更旧名。仅旧在、新不在时改名迁过去。
 pub const LEGACY_DIR: &str = ".ohmyagents";
 
-/// `<parent>/.oma`。仅有旧名则 rename；两者都在则用新名、旧目录不动。
+/// `<parent>/.hst`。旧名（`.oma` 加 `.ohmyagents`）仅旧在、新不在时**同卷
+/// rename** 迁过去（D29 启动探测迁移；rename 在同一父目录内恒同卷，跨卷
+/// copy 校验删的分支由 HST_ROOT 显式覆盖场景规避——覆盖时不自动迁）；两
+/// 者都在用新名、旧目录不动。
 pub fn data_dir(parent: &Path) -> PathBuf {
     let neu = parent.join(DIR);
     if neu.exists() {
         return neu;
     }
-    let old = parent.join(LEGACY_DIR);
-    if old.exists() {
-        if std::fs::rename(&old, &neu).is_ok() {
+    for legacy in [LEGACY_OMA_DIR, LEGACY_DIR] {
+        let old = parent.join(legacy);
+        if old.exists() && std::fs::rename(&old, &neu).is_ok() {
             return neu;
         }
-        return old;
     }
     neu
 }
 
-/// 用户家目录解析（D28）：`OMA_USER_HOME` 覆盖优先（集成测试与 verify 的
+/// 用户家目录解析（D28）：`HST_USER_HOME` 覆盖优先（集成测试与 verify 的
 /// 隔离缝：init/doctor/verify/statusline 的用户级读写全部经此），缺省
 /// `dirs::home_dir()`。
 pub fn user_home() -> Result<PathBuf, String> {
-    if let Some(v) = std::env::var_os("OMA_USER_HOME") {
+    if let Some(v) = std::env::var_os("HST_USER_HOME") {
         if !v.is_empty() {
             return Ok(PathBuf::from(v));
         }
@@ -33,7 +37,7 @@ pub fn user_home() -> Result<PathBuf, String> {
     dirs::home_dir().ok_or_else(|| "cannot resolve home dir".to_string())
 }
 
-/// 跨模块共享的 env 互斥锁（测试专用）：OMA_HOME / OMA_USER_HOME 等进程
+/// 跨模块共享的 env 互斥锁（测试专用）：OMA_HOME / HST_USER_HOME 等进程
 /// 级环境变量的读写测试必须串行（各模块各自的锁锁不住彼此）。单一权威
 /// 在 `testenv::ENV_LOCK`，此处只重导出（防两把锁并存，codex review F5）。
 #[cfg(test)]
@@ -110,6 +114,44 @@ mod tests {
         ));
         std::fs::create_dir_all(&p).unwrap();
         p
+    }
+
+    #[test]
+    fn d29_migration_three_cases() {
+        // D29 三用例：有旧无新（rename 迁）、两者都有（用新不动旧）、只有
+        // 新根（原样）。
+        let parent = tmp_parent();
+        // 1) 有 .oma 无 .hst：rename 迁过去，旧目录消失。
+        std::fs::create_dir_all(parent.join(".oma").join("state")).unwrap();
+        std::fs::write(parent.join(".oma").join("state").join("claude.json"), "{}").unwrap();
+        let got = data_dir(&parent);
+        assert_eq!(got.file_name().unwrap(), DIR);
+        assert!(
+            got.join("state").join("claude.json").is_file(),
+            "content survives rename"
+        );
+        assert!(!parent.join(".oma").exists(), "old root renamed away");
+        let _ = std::fs::remove_dir_all(&parent);
+
+        // 2) 两者都有：用新名，旧目录不动（活会话 shim 重建 .oma/state 的
+        // 并存实况）。
+        let parent = tmp_parent();
+        std::fs::create_dir_all(parent.join(".oma").join("state")).unwrap();
+        std::fs::create_dir_all(parent.join(".hst").join("hooks")).unwrap();
+        let got = data_dir(&parent);
+        assert_eq!(got.file_name().unwrap(), DIR);
+        assert!(
+            parent.join(".oma").exists(),
+            "old root untouched when new present"
+        );
+        let _ = std::fs::remove_dir_all(&parent);
+
+        // 3) 只有新根：原样返回。
+        let parent = tmp_parent();
+        std::fs::create_dir_all(parent.join(".hst")).unwrap();
+        assert_eq!(data_dir(&parent).file_name().unwrap(), DIR);
+        assert!(!parent.join(".oma").exists());
+        let _ = std::fs::remove_dir_all(&parent);
     }
 
     #[test]

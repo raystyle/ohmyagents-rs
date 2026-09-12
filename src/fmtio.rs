@@ -5,7 +5,7 @@
 //! jsonl 是列表型数据的逐行对象（数据即数据，无信封）。
 //!
 //! 结构化模式（json/jsonl）下错误走 stderr 单行 JSON `{"code":"error",
-//! "message":...}`，stdout 保持纯数据；kv 模式错误 `oma: <e>` 不变。
+//! "message":...}`，stdout 保持纯数据；kv 模式错误 `hst: <e>`。
 //! serde_json 开 preserve_order：JSON 字段序与 kv 行序一致（ome S003 实证
 //! 教训——默认 BTreeMap 字母序会打乱）。
 
@@ -66,7 +66,7 @@ pub fn error_exit(e: String) -> ! {
         let obj = serde_json::json!({ "code": "error", "message": e });
         eprintln!("{obj}");
     } else {
-        eprintln!("oma: {e}");
+        eprintln!("hst: {e}");
     }
     std::process::exit(1)
 }

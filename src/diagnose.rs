@@ -1,10 +1,10 @@
-//! oma diagnose：活性诊断族（D21，ohmyagents-rs#8 / ohmycloud D45 配套）。
+//! oma diagnose：活性诊断族（D21，hst-rs#8 / ohmycloud D45 配套）。
 //! 与 doctor 的契约分家：这里打真 API（统一网关 llm.d3fend.cn）、烧最小
 //! token（每别名两条极短 prompt）、有网络延迟；doctor 保持零网络零 token。
 //! 凭据只读 agent 侧原生配置（D45 模板下发形态），不新建存储（D20 口径）：
 //! claude `~/.claude/settings.json` env（ANTHROPIC_BASE_URL / AUTH_TOKEN）、
 //! codex `~/.codex/config.toml`（model_providers.base_url）加 auth.json
-//! （OPENAI_API_KEY）；`OMA_GATEWAY_URL` / `OMA_GATEWAY_KEY` 环境覆盖（联
+//! （OPENAI_API_KEY）；`HST_GATEWAY_URL` / `HST_GATEWAY_KEY` 环境覆盖（联
 //! 调与测试通道）。
 
 use std::io::Read;
@@ -42,13 +42,27 @@ pub struct Gateway {
 }
 
 /// 网关发现：env 覆盖 > claude 配置 > codex 配置；都无则带 CTA 硬错。
+/// env 兼容读：新名优先，旧名兜底（读旧打 stderr 提示，一个版本后删）。
+fn read_env_compat(new_key: &str, old_key: &str) -> Option<String> {
+    if let Ok(v) = std::env::var(new_key) {
+        if !v.is_empty() {
+            return Some(v);
+        }
+    }
+    std::env::var(old_key)
+        .ok()
+        .filter(|s| !s.is_empty())
+        .inspect(|_| {
+            eprintln!(
+                "hst: {old_key} is deprecated; rename it to {new_key} (removed next release)"
+            );
+        })
+}
+
 pub fn discover_gateway() -> Result<Gateway, String> {
-    let env_url = std::env::var("OMA_GATEWAY_URL")
-        .ok()
-        .filter(|s| !s.is_empty());
-    let env_key = std::env::var("OMA_GATEWAY_KEY")
-        .ok()
-        .filter(|s| !s.is_empty());
+    // D29 兼容：旧 OMA_GATEWAY_* 一个版本内仍读，读旧打 stderr 提示。
+    let env_url = read_env_compat("HST_GATEWAY_URL", "OMA_GATEWAY_URL");
+    let env_key = read_env_compat("HST_GATEWAY_KEY", "OMA_GATEWAY_KEY");
     if let (Some(u), Some(k)) = (env_url, env_key) {
         return Ok(Gateway {
             base_url: u.trim_end_matches('/').to_string(),
@@ -76,7 +90,7 @@ pub fn discover_gateway() -> Result<Gateway, String> {
         });
     }
     Err(
-        "no gateway config found: set OMA_GATEWAY_URL/OMA_GATEWAY_KEY, or point claude/codex config at the gateway (ohmycloud D45 模板下发) 后重跑"
+        "no gateway config found: set HST_GATEWAY_URL/HST_GATEWAY_KEY, or point claude/codex config at the gateway (ohmycloud D45 模板下发) 后重跑"
             .into(),
     )
 }
@@ -369,7 +383,7 @@ pub fn verdict_from_usages(alias: &str, line: &Line, usages: &[Value]) -> CacheV
     }
 }
 
-/// `oma diagnose cache` 主流程。aliases 为空 = /v1/models 全量。
+/// `hst diagnose cache` 主流程。aliases 为空 = /v1/models 全量。
 pub fn run_cache(aliases: &[String]) -> Result<Vec<(String, Line, CacheVerdict)>, String> {
     let gw = discover_gateway()?;
     let targets: Vec<String> = if aliases.is_empty() {
@@ -386,7 +400,7 @@ pub fn run_cache(aliases: &[String]) -> Result<Vec<(String, Line, CacheVerdict)>
     Ok(out)
 }
 
-/// `oma diagnose agents` 主流程：配置指向、别名在册、key 活性、thinking
+/// `hst diagnose agents` 主流程：配置指向、别名在册、key 活性、thinking
 /// 对照。返回 kv 行（已排序的 (key, value) 对）。
 pub fn run_agents() -> Result<Vec<(String, String)>, String> {
     let gw = discover_gateway()?;
@@ -509,7 +523,7 @@ pub fn codex_key() -> Option<String> {
         .map(str::to_string)
 }
 
-/// kv 行渲染（`oma diagnose cache` 输出面）。
+/// kv 行渲染（`hst diagnose cache` 输出面）。
 pub fn render_cache_rows(out: &[(String, Line, CacheVerdict)]) -> Vec<String> {
     let mut lines = Vec::new();
     for (alias, line, v) in out {

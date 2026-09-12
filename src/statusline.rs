@@ -76,7 +76,7 @@ const SEG_SHELL: &str = r#"
 # ── Shell 段：agent 宿主 shell（祖先链跳过 agent 本体，向上找最近 shell）──
 $shellName = $null
 $shells = '^(pwsh|powershell|bash|zsh|sh|fish|cmd|nu|elvish|xonsh)'
-$agentStems = '^(node|claude|codex|grok|kimi|oma)'
+$agentStems = '^(node|claude|codex|grok|kimi|hst)'
 $chain = @()
 if ($IsWindows -or $env:OS -eq 'Windows_NT') {
     $p = Get-Process -Id $PID -ErrorAction SilentlyContinue
@@ -138,7 +138,7 @@ if ($dir) {
 const SEG_OMA: &str = r#"
 # ── oma 段：当前 agent 名 + 实时状态（hook 状态通道；机读标记见 S025）──
 # agent 名：oma 会话 env 优先，部署参数次之（每家配置注入自家名字）。
-$agent = if ($env:OMA_AGENT) { $env:OMA_AGENT } else { $AgentName }
+$agent = if ($env:HST_AGENT) { $env:HST_AGENT } else { $AgentName }
 # 状态读序（D28）：1) OHMYAGENTS_STATE_FILE 覆盖；2) 用户级 session 键
 # ~/.oma/state/<agent>-<session>.json（session 取 payload session_id /
 # sessionId）；3) 用户级 <agent>.json（agent 最新）；4) 项目级旧协议
@@ -159,14 +159,14 @@ if ($env:OHMYAGENTS_STATE_FILE) {
         } catch {}
     }
 } else {
-    $omaStateDir = $null
-    if ($HOME) { $omaStateDir = Join-Path (Join-Path $HOME '.oma') 'state' }
+    $hstStateDir = $null
+    if ($HOME) { $hstStateDir = Join-Path (Join-Path $HOME '.hst') 'state' }
     $cands = @()
-    if ($omaStateDir -and $sid) { $cands += (Join-Path $omaStateDir "$agent-$sid.json") }
-    if ($omaStateDir) { $cands += (Join-Path $omaStateDir "$agent.json") }
+    if ($hstStateDir -and $sid) { $cands += (Join-Path $hstStateDir "$agent-$sid.json") }
+    if ($hstStateDir) { $cands += (Join-Path $hstStateDir "$agent.json") }
     $base = if ($root) { $root } else { $dir }
     if ($base) {
-        $omaDir = Join-Path $base '.oma'
+        $omaDir = Join-Path $base '.hst'
         if (-not (Test-Path $omaDir)) { $omaDir = Join-Path $base '.ohmyagents' }
         $cands += (Join-Path (Join-Path $omaDir 'state') "$agent.json")
     }
@@ -720,11 +720,11 @@ fn effective_order(cfg: &StatuslineConfig) -> Result<Vec<&str>, String> {
 }
 
 pub(crate) fn script_path(home: &Path) -> PathBuf {
-    home.join("statusline").join("oma-statusline.ps1")
+    home.join("statusline").join("hst-statusline.ps1")
 }
 
 pub(crate) fn grok_cmd_path(home: &Path) -> PathBuf {
-    home.join("statusline").join("oma-statusline-grok.cmd")
+    home.join("statusline").join("hst-statusline-grok.cmd")
 }
 
 /// Windows Grok `[ui.status_line].command` must be a single spawnable path.
@@ -733,14 +733,14 @@ pub(crate) fn grok_cmd_path(home: &Path) -> PathBuf {
 /// line contains quotes and slashes, so Windows returns ERROR_INVALID_NAME
 /// 123 and paints `[status line: could not start the script: ...]` (M048).
 const STATUSLINE_GROK_CMD: &str =
-    "@echo off\r\npwsh -NoProfile -File \"%~dp0oma-statusline.ps1\" grok\r\n";
+    "@echo off\r\npwsh -NoProfile -File \"%~dp0hst-statusline.ps1\" grok\r\n";
 
 fn grok_command_line(script_str: &str) -> String {
     #[cfg(windows)]
     {
         match script_str.rsplit_once('/') {
-            Some((dir, _)) => format!("{dir}/oma-statusline-grok.cmd"),
-            None => "oma-statusline-grok.cmd".into(),
+            Some((dir, _)) => format!("{dir}/hst-statusline-grok.cmd"),
+            None => "hst-statusline-grok.cmd".into(),
         }
     }
     #[cfg(not(windows))]
@@ -1237,7 +1237,7 @@ mod tests {
         // D28 读序：session 键优先于 agent 最新键；最新键 session 不符（别
         // 会话遗留）续找而不是 unknown 断头。
         let home = scratch("sluser");
-        let state = home.join(".oma").join("state");
+        let state = home.join(".hst").join("state");
         std::fs::create_dir_all(&state).unwrap();
         std::fs::write(
             state.join("claude-s1.json"),
@@ -1284,7 +1284,7 @@ mod tests {
             .arg(script)
             .arg(agent)
             .current_dir(home)
-            .env_remove("OMA_AGENT")
+            .env_remove("HST_AGENT")
             .env_remove("OHMYAGENTS_STATE_FILE");
         // PowerShell $HOME：Windows 随 USERPROFILE、Unix 随 HOME（S025）。
         if cfg!(windows) {
@@ -1346,7 +1346,7 @@ mod tests {
         );
         assert!(home
             .join("statusline")
-            .join("oma-statusline-grok.cmd")
+            .join("hst-statusline-grok.cmd")
             .exists());
         // --builtin 还原内嵌：marker 删除、内容回拼装产物。
         restore_builtin_script(&home).unwrap();
@@ -1431,7 +1431,7 @@ mod tests {
             "Grok TUI has no Nerd PUA glyphs; script must take the ASCII path (M046)"
         );
         assert!(
-            ps1.contains("Join-Path $base '.oma'") && ps1.contains("Join-Path $base '.ohmyagents'"),
+            ps1.contains("Join-Path $base '.hst'") && ps1.contains("Join-Path $base '.ohmyagents'"),
             "D14: statusline dual-reads .oma then legacy .ohmyagents"
         );
         assert!(
@@ -1538,7 +1538,7 @@ mod tests {
         // program path; the wrapper bakes the agent name so the command
         // value can stay a single path (M048).
         assert!(STATUSLINE_GROK_CMD.contains("@echo off"));
-        assert!(STATUSLINE_GROK_CMD.contains("oma-statusline.ps1"));
+        assert!(STATUSLINE_GROK_CMD.contains("hst-statusline.ps1"));
         assert!(STATUSLINE_GROK_CMD.contains(" grok"));
         assert!(
             !STATUSLINE_GROK_CMD.contains("claude") && !STATUSLINE_GROK_CMD.contains("kimi"),
@@ -1551,12 +1551,12 @@ mod tests {
         // Oracle: grok-build `Command::new(entire_string)`; a shell line with
         // quotes is ERROR_INVALID_NAME 123, which is not NotFound, so the
         // shell fallback never runs (M048).
-        let cmd = grok_command_line("C:/Users/ray/.ohmyagents/statusline/oma-statusline.ps1");
+        let cmd = grok_command_line("C:/Users/ray/.ohmyagents/statusline/hst-statusline.ps1");
         #[cfg(windows)]
         {
             assert_eq!(
                 cmd,
-                "C:/Users/ray/.ohmyagents/statusline/oma-statusline-grok.cmd"
+                "C:/Users/ray/.ohmyagents/statusline/hst-statusline-grok.cmd"
             );
             assert!(
                 !cmd.contains('"'),
@@ -1571,7 +1571,7 @@ mod tests {
         {
             assert_eq!(
                 cmd,
-                "pwsh -NoProfile -File \"C:/Users/ray/.ohmyagents/statusline/oma-statusline.ps1\" grok"
+                "pwsh -NoProfile -File \"C:/Users/ray/.ohmyagents/statusline/hst-statusline.ps1\" grok"
             );
         }
     }
@@ -1581,7 +1581,7 @@ mod tests {
     fn dies_windows_pwsh_shell_line_is_invalid_filename() {
         // Independent oracle: Win32 ERROR_INVALID_NAME = 123. grok-build
         // command.rs only shells out on NotFound, so this error is painted.
-        let cmd = r#"pwsh -NoProfile -File "C:/Users/ray/.ohmyagents/statusline/oma-statusline.ps1" grok"#;
+        let cmd = r#"pwsh -NoProfile -File "C:/Users/ray/.ohmyagents/statusline/hst-statusline.ps1" grok"#;
         let err = std::process::Command::new(cmd)
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
@@ -1598,14 +1598,14 @@ mod tests {
         // grok [ui.status_line] type=command；其它表必须存活。
         let mut kimi: toml::Value =
             toml::from_str("theme = \"dark\"\n[status_line]\nitems = [\"model\"]\n").unwrap();
-        assert!(apply_kimi_status_line(&mut kimi, "C:/x/oma-statusline.ps1").unwrap());
-        assert!(!apply_kimi_status_line(&mut kimi, "C:/x/oma-statusline.ps1").unwrap());
+        assert!(apply_kimi_status_line(&mut kimi, "C:/x/hst-statusline.ps1").unwrap());
+        assert!(!apply_kimi_status_line(&mut kimi, "C:/x/hst-statusline.ps1").unwrap());
         let kimi_t = kimi.as_table().unwrap();
         assert_eq!(kimi_t.get("theme").unwrap().as_str(), Some("dark"));
         let sl = kimi_t.get("status_line").unwrap().as_table().unwrap();
         assert_eq!(
             sl.get("command").unwrap().as_str(),
-            Some("pwsh -NoProfile -File \"C:/x/oma-statusline.ps1\" kimi")
+            Some("pwsh -NoProfile -File \"C:/x/hst-statusline.ps1\" kimi")
         );
         assert_eq!(
             sl.get("items").unwrap().as_array().unwrap().len(),
@@ -1615,8 +1615,8 @@ mod tests {
 
         let mut grok: toml::Value =
             toml::from_str("model = \"x\"\n[ui]\npermission_mode = \"always-approve\"\n").unwrap();
-        assert!(apply_grok_status_line(&mut grok, "C:/x/oma-statusline.ps1").unwrap());
-        assert!(!apply_grok_status_line(&mut grok, "C:/x/oma-statusline.ps1").unwrap());
+        assert!(apply_grok_status_line(&mut grok, "C:/x/hst-statusline.ps1").unwrap());
+        assert!(!apply_grok_status_line(&mut grok, "C:/x/hst-statusline.ps1").unwrap());
         let grok_t = grok.as_table().unwrap();
         assert_eq!(grok_t.get("model").unwrap().as_str(), Some("x"));
         let ui = grok_t.get("ui").unwrap().as_table().unwrap();
@@ -1628,9 +1628,9 @@ mod tests {
         let sl = ui.get("status_line").unwrap().as_table().unwrap();
         assert_eq!(sl.get("type").unwrap().as_str(), Some("command"));
         let grok_cmd = sl.get("command").unwrap().as_str().unwrap();
-        assert_eq!(grok_cmd, grok_command_line("C:/x/oma-statusline.ps1"));
+        assert_eq!(grok_cmd, grok_command_line("C:/x/hst-statusline.ps1"));
         #[cfg(windows)]
-        assert_eq!(grok_cmd, "C:/x/oma-statusline-grok.cmd");
+        assert_eq!(grok_cmd, "C:/x/hst-statusline-grok.cmd");
         #[cfg(not(windows))]
         assert!(grok_cmd.ends_with("\" grok"));
     }

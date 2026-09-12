@@ -4,6 +4,7 @@ target-review*/
 .serve-fg.log
 .t1/
 /.oma/
+/.hst/
 .claude/
 .codex/
 .kimi-code/

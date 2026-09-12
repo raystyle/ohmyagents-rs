@@ -841,6 +841,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "hst-cli"
+version = "0.6.0"
+dependencies = [
+ "aes-gcm",
+ "age",
+ "assert_cmd",
+ "base64 0.22.1",
+ "clap",
+ "clap_complete",
+ "dirs",
+ "flate2",
+ "getrandom 0.3.4",
+ "glob",
+ "predicates",
+ "regex",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tar",
+ "time",
+ "toml 0.8.23",
+ "ureq",
+ "which",
+ "zip",
+]
+
+[[package]]
 name = "hybrid-array"
 version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1196,33 +1223,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
-]
-
-[[package]]
-name = "oma"
-version = "0.5.4"
-dependencies = [
- "aes-gcm",
- "age",
- "assert_cmd",
- "base64 0.22.1",
- "clap",
- "clap_complete",
- "dirs",
- "flate2",
- "getrandom 0.3.4",
- "glob",
- "predicates",
- "regex",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "tar",
- "time",
- "toml 0.8.23",
- "ureq",
- "which",
- "zip",
 ]
 
 [[package]]

@@ -3,15 +3,15 @@ use std::path::{Path, PathBuf};
 use clap::{CommandFactory, Parser, Subcommand};
 use serde_json::Value;
 
-use oma::agents;
-use oma::doctor;
-use oma::hook;
-use oma::install;
-use oma::trace;
-use oma::yolo;
+use hst::agents;
+use hst::doctor;
+use hst::hook;
+use hst::install;
+use hst::trace;
+use hst::yolo;
 
 #[derive(Parser)]
-#[command(name = "oma", version)]
+#[command(name = "hst", version)]
 struct Cli {
     /// JSON 信封输出（--format json 简写）
     #[arg(long, global = true, conflicts_with = "format")]
@@ -46,21 +46,32 @@ enum Commands {
         #[arg(long)]
         project: Option<PathBuf>,
     },
-    /// 检测本机已装哪些 agent（PATH、OMA_AGENT_PATH、OMA_*_BIN、oma 自管根、默认目录）
+    /// 检测本机已装哪些 agent（PATH、OMA_AGENT_PATH、OMA_*_BIN、hst 自管根、默认目录）
     Agents {
         #[command(subcommand)]
         cmd: Option<AgentsCmd>,
     },
-    /// Agent hook 入口：读事件写用户级 `~/.oma/state/`（session 分键，D28）。省略事件则读 stdin JSON
+    /// hook 面：状态写入入口、注册部署与无头验收（D29 三支）
     Hook {
-        /// 事件名或四态（idle/working/blocked/unknown）；省略则读 stdin JSON
-        #[arg(value_name = "事件")]
-        event: Option<String>,
-        /// agent 名（注册参数注入）
-        #[arg(long)]
-        agent: Option<String>,
+        #[command(subcommand)]
+        cmd: HookCmd,
     },
-    /// oma 自身管理（self update 自更新）
+    /// 配置四家状态栏（幂等：claude/codex/kimi/grok 各自配置面，脚本随 hst 释放）
+    Statusline {
+        /// 指定 agent（claude/codex/kimi/grok）；缺省四家都配
+        #[arg(value_name = "名")]
+        names: Vec<String>,
+        /// 打印 ~/.hst/statusline.toml 定制示例模板后退出（D18）
+        #[arg(long)]
+        example: bool,
+        /// 部署自备状态栏脚本（D18 整脚本替换；调用契约：首参 agent 名、stdin 喂 agent JSON、stdout 单行）
+        #[arg(long, conflicts_with_all = ["example", "builtin"])]
+        script: Option<PathBuf>,
+        /// 还原内嵌脚本（撤销 --script 的自备替换）
+        #[arg(long, conflicts_with = "example")]
+        builtin: bool,
+    },
+    /// hst 自身管理（self update 自更新）
     #[command(name = "self")]
     SelfGroup {
         #[command(subcommand)]
@@ -81,7 +92,7 @@ enum Commands {
         #[command(subcommand)]
         cmd: DiagnoseCmd,
     },
-    /// 生成 oma 自身 SKILL.md（从活命令树自适应渲染；--write 落用户级 ~/.claude/skills/ohmyagents/）
+    /// 生成 hst 自身 SKILL.md（从活命令树自适应渲染；--write 落用户级 ~/.claude/skills/ohmyagents/）
     Skill {
         /// 写入用户级技能目录后退出（缺省打印到 stdout）
         #[arg(long)]
@@ -103,9 +114,9 @@ enum DiagnoseCmd {
 
 #[derive(Subcommand)]
 enum SelfSub {
-    /// oma 自更新：dev 滚动源或 latest 正式版自替换；封版前用 --git 源码安装
+    /// hst 自更新：dev 滚动源或 latest 正式版自替换；封版前用 --git 源码安装
     Update {
-        /// 仓库（owner/name）；缺省 raystyle/ohmyagents-rs
+        /// 仓库（owner/name）；缺省 raystyle/hst-rs
         #[arg(long)]
         repo: Option<String>,
         /// 走正式稳定通道（releases/latest，封版 tag 触发）；缺省 dev 滚动源
@@ -216,8 +227,37 @@ enum TraceCmd {
 }
 
 #[derive(Subcommand)]
+enum HookCmd {
+    /// hook 注册部署与 shim 落位（init 的 hook 面，含 ~/.oma 迁 ~/.hst 的 heal 改写）
+    Init {
+        /// 项目根（skill 面部署用；hook 注册本身用户级）
+        #[arg(long)]
+        project: Option<PathBuf>,
+    },
+    /// 状态写入入口：读事件写用户级 `~/.hst/state/`（session 分键），加 secretguard 拦截
+    Status {
+        /// 事件名或四态（idle/working/blocked/unknown）；省略则读 stdin JSON
+        #[arg(value_name = "事件")]
+        event: Option<String>,
+        /// agent 名（注册参数注入）
+        #[arg(long)]
+        agent: Option<String>,
+    },
+    /// hook 层无头验收（agents verify 的 hook 子面）
+    Verify {
+        /// 指定 agent（claude/codex/grok/kimi）；缺省四家全验
+        #[arg(value_name = "名")]
+        names: Vec<String>,
+        /// 单家无头会话最长秒数
+        #[arg(long)]
+        timeout: Option<u64>,
+    },
+}
+
+#[derive(Subcommand)]
 enum AgentsCmd {
-    /// 配置四家状态栏（幂等：claude/codex/kimi/grok 各自配置面，脚本随 oma 释放）
+    /// 兼容别名（D29 一个小版本后删）：转发到一级命令 `hst statusline`
+    #[command(hide = true)]
     Statusline {
         /// 指定 agent（claude/codex/kimi/grok）；缺省四家都配
         #[arg(value_name = "名")]
@@ -245,15 +285,15 @@ enum AgentsCmd {
 
 fn main() {
     if let Err(e) = run() {
-        oma::fmtio::error_exit(e);
+        hst::fmtio::error_exit(e);
     }
 }
 
 fn run() -> Result<(), String> {
     let cli = Cli::parse();
-    oma::fmtio::init(cli.json, cli.format.as_deref())?;
+    hst::fmtio::init(cli.json, cli.format.as_deref())?;
     let Some(command) = cli.command else {
-        // 裸 oma：无编排面后没有默认动作，打印帮助退出。
+        // 裸 hst：无命令时打印帮助，打印帮助退出。
         let mut cmd = Cli::command();
         cmd.print_help().map_err(|e| e.to_string())?;
         println!();
@@ -270,8 +310,8 @@ fn run() -> Result<(), String> {
         Commands::Agents { cmd } => match cmd {
             None => {
                 // 结构化三态（issue #1 契约）：json 信封；jsonl 逐 agent 行。
-                match oma::fmtio::mode() {
-                    oma::fmtio::Format::Json => {
+                match hst::fmtio::mode() {
+                    hst::fmtio::Format::Json => {
                         let rows: Vec<Value> =
                             agents::detect().iter().map(agent_report_row).collect();
                         let v = serde_json::json!({
@@ -282,12 +322,12 @@ fn run() -> Result<(), String> {
                         let cwd = std::env::current_dir().unwrap_or_default();
                         print_json("agents", &cwd, Ok(v))?;
                     }
-                    oma::fmtio::Format::Jsonl => {
+                    hst::fmtio::Format::Jsonl => {
                         let rows: Vec<Value> =
                             agents::detect().iter().map(agent_report_row).collect();
-                        oma::fmtio::print_jsonl(&rows);
+                        hst::fmtio::print_jsonl(&rows);
                     }
-                    oma::fmtio::Format::Kv => agents::print_reports(&agents::detect()),
+                    hst::fmtio::Format::Kv => agents::print_reports(&agents::detect()),
                 }
                 Ok(())
             }
@@ -297,21 +337,31 @@ fn run() -> Result<(), String> {
                 script,
                 builtin,
             }) => cmd_agents_statusline(names, example, script, builtin),
-            Some(AgentsCmd::Verify { names, timeout }) => cmd_agents_verify(names, timeout),
+            Some(AgentsCmd::Verify { names, timeout }) => cmd_agents_verify(names, timeout, false),
         },
-        Commands::Hook { event, agent } => cmd_hook(event, agent),
+        Commands::Hook { cmd } => match cmd {
+            HookCmd::Init { project } => cmd_hook_init(project),
+            HookCmd::Status { event, agent } => cmd_hook(event, agent),
+            HookCmd::Verify { names, timeout } => cmd_agents_verify(names, timeout, true),
+        },
+        Commands::Statusline {
+            names,
+            example,
+            script,
+            builtin,
+        } => cmd_agents_statusline(names, example, script, builtin),
         Commands::SelfGroup { cmd } => match cmd {
             SelfSub::Update {
                 repo,
                 stable,
                 git,
                 force,
-            } => oma::update::run(
-                &repo.unwrap_or_else(|| oma::update::DEFAULT_REPO.into()),
+            } => hst::update::run(
+                &repo.unwrap_or_else(|| hst::update::DEFAULT_REPO.into()),
                 if stable {
-                    oma::update::Channel::Latest
+                    hst::update::Channel::Latest
                 } else {
-                    oma::update::Channel::Dev
+                    hst::update::Channel::Dev
                 },
                 git,
                 force,
@@ -324,11 +374,11 @@ fn run() -> Result<(), String> {
     }
 }
 
-/// `oma skill [--write]`：从 clap 活命令树自适应渲染 SKILL.md（D22）。
+/// `hst skill [--write]`：从 clap 活命令树自适应渲染 SKILL.md（D22）。
 fn cmd_skill(write: bool) -> Result<(), String> {
-    let body = oma::skillgen::render_skill(&Cli::command());
+    let body = hst::skillgen::render_skill(&Cli::command());
     if write {
-        let dir = oma::pathutil::user_home()?
+        let dir = hst::pathutil::user_home()?
             .join(".claude")
             .join("skills")
             .join("ohmyagents");
@@ -343,24 +393,24 @@ fn cmd_skill(write: bool) -> Result<(), String> {
     }
 }
 
-/// `oma diagnose cache|agents`：活性诊断族（D21）。打真 API、烧最小 token。
+/// `hst diagnose cache|agents`：活性诊断族（D21）。打真 API、烧最小 token。
 fn cmd_diagnose(cmd: DiagnoseCmd) -> Result<(), String> {
     match cmd {
         DiagnoseCmd::Cache { aliases } => {
-            let out = oma::diagnose::run_cache(&aliases)?;
-            for line in oma::diagnose::render_cache_rows(&out) {
+            let out = hst::diagnose::run_cache(&aliases)?;
+            for line in hst::diagnose::render_cache_rows(&out) {
                 println!("{line}");
             }
             let failed = out
                 .iter()
-                .any(|(_, _, v)| matches!(v, oma::diagnose::CacheVerdict::Error(_)));
+                .any(|(_, _, v)| matches!(v, hst::diagnose::CacheVerdict::Error(_)));
             if failed {
                 std::process::exit(1);
             }
             Ok(())
         }
         DiagnoseCmd::Agents => {
-            let rows = oma::diagnose::run_agents()?;
+            let rows = hst::diagnose::run_agents()?;
             for (k, v) in rows {
                 println!("{k}={v}");
             }
@@ -372,7 +422,7 @@ fn cmd_diagnose(cmd: DiagnoseCmd) -> Result<(), String> {
 
 /// --json 出口：信封进 stdout（机器面），业务失败先吐信封再向上传播退出非 0。
 fn print_json(command: &str, root: &Path, outcome: Result<Value, String>) -> Result<(), String> {
-    let env = oma::fmtio::envelope(command, root, outcome);
+    let env = hst::fmtio::envelope(command, root, outcome);
     let text = serde_json::to_string_pretty(&env).map_err(|e| e.to_string())?;
     println!("{text}");
     match env.get("ok").and_then(|v| v.as_bool()) {
@@ -388,11 +438,11 @@ fn print_json(command: &str, root: &Path, outcome: Result<Value, String>) -> Res
 /// completions：clap_complete 生成，stdout 直接吐脚本。
 fn cmd_completions(shell: clap_complete::Shell) -> Result<(), String> {
     let mut cmd = Cli::command();
-    clap_complete::generate(shell, &mut cmd, "oma", &mut std::io::stdout());
+    clap_complete::generate(shell, &mut cmd, "hst", &mut std::io::stdout());
     Ok(())
 }
 
-/// `oma agents statusline [名] [--example] [--script 路径] [--builtin]`：
+/// `hst statusline [名] [--example] [--script 路径] [--builtin]`：
 /// 配置四家状态栏（幂等）。--script 部署自备脚本（D18 整脚本替换），
 /// --builtin 还原内嵌。
 fn cmd_agents_statusline(
@@ -402,10 +452,10 @@ fn cmd_agents_statusline(
     builtin: bool,
 ) -> Result<(), String> {
     if example {
-        println!("{}", oma::statusline::EXAMPLE_TOML.trim_end());
+        println!("{}", hst::statusline::EXAMPLE_TOML.trim_end());
         return Ok(());
     }
-    let home = install::oma_home()?;
+    let home = install::hst_home()?;
     let supported = ["claude", "codex", "kimi", "grok"];
     let do_all = names.is_empty();
     let unknown: Vec<String> = names
@@ -421,29 +471,29 @@ fn cmd_agents_statusline(
     }
     // 整脚本替换先行（同一部署文件名，后续 merge 指向不变）。
     if let Some(src) = &script {
-        oma::statusline::deploy_custom_script(&home, src)?;
+        hst::statusline::deploy_custom_script(&home, src)?;
     } else if builtin {
-        oma::statusline::restore_builtin_script(&home)?;
+        hst::statusline::restore_builtin_script(&home)?;
     }
     if do_all || names.iter().any(|n| n == "claude") {
-        let p = oma::statusline::merge_claude(&home)?;
+        let p = hst::statusline::merge_claude(&home)?;
         println!("statusline.claude={p}");
     }
     if do_all || names.iter().any(|n| n == "codex") {
-        let p = oma::statusline::merge_codex(&home)?;
+        let p = hst::statusline::merge_codex(&home)?;
         println!("statusline.codex={p}");
     }
     if do_all || names.iter().any(|n| n == "kimi") {
-        let p = oma::statusline::merge_kimi(&home)?;
+        let p = hst::statusline::merge_kimi(&home)?;
         println!("statusline.kimi={p}");
     }
     if do_all || names.iter().any(|n| n == "grok") {
-        let p = oma::statusline::merge_grok(&home)?;
+        let p = hst::statusline::merge_grok(&home)?;
         println!("statusline.grok={p}");
     }
     // The bar renders through pwsh on every platform; without it the merged
     // config is inert. Advisory, never fatal (P0027).
-    if oma::statusline::pwsh_on_path() {
+    if hst::statusline::pwsh_on_path() {
         println!("statusline.pwsh=found");
     } else {
         println!("statusline.pwsh=missing");
@@ -454,22 +504,57 @@ fn cmd_agents_statusline(
         println!("statusline.script={}", src.display());
     } else if builtin {
         println!("statusline.custom=false");
-    } else if oma::statusline::custom_active(&home) {
+    } else if hst::statusline::custom_active(&home) {
         println!("statusline.custom=true");
     }
     println!("statusline.ok=true");
     Ok(())
 }
 
-/// `oma agents verify [名...] [--timeout N]`：四家 hook 与状态栏无头验收（D17）。
+/// `hst agents verify [名...] [--timeout N]`：四家 hook 与状态栏无头验收（D17）。
 /// 缺省四家全验；skip（未装）不算失败，任一非跳过项失败退出 1。
-fn cmd_agents_verify(names: Vec<String>, timeout: Option<u64>) -> Result<(), String> {
-    let outcomes = oma::verify::run(&names, timeout.unwrap_or(oma::verify::DEFAULT_TIMEOUT_SECS))?;
-    for line in oma::verify::render(&outcomes) {
+fn cmd_agents_verify(
+    names: Vec<String>,
+    timeout: Option<u64>,
+    hook_only: bool,
+) -> Result<(), String> {
+    let mut outcomes =
+        hst::verify::run(&names, timeout.unwrap_or(hst::verify::DEFAULT_TIMEOUT_SECS))?;
+    if hook_only {
+        // `hst hook verify`（D29）：只验 hook 层，状态栏层剔除（skip 不计败）。
+        for o in outcomes.iter_mut() {
+            if !matches!(o.statusline, hst::verify::LayerVerdict::Skip(_)) {
+                o.statusline = hst::verify::LayerVerdict::Skip("hook-only".into());
+            }
+        }
+    }
+    for line in hst::verify::render(&outcomes) {
         println!("{line}");
     }
-    if oma::verify::any_fail(&outcomes) {
+    if hst::verify::any_fail(&outcomes) {
         std::process::exit(1);
+    }
+    Ok(())
+}
+
+/// `hst hook init`：hook 面部署（注册加 shim 加 heal 迁移改写）；skill 与
+/// 说明面不在此（那是 `hst init` 全套的事）。
+fn cmd_hook_init(project: Option<PathBuf>) -> Result<(), String> {
+    let root = project_root(project)?;
+    std::fs::create_dir_all(&root).map_err(|e| format!("{}: {e}", root.display()))?;
+    let user_home = hst::pathutil::user_home()?;
+    let oma = hst::install::hst_home()?;
+    let mut report = hst::deploy::DeployReport::default();
+    hst::deploy::deploy_user_hooks_with(&user_home, &oma, hst::deploy::host_side(), &mut report)?;
+    for p in &report.wrote {
+        println!("hook.init.wrote={p}");
+    }
+    println!("hook.init.wrote.count={}", report.wrote.len());
+    if let Some(form) = report.form {
+        println!("hook.init.form={form}");
+    }
+    for w in &report.warns {
+        println!("hook.init.warn={w}");
     }
     Ok(())
 }
@@ -478,24 +563,24 @@ fn cmd_hook(event: Option<String>, agent: Option<String>) -> Result<(), String> 
     match hook::run(event.as_deref(), agent.as_deref()) {
         Ok(outcome) => {
             if let Some(path) = outcome.state_file {
-                if std::env::var_os("OMA_HOOK_VERBOSE").is_some() {
-                    eprintln!("oma.hook.wrote={}", path.display());
+                if std::env::var_os("HST_HOOK_VERBOSE").is_some() {
+                    eprintln!("hst.hook.wrote={}", path.display());
                 }
             }
             if let Some(g) = outcome.guard {
                 if g.block {
                     // exit 2 = agent 侧拒工具调用，stderr 原因回给模型（S030）。
-                    eprintln!("oma secretguard: {}", g.reasons.join("; "));
+                    eprintln!("hst secretguard: {}", g.reasons.join("; "));
                     std::process::exit(2);
                 }
-                if std::env::var_os("OMA_HOOK_VERBOSE").is_some() && !g.findings.is_empty() {
+                if std::env::var_os("HST_HOOK_VERBOSE").is_some() && !g.findings.is_empty() {
                     eprintln!("oma.secretguard.findings={}", g.findings.len());
                 }
             }
         }
         Err(e) => {
             // Never fail the agent session over a state-file write.
-            if std::env::var_os("OMA_HOOK_VERBOSE").is_some() {
+            if std::env::var_os("HST_HOOK_VERBOSE").is_some() {
                 eprintln!("oma hook: {e}");
             }
         }
@@ -544,7 +629,7 @@ fn cmd_init(
             println!("init.wrote={p}");
         }
         if !yolo {
-            let deployed = oma::deploy::deploy_all(&root)?;
+            let deployed = hst::deploy::deploy_all(&root)?;
             for p in &deployed.wrote {
                 println!("init.hooks.wrote={p}");
             }
@@ -600,7 +685,7 @@ fn agent_report_row(r: &agents::Report) -> Value {
         None => serde_json::json!({
             "agent": r.agent,
             "status": "missing",
-            "hint": format!("ome install {}", r.agent),
+            "hint": format!("ark install {}", r.agent),
         }),
     }
 }
@@ -623,15 +708,15 @@ fn cmd_doctor(project: Option<PathBuf>) -> Result<(), String> {
         .collect();
     // 结构化三态（issue #1 契约）：json 信封；jsonl 逐 finding 行对象；
     // blocked 退出码 1 在三种模式下一致。
-    match oma::fmtio::mode() {
-        oma::fmtio::Format::Json => {
+    match hst::fmtio::mode() {
+        hst::fmtio::Format::Json => {
             let v = serde_json::json!({ "blocked": d.blocked(), "findings": findings });
             print_json("doctor", &root, Ok(v))?;
         }
-        oma::fmtio::Format::Jsonl => {
-            oma::fmtio::print_jsonl(&findings);
+        hst::fmtio::Format::Jsonl => {
+            hst::fmtio::print_jsonl(&findings);
         }
-        oma::fmtio::Format::Kv => doctor::print_diagnosis(&d),
+        hst::fmtio::Format::Kv => doctor::print_diagnosis(&d),
     }
     if d.blocked() {
         std::process::exit(1);
@@ -839,8 +924,8 @@ struct TraceRow {
 fn emit_trace(count_key: &str, rows: Vec<TraceRow>, total: usize, offset: usize, project: &Path) {
     let shown = rows.len();
     let has_more = offset + shown < total;
-    match oma::fmtio::mode() {
-        oma::fmtio::Format::Kv => {
+    match hst::fmtio::mode() {
+        hst::fmtio::Format::Kv => {
             for r in &rows {
                 println!("{}", r.kv);
             }
@@ -852,19 +937,19 @@ fn emit_trace(count_key: &str, rows: Vec<TraceRow>, total: usize, offset: usize,
                 );
             }
         }
-        oma::fmtio::Format::Jsonl => {
+        hst::fmtio::Format::Jsonl => {
             for r in &rows {
                 println!("{}", r.json);
             }
         }
-        oma::fmtio::Format::Json => {
+        hst::fmtio::Format::Json => {
             let data = serde_json::json!({
                 "count": shown,
                 "total": total,
                 "has_more": has_more,
                 "items": rows.iter().map(|r| r.json.clone()).collect::<Vec<_>>(),
             });
-            let env = oma::fmtio::envelope(count_key, project, Ok(data));
+            let env = hst::fmtio::envelope(count_key, project, Ok(data));
             let text = serde_json::to_string_pretty(&env).unwrap_or_default();
             println!("{text}");
         }

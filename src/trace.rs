@@ -510,11 +510,11 @@ pub fn kimi_sessions_in(index: &Path, project: &Path) -> Vec<TraceSession> {
 
 // ---- 事件抽取 ----
 
-/// 会话库根：缺省家目录；`OMA_TRACE_HOME` 覆盖（联调与测试通道，三平台
+/// 会话库根：缺省家目录；`HST_TRACE_HOME` 覆盖（联调与测试通道，三平台
 /// 同形——Windows 的家目录解析走 SHGetKnownFolderPath，HOME / USERPROFILE
 /// 环境重定向对 dirs 无效，故显式开一扇门）。
 fn sessions_home() -> PathBuf {
-    std::env::var_os("OMA_TRACE_HOME")
+    std::env::var_os("HST_TRACE_HOME")
         .filter(|s| !s.is_empty())
         .map(PathBuf::from)
         .or_else(dirs::home_dir)

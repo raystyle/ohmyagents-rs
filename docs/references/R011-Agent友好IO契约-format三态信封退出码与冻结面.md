@@ -4,7 +4,7 @@
 
 ## 三态输出
 
-全局 `--format kv|json|jsonl`，`--json` 为 json 简写（两者互斥，clap 用法错 exit 2），子命令后可用（`oma doctor --json`）。
+全局 `--format kv|json|jsonl`，`--json` 为 json 简写（两者互斥，clap 用法错 exit 2），子命令后可用（`hst doctor --json`）。
 
 | 态 | 形态 | 适用 |
 | --- | --- | --- |
@@ -37,8 +37,8 @@
 
 | 命令 | json 数据形 | jsonl 行形 |
 | --- | --- | --- |
-| `oma doctor` | `{blocked, findings[]}` | 逐 finding：`{agent,check,status,path,detail}` |
-| `oma agents` | `{installed,missing,agents[]}` | 逐 agent：`{agent,status,source,path,version,extras[]}`（missing 行带 hint） |
+| `hst doctor` | `{blocked, findings[]}` | 逐 finding：`{agent,check,status,path,detail}` |
+| `hst agents` | `{installed,missing,agents[]}` | 逐 agent：`{agent,status,source,path,version,extras[]}`（missing 行带 hint） |
 
 hook / completions 不进 format 面（协议通道各有自己的 stdout 纪律）。
 

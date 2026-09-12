@@ -15,7 +15,7 @@ use crate::yolo::kimi_workspace_key;
 pub enum Status {
     Ok,
     /// Deploy-diagnosis gap that does not block an interactive run (login
-    /// missing, statusline off): surfaced for `oma doctor`,
+    /// missing, statusline off): surfaced for `hst doctor`,
     /// never counted by `blocked()`.
     Warn,
     Block,
@@ -358,7 +358,13 @@ pub(crate) fn login_state(agent: &str) -> Option<(Status, String)> {
 
 // ===== 状态栏形态（S025 落位） =====
 
-const STATUSLINE_MARKER: &str = "oma-statusline";
+/// 状态栏脚本标记：hst 现行名加 oma 历史名（heal 残留识别）双匹配。
+const STATUSLINE_MARKER: &str = "hst-statusline";
+const STATUSLINE_MARKER_LEGACY: &str = "oma-statusline";
+
+fn has_statusline_marker(c: &str) -> bool {
+    c.contains(STATUSLINE_MARKER) || c.contains(STATUSLINE_MARKER_LEGACY)
+}
 
 fn claude_statusline_on(home: &Path) -> bool {
     json_file(&home.join(".claude").join("settings.json"))
@@ -366,7 +372,7 @@ fn claude_statusline_on(home: &Path) -> bool {
         .and_then(|v| v.get("statusLine"))
         .and_then(|s| s.get("command"))
         .and_then(|c| c.as_str())
-        .is_some_and(|c| c.contains(STATUSLINE_MARKER))
+        .is_some_and(|c| has_statusline_marker(c))
 }
 
 /// Codex `[tui].status_line` kinds. Command-argv is the oma 2026-09-01
@@ -380,11 +386,7 @@ enum CodexStatusline {
 }
 
 fn looks_like_codex_command_argv(s: &str) -> bool {
-    s.contains(STATUSLINE_MARKER)
-        || s == "pwsh"
-        || s == "-NoProfile"
-        || s == "-File"
-        || s == "command"
+    has_statusline_marker(s) || s == "pwsh" || s == "-NoProfile" || s == "-File" || s == "command"
 }
 
 fn is_codex_builtin_status_item(s: &str) -> bool {
@@ -460,7 +462,7 @@ fn kimi_statusline_on(home: &Path) -> bool {
         .and_then(|t| t.get("status_line"))
         .and_then(|sl| sl.get("command"))
         .and_then(|c| c.as_str())
-        .is_some_and(|c| c.contains(STATUSLINE_MARKER))
+        .is_some_and(|c| has_statusline_marker(c))
 }
 
 /// Grok `[ui.status_line].command` kinds. A `pwsh -File "..."` shell line
@@ -486,7 +488,7 @@ fn grok_statusline_state(home: &Path) -> GrokStatusline {
     else {
         return GrokStatusline::Missing;
     };
-    if cmd.ends_with("oma-statusline-grok.cmd") && !cmd.contains("pwsh") {
+    if cmd.ends_with("hst-statusline-grok.cmd") && !cmd.contains("pwsh") {
         return GrokStatusline::CmdPath;
     }
     if cmd.contains("pwsh") && cmd.contains("-File") {
@@ -506,12 +508,12 @@ fn push_statusline(
     let (status, mut detail) = if !on {
         (
             Status::Warn,
-            format!("not configured; oma agents statusline {agent}"),
+            format!("not configured; hst statusline {agent}"),
         )
     } else if !script_ok {
         (
             Status::Warn,
-            "configured but oma-statusline.ps1 missing; rerun oma agents statusline".into(),
+            "configured but hst-statusline.ps1 missing; rerun hst statusline".into(),
         )
     } else {
         (Status::Ok, "oma bar configured".into())
@@ -524,8 +526,8 @@ fn push_statusline(
 
 // ===== hook 注册形态（P0027 口径） =====
 
-/// 命令串首 token 解析（剥调用操作符与包裹引号）：`& "D:/x/oma-state.cmd" codex`
-/// 与 `D:/x/oma-state.cmd codex` 都得 `D:/x/oma-state.cmd`。
+/// 命令串首 token 解析（剥调用操作符与包裹引号）：`& "D:/x/hst-state.cmd" codex`
+/// 与 `D:/x/hst-state.cmd codex` 都得 `D:/x/hst-state.cmd`。
 fn command_target(c: &str) -> std::path::PathBuf {
     let first = c
         .trim_start()
@@ -566,7 +568,7 @@ fn json_hooks_form(v: Option<&Json>) -> &'static str {
                 {
                     has_args = true;
                 }
-                if c.contains("oma-state") {
+                if c.contains("hst-state") || c.contains("oma-state") {
                     if command_target(c).is_file() {
                         shim = true;
                     } else {
@@ -653,7 +655,7 @@ fn codex_side_form(v: Option<&Json>, windows_side: bool) -> Option<&'static str>
             if !crate::deploy::is_ours(c) {
                 continue;
             }
-            let f = if c.contains("oma-state") {
+            let f = if c.contains("hst-state") || c.contains("oma-state") {
                 if command_target(c).is_file() {
                     "shim"
                 } else {
@@ -674,6 +676,44 @@ fn codex_side_form(v: Option<&Json>, windows_side: bool) -> Option<&'static str>
     form
 }
 
+/// D29 迁移告警：ours 注册仍带 oma 纪元形态（oma-state / .oma 路径）→
+/// warn 指引 `hst init` 完成数据根与注册改写（heal）。
+fn push_hooks_migrate(out: &mut Vec<Finding>, agent: &str, v: Option<&Json>, path: &Path) {
+    let legacy = v
+        .and_then(|v| v.get("hooks"))
+        .and_then(|h| h.as_object())
+        .is_some_and(|events| {
+            events
+                .values()
+                .filter_map(|g| g.as_array())
+                .flatten()
+                .any(|grp| {
+                    grp.get("hooks")
+                        .and_then(|h| h.as_array())
+                        .is_some_and(|hs| {
+                            hs.iter().any(|h| {
+                                ["command", "commandWindows"].iter().any(|k| {
+                                    h.get(*k).and_then(|c| c.as_str()).is_some_and(|c| {
+                                        crate::deploy::is_ours(c)
+                                            && (c.contains("oma-state") || c.contains(".oma"))
+                                    })
+                                })
+                            })
+                        })
+                })
+        });
+    if legacy {
+        push_status(
+            out,
+            agent,
+            "hooks.migrate",
+            Status::Warn,
+            path,
+            "pre-0.6.0 registration points at ~/.oma; run `hst init` to migrate root and rewrite (D29)",
+        );
+    }
+}
+
 fn push_hooks_form(out: &mut Vec<Finding>, agent: &str, form: &str, path: &Path) {
     match form {
         "shim" => push_status(
@@ -692,7 +732,7 @@ fn push_hooks_form(out: &mut Vec<Finding>, agent: &str, form: &str, path: &Path)
             Status::Warn,
             path,
             "form=shim-dead (registration points at a missing ~/.oma/hooks script; \
-             rerun oma init)",
+             rerun hst init)",
         ),
         "bare" => push_status(
             out,
@@ -746,7 +786,7 @@ fn kimi_hooks_form(toml: Option<&Toml>) -> &'static str {
             continue;
         }
         ours = true;
-        if c.contains("oma-state") {
+        if c.contains("hst-state") || c.contains("oma-state") {
             if command_target(c).is_file() {
                 shim = true;
             } else {
@@ -774,7 +814,7 @@ fn push_project_residue(out: &mut Vec<Finding>, agent: &str, ours: bool, path: &
             "hooks.retired",
             Status::Warn,
             path,
-            "project-level oma hooks remain; rerun oma init to retire (D28)",
+            "project-level oma hooks remain; rerun hst init to retire (D28)",
         );
     }
 }
@@ -787,7 +827,7 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
 
     // 部署诊断共享事实：状态栏脚本与 pwsh 探测一次（S025），登录态用统一
     // 时间基准（S026）。
-    let oma_root = crate::install::oma_home().ok();
+    let oma_root = crate::install::hst_home().ok();
     let sl_script_ok = oma_root
         .as_deref()
         .map(crate::statusline::script_path)
@@ -1027,6 +1067,12 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         json_hooks_form(json_file(&claude_user_settings).as_ref()),
         &claude_user_settings,
     );
+    push_hooks_migrate(
+        &mut findings,
+        "claude",
+        json_file(&claude_user_settings).as_ref(),
+        &claude_user_settings,
+    );
     let claude_proj_form = {
         let form = json_hooks_form(json_file(&claude_shared).as_ref());
         if form != "none" {
@@ -1165,7 +1211,7 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
             "user [hooks.state] keys+hashes match (hooks.json source)".to_string()
         } else {
             format!(
-                "hook trust missing/mismatched for {}; rerun oma init or --dangerously-bypass-hook-trust",
+                "hook trust missing/mismatched for {}; rerun hst init or --dangerously-bypass-hook-trust",
                 trust_gap.join(",")
             )
         },
@@ -1208,7 +1254,7 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         },
     );
     push_binary(&mut findings, "codex");
-    let codex_json = codex_user_hooks;
+    let codex_json = codex_user_hooks.clone();
     let (codex_unix, codex_win) = codex_hooks_sides(codex_json.as_ref());
     if codex_unix || codex_win {
         // 分侧辨形（review 验收补）：warn 判据只看宿主侧字段——非宿主侧在
@@ -1246,13 +1292,19 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
             &codex_user_hooks_path,
             format!(
                 "per-OS fields ours: {} (shim by design, D27/D28; host side must be shim, \
-                 dead/absolute anywhere = rerun oma init)",
+                 dead/absolute anywhere = rerun hst init)",
                 sides.join(", ")
             ),
         );
     } else {
         push_hooks_form(&mut findings, "codex", "none", &codex_user_hooks_path);
     }
+    push_hooks_migrate(
+        &mut findings,
+        "codex",
+        codex_user_hooks.as_ref(),
+        &codex_user_hooks_path,
+    );
     push_project_residue(
         &mut findings,
         "codex",
@@ -1277,7 +1329,7 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
                 "statusline",
                 Status::Warn,
                 &cfg,
-                "status_line is command-argv; Codex only accepts built-in item IDs (S016); oma agents statusline",
+                "status_line is command-argv; Codex only accepts built-in item IDs (S016); hst statusline",
             ),
             CodexStatusline::Missing => push_statusline(
                 &mut findings,
@@ -1536,6 +1588,12 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         json_hooks_form(json_file(&grok_state_json).as_ref()),
         &grok_state_json,
     );
+    push_hooks_migrate(
+        &mut findings,
+        "grok",
+        json_file(&grok_state_json).as_ref(),
+        &grok_state_json,
+    );
     push_project_residue(
         &mut findings,
         "grok",
@@ -1571,7 +1629,7 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
                 "statusline",
                 Status::Warn,
                 &grok_cfg,
-                "status_line is a Windows .cmd path; oma agents statusline grok",
+                "status_line is a Windows .cmd path; hst statusline grok",
             );
         }
         GrokStatusline::PwshFile => {
@@ -1582,7 +1640,7 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
                 "statusline",
                 Status::Warn,
                 &grok_cfg,
-                "status_line is pwsh -File shell line; Grok Command::new paints os error 123 (M048); oma agents statusline grok",
+                "status_line is pwsh -File shell line; Grok Command::new paints os error 123 (M048); hst statusline grok",
             );
             #[cfg(not(windows))]
             push_statusline(
@@ -1639,7 +1697,7 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
     // 目（可能来自任何项目的会话），blocked 一律 warn 不 block——doctor
     // 的 Block 语义仍只对本项目交互阻塞负责（项目级旧状态文件照旧扫，
     // blocked = Block）。
-    if let Some(user_state) = crate::install::oma_home().ok().map(|h| h.join("state")) {
+    if let Some(user_state) = crate::install::hst_home().ok().map(|h| h.join("state")) {
         if user_state.is_dir() {
             if let Ok(rd) = fs::read_dir(&user_state) {
                 for ent in rd.flatten() {
@@ -1708,7 +1766,7 @@ mod tests {
             .lock()
             .unwrap_or_else(|e| e.into_inner());
         let oma = temp_root("pstate");
-        std::env::set_var("OMA_HOME", &oma);
+        std::env::set_var("HST_ROOT", &oma);
         let root = std::env::temp_dir().join(format!(
             "oma-doctor-state-{}-{}",
             std::process::id(),
@@ -1721,7 +1779,7 @@ mod tests {
         fs::create_dir_all(&state).unwrap();
         fs::write(state.join("codex.json"), r#"{"state":"blocked"}"#).unwrap();
         let d = diagnose(&root).expect("diagnose");
-        std::env::remove_var("OMA_HOME");
+        std::env::remove_var("HST_ROOT");
         assert_eq!(d.status("codex", "state"), Some(Status::Block));
         let _ = fs::remove_dir_all(&oma);
         let _ = fs::remove_dir_all(&root);
@@ -1752,13 +1810,13 @@ mod tests {
             r#"{"state":"working"}"#,
         )
         .unwrap();
-        std::env::set_var("OMA_HOME", &oma);
+        std::env::set_var("HST_ROOT", &oma);
         let root = temp_root("ustate-proj");
         let proj_state = crate::pathutil::project_dir(&root).join("state");
         fs::create_dir_all(&proj_state).unwrap();
         fs::write(proj_state.join("codex.json"), r#"{"state":"blocked"}"#).unwrap();
         let d = diagnose(&root).expect("diagnose");
-        std::env::remove_var("OMA_HOME");
+        std::env::remove_var("HST_ROOT");
         // 用户级 blocked：warn 不 block。
         assert_eq!(d.status("claude", "state"), Some(Status::Warn));
         let kimi_rows: Vec<&Finding> = d
@@ -1875,7 +1933,7 @@ mod tests {
             .unwrap_or_else(|e| e.into_inner());
         let user = temp_root("yolo-user");
         fs::create_dir_all(&user).unwrap();
-        std::env::set_var("OMA_USER_HOME", &user);
+        std::env::set_var("HST_USER_HOME", &user);
         let root = std::env::temp_dir().join(format!(
             "oma-doctor-yolo-gates-{}-{}",
             std::process::id(),
@@ -1900,7 +1958,7 @@ mod tests {
         .unwrap();
         crate::yolo::apply_user_yolo_with(&user).expect("yolo");
         let d = diagnose(&root).expect("diagnose");
-        std::env::remove_var("OMA_USER_HOME");
+        std::env::remove_var("HST_USER_HOME");
         assert_eq!(d.status("claude", "yolo"), Some(Status::Ok));
         assert_eq!(d.status("claude", "trust.skill"), Some(Status::Block));
         // 用户级 enableAll 已由 yolo 面写入（缝内家），项目 MCP 由此覆盖。
@@ -1979,7 +2037,7 @@ mod tests {
                 .unwrap()
                 .as_millis()
         ));
-        let alive = dir.join(".oma").join("hooks").join("oma-state.cmd");
+        let alive = dir.join(".oma").join("hooks").join("hst-state.cmd");
         std::fs::create_dir_all(alive.parent().unwrap()).unwrap();
         std::fs::write(&alive, "@echo off\r\n").unwrap();
         let alive_fwd = alive.to_string_lossy().replace('\\', "/");
@@ -1992,7 +2050,7 @@ mod tests {
         ]}]}});
         assert_eq!(json_hooks_form(Some(&shim_grok)), "shim");
         let dead = json!({"hooks": {"SessionStart": [{"hooks": [
-            {"command": "D:/moved-away/.oma/hooks/oma-state.cmd claude"}
+            {"command": "D:/moved-away/.oma/hooks/hst-state.cmd claude"}
         ]}]}});
         assert_eq!(json_hooks_form(Some(&dead)), "shim-dead");
         let _ = std::fs::remove_dir_all(&dir);
@@ -2027,7 +2085,7 @@ mod tests {
                 .unwrap()
                 .as_millis()
         ));
-        let alive = dir.join(".oma").join("hooks").join("oma-state.cmd");
+        let alive = dir.join(".oma").join("hooks").join("hst-state.cmd");
         std::fs::create_dir_all(alive.parent().unwrap()).unwrap();
         std::fs::write(&alive, "@echo off\r\n").unwrap();
         let fwd = alive.to_string_lossy().replace('\\', "/");
@@ -2038,7 +2096,7 @@ mod tests {
         // M055 兜底：command 是 bare（设计态，非宿主侧不 warn 的判据基础）。
         assert_eq!(codex_side_form(Some(&shim_win), false), Some("bare"));
         let dead = json!({"hooks": {"SessionStart": [{"hooks": [
-            {"command": "\"/p/x/.oma/hooks/oma-state.sh\" codex"}
+            {"command": "\"/p/x/.oma/hooks/hst-state.sh\" codex"}
         ]}]}});
         assert_eq!(codex_side_form(Some(&dead), false), Some("shim-dead"));
         let absolute = json!({"hooks": {"SessionStart": [{"hooks": [
@@ -2048,7 +2106,7 @@ mod tests {
         // 多条 ours 取最差：shim 加 dead 共存判 dead。
         let mixed = json!({"hooks": {"SessionStart": [
             {"hooks": [{"commandWindows": format!("{fwd} codex")}]},
-            {"hooks": [{"commandWindows": "D:/moved/.oma/hooks/oma-state.cmd codex"}]}
+            {"hooks": [{"commandWindows": "D:/moved/.oma/hooks/hst-state.cmd codex"}]}
         ]}});
         assert_eq!(codex_side_form(Some(&mixed), true), Some("shim-dead"));
         assert_eq!(codex_side_form(None, true), None);
@@ -2086,7 +2144,7 @@ mod tests {
         assert_eq!(codex_statusline_state(&root), CodexStatusline::Missing);
         fs::write(
             root.join(".codex").join("config.toml"),
-            "[tui]\nstatus_line = [\"command\", \"pwsh\", \"-File\", \"C:/x/oma-statusline.ps1\"]\n",
+            "[tui]\nstatus_line = [\"command\", \"pwsh\", \"-File\", \"C:/x/hst-statusline.ps1\"]\n",
         )
         .unwrap();
         assert_eq!(codex_statusline_state(&root), CodexStatusline::CommandArgv);
@@ -2108,13 +2166,13 @@ mod tests {
         assert_eq!(grok_statusline_state(&root), GrokStatusline::Missing);
         fs::write(
             root.join(".grok").join("config.toml"),
-            "[ui.status_line]\ntype = \"command\"\ncommand = \"pwsh -NoProfile -File \\\"C:/x/oma-statusline.ps1\\\" grok\"\n",
+            "[ui.status_line]\ntype = \"command\"\ncommand = \"pwsh -NoProfile -File \\\"C:/x/hst-statusline.ps1\\\" grok\"\n",
         )
         .unwrap();
         assert_eq!(grok_statusline_state(&root), GrokStatusline::PwshFile);
         fs::write(
             root.join(".grok").join("config.toml"),
-            "[ui.status_line]\ntype = \"command\"\ncommand = \"C:/Users/ray/.ohmyagents/statusline/oma-statusline-grok.cmd\"\n",
+            "[ui.status_line]\ntype = \"command\"\ncommand = \"C:/Users/ray/.ohmyagents/statusline/hst-statusline-grok.cmd\"\n",
         )
         .unwrap();
         assert_eq!(grok_statusline_state(&root), GrokStatusline::CmdPath);
@@ -2138,7 +2196,7 @@ mod tests {
             .unwrap();
         let root = temp_root("codex-user-trust-proj");
         fs::create_dir_all(&root).unwrap();
-        std::env::set_var("OMA_USER_HOME", &user);
+        std::env::set_var("HST_USER_HOME", &user);
         let d = diagnose(&root).expect("diagnose");
         assert_eq!(
             d.status("codex", "trust.hooks"),
@@ -2172,7 +2230,7 @@ mod tests {
         assert!(tampered, "state table has at least one entry");
         crate::yolo::toml_write(&cfg_path, &cfg).unwrap();
         let d = diagnose(&root).expect("diagnose");
-        std::env::remove_var("OMA_USER_HOME");
+        std::env::remove_var("HST_USER_HOME");
         assert_eq!(
             d.status("codex", "trust.hooks"),
             Some(Status::Block),
@@ -2188,7 +2246,7 @@ mod tests {
         // F8 回归钉：kimi 用户级 [[hooks]] 指向缺失 shim 判 shim-dead（与
         // claude / grok 面同款在位探针）。
         let dir = temp_root("kimi-form");
-        let dead = dir.join(".oma").join("hooks").join("oma-state.cmd");
+        let dead = dir.join(".oma").join("hooks").join("hst-state.cmd");
         fs::create_dir_all(dead.parent().unwrap()).unwrap();
         let fwd = dead.to_string_lossy().replace('\\', "/");
         let cfg_text = format!(
@@ -2248,9 +2306,9 @@ approval_policy = \"on-request\"
 ",
         )
         .unwrap();
-        std::env::set_var("OMA_USER_HOME", &user);
+        std::env::set_var("HST_USER_HOME", &user);
         let d = diagnose(&root).expect("diagnose");
-        std::env::remove_var("OMA_USER_HOME");
+        std::env::remove_var("HST_USER_HOME");
         for agent in ["claude", "codex", "kimi"] {
             let f = d
                 .findings
@@ -2270,9 +2328,9 @@ approval_policy = \"on-request\"
             r#"{"permissions": {"defaultMode": "bypassPermissions"}}"#,
         )
         .unwrap();
-        std::env::set_var("OMA_USER_HOME", &user);
+        std::env::set_var("HST_USER_HOME", &user);
         let d = diagnose(&root).expect("diagnose");
-        std::env::remove_var("OMA_USER_HOME");
+        std::env::remove_var("HST_USER_HOME");
         assert_eq!(d.status("claude", "yolo"), Some(Status::Ok));
         let _ = fs::remove_dir_all(&user);
         let _ = fs::remove_dir_all(&root);

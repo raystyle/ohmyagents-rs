@@ -14,8 +14,8 @@ const MANIFEST_NAME: &str = ".oma-agent-manifest.toml";
 
 /// oma 应用数据根：`OMA_HOME` 环境变量 > `~/.oma`（D14；旧 `~/.ohmyagents`
 /// 仅旧在则改名迁过去）。
-pub fn oma_home() -> Result<PathBuf, String> {
-    if let Some(v) = std::env::var_os("OMA_HOME") {
+pub fn hst_home() -> Result<PathBuf, String> {
+    if let Some(v) = std::env::var_os("HST_ROOT") {
         if !v.is_empty() {
             return Ok(PathBuf::from(v));
         }

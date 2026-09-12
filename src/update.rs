@@ -1,9 +1,9 @@
-//! oma 自更新（用户定调 2026-09-02：去 GitHub 升级新版本；封版前本地测试，
+//! hst 自更新（用户定调 2026-09-02：去 GitHub 升级新版本；封版前本地测试，
 //! releases 为空时走 `--git` 源码安装路径）。
 //! 机制见 S028：releases/latest API、资产命名约定 `oma-<triple>.(zip|tar.gz)`、
 //! Windows 运行中自替换（rename 舞步）、Unix 原子 rename 覆盖。
-//! D16：`OMA_MIRROR=<基址>` 镜像通道只覆盖 dev（镜像无 manifest，判新走
-//! `<基址>/oma/dev/<资产名>.sha256` 边车）；stable 与未设置时行为不变。
+//! D16：`HST_MIRROR=<基址>` 镜像通道只覆盖 dev（镜像无 manifest，判新走
+//! `<基址>/hst/dev/<资产名>.sha256` 边车）；stable 与未设置时行为不变。
 //! 镜像侧仅网络类失败回落 GitHub；哈希不符是安全问题，报错不回落。
 
 use std::path::{Path, PathBuf};
@@ -11,9 +11,9 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 
 /// Default repo; `--repo owner/name` overrides. 更名预备（2026-09-02）：
-/// 仓库名 OhMyAgents → ohmyagents-rs；GitHub 更名后旧名 URL 自动重定向，
+/// 仓库名 OhMyAgents → hst-rs；GitHub 更名后旧名 URL 自动重定向，
 /// 此值在更名前后均可用。
-pub const DEFAULT_REPO: &str = "raystyle/ohmyagents-rs";
+pub const DEFAULT_REPO: &str = "raystyle/hst-rs";
 
 const UA: &str = concat!("oma/", env!("CARGO_PKG_VERSION"));
 
@@ -70,7 +70,7 @@ pub fn fetch_release(repo: &str, channel: Channel) -> Result<Release, String> {
         Ok(r) => r,
         Err(ureq::Error::Status(404, _)) => {
             return Err(format!(
-                "release '{ch}' not published for {repo} yet (pre-release phase); use `oma self update --git`",
+                "release '{ch}' not published for {repo} yet (pre-release phase); use `hst self update --git`",
                 ch = channel.as_str()
             ))
         }
@@ -146,7 +146,7 @@ pub fn version_newer(tag: &str, current: &str) -> bool {
 /// 上次安装记录：`~/.oma/selfupdate.json`（资产 digest 为判据——
 /// digest 是压缩包哈希，与 exe 哈希不可比）。
 fn record_path() -> Result<PathBuf, String> {
-    Ok(crate::install::oma_home()?.join("selfupdate.json"))
+    Ok(crate::install::hst_home()?.join("selfupdate.json"))
 }
 
 fn read_record_digest() -> Option<String> {
@@ -184,11 +184,19 @@ fn dev_is_current(release: &Release) -> bool {
     digest_matches(read_record_digest().as_deref(), asset.digest.as_deref())
 }
 
-// ===== D16 镜像通道（OMA_MIRROR，只覆盖 dev） =====
+// ===== D16 镜像通道（HST_MIRROR，只覆盖 dev） =====
 
-/// 镜像开关：`OMA_MIRROR=<基址>`（去空白与尾斜杠）；未设/空 = None（行为与现状一致）。
+/// 镜像开关：`HST_MIRROR=<基址>`（去空白与尾斜杠）；未设/空 = None（行为与现状一致）。
 fn mirror_base() -> Option<String> {
-    let v = std::env::var("OMA_MIRROR").ok()?;
+    // D29 兼容：旧 OMA_MIRROR 一个版本内仍读，读旧打 stderr 提示。
+    let v = match std::env::var("HST_MIRROR") {
+        Ok(v) => v,
+        Err(_) => std::env::var("OMA_MIRROR").ok().inspect(|_| {
+            eprintln!(
+                "hst: OMA_MIRROR is deprecated; rename it to HST_MIRROR (removed next release)"
+            );
+        })?,
+    };
     let v = v.trim().trim_end_matches('/');
     if v.is_empty() {
         None
@@ -222,7 +230,7 @@ fn mirror_sidecar_url(base: &str, name: &str) -> String {
         .map(|d| d.as_secs())
         .unwrap_or(0);
     format!(
-        "{}/oma/dev/{name}.sha256?t={ts}",
+        "{}/hst/dev/{name}.sha256?t={ts}",
         base.trim_end_matches('/')
     )
 }
@@ -230,7 +238,7 @@ fn mirror_sidecar_url(base: &str, name: &str) -> String {
 /// 镜像资产 URL。`?v=<边车锚>` 以边车哈希为缓存键：每滚天然新键，
 /// 永久免疫「边车新、资产旧」的陈旧缓存窗口（R2 取对象只看 path）。
 fn mirror_asset_url(base: &str, name: &str, anchor: &str) -> String {
-    format!("{}/oma/dev/{name}?v={anchor}", base.trim_end_matches('/'))
+    format!("{}/hst/dev/{name}?v={anchor}", base.trim_end_matches('/'))
 }
 
 /// sha256sum 边车解析：首字段即哈希（标准双空格、单空格均可），容错
@@ -364,7 +372,7 @@ pub fn git_install(repo: &str) -> Result<(), String> {
     }
 }
 
-/// `oma self update` entry: release path with git fallback.
+/// `hst self update` entry: release path with git fallback.
 ///
 /// dev 通道（滚动源）判新：资产带 digest 且等于当前 exe 的 sha256 → 已最新；
 /// 否则更新（滚动版版本号常不变，sha256 才是判据）。latest 通道按版本比较。
@@ -394,7 +402,7 @@ pub fn run(repo: &str, channel: Channel, git_mode: bool, force: bool) -> Result<
         Ok(r) => r,
         Err(e) => {
             println!("update.release=unavailable detail={e}");
-            println!("update.hint=oma self update --git 走源码安装（封版前主路径）");
+            println!("update.hint=hst self update --git 走源码安装（封版前主路径）");
             return Ok(());
         }
     };
@@ -560,18 +568,18 @@ mod tests {
         // ?v=<边车锚>；两者基址尾斜杠归一。
         let s = mirror_sidecar_url("https://env.ohmygh.com/", "oma-x.zip");
         assert!(
-            s.starts_with("https://env.ohmygh.com/oma/dev/oma-x.zip.sha256?t="),
+            s.starts_with("https://env.ohmygh.com/hst/dev/oma-x.zip.sha256?t="),
             "sidecar url: {s}"
         );
         assert!(
-            s["https://env.ohmygh.com/oma/dev/oma-x.zip.sha256?t=".len()..]
+            s["https://env.ohmygh.com/hst/dev/oma-x.zip.sha256?t=".len()..]
                 .chars()
                 .all(|c| c.is_ascii_digit())
         );
         let a = mirror_asset_url("https://env.ohmygh.com/", "oma-x.zip", "abc123");
-        assert_eq!(a, "https://env.ohmygh.com/oma/dev/oma-x.zip?v=abc123");
+        assert_eq!(a, "https://env.ohmygh.com/hst/dev/oma-x.zip?v=abc123");
         let s2 = mirror_sidecar_url("https://env.ohmygh.com", "oma-x.zip");
-        assert!(s2.starts_with("https://env.ohmygh.com/oma/dev/oma-x.zip.sha256?t="));
+        assert!(s2.starts_with("https://env.ohmygh.com/hst/dev/oma-x.zip.sha256?t="));
     }
 
     #[test]

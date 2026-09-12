@@ -1,4 +1,4 @@
-//! `oma agents verify`（D17）：四家 agent 的 hook 与状态栏全平台无头验收。
+//! `hst agents verify`（D17）：四家 agent 的 hook 与状态栏全平台无头验收。
 //! 两层判据（S033 源码实证底座；D28 起注册面全量用户级）：
 //! - 状态栏：脚本本体直跑（mock 空 JSON 喂 stdin，断言 stdout 首行
 //!   `agent:state` 机读标记，S025）；codex 无外部命令面（M045），改为断言
@@ -84,7 +84,7 @@ fn wanted_names(names: &[String]) -> Result<Vec<String>, String> {
 pub fn run(names: &[String], timeout_secs: u64) -> Result<Vec<AgentOutcome>, String> {
     let wanted = wanted_names(names)?;
     let reports = agents::detect();
-    let home = crate::install::oma_home()?;
+    let home = crate::install::hst_home()?;
     let exe = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("oma"));
     let mut outcomes = Vec::new();
     for name in wanted {
@@ -250,11 +250,11 @@ fn codex_statusline_builtin() -> LayerVerdict {
         Ok(text) if codex_builtin_statusline_ok(&text) => LayerVerdict::Builtin,
         Ok(_) => LayerVerdict::Fail {
             reason: "status_line-missing-builtin-ids".into(),
-            hint: Some("跑 `oma agents statusline codex` 写入 [tui] 内置项 ID".into()),
+            hint: Some("跑 `hst statusline codex` 写入 [tui] 内置项 ID".into()),
         },
         Err(_) => LayerVerdict::Fail {
             reason: format!("no-config: {}", config.display()),
-            hint: Some("跑 `oma agents statusline codex` 写入 [tui] 内置项 ID".into()),
+            hint: Some("跑 `hst statusline codex` 写入 [tui] 内置项 ID".into()),
         },
     }
 }
@@ -332,7 +332,7 @@ fn verify_hook_in(
         return fail(format!("git-init: {e}"));
     }
     // D28：注册走真实用户级面（四家同一形态，byte 备份 + deploy + Drop 还原；
-    // 真实家目录直取 dirs::home_dir，不受 OMA_USER_HOME 隔离缝影响——agent
+    // 真实家目录直取 dirs::home_dir，不受 HST_USER_HOME 隔离缝影响——agent
     // 本体读的是真实家）。
     let _user_guard = match UserHooksGuard::seed() {
         Ok(g) => g,
@@ -394,7 +394,7 @@ fn verify_hook_in(
 
 /// 用户级状态目录里本轮窗口内新写的 `<agent>*.json`（取最新 mtime）。
 /// 只读不删：键文件归 SessionEnd GC 与写侧清扫管（并发的活会话不碰）。
-/// 真实家目录直取（shim 写 `%USERPROFILE%\.oma\state` 不看 OMA_HOME）。
+/// 真实家目录直取（shim 写 `%USERPROFILE%\.hst\state` 不看 OMA_HOME）。
 fn freshest_new_user_state(agent: &str, started: std::time::SystemTime) -> Option<String> {
     let home = verify_real_home().ok()?;
     let dir = crate::pathutil::data_dir(&home).join("state");
@@ -443,7 +443,7 @@ fn hook_hint(agent: &str) -> Option<String> {
     })
 }
 
-/// verify 的真实家取值（刻意不认 OMA_USER_HOME 隔离缝：live 验收要验的
+/// verify 的真实家取值（刻意不认 HST_USER_HOME 隔离缝：live 验收要验的
 /// 就是真实用户面，agent 本体只读真实家；与 grok folder trust 走认缝的
 /// user_home 是有意的两面，F6 记档）。
 fn verify_real_home() -> Result<PathBuf, String> {
@@ -460,7 +460,7 @@ struct UserHooksGuard {
 impl UserHooksGuard {
     fn seed() -> Result<Self, String> {
         let home = verify_real_home()?;
-        let oma = crate::install::oma_home()?;
+        let oma = crate::install::hst_home()?;
         let rels = [
             ".claude/settings.json",
             ".codex/hooks.json",

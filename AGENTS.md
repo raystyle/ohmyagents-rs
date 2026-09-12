@@ -7,15 +7,15 @@
 > 本项目的本质与边界。根为定位，下分本质、边界、管理对象、方案索引。
 
 1. **本质**
-   - Oh My Agents 是 Agent 全平台部署配置与诊断工具，专注五个功能（D20，2026-09-09 用户裁定）：agent 可用性诊断、hook 设置、状态栏设置、对话 trace、yolo 不阻塞设置；不做编排（D15），不管 token 环境变量注入（D20 删除 secrets 与 providers 面，密钥安全归 ohmypwsh）；对话 trace 直读原生会话库，与 rmux 零耦合（D19）。
+   - HST（Hooks, Statusline, Trace，原 Oh My Agents，v0.6.0 更名，D29）：Agent 全平台部署配置与诊断工具，专注五个功能（D20，2026-09-09 用户裁定）：agent 可用性诊断、hook 设置、状态栏设置、对话 trace、yolo 不阻塞设置；不做编排（D15），不管 token 环境变量注入（D20 删除 secrets 与 providers 面，密钥安全归 ohmypwsh）；对话 trace 直读原生会话库，与 rmux 零耦合（D19）。
 
 2. **边界**
    - 配置钉在启动的项目目录；不替代 ohmypwsh 五端环境总台，不替代各 agent 本体。
    - 不做编排（D15，2026-09-08）：spawn / send / status / serve / mcp 等编排命令与 rmux 运行时后端整体移除；原编排定位归档 P0004，本裁定归档 P0035。trace 初随 D15 连坐删除，D19 以只读检索面恢复（六视图全量）。
    - 四仓分工（2026-09-02 定调，D07 修正 agent 二进制归属，D09 钉种子不归 oma，D15 去编排，D20 去 token 注入，细目见 R001 四仓生态节）：ark-rs（原 ohmyenv-rs，`ark`，2026-09-12 三仓周知更名 Ark / Agent Runtime Kit，首版 1.0.0，镜像开 env.ohmygh.com/ark/ 段、ome/ 段兼容期保留；本地路径仍 `D:\ohmyenv-rs`）管工具、运行时依赖与 agent 二进制下装部署、本仓（`oma`）管诊断、hook、状态栏、trace 与 yolo、ohmypwsh 管五端总台与密钥安全（token 注入归此）、ohmycloud 管云端二进制分发与镜像种子；跨仓协作互相发 issue。
-   - oma 不管种子、不管 agent 二进制下装（D09，2026-09-07）、不管 token 注入（D20，2026-09-09）：只管可用性诊断、hook、状态栏、trace 与 yolo。下载、安装、部署（五端）归 ark-rs：`ark install`（更名前 `ome install`，兼容期 ome 命令与镜像段保留）幂等检测安装（已装任何来源即跳过，存量原地纳管），数据权威 ome `catalog\tools.toml` agent 四节（D07 方向反转 2026-09-05，ohmyagents#5）。本仓 `oma agents install` / `update` / `secrets` / `providers` / `login` 已随 D20 整体移除（历史口径见 R002 与 P0040）。oma doctor 的登录态 / hook 形态 / 状态栏三类检查归 agents 域（二进制在位与版本归 ome doctor）。
+   - oma 不管种子、不管 agent 二进制下装（D09，2026-09-07）、不管 token 注入（D20，2026-09-09）：只管可用性诊断、hook、状态栏、trace 与 yolo。下载、安装、部署（五端）归 ark-rs：`ark install`（更名前 `ome install`，兼容期 ome 命令与镜像段保留）幂等检测安装（已装任何来源即跳过，存量原地纳管），数据权威 ome `catalog\tools.toml` agent 四节（D07 方向反转 2026-09-05，ohmyagents#5）。本仓 `hst agents install` / `update` / `secrets` / `providers` / `login` 已随 D20 整体移除（历史口径见 R002 与 P0040）。hst doctor 的登录态 / hook 形态 / 状态栏三类检查归 agents 域（二进制在位与版本归 ome doctor）。
    - 三活仓本地路径（用户裁 2026-09-10 登记，重叠功能互相 review 时直读对方仓代码）：ohmycloud = `D:\ohmycloud`、ark-rs（原 ohmyenv-rs）= `D:\ohmyenv-rs`、ohmyagents-rs = `D:\ohmyagents-rs`（本仓）；review 重叠面（如 diagnose 与 omc agent doctor 分工）直接读 `D:\ohmycloud\src\` 对应文件。
-   - hook、skill 部署只落启动目录；hook 注册与状态通道常驻用户级（D28：注册面四家用户层、shim 与 session 分键状态在 `~/.oma/`，未 init 项目也有状态数据）；oma 自管应用数据根是 `~/.oma`（D14；旧 `~/.ohmyagents` 仅旧在则改名迁过去。agent 安装与本地 pin，P0012；D07 后安装域迁 ome，此根承载存量安装与配置数据），yolo 与 pretrust 键的写入面见 R002。
+   - hook、skill 部署只落启动目录；hook 注册与状态通道常驻用户级（D28：注册面四家用户层、shim 与 session 分键状态在 `~/.hst/`（D29 更名，旧 `~/.oma` 首启自动迁移），未 init 项目也有状态数据）；hst 自管应用数据根是 `~/.hst`（D29；旧 `~/.oma` 与 `~/.ohmyagents` 仅旧在则改名迁过去。agent 安装与本地 pin，P0012；D07 后安装域迁 ome，此根承载存量安装与配置数据），yolo 与 pretrust 键的写入面见 R002。
 
 3. **管理对象**
    - 可注册的终端 agent（当前默认 claude / codex / grok / kimi，可扩展）。
@@ -104,7 +104,7 @@
 | 追问链澄清 | 澄清完成 | PRD 状态流转加澄清轮次与裁定 |
 | 目标立项 | 开工前 | GOAL 起点与锚点（回指 D 编号）、PLAN 方案、TODO 清单 |
 | 选型与调研 | 研究完成 | S 文档（六态）加 INDEX 研究节 |
-| 交付变更 | 改动完成 | 改代码同步对应文档；命令面变化四处同步（COMMAND_MAP 加行、重跑 `oma init` 重生 SKILL、R002 加行、本文件三节加行）；INDEX 代码表同步 |
+| 交付变更 | 改动完成 | 改代码同步对应文档；命令面变化四处同步（COMMAND_MAP 加行、重跑 `hst init` 重生 SKILL、R002 加行、本文件三节加行）；INDEX 代码表同步 |
 | 写测试 | 新层或新面 | R004 落点同步、INDEX 代码表 tests 行 |
 | 写脚本 | 归档时 | `.tools\README.md` 清单行、INDEX 代码表 .tools 行 |
 | 踩坑 | 当场 | `docs\mistakes\` 对应分类文件接编一行；INDEX 错误速查节行级编号段当轮同步延长 |
@@ -118,18 +118,18 @@
 
 > 需求意图到命令的映射（摘要层）。每条命令的行为细则、机理出处、marker 行、退出码与落地状态的唯一权威见 `docs\references\R002-常用命令与管理流程-从项目init到部署诊断.md`。
 
-- **无阻塞诊断**：`oma doctor`（只读体检；登录态、hook 形态、状态栏三类归 agents 域，D07；warn 与 block 分层，block 才退出 1）
-- **检测已装 agent**：`oma agents`（PATH / 环境变量 / oma 自管根 / 默认目录四源；缺装 hint 指向 `ome install`，D20）
-- **配置状态栏**：`oma agents statusline [名] [--example]`（四家写入面幂等；用户级定制 `~/.oma/statusline.toml`：段落开关加模板图标加 codex 子集，`--script` 整脚本替换加 `--builtin` 还原，D18）
-- **hook 写状态加密钥拦截**：`oma hook`（状态落盘；block 级密钥 exit 2 拒调用）
-- **部署项目全套**：`oma init [--project PATH]`（yolo 加 hook/skill，幂等；hook 注册与 shim 常驻用户级 `~/.oma/hooks/`，状态按 session 分键写 `~/.oma/state/`，项目旧注册自动退役，零 oma 依赖可无痛轮换，D27/D28）
-- **部署 yolo 与非阻塞键**：`oma init --yolo`（用户级）或 `oma init --project-yolo`（项目级，两级显式互斥，D28 第 3 轮）；`--pretrust` 追加按项目信任库预写
-- **oma 自更新**：`oma self update [--stable] [--git]`（缺省 dev 滚动源，Windows rename 舞步；设 `OMA_MIRROR=<基址>` 走镜像 dev 段，边车 sha256 判新，网络失败回落 GitHub，D16）
-- **生成 oma 自身技能**：`oma skill [--write]`（从 clap 活命令树自适应渲染 SKILL.md，新命令自动出现；--write 落用户级 ~/.claude/skills/ohmyagents/，D22）
-- **生成补全**：`oma completions <shell>`
-- **检索对话历史**：`oma trace sessions|timeline|blocks|agent|file|search`（六视图联邦读四家原生会话库，只读，D19 恢复）
-- **无头验收 agent**：`oma agents verify [名] [--timeout N]`（状态栏 mock 直跑加 hook 无头落盘两层判据，D17/S033；skip 不计败，fail 退出 1）
-- **活性诊断**：`oma diagnose cache [别名...]` 加 `oma diagnose agents`（网关缓存命中矩阵加配置指向加别名在册加 key 活性加 thinking 对照，D21；打真 API 烧最小 token，与 doctor 的零网络体检分家）
+- **无阻塞诊断**：`hst doctor`（只读体检；登录态、hook 形态、状态栏三类归 agents 域，D07；warn 与 block 分层，block 才退出 1）
+- **检测已装 agent**：`hst agents`（PATH / 环境变量 / oma 自管根 / 默认目录四源；缺装 hint 指向 `ome install`，D20）
+- **配置状态栏**：`hst agents statusline [名] [--example]`（四家写入面幂等；用户级定制 `~/.oma/statusline.toml`：段落开关加模板图标加 codex 子集，`--script` 整脚本替换加 `--builtin` 还原，D18）
+- **hook 写状态加密钥拦截**：`hst hook`（状态落盘；block 级密钥 exit 2 拒调用）
+- **部署项目全套**：`hst init [--project PATH]`（yolo 加 hook/skill，幂等；hook 注册与 shim 常驻用户级 `~/.oma/hooks/`，状态按 session 分键写 `~/.oma/state/`，项目旧注册自动退役，零 oma 依赖可无痛轮换，D27/D28）
+- **部署 yolo 与非阻塞键**：`hst init --yolo`（用户级）或 `hst init --project-yolo`（项目级，两级显式互斥，D28 第 3 轮）；`--pretrust` 追加按项目信任库预写
+- **oma 自更新**：`hst self update [--stable] [--git]`（缺省 dev 滚动源，Windows rename 舞步；设 `OMA_MIRROR=<基址>` 走镜像 dev 段，边车 sha256 判新，网络失败回落 GitHub，D16）
+- **生成 oma 自身技能**：`hst skill [--write]`（从 clap 活命令树自适应渲染 SKILL.md，新命令自动出现；--write 落用户级 ~/.claude/skills/ohmyagents/，D22）
+- **生成补全**：`hst completions <shell>`
+- **检索对话历史**：`hst trace sessions|timeline|blocks|agent|file|search`（六视图联邦读四家原生会话库，只读，D19 恢复）
+- **无头验收 agent**：`hst agents verify [名] [--timeout N]`（状态栏 mock 直跑加 hook 无头落盘两层判据，D17/S033；skip 不计败，fail 退出 1）
+- **活性诊断**：`hst diagnose cache [别名...]` 加 `hst diagnose agents`（网关缓存命中矩阵加配置指向加别名在册加 key 活性加 thinking 对照，D21；打真 API 烧最小 token，与 doctor 的零网络体检分家）
 - **输出格式契约**：全局 `--format kv|json|jsonl` 加 `--json` 简写（信封冻结面见 R011）
 
 编排命令（check / spawn / respawn / status / send / key / run / task / settle / cleanup / REPL / web / serve / mcp）已随 D15 移除；token 注入面（agents secrets / providers / login）与 install / update 兼容层已随 D20 移除；历史口径见归档 P0001 至 P0034 与 P0040。新想法走 G003 五步再立项，禁止把未验收口径写成已可跑。

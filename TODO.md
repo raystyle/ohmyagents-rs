@@ -4,7 +4,17 @@
 
 ## 当前目标
 
-D28 状态栏跨项目失效根修（2026-09-11 立项，同日四轮裁定闭环：第 1 轮 hook 用户级、第 2 轮 yolo 用户级、第 3 轮 yolo 两级显式、第 4 轮双级冲突 CTA；另收状态栏中文乱码根修）：
+D29 oma 更名 HST / hst / v0.6.0（2026-09-12 立项，破坏性一次做完）：
+
+- [ ] 阶段 1 crate 与标识（hst-cli / bin hst / 信封 tool 字段 / 0.6.0）
+- [ ] 阶段 2 命令面（hst hook init|status|verify、statusline 一级化加 alias、trace/agents/init/doctor/diagnose/self/skill/completions）
+- [ ] 阶段 3 路径与 env（~/.hst 加 HST_ROOT、启动探测迁移、init 并 heal、HST_* env 新读旧提示）
+- [ ] 阶段 4 资产与自更新（hst-* 资产、oma stub、mirror 双推一版本）
+- [ ] 阶段 5 文档（七面加 P0046 归档加 CHANGELOG）
+- [ ] 阶段 6 测试（迁移三用例加八条验收加三平台矩阵）
+- [ ] 阶段 7 发版（repo 改名 hst-rs、v0.6.0、digest、herdr 知会）
+
+D28 前目标（2026-09-11 四轮裁定当日闭环归档 P0045，v0.5.4 发版对端验锚全绿）清单见 git 历史：
 
 - [x] shim 用户级加 session 分键双写与 SessionEnd GC（src\shim.rs）
 - [x] 注册四家迁用户级（claude/codex/grok/kimi，src\deploy.rs）
