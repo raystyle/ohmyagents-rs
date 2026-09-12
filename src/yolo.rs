@@ -81,6 +81,70 @@ fn unix_millis() -> u128 {
         .unwrap_or(0)
 }
 
+/// yolo 分级（D33，2026-09-13 ohmycloud 协调批）：full = 现行全 bypass；
+/// partial = 危险操作仍确认（编辑类自动过、命令执行与 MCP 审批保留确认）；
+/// off = 全关（摘 hst 落键恢复各家默认确认，用户自设值保留）。
+/// 四家 partial 取值：claude `acceptEdits`（官方 permission-mode 取值）、
+/// codex `workspace-write` 加 `on-request`（官方 config 文档）、kimi `auto`
+/// （doctor 既有 ok 值）、grok `auto`（grok-build `permissions.rs`
+/// `parse_permission_mode_canonical` 值集 always-approve|auto|ask，未知串
+/// 回落 ask 安全向 [实证: 2026-09-13 上游源码加本机 --help 复核]）。
+#[derive(Clone, Copy, PartialEq, Eq, Debug, clap::ValueEnum)]
+pub enum YoloLevel {
+    /// 全 bypass：编辑与命令执行全放行（现行 --yolo 行为）
+    Full,
+    /// 危险操作仍确认：编辑类自动过，命令执行与 MCP 审批保留
+    Partial,
+    /// 全关：摘 hst 落的 yolo 键，恢复各家默认确认
+    Off,
+}
+
+impl YoloLevel {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            YoloLevel::Full => "full",
+            YoloLevel::Partial => "partial",
+            YoloLevel::Off => "off",
+        }
+    }
+}
+
+/// 每级的四家落键值（off 无写入键，走退役路径）。
+struct LevelKeys {
+    claude_mode: &'static str,
+    codex_sandbox: &'static str,
+    codex_approval: &'static str,
+    kimi_mode: &'static str,
+    grok_mode: &'static str,
+}
+
+fn level_keys(level: YoloLevel) -> LevelKeys {
+    match level {
+        YoloLevel::Full => LevelKeys {
+            claude_mode: "bypassPermissions",
+            codex_sandbox: "danger-full-access",
+            codex_approval: "never",
+            kimi_mode: "yolo",
+            grok_mode: "always-approve",
+        },
+        YoloLevel::Partial => LevelKeys {
+            claude_mode: "acceptEdits",
+            codex_sandbox: "workspace-write",
+            codex_approval: "on-request",
+            kimi_mode: "auto",
+            grok_mode: "auto",
+        },
+        YoloLevel::Off => unreachable!("off has no write keys"),
+    }
+}
+
+/// hst 落过的键值集（退役判 ours 用，含 full 与 partial 两代值）。
+const OURS_CLAUDE_MODES: &[&str] = &["bypassPermissions", "acceptEdits"];
+const OURS_CODEX_SANDBOX: &[&str] = &["danger-full-access", "workspace-write"];
+const OURS_CODEX_APPROVAL: &[&str] = &["never", "on-request"];
+const OURS_KIMI_MODES: &[&str] = &["yolo", "auto"];
+const OURS_GROK_MODES: &[&str] = &["always-approve", "auto"];
+
 /// 用户级 yolo 与非阻塞键（D28 第 2 轮裁定 2026-09-11：yolo 模式与非阻塞
 /// 模式也用户级，覆盖 D25「oma --yolo 面向项目级」口径；历史脉络 = 用户级
 /// 需求自 POC 期「不改家目录」约束起被逐面翻正：状态栏 P0027、kimi M058、
@@ -90,7 +154,22 @@ fn unix_millis() -> u128 {
 /// （sandbox_mode 加 approval_policy）、kimi `~/.kimi-code/config.toml`
 /// （default_permission_mode）、grok `~/.grok/config.toml`
 /// （[ui] permission_mode）。项目级旧键由 init 退役（retire_project_yolo）。
+/// D33 起 level 分级：partial 不写 enableAllProjectMcpServers（MCP 审批归
+/// trust / pretrust 面，不随 yolo 分级动）；off 走 retire_user_yolo_with。
 pub fn apply_user_yolo_with(user_home: &Path) -> Result<ApplyReport, String> {
+    apply_user_yolo_level_with(user_home, YoloLevel::Full)
+}
+
+/// 用户级分级落键（full / partial；off 调 retire_user_yolo_with）。
+pub fn apply_user_yolo_level_with(
+    user_home: &Path,
+    level: YoloLevel,
+) -> Result<ApplyReport, String> {
+    assert!(
+        level != YoloLevel::Off,
+        "off goes through retire_user_yolo_with"
+    );
+    let keys = level_keys(level);
     let mut wrote = Vec::new();
 
     let claude_user = user_home.join(".claude").join("settings.json");
@@ -109,11 +188,13 @@ pub fn apply_user_yolo_with(user_home: &Path) -> Result<ApplyReport, String> {
         permissions
             .as_object_mut()
             .unwrap()
-            .insert("defaultMode".into(), json!("bypassPermissions"));
+            .insert("defaultMode".into(), json!(keys.claude_mode));
         obj.insert("skipDangerousModePermissionPrompt".into(), Json::Bool(true));
-        // 用户级 enableAll 覆盖所有项目（per-project enabledMcpjsonServers
-        // 名单是项目语义，不上用户级）。
-        obj.insert("enableAllProjectMcpServers".into(), Json::Bool(true));
+        if level == YoloLevel::Full {
+            // 用户级 enableAll 覆盖所有项目（per-project enabledMcpjsonServers
+            // 名单是项目语义，不上用户级）。partial 不写：MCP 审批保留确认。
+            obj.insert("enableAllProjectMcpServers".into(), Json::Bool(true));
+        }
     }
     write_json(&claude_user, &shared)?;
     wrote.push(claude_user.display().to_string());
@@ -124,9 +205,12 @@ pub fn apply_user_yolo_with(user_home: &Path) -> Result<ApplyReport, String> {
         let t = table_mut(&mut ctoml)?;
         t.insert(
             "sandbox_mode".into(),
-            Toml::String("danger-full-access".into()),
+            Toml::String(keys.codex_sandbox.into()),
         );
-        t.insert("approval_policy".into(), Toml::String("never".into()));
+        t.insert(
+            "approval_policy".into(),
+            Toml::String(keys.codex_approval.into()),
+        );
     }
     write_toml(&codex_user, &ctoml)?;
     wrote.push(codex_user.display().to_string());
@@ -135,7 +219,7 @@ pub fn apply_user_yolo_with(user_home: &Path) -> Result<ApplyReport, String> {
     let mut ktoml = read_toml(&kimi_user)?;
     table_mut(&mut ktoml)?.insert(
         "default_permission_mode".into(),
-        Toml::String("yolo".into()),
+        Toml::String(keys.kimi_mode.into()),
     );
     write_toml(&kimi_user, &ktoml)?;
     wrote.push(kimi_user.display().to_string());
@@ -149,7 +233,7 @@ pub fn apply_user_yolo_with(user_home: &Path) -> Result<ApplyReport, String> {
             .or_insert_with(|| Toml::Table(toml::map::Map::new()));
         table_mut(ui)?.insert(
             "permission_mode".into(),
-            Toml::String("always-approve".into()),
+            Toml::String(keys.grok_mode.into()),
         );
     }
     write_toml(&grok_cfg, &gc)?;
@@ -163,8 +247,20 @@ pub fn apply_user_yolo_with(user_home: &Path) -> Result<ApplyReport, String> {
 /// 旗标）。写入面：claude 项目 `.claude/settings.json` 加
 /// `settings.local.json`、codex 项目 `.codex/config.toml`（yolo 键加项目
 /// 信任预种）、kimi 项目 `.kimi-code/config.toml`；grok 无项目级面
-/// （permission_mode 只能写用户级，S025）。
+/// （permission_mode 只能写用户级，S025）。D33 起 level 分级：partial 的
+/// local 不写 MCP 审批（apply_mcp_approvals 归 full 与 trust 面），codex
+/// 项目信任预种不分级（信任门是另一面，项目 config 层能加载才有分级可言）。
 pub fn apply_project_yolo(root: &Path) -> Result<ApplyReport, String> {
+    apply_project_yolo_level(root, YoloLevel::Full)
+}
+
+/// 项目级分级落键（full / partial；off 调 retire_project_yolo）。
+pub fn apply_project_yolo_level(root: &Path, level: YoloLevel) -> Result<ApplyReport, String> {
+    assert!(
+        level != YoloLevel::Off,
+        "off goes through retire_project_yolo"
+    );
+    let keys = level_keys(level);
     let root = abs_display(root);
     let mut wrote = Vec::new();
 
@@ -184,7 +280,7 @@ pub fn apply_project_yolo(root: &Path) -> Result<ApplyReport, String> {
         permissions
             .as_object_mut()
             .unwrap()
-            .insert("defaultMode".into(), json!("bypassPermissions"));
+            .insert("defaultMode".into(), json!(keys.claude_mode));
     }
     write_json(&claude_shared, &shared)?;
     wrote.push(claude_shared.display().to_string());
@@ -197,7 +293,9 @@ pub fn apply_project_yolo(root: &Path) -> Result<ApplyReport, String> {
     {
         let obj = local.as_object_mut().unwrap();
         obj.insert("skipDangerousModePermissionPrompt".into(), Json::Bool(true));
-        apply_mcp_approvals(obj, &root);
+        if level == YoloLevel::Full {
+            apply_mcp_approvals(obj, &root);
+        }
     }
     write_json(&claude_local, &local)?;
     wrote.push(claude_local.display().to_string());
@@ -209,9 +307,12 @@ pub fn apply_project_yolo(root: &Path) -> Result<ApplyReport, String> {
         let t = table_mut(&mut ctoml)?;
         t.insert(
             "sandbox_mode".into(),
-            Toml::String("danger-full-access".into()),
+            Toml::String(keys.codex_sandbox.into()),
         );
-        t.insert("approval_policy".into(), Toml::String("never".into()));
+        t.insert(
+            "approval_policy".into(),
+            Toml::String(keys.codex_approval.into()),
+        );
         let projects = t
             .entry("projects".to_string())
             .or_insert_with(|| Toml::Table(toml::map::Map::new()));
@@ -233,7 +334,7 @@ pub fn apply_project_yolo(root: &Path) -> Result<ApplyReport, String> {
     let mut ktoml = read_toml(&kimi)?;
     table_mut(&mut ktoml)?.insert(
         "default_permission_mode".into(),
-        Toml::String("yolo".into()),
+        Toml::String(keys.kimi_mode.into()),
     );
     write_toml(&kimi, &ktoml)?;
     wrote.push(kimi.display().to_string());
@@ -247,14 +348,26 @@ pub fn apply_user_yolo() -> Result<ApplyReport, String> {
     apply_user_yolo_with(&home)
 }
 
+/// 生产入口：真实家目录按级落键（full / partial）。
+pub fn apply_user_yolo_level(level: YoloLevel) -> Result<ApplyReport, String> {
+    let home = crate::pathutil::user_home()?;
+    apply_user_yolo_level_with(&home, level)
+}
+
+/// 生产入口：真实家目录用户级退役（off）。
+pub fn retire_user_yolo() -> Result<Vec<String>, String> {
+    let home = crate::pathutil::user_home()?;
+    retire_user_yolo_with(&home)
+}
+
 /// 项目级旧 yolo 键退役（D28 第 2 轮）：oma 写过的项目面键摘除（值等于
 /// ours 落值才动，用户自设其它值保留），整文件只剩空对象/空表时删文件。
-/// 返回变更描述（deploy report 收录）。
+/// D33 起 ours 值集含 full 与 partial 两代。返回变更描述（deploy report 收录）。
 pub fn retire_project_yolo(root: &Path) -> Result<Vec<String>, String> {
     let root = abs_display(root);
     let mut changed = Vec::new();
 
-    // claude 项目 settings.json：permissions.defaultMode == bypass 摘。
+    // claude 项目 settings.json：permissions.defaultMode 是 ours 落值才摘。
     let claude_shared = root.join(".claude").join("settings.json");
     if claude_shared.exists() {
         let mut v = read_json(&claude_shared)?;
@@ -263,7 +376,7 @@ pub fn retire_project_yolo(root: &Path) -> Result<Vec<String>, String> {
             if v.get("permissions")
                 .and_then(|p| p.get("defaultMode"))
                 .and_then(|m| m.as_str())
-                == Some("bypassPermissions")
+                .is_some_and(|m| OURS_CLAUDE_MODES.contains(&m))
             {
                 if let Some(p) = v.get_mut("permissions").and_then(|p| p.as_object_mut()) {
                     p.remove("defaultMode");
@@ -313,18 +426,22 @@ pub fn retire_project_yolo(root: &Path) -> Result<Vec<String>, String> {
         }
     }
 
-    // codex 项目 config.toml：sandbox/approval 等值摘（项目信任键留给
+    // codex 项目 config.toml：sandbox/approval ours 值摘（项目信任键留给
     // pretrust 面的用户 store，不动）。
     let codex = root.join(".codex").join("config.toml");
     if codex.exists() {
         let mut t = read_toml(&codex)?;
         if let Toml::Table(map) = &mut t {
             let mut dirty = false;
-            for (k, want) in [
-                ("sandbox_mode", "danger-full-access"),
-                ("approval_policy", "never"),
+            for (k, ours) in [
+                ("sandbox_mode", OURS_CODEX_SANDBOX),
+                ("approval_policy", OURS_CODEX_APPROVAL),
             ] {
-                if map.get(k).and_then(|v| v.as_str()) == Some(want) {
+                if map
+                    .get(k)
+                    .and_then(|v| v.as_str())
+                    .is_some_and(|v| ours.contains(&v))
+                {
                     map.remove(k);
                     dirty = true;
                 }
@@ -340,13 +457,17 @@ pub fn retire_project_yolo(root: &Path) -> Result<Vec<String>, String> {
         }
     }
 
-    // kimi 项目 config.toml：default_permission_mode == yolo 摘。
+    // kimi 项目 config.toml：default_permission_mode ours 值摘。
     let kimi = root.join(".kimi-code").join("config.toml");
     if kimi.exists() {
         let mut t = read_toml(&kimi)?;
         if let Toml::Table(map) = &mut t {
             let mut dirty = false;
-            if map.get("default_permission_mode").and_then(|v| v.as_str()) == Some("yolo") {
+            if map
+                .get("default_permission_mode")
+                .and_then(|v| v.as_str())
+                .is_some_and(|m| OURS_KIMI_MODES.contains(&m))
+            {
                 map.remove("default_permission_mode");
                 dirty = true;
             }
@@ -357,6 +478,146 @@ pub fn retire_project_yolo(root: &Path) -> Result<Vec<String>, String> {
                     write_toml(&kimi, &t)?;
                 }
                 changed.push(format!("{} (retired-yolo)", kimi.display()));
+            }
+        }
+    }
+
+    Ok(changed)
+}
+
+/// 用户级 yolo 键退役（D33 off）：与 retire_project_yolo 同款 ours 等值
+/// 摘除策略（hst 落值才动、用户自设值保留、整文件只剩空对象/空表时删）。
+/// 注意：skipDangerousModePermissionPrompt 与 enableAllProjectMcpServers
+/// 也由 pretrust 面写入，ours 判定无法区分落写者，off 一并摘除；需要 MCP
+/// 直通请重跑 `--pre-trust`。grok 只摘 [ui] permission_mode（ours 值）。
+pub fn retire_user_yolo_with(user_home: &Path) -> Result<Vec<String>, String> {
+    let mut changed = Vec::new();
+
+    let claude_user = user_home.join(".claude").join("settings.json");
+    if claude_user.exists() {
+        let mut v = read_json(&claude_user)?;
+        if v.is_object() {
+            let mut dirty = false;
+            if v.get("permissions")
+                .and_then(|p| p.get("defaultMode"))
+                .and_then(|m| m.as_str())
+                .is_some_and(|m| OURS_CLAUDE_MODES.contains(&m))
+            {
+                if let Some(p) = v.get_mut("permissions").and_then(|p| p.as_object_mut()) {
+                    p.remove("defaultMode");
+                    dirty = true;
+                    if p.is_empty() {
+                        v.as_object_mut().unwrap().remove("permissions");
+                    }
+                }
+            }
+            let obj = v.as_object_mut().unwrap();
+            for key in [
+                "skipDangerousModePermissionPrompt",
+                "enableAllProjectMcpServers",
+            ] {
+                if obj.get(key).and_then(|x| x.as_bool()) == Some(true) {
+                    obj.remove(key);
+                    dirty = true;
+                }
+            }
+            if dirty {
+                if v.as_object().is_some_and(|o| o.is_empty()) {
+                    fs::remove_file(&claude_user)
+                        .map_err(|e| format!("{}: {e}", claude_user.display()))?;
+                } else {
+                    write_json(&claude_user, &v)?;
+                }
+                changed.push(format!("{} (retired-yolo)", claude_user.display()));
+            }
+        }
+    }
+
+    let codex_user = user_home.join(".codex").join("config.toml");
+    if codex_user.exists() {
+        let mut t = read_toml(&codex_user)?;
+        if let Toml::Table(map) = &mut t {
+            let mut dirty = false;
+            for (k, ours) in [
+                ("sandbox_mode", OURS_CODEX_SANDBOX),
+                ("approval_policy", OURS_CODEX_APPROVAL),
+            ] {
+                if map
+                    .get(k)
+                    .and_then(|v| v.as_str())
+                    .is_some_and(|v| ours.contains(&v))
+                {
+                    map.remove(k);
+                    dirty = true;
+                }
+            }
+            if dirty {
+                if map.is_empty() {
+                    fs::remove_file(&codex_user)
+                        .map_err(|e| format!("{}: {e}", codex_user.display()))?;
+                } else {
+                    write_toml(&codex_user, &t)?;
+                }
+                changed.push(format!("{} (retired-yolo)", codex_user.display()));
+            }
+        }
+    }
+
+    let kimi_user = user_home.join(".kimi-code").join("config.toml");
+    if kimi_user.exists() {
+        let mut t = read_toml(&kimi_user)?;
+        if let Toml::Table(map) = &mut t {
+            let mut dirty = false;
+            if map
+                .get("default_permission_mode")
+                .and_then(|v| v.as_str())
+                .is_some_and(|m| OURS_KIMI_MODES.contains(&m))
+            {
+                map.remove("default_permission_mode");
+                dirty = true;
+            }
+            if dirty {
+                if map.is_empty() {
+                    fs::remove_file(&kimi_user)
+                        .map_err(|e| format!("{}: {e}", kimi_user.display()))?;
+                } else {
+                    write_toml(&kimi_user, &t)?;
+                }
+                changed.push(format!("{} (retired-yolo)", kimi_user.display()));
+            }
+        }
+    }
+
+    let grok_cfg = user_home.join(".grok").join("config.toml");
+    if grok_cfg.exists() {
+        let mut t = read_toml(&grok_cfg)?;
+        if let Toml::Table(map) = &mut t {
+            let mut dirty = false;
+            if let Some(ui) = map.get_mut("ui").and_then(|u| u.as_table_mut()) {
+                if ui
+                    .get("permission_mode")
+                    .and_then(|v| v.as_str())
+                    .is_some_and(|m| OURS_GROK_MODES.contains(&m))
+                {
+                    ui.remove("permission_mode");
+                    dirty = true;
+                }
+            }
+            if dirty {
+                if map
+                    .get("ui")
+                    .and_then(|u| u.as_table())
+                    .is_some_and(|u| u.is_empty())
+                {
+                    map.remove("ui");
+                }
+                if map.is_empty() {
+                    fs::remove_file(&grok_cfg)
+                        .map_err(|e| format!("{}: {e}", grok_cfg.display()))?;
+                } else {
+                    write_toml(&grok_cfg, &t)?;
+                }
+                changed.push(format!("{} (retired-yolo)", grok_cfg.display()));
             }
         }
     }
@@ -678,6 +939,195 @@ model = \"gpt\"
 
         std::env::remove_var("HST_USER_HOME");
         let _ = fs::remove_dir_all(&user);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn partial_yolo_writes_confirm_still_keys_and_doctor_accepts() {
+        let _g = crate::pathutil::ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let user = fresh_dir();
+        let root = fresh_dir();
+        std::env::set_var("HST_USER_HOME", &user);
+
+        let report = apply_user_yolo_level_with(&user, YoloLevel::Partial).expect("apply");
+        assert_eq!(report.wrote.len(), 4, "four user faces written");
+
+        // claude：acceptEdits 加 skip；enableAll 不写（MCP 审批保留确认）。
+        let shared = read_json(&user.join(".claude").join("settings.json")).unwrap();
+        assert_eq!(
+            shared["permissions"]["defaultMode"].as_str(),
+            Some("acceptEdits")
+        );
+        assert_eq!(
+            shared["skipDangerousModePermissionPrompt"].as_bool(),
+            Some(true)
+        );
+        assert!(
+            shared.get("enableAllProjectMcpServers").is_none(),
+            "partial must not auto-approve project MCP servers"
+        );
+
+        // codex：workspace-write / on-request（危险命令仍确认）。
+        let codex = read_toml(&user.join(".codex").join("config.toml")).unwrap();
+        assert_eq!(
+            codex.get("sandbox_mode").and_then(|v| v.as_str()),
+            Some("workspace-write")
+        );
+        assert_eq!(
+            codex.get("approval_policy").and_then(|v| v.as_str()),
+            Some("on-request")
+        );
+
+        // kimi / grok：auto。
+        let kimi = read_toml(&user.join(".kimi-code").join("config.toml")).unwrap();
+        assert_eq!(
+            kimi.get("default_permission_mode").and_then(|v| v.as_str()),
+            Some("auto")
+        );
+        let grok = read_toml(&user.join(".grok").join("config.toml")).unwrap();
+        assert_eq!(
+            grok.get("ui")
+                .and_then(|u| u.get("permission_mode"))
+                .and_then(|v| v.as_str()),
+            Some("auto")
+        );
+
+        // doctor 分级判据：partial 不误报（四家 yolo 均 ok）。
+        let d = diagnose(&root).expect("diagnose");
+        assert_eq!(d.status("claude", "yolo"), Some(Status::Ok));
+        assert_eq!(d.status("claude", "skip_prompt"), Some(Status::Ok));
+        assert_eq!(d.status("codex", "yolo"), Some(Status::Ok));
+        assert_eq!(d.status("kimi", "yolo"), Some(Status::Ok));
+        assert_eq!(d.status("grok", "yolo"), Some(Status::Ok));
+
+        std::env::remove_var("HST_USER_HOME");
+        let _ = fs::remove_dir_all(&user);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn user_yolo_off_retires_ours_and_keeps_foreign_keys() {
+        let _g = crate::pathutil::ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let user = fresh_dir();
+        std::env::set_var("HST_USER_HOME", &user);
+
+        apply_user_yolo_with(&user).expect("full");
+        // 混入用户自设键：ours 摘除必须幸存。
+        {
+            let p = user.join(".claude").join("settings.json");
+            let mut v = read_json(&p).unwrap();
+            v["permissions"]["allow"] = json!(["Bash"]);
+            v["model"] = json!("opus");
+            write_json(&p, &v).unwrap();
+        }
+        fs::write(
+            user.join(".codex").join("config.toml"),
+            "sandbox_mode = \"danger-full-access\"\napproval_policy = \"never\"\nmodel = \"gpt\"\n",
+        )
+        .unwrap();
+        fs::write(
+            user.join(".grok").join("config.toml"),
+            "[ui]\npermission_mode = \"always-approve\"\nscreen_mode = \"minimal\"\n",
+        )
+        .unwrap();
+
+        let changed = retire_user_yolo_with(&user).unwrap();
+        assert_eq!(changed.len(), 4, "four user faces retired: {changed:?}");
+        let v = read_json(&user.join(".claude").join("settings.json")).unwrap();
+        assert!(
+            v["permissions"].get("defaultMode").is_none(),
+            "ours key gone"
+        );
+        assert_eq!(
+            v["permissions"]["allow"][0].as_str(),
+            Some("Bash"),
+            "user-curated permission entries survive"
+        );
+        assert!(v.get("skipDangerousModePermissionPrompt").is_none());
+        assert!(v.get("enableAllProjectMcpServers").is_none());
+        let codex = fs::read_to_string(user.join(".codex").join("config.toml")).unwrap();
+        assert!(codex.contains("model"), "foreign key survives");
+        assert!(!codex.contains("sandbox_mode"), "ours key gone");
+        assert!(
+            !user.join(".kimi-code").join("config.toml").exists(),
+            "ours-only kimi config deleted"
+        );
+        let grok = fs::read_to_string(user.join(".grok").join("config.toml")).unwrap();
+        assert!(grok.contains("screen_mode"), "foreign key survives");
+        assert!(!grok.contains("permission_mode"), "ours key gone");
+        // 幂等（无变更）。
+        assert!(retire_user_yolo_with(&user).unwrap().is_empty());
+
+        // partial 值同样退役（ours 值集含两代）。
+        apply_user_yolo_level_with(&user, YoloLevel::Partial).unwrap();
+        let changed2 = retire_user_yolo_with(&user).unwrap();
+        assert_eq!(changed2.len(), 4, "partial values retire too: {changed2:?}");
+
+        std::env::remove_var("HST_USER_HOME");
+        let _ = fs::remove_dir_all(&user);
+    }
+
+    #[test]
+    fn project_yolo_partial_and_off_roundtrip() {
+        let root = fresh_dir();
+        let report = apply_project_yolo_level(&root, YoloLevel::Partial).expect("partial");
+        assert_eq!(report.wrote.len(), 4);
+        let shared = read_json(&root.join(".claude").join("settings.json")).unwrap();
+        assert_eq!(
+            shared["permissions"]["defaultMode"].as_str(),
+            Some("acceptEdits")
+        );
+        let local = read_json(&root.join(".claude").join("settings.local.json")).unwrap();
+        assert_eq!(
+            local["skipDangerousModePermissionPrompt"].as_bool(),
+            Some(true)
+        );
+        assert!(
+            local.get("enableAllProjectMcpServers").is_none(),
+            "partial project local writes no MCP approvals"
+        );
+        let codex_text = fs::read_to_string(root.join(".codex").join("config.toml")).unwrap();
+        assert!(codex_text.contains("workspace-write"));
+        assert!(codex_text.contains("on-request"));
+        assert!(
+            codex_text.contains("trust_level"),
+            "project trust seed is not leveled (trust is a separate face)"
+        );
+        let kimi = read_toml(&root.join(".kimi-code").join("config.toml")).unwrap();
+        assert_eq!(
+            kimi.get("default_permission_mode").and_then(|v| v.as_str()),
+            Some("auto")
+        );
+
+        // off：ours 值（含 partial 值）摘除；codex 项目信任预种留给信任面。
+        let changed = retire_project_yolo(&root).unwrap();
+        assert_eq!(changed.len(), 4, "four project faces retired: {changed:?}");
+        assert!(
+            !root.join(".claude").join("settings.json").exists(),
+            "ours-only claude project settings deleted"
+        );
+        assert!(
+            !root.join(".claude").join("settings.local.json").exists(),
+            "ours-only local deleted"
+        );
+        let codex = read_toml(&root.join(".codex").join("config.toml")).unwrap();
+        assert!(codex.get("sandbox_mode").is_none());
+        assert!(codex.get("approval_policy").is_none());
+        assert!(
+            codex.get("projects").is_some(),
+            "trust seed survives off (pretrust face)"
+        );
+        assert!(
+            !root.join(".kimi-code").join("config.toml").exists(),
+            "ours-only kimi project config deleted"
+        );
+        // 幂等。
+        assert!(retire_project_yolo(&root).unwrap().is_empty());
+
         let _ = fs::remove_dir_all(&root);
     }
 }

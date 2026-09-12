@@ -27,12 +27,24 @@ struct Cli {
 enum Commands {
     /// 用户级 yolo 与非阻塞键落盘（默认全套：yolo 键加 hook/skill 注册）
     Init {
-        /// 写用户级无阻塞键（仅 yolo，不落 hook/skill；D28 第 3 轮起两级显式）
-        #[arg(long, conflicts_with = "project_yolo")]
-        yolo: bool,
-        /// 写项目级无阻塞键（仅 yolo，项目覆盖用户级；与 --yolo 互斥）
-        #[arg(long = "project-yolo")]
-        project_yolo: bool,
+        /// 写用户级无阻塞键（仅 yolo，不落 hook/skill；D28 第 3 轮起两级显式；
+        /// D33 起取值式分级 full|partial|off，缺省 full，裸旗标兼容）
+        #[arg(
+            long,
+            value_enum,
+            num_args = 0..=1,
+            default_missing_value = "full",
+            conflicts_with = "project_yolo"
+        )]
+        yolo: Option<yolo::YoloLevel>,
+        /// 写项目级无阻塞键（仅 yolo，项目覆盖用户级；与 --yolo 互斥；D33 分级同款）
+        #[arg(
+            long = "project-yolo",
+            value_enum,
+            num_args = 0..=1,
+            default_missing_value = "full"
+        )]
+        project_yolo: Option<yolo::YoloLevel>,
         /// 预写用户家目录信任库（claude/codex/kimi/grok）
         #[arg(long = "pre-trust", alias = "pretrust")]
         pretrust: bool,
@@ -603,8 +615,8 @@ fn project_root(project: Option<PathBuf>) -> Result<PathBuf, String> {
 }
 
 fn cmd_init(
-    yolo: bool,
-    project_yolo: bool,
+    yolo: Option<yolo::YoloLevel>,
+    project_yolo: Option<yolo::YoloLevel>,
     pretrust: bool,
     project: Option<PathBuf>,
 ) -> Result<(), String> {
@@ -614,21 +626,47 @@ fn cmd_init(
     // hook registration and project skills (D28 round 2: yolo keys are
     // user-level too). Round 3: yolo scope is explicit — `--yolo` = user-level
     // keys only, `--project-yolo` = project-level keys only (project overrides
-    // user where the agent supports layering).
-    if project_yolo {
-        let report = yolo::apply_project_yolo(&root)?;
+    // user where the agent supports layering). D33: both yolo flags are
+    // level-taking (full|partial|off, bare flag = full); off retires ours keys
+    // at the chosen scope instead of writing.
+    let keys_only = yolo.is_some();
+    if let Some(level) = project_yolo {
         println!("init.flag.project_yolo=true");
-        for p in &report.wrote {
-            println!("init.wrote={p}");
+        println!("init.yolo.level={}", level.as_str());
+        match level {
+            yolo::YoloLevel::Off => {
+                for p in yolo::retire_project_yolo(&root)? {
+                    println!("init.retired={p}");
+                }
+            }
+            _ => {
+                let report = yolo::apply_project_yolo_level(&root, level)?;
+                for p in &report.wrote {
+                    println!("init.wrote={p}");
+                }
+            }
         }
         println!("init.hooks=skipped");
     } else {
-        let report = yolo::apply_user_yolo()?;
-        println!("init.flag.yolo={yolo}");
-        for p in &report.wrote {
-            println!("init.wrote={p}");
+        // 裸 init（无旗标）= 全套部署，用户级 yolo 固定 full 级；
+        // --yolo[=<级>] = 仅键模式，级别缺省 full（clap default_missing_value）。
+        let level = yolo.unwrap_or(yolo::YoloLevel::Full);
+        println!("init.flag.yolo={keys_only}");
+        println!("init.yolo.level={}", level.as_str());
+        match level {
+            yolo::YoloLevel::Off => {
+                for p in yolo::retire_user_yolo()? {
+                    println!("init.retired={p}");
+                }
+            }
+            _ => {
+                let report = yolo::apply_user_yolo_level(level)?;
+                for p in &report.wrote {
+                    println!("init.wrote={p}");
+                }
+            }
         }
-        if !yolo {
+        if !keys_only {
             let deployed = hst::deploy::deploy_all(&root)?;
             for p in &deployed.wrote {
                 println!("init.hooks.wrote={p}");
@@ -660,9 +698,9 @@ fn cmd_init(
     println!("init.project={}", root.display());
     println!(
         "init.scope={}",
-        if project_yolo {
+        if project_yolo.is_some() {
             "yolo-project"
-        } else if yolo {
+        } else if keys_only {
             "yolo"
         } else {
             "full"

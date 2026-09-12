@@ -870,6 +870,8 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
     };
     let claude_proj_mode = claude_mode_at(&claude_shared);
     let claude_user_mode = claude_mode_at(&claude_user_yolo);
+    // D33：yolo 判据分级接受（full=bypassPermissions、partial=acceptEdits）。
+    let claude_yolo_ok = |m: &str| matches!(m, "bypassPermissions" | "acceptEdits");
     match (&claude_proj_mode, &claude_user_mode) {
         // 双级冲突（D28 第 4 令）：项目遮蔽用户，warn 加对齐 CTA。
         (Some(p), Some(u)) if p != u => push_status(
@@ -880,14 +882,14 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
             &claude_shared,
             format!(
                 "conflict: project defaultMode={p} shadows user {u}; align via \
-                 `hst init --project-yolo` or drop one level (D28 r4)"
+                 `hst init --project-yolo=<level>` or drop one level (D28 r4)"
             ),
         ),
         (Some(p), Some(_)) | (Some(p), None) => push(
             &mut findings,
             "claude",
             "yolo",
-            p == "bypassPermissions",
+            claude_yolo_ok(p),
             &claude_shared,
             format!("defaultMode={p} (project level)"),
         ),
@@ -895,7 +897,7 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
             &mut findings,
             "claude",
             "yolo",
-            u == "bypassPermissions",
+            claude_yolo_ok(u),
             &claude_user_yolo,
             format!("defaultMode={u} (user level)"),
         ),
@@ -905,7 +907,7 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
             "yolo",
             false,
             &claude_user_yolo,
-            "missing permissions.defaultMode=bypassPermissions (tool prompt will block)",
+            "missing permissions.defaultMode=bypassPermissions|acceptEdits (tool prompt will block)",
         ),
     }
 
@@ -1109,8 +1111,11 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
     };
     let codex_proj_pair = codex_pair_at(proj_toml.as_ref());
     let codex_user_pair = codex_pair_at(user_toml.as_ref());
-    let codex_yolo_pair =
-        |p: &(String, String)| p == &("danger-full-access".to_string(), "never".to_string());
+    let codex_yolo_pair = |p: &(String, String)| {
+        // D33：full = danger-full-access/never，partial = workspace-write/on-request。
+        p == &("danger-full-access".to_string(), "never".to_string())
+            || p == &("workspace-write".to_string(), "on-request".to_string())
+    };
     match (&codex_proj_pair, &codex_user_pair) {
         // 双级冲突（D28 第 4 令）：项目遮蔽用户，warn 加对齐 CTA。
         (Some(p), Some(u)) if p != u => push_status(
@@ -1120,8 +1125,8 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
             Status::Warn,
             &codex_proj,
             format!(
-                "conflict: project sandbox/approval shadows user; align via \
-                 `hst init --project-yolo` or drop one level (D28 r4)"
+                "conflict: project sandbox/approval={p:?} shadows user {u:?}; align via \
+                 `hst init --project-yolo=<level>` or drop one level (D28 r4)"
             ),
         ),
         (Some(p), _) => push(
@@ -1363,7 +1368,7 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
             &kimi_proj,
             format!(
                 "conflict: project default_permission_mode={p} shadows user {u}; align via \
-                 `hst init --project-yolo` or drop one level (D28 r4)"
+                 `hst init --project-yolo=<level>` or drop one level (D28 r4)"
             ),
         ),
         (Some(p), _) => push(
@@ -1477,7 +1482,9 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
             .or_else(|| toml_str(t, "permission_mode"))
             .map(|s| s.to_string())
     });
-    let yolo_grok = grok_mode.as_deref() == Some("always-approve");
+    // D33：grok 分级接受（full=always-approve、partial=auto；canonical 值集
+    // always-approve|auto|ask，grok-build permissions.rs）。
+    let yolo_grok = matches!(grok_mode.as_deref(), Some("always-approve") | Some("auto"));
     push(
         &mut findings,
         "grok",
@@ -1486,7 +1493,9 @@ pub fn diagnose(root: &Path) -> Result<Diagnosis, String> {
         &grok_cfg,
         match grok_mode.as_deref() {
             Some(m) => format!("permission_mode={m} (user config only)"),
-            None => "missing [ui] permission_mode=always-approve in ~/.grok/config.toml".into(),
+            None => {
+                "missing [ui] permission_mode=always-approve|auto in ~/.grok/config.toml".into()
+            }
         },
     );
     let trust_grok = toml_file(&grok_tf)

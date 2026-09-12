@@ -1103,8 +1103,8 @@ pub(crate) fn codex_trust_entries(
 /// 新增子命令在此补一行，`hst init` 重跑即同步（带生成标记才覆写）。
 const COMMAND_MAP: &[(&str, &str)] = &[
     (
-        "hst init [--project PATH] [--yolo | --project-yolo]",
-        "部署 hook/skill 与 yolo 键（幂等；hook 注册用户级常驻 ~/.hst/hooks/ shim，状态按 session 分键，项目旧注册自动退役；yolo 两级显式：--yolo 用户级全机、--project-yolo 项目级覆盖，D28）",
+        "hst init [--project PATH] [--yolo[=full|partial|off] | --project-yolo[=full|partial|off]] [--pre-trust]",
+        "部署 hook/skill 与 yolo 键（幂等；hook 注册用户级常驻 ~/.hst/hooks/ shim，状态按 session 分键，项目旧注册自动退役；yolo 两级显式：--yolo 用户级全机、--project-yolo 项目级覆盖，D28；D33 分级 full/partial/off，off 摘 hst 落键，级别缺省 full）",
     ),
     (
         "hst doctor",

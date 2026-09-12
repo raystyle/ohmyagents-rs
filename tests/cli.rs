@@ -543,15 +543,15 @@ fn init_pretrust_hyphen_canonical_and_legacy_alias_both_parse() {
             .stdout(contains("init.pretrust=wrote"));
     }
     // 信任库真落用户家（claude.json 双 hasTrust* 键）。
-    let cj: serde_json::Value = serde_json::from_str(
-        &std::fs::read_to_string(user.join(".claude.json")).unwrap(),
-    )
-    .unwrap();
+    let cj: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(user.join(".claude.json")).unwrap()).unwrap();
     assert!(
-        cj["projects"].as_object().is_some_and(|p| p.values().any(|e| {
-            e["hasTrustDialogAccepted"].as_bool() == Some(true)
-                && e["hasTrustDialogHooksAccepted"].as_bool() == Some(true)
-        })),
+        cj["projects"]
+            .as_object()
+            .is_some_and(|p| p.values().any(|e| {
+                e["hasTrustDialogAccepted"].as_bool() == Some(true)
+                    && e["hasTrustDialogHooksAccepted"].as_bool() == Some(true)
+            })),
         "pretrust wrote both claude trust keys: {cj}"
     );
     // help 面只露 canonical 拼写（别名隐藏）。
@@ -561,6 +561,113 @@ fn init_pretrust_hyphen_canonical_and_legacy_alias_both_parse() {
         .success()
         .stdout(contains("--pre-trust"))
         .stdout(predicates::str::contains("--pretrust").not());
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn init_yolo_partial_and_off_level_markers() {
+    // D33：--yolo=<full|partial|off> 取值式分级；off 摘 hst 落键。
+    let tmp = std::env::temp_dir().join(format!(
+        "oma-cli-init-lvl-{}-{}",
+        std::process::id(),
+        NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    let user = tmp.join("fake-user-home");
+    let oma_root = tmp.join("fake-oma-home");
+    let proj = tmp.join("proj");
+    std::fs::create_dir_all(&user).unwrap();
+    std::fs::create_dir_all(&oma_root).unwrap();
+    // 非法级别：clap 退出 2。
+    oma()
+        .args(["init", "--yolo=bogus", "--project"])
+        .arg(&proj)
+        .env("HST_USER_HOME", &user)
+        .env("HST_ROOT", &oma_root)
+        .assert()
+        .failure()
+        .code(2);
+    // partial：标记与四家分级落键。
+    oma()
+        .args(["init", "--yolo=partial", "--project"])
+        .arg(&proj)
+        .env("HST_USER_HOME", &user)
+        .env("HST_ROOT", &oma_root)
+        .assert()
+        .success()
+        .stdout(contains("init.scope=yolo"))
+        .stdout(contains("init.yolo.level=partial"))
+        .stdout(contains("init.hooks=skipped"));
+    let uc: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(user.join(".claude").join("settings.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        uc["permissions"]["defaultMode"].as_str(),
+        Some("acceptEdits")
+    );
+    let codex = std::fs::read_to_string(user.join(".codex").join("config.toml")).unwrap();
+    assert!(
+        codex.contains("workspace-write"),
+        "codex partial sandbox: {codex}"
+    );
+    assert!(
+        codex.contains("on-request"),
+        "codex partial approval: {codex}"
+    );
+    let kimi = std::fs::read_to_string(user.join(".kimi-code").join("config.toml")).unwrap();
+    assert!(kimi.contains("auto"), "kimi partial mode: {kimi}");
+    let grok = std::fs::read_to_string(user.join(".grok").join("config.toml")).unwrap();
+    assert!(grok.contains("auto"), "grok partial mode: {grok}");
+    // off：retired 行加键摘除（kimi ours-only 文件删除）。
+    oma()
+        .args(["init", "--yolo=off", "--project"])
+        .arg(&proj)
+        .env("HST_USER_HOME", &user)
+        .env("HST_ROOT", &oma_root)
+        .assert()
+        .success()
+        .stdout(contains("init.yolo.level=off"))
+        .stdout(contains("init.retired="));
+    assert!(
+        !user.join(".claude").join("settings.json").exists(),
+        "ours-only user claude settings deleted on off (no foreign keys to keep)"
+    );
+    assert!(
+        !user.join(".kimi-code").join("config.toml").exists(),
+        "ours-only kimi config deleted on off"
+    );
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn init_project_yolo_off_retires_project_keys() {
+    // D33：项目级 off 走 retire_project_yolo（ours 等值摘除）。
+    let tmp = std::env::temp_dir().join(format!(
+        "oma-cli-init-pyoff-{}-{}",
+        std::process::id(),
+        NEXT_TEST_DIR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    let user = tmp.join("fake-user-home");
+    let proj = tmp.join("proj");
+    std::fs::create_dir_all(&user).unwrap();
+    for args in [
+        vec!["init", "--project-yolo", "--project"],
+        vec!["init", "--project-yolo=off", "--project"],
+    ] {
+        let mut cmd = oma();
+        cmd.args(&args).arg(&proj).env("HST_USER_HOME", &user);
+        cmd.assert()
+            .success()
+            .stdout(contains("init.scope=yolo-project"));
+    }
+    assert!(
+        !proj.join(".claude").join("settings.json").exists(),
+        "ours-only project claude settings retired"
+    );
+    assert!(
+        !proj.join(".kimi-code").join("config.toml").exists(),
+        "ours-only project kimi config retired"
+    );
     let _ = std::fs::remove_dir_all(&tmp);
 }
 
