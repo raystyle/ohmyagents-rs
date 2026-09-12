@@ -522,7 +522,7 @@ fn init_project_yolo_writes_project_scope_only() {
 
 #[test]
 fn init_pretrust_hyphen_canonical_and_legacy_alias_both_parse() {
-    // D32：canonical 拼写 --pre-trust，旧 --pretrust 隐藏别名兼容（v0.7 清）。
+    // D32：canonical 拼写 --pre-trust，旧 --pretrust 隐藏别名兼容（1.1.0 清）。
     // kv 标记 init.pretrust.* 不随拼写变（机器面冻结，ohmycloud 消费）。
     let tmp = std::env::temp_dir().join(format!(
         "oma-cli-init-pretrust-{}-{}",

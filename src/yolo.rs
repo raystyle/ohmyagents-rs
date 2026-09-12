@@ -82,7 +82,8 @@ fn unix_millis() -> u128 {
 }
 
 /// yolo 分级（D33，2026-09-13 ohmycloud 协调批）：full = 现行全 bypass；
-/// partial = 危险操作仍确认（编辑类自动过、命令执行与 MCP 审批保留确认）；
+/// partial = 危险操作仍确认（编辑类自动过、命令执行与 MCP 审批保留确认：
+/// ours 落的 enableAllProjectMcpServers 随降级摘除，--pre-trust 重跑可再开）；
 /// off = 全关（摘 hst 落键恢复各家默认确认，用户自设值保留）。
 /// 四家 partial 取值：claude `acceptEdits`（官方 permission-mode 取值）、
 /// codex `workspace-write` 加 `on-request`（官方 config 文档）、kimi `auto`
@@ -154,8 +155,9 @@ const OURS_GROK_MODES: &[&str] = &["always-approve", "auto"];
 /// （sandbox_mode 加 approval_policy）、kimi `~/.kimi-code/config.toml`
 /// （default_permission_mode）、grok `~/.grok/config.toml`
 /// （[ui] permission_mode）。项目级旧键由 init 退役（retire_project_yolo）。
-/// D33 起 level 分级：partial 不写 enableAllProjectMcpServers（MCP 审批归
-/// trust / pretrust 面，不随 yolo 分级动）；off 走 retire_user_yolo_with。
+/// D33 起 level 分级：partial 摘 ours 落的 enableAllProjectMcpServers（MCP
+/// 审批恢复确认，--pre-trust 重跑可再开；codex 评审 F1 裁 a）；off 走
+/// retire_user_yolo_with。
 pub fn apply_user_yolo_with(user_home: &Path) -> Result<ApplyReport, String> {
     apply_user_yolo_level_with(user_home, YoloLevel::Full)
 }
@@ -192,8 +194,20 @@ pub fn apply_user_yolo_level_with(
         obj.insert("skipDangerousModePermissionPrompt".into(), Json::Bool(true));
         if level == YoloLevel::Full {
             // 用户级 enableAll 覆盖所有项目（per-project enabledMcpjsonServers
-            // 名单是项目语义，不上用户级）。partial 不写：MCP 审批保留确认。
+            // 名单是项目语义，不上用户级）。
             obj.insert("enableAllProjectMcpServers".into(), Json::Bool(true));
+        } else {
+            // partial 摘 ours 落的 enableAll（codex 评审 F1 裁 a，2026-09-13）：
+            // full 降级后 MCP 审批要恢复确认；--pre-trust 面写的同值一并摘
+            // （ours 判定不分落写者，重跑 --pre-trust 可再开）。名单
+            // enabledMcpjsonServers 可能含用户自订，不动（与 retire 同纪律）。
+            if obj
+                .get("enableAllProjectMcpServers")
+                .and_then(|x| x.as_bool())
+                == Some(true)
+            {
+                obj.remove("enableAllProjectMcpServers");
+            }
         }
     }
     write_json(&claude_user, &shared)?;
@@ -248,8 +262,9 @@ pub fn apply_user_yolo_level_with(
 /// `settings.local.json`、codex 项目 `.codex/config.toml`（yolo 键加项目
 /// 信任预种）、kimi 项目 `.kimi-code/config.toml`；grok 无项目级面
 /// （permission_mode 只能写用户级，S025）。D33 起 level 分级：partial 的
-/// local 不写 MCP 审批（apply_mcp_approvals 归 full 与 trust 面），codex
-/// 项目信任预种不分级（信任门是另一面，项目 config 层能加载才有分级可言）。
+/// local 摘 ours 落的 enableAllProjectMcpServers（F1 裁 a，与用户级同纪律），
+/// codex 项目信任预种不分级（信任门是另一面，项目 config 层能加载才有分级
+/// 可言）。
 pub fn apply_project_yolo(root: &Path) -> Result<ApplyReport, String> {
     apply_project_yolo_level(root, YoloLevel::Full)
 }
@@ -295,6 +310,14 @@ pub fn apply_project_yolo_level(root: &Path, level: YoloLevel) -> Result<ApplyRe
         obj.insert("skipDangerousModePermissionPrompt".into(), Json::Bool(true));
         if level == YoloLevel::Full {
             apply_mcp_approvals(obj, &root);
+        } else if obj
+            .get("enableAllProjectMcpServers")
+            .and_then(|x| x.as_bool())
+            == Some(true)
+        {
+            // partial 摘 ours 落的 enableAll（F1 裁 a，与用户级同纪律）；
+            // 名单 enabledMcpjsonServers 可能含用户自订，不动。
+            obj.remove("enableAllProjectMcpServers");
         }
     }
     write_json(&claude_local, &local)?;
@@ -1069,6 +1092,71 @@ model = \"gpt\"
 
         std::env::remove_var("HST_USER_HOME");
         let _ = fs::remove_dir_all(&user);
+    }
+
+    #[test]
+    fn yolo_full_to_partial_downgrade_removes_ours_mcp_key() {
+        // codex 评审 F1（裁 a）：full 降 partial 时 ours 落的
+        // enableAllProjectMcpServers 要摘（MCP 审批恢复确认），skip 保留、
+        // defaultMode 换 acceptEdits；名单与用户自设键不动。
+        let _g = crate::pathutil::ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let user = fresh_dir();
+        std::env::set_var("HST_USER_HOME", &user);
+
+        apply_user_yolo_with(&user).expect("full");
+        {
+            // 模拟 --pre-trust 面同值键与用户自订名单并存。
+            let p = user.join(".claude").join("settings.json");
+            let mut v = read_json(&p).unwrap();
+            v["enabledMcpjsonServers"] = json!(["mine"]);
+            write_json(&p, &v).unwrap();
+        }
+        apply_user_yolo_level_with(&user, YoloLevel::Partial).expect("partial");
+        let shared = read_json(&user.join(".claude").join("settings.json")).unwrap();
+        assert_eq!(
+            shared["permissions"]["defaultMode"].as_str(),
+            Some("acceptEdits")
+        );
+        assert_eq!(
+            shared["skipDangerousModePermissionPrompt"].as_bool(),
+            Some(true),
+            "skip survives downgrade (inert under acceptEdits)"
+        );
+        assert!(
+            shared.get("enableAllProjectMcpServers").is_none(),
+            "ours enableAll removed on downgrade: {shared}"
+        );
+        assert_eq!(
+            shared["enabledMcpjsonServers"][0].as_str(),
+            Some("mine"),
+            "name list may be user-curated, untouched"
+        );
+
+        std::env::remove_var("HST_USER_HOME");
+        let _ = fs::remove_dir_all(&user);
+
+        // 项目级同型：full 落 local 审批键，partial 降级摘除。
+        let root = fresh_dir();
+        apply_project_yolo_level(&root, YoloLevel::Full).expect("full");
+        let full_local = read_json(&root.join(".claude").join("settings.local.json")).unwrap();
+        assert_eq!(
+            full_local["enableAllProjectMcpServers"].as_bool(),
+            Some(true),
+            "full project local writes mcp approvals"
+        );
+        apply_project_yolo_level(&root, YoloLevel::Partial).expect("partial");
+        let local = read_json(&root.join(".claude").join("settings.local.json")).unwrap();
+        assert_eq!(
+            local["skipDangerousModePermissionPrompt"].as_bool(),
+            Some(true)
+        );
+        assert!(
+            local.get("enableAllProjectMcpServers").is_none(),
+            "ours enableAll removed on project downgrade: {local}"
+        );
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
