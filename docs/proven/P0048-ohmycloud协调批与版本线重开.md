@@ -37,7 +37,9 @@ ohmywsl 总台（全新 Ubuntu 24.04、四家 agent 已装、`hst init --pre-tru
 
 ## 当日补丁：D38 活体验收登录闸门
 
-总台第二轮断言原文回传：红的是 grok 的 **hook 层**（`verify.grok=fail(statusline=ok)` exit 1；grok CLI 已装、无 grok 凭据，环境事实非 bug）。机理：grok 与 kimi 的无头会话先过鉴权才触发 hook（S033 取证、P0038 本机四家全绿前提是全登录、P0047 kimi 未登录 fail 前例），无凭据时 hook 层必无 state 落盘。D37 的「真阳性红」口径在总台验收场景（面板消费仓测绿）不成立，裁定分层：**仓测**加登录闸门（`login_gate_open` 探测，判据与 doctor 登录态同源 S026：grok `~/.grok/auth.json` 任一 scope 有 `key`/`refresh_token`、kimi `credentials/kimi-code.json` 的 `access_token` 非空空串墓碑除外），已装无凭据 skip 带说明、有凭据保持实跑；**产品 verify 面不动**（如实 fail，修环境归操作员）；探测纯函数单测钉 S026 形。R004 三.6「真阳性失败修环境不修测试」旧口径随批修订。经验：验收面板消费仓测、操作员消费产品面，两层红绿口径要分开裁，混用会来回修不到点。
+总台第二轮断言原文回传：红的是 grok 的 **hook 层**（`verify.grok=fail(statusline=ok)` exit 1；grok CLI 已装、无 grok 凭据，环境事实非 bug）。机理：grok 与 kimi 的无头会话先过鉴权才触发 hook（S033 取证、P0038 本机四家全绿前提是全登录、P0047 kimi 未登录 fail 前例），无凭据时 hook 层必无 state 落盘。D37 的「真阳性红」口径在总台验收场景（面板消费仓测绿）不成立，裁定分层：**仓测**加登录闸门（`login_gate_open` 探测，判据与 doctor 登录态同源 S026：grok `~/.grok/auth.json` 任一 scope 有 `key`/`refresh_token`、kimi `credentials/kimi-code.json` 的 `access_token` 非空空串墓碑除外），已装无凭据 skip 带说明、有凭据保持实跑；**产品 verify 面不动**（如实 fail，修环境归操作员）；探测纯函数单测钉 S026 形。R004 三.6「真阳性失败修环境不修测试」旧口径随批修订。
+
+**第 2 轮（终版，总台第三轮来函）**：形状闸门在总台机上误放行（凭据文件在场但不可用：占位模板/过期/吊销形态都能过文件形状检查），照跑实跑断言照红。裁定（来函明令「不是修登录闸门」）：**凭据文件形状探测无法证明可用性，唯一可靠的環境探测是 verify 结果本身**。仓测终版 = grok/kimi 跑一次不押断言，`verify.<名>.hook=ok` 才计入活体断言；不成打 `skip: <名> headless auth unavailable ... : <首条 reason>` 不计败；claude/codex 硬断言保持（无鉴权前置的探测面）；闸门文件探测与形状单测整体拆除。代价与边界：grok/kimi 的 hook 层真回归在有凭据的开发机（本机）与无凭据机器上分别由硬断言与 skip 承载，无凭据机器不捕该两家的 hook 层回归（产品 verify 面仍可手动验）。经验：**环境探测的可靠性排序 = 结果本身 > 状态文件形状 > 文件在场**；三轮才到点的根因是每轮都选了比来函诉求更「聪明」的探测层。
 
 ## 观察面
 

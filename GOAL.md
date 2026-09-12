@@ -22,7 +22,7 @@
 
 | 日期 | 进展 |
 | --- | --- |
-| 2026-09-13 | **D37 加 D38 总台 I3 两轮适配**：D37 verify 状态栏层改「验收已部署的面」（`[tui] status_line` 未部署或 pwsh 缺 PATH = skip 带 CTA，断链仍 fail；162 单测加 27 集成绿含本机 live 回归）；D38 断言原文回传后定位真凶为 grok hook 层（CLI 已装无凭据，无头会话先鉴权后触发 hook），仓测加登录闸门（grok / kimi 探测与 doctor 登录态同源 S026，无凭据 skip 带说明、有凭据实跑），产品 verify 面不动（如实 fail 修环境归操作员），R004 三.6 口径随批修订 |
+| 2026-09-13 | **D37 加 D38 总台 I3 适配（三轮到点）**：D37 verify 状态栏层改「验收已部署的面」（`[tui] status_line` 未部署或 pwsh 缺 PATH = skip 带 CTA，断链仍 fail）；D38 grok hook 层红（CLI 已装无凭据，无头会话先鉴权后触发 hook）第 1 轮登录文件闸门误放行（凭据在场但不可用），第 2 轮按令拆闸门改结果容错：grok/kimi 跑一次不押断言、hook 层 ok 才计数、不成打 skip 带首条 reason，claude/codex 硬断言保持，产品 verify 面不动（如实 fail 修环境归操作员），R004 三.6 口径随批；162 单测加 27 集成绿含本机四家活体 |
 | 2026-09-13 | **D37 verify 状态栏层环境探测**（ohmywsl 总台 I3 项）：verify 状态栏层改「验收已部署的面」，`[tui] status_line` 未部署或 pwsh 缺 PATH = skip 不计败带 CTA（状态栏是可选面），已部署断链仍 fail；hook 层保持严格（登录缺失红属真阳性）；162 单测加 27 集成全绿含本机 live 回归；R002 verify 行同步、P0048 当日补丁节 |
 | 2026-09-13 | **D31 至 D35 当日闭环加 v1.0.0 发版**：herdr codex 三轮评审达成一致（F1 裁 a 摘 ours enableAll 加降级回归、二轮 A 裁改口径名单无法归因一律保留、B 至 E 五处收口、三轮终局零新发现）；tag v1.0.0 打在 ed94f94，CI 绿、十二资产齐、镜像 hst/stable 与 oma/stable 到货核验（win 主资产 digest 三方对账全等 92bad62855a87）、herdr 知会 ohmycloud（版本加六资产 sha256）；README 与仓库描述重写生效（D35）；S034 状态栏 HUD 研究落档、D36 登记排队；归档 P0048 |
 | 2026-09-13 | **封版闸门与批扩容**：herdr 同步右侧 codex 独立评审达成一致才 tag（用户令）；首轮评审回执 = D31/D32/D34 零异议、D33 一条 F1（full 降 partial 不摘 ours 落的 MCP 审批键，语义矛盾）加 F2/F3 轻量，F1 裁 a 落修（partial 摘 ours enableAll 加降级回归测试，160 单测加 27 集成全绿）、F2/F3 收口、根 SKILL.md 编排遗物删除；用户并入需求四（D35：README 与仓库描述重写随批交付，仓库描述已改一句话）与 D36 状态栏 HUD 簇登记（研究先行，不阻塞本批） |
